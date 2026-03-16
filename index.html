@@ -587,21 +587,33 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
     </div>
     <div style="display:flex;flex-direction:column;gap:14px;">
       <div class="sh"><div class="st"><div class="std"></div>엑셀 일괄 업로드</div></div>
-      <div class="ibox"><b>열 순서:</b> 이름 / 연락처 / 주소 / 세트(A·B·C) / 유형(정기·선택) / 횟수 / 현관번호 / 요청사항 / 메모<br>1행은 헤더로 자동 건너뜁니다.</div>
+      <div class="ibox">
+        <b>스마트스토어 주문 엑셀을 그대로 업로드하세요.</b><br>
+        수령자명·연락처·주소·배송메모를 자동으로 읽어옵니다.<br>
+        세트(A·B·C)는 업로드 후 직접 선택하거나 상품명에 포함되면 자동 인식됩니다.
+      </div>
       <div class="dz" id="dz" onclick="document.getElementById('xlf').click()" ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
         <div style="font-size:32px;margin-bottom:8px;">📊</div>
-        <div style="font-size:13px;font-weight:600;color:var(--text2);">엑셀 파일을 드래그하거나 클릭</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px;">.xlsx .xls 지원</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text2);">스마트스토어 주문 엑셀을 드래그하거나 클릭</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">.xlsx .xls 지원 · 1행 헤더 자동 건너뜀</div>
       </div>
       <input type="file" id="xlf" accept=".xlsx,.xls" style="display:none" onchange="readXl(this)">
       <div id="xlWrap" style="display:none;">
-        <div class="sh">
+        <div class="sh" style="margin-bottom:6px;">
           <div style="font-size:13px;font-weight:600;">미리보기 <span id="xlCnt" style="color:var(--text3);font-weight:400;font-size:12px;"></span></div>
-          <button class="btn btn-p sm" onclick="regXl()">전체 등록</button>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-d sm" onclick="resetXl()">🗑 초기화</button>
+            <button class="btn btn-p sm" onclick="regXl()">✓ 전체 등록</button>
+          </div>
         </div>
-        <div class="card" style="overflow:auto;max-height:300px;"><div class="tw">
-          <table><thead><tr><th>#</th><th>이름</th><th>연락처</th><th>주소</th><th>세트</th><th>유형</th><th>횟수</th></tr></thead>
-          <tbody id="xlPrev"></tbody></table>
+        <div class="ibox" style="margin-bottom:8px;border-color:rgba(227,98,9,.3);background:rgba(227,98,9,.06);">
+          ⚠ <b>세트를 반드시 확인하세요.</b> 미선택 시 등록되지 않습니다. 개별 ✕ 버튼으로 제외 가능합니다.
+        </div>
+        <div class="card" style="overflow:auto;max-height:360px;"><div class="tw">
+          <table>
+            <thead><tr><th>#</th><th>수령자명</th><th>연락처</th><th>주소</th><th>세트 ⚠확인</th><th>유형</th><th>배송메모</th><th>제외</th></tr></thead>
+            <tbody id="xlPrev"></tbody>
+          </table>
         </div></div>
       </div>
     </div>
@@ -677,7 +689,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 // ════════════════════════════════════════
 const PASSWORDS = [
   'tkdgns1q2w!',   // ← 비밀번호 1 (직접 바꿔주세요)
-  'tkdgns1q2w@',   // ← 비밀번호 2 (직접 바꿔주세요)
+  'rotozl12!',   // ← 비밀번호 2 (직접 바꿔주세요)
 ];
 const SESSION_KEY = 'gjsr_auth';
 const SESSION_HOURS = 8; // 몇 시간 동안 로그인 유지
@@ -857,8 +869,14 @@ async function markAll(){
 // ════════════════════════════════════════
 // 배송 로직
 // ════════════════════════════════════════
-function todayStr(){ return new Date().toISOString().split('T')[0]; }
-function dow(ds){ return new Date(ds+'T00:00:00').getDay(); }
+function todayStr(){
+  const n=new Date();
+  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+}
+function dow(ds){
+  const [y,m,d]=ds.split('-').map(Number);
+  return new Date(y,m-1,d).getDay();
+}
 function isDelivSub(c,ds){ return c.status==='active'&&c.remain>0&&c.orderType==='sub'&&(c.arriveDays||[]).includes(dow(ds)); }
 function isDelivOnce(c,ds){ return c.status==='active'&&c.remain>0&&c.orderType==='once'&&c.onceDate===ds; }
 function isDeliv(c,ds){ return isDelivSub(c,ds)||isDelivOnce(c,ds); }
@@ -866,51 +884,63 @@ function listFor(ds){ return custs.filter(c=>isDeliv(c,ds)); }
 function todayList(){ return listFor(todayStr()); }
 
 // ════════════════════════════════════════
+// 날짜 유틸 - timezone 문제 없는 방식
+// ════════════════════════════════════════
+function addDays(dateStr, d){
+  // "2026-03-16" 형식에서 timezone 오류 없이 날짜 이동
+  const [y,m,day] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, day+d);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+function dateLabel(dateStr){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return `${y}.${String(m).padStart(2,'0')}.${String(d).padStart(2,'0')} (${DAYS[dt.getDay()]})`;
+}
+
+// ════════════════════════════════════════
 // 대시보드 날짜 네비
 // ════════════════════════════════════════
 function moveDashDate(d){
-  const inp=document.getElementById('dashDate');
-  const dt=new Date(inp.value+'T00:00:00');
-  dt.setDate(dt.getDate()+d);
-  inp.value=dt.toISOString().split('T')[0];
+  const inp = document.getElementById('dashDate');
+  const cur = inp.value || todayStr();
+  inp.value = addDays(cur, d);
   updateDashDisp(); renderDash();
 }
 function resetDashDate(){
-  document.getElementById('dashDate').value=todayStr();
+  document.getElementById('dashDate').value = todayStr();
   updateDashDisp(); renderDash();
 }
 function updateDashDisp(){
-  const v=document.getElementById('dashDate').value;
+  const v = document.getElementById('dashDate').value;
   if(!v) return;
-  const d=new Date(v+'T00:00:00');
-  const isToday=v===todayStr();
-  document.getElementById('dashDateDisp').textContent=
-    `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} (${DAYS[d.getDay()]})${isToday?' ← 오늘':''}`;
-  document.getElementById('dash-date-lbl').textContent=isToday?'오늘 배송':`${String(d.getMonth()+1)}/${String(d.getDate())} 배송`;
-  document.getElementById('dash-list-title').textContent=isToday?'오늘 배송':`${String(d.getMonth()+1)}월 ${String(d.getDate())}일 배송`;
+  const isToday = v === todayStr();
+  document.getElementById('dashDateDisp').textContent =
+    dateLabel(v) + (isToday ? ' ← 오늘' : '');
+  const [,m,d] = v.split('-').map(Number);
+  document.getElementById('dash-date-lbl').textContent  = isToday ? '오늘 배송'  : `${m}/${d} 배송`;
+  document.getElementById('dash-list-title').textContent = isToday ? '오늘 배송'  : `${m}월 ${d}일 배송`;
 }
 
 // ════════════════════════════════════════
 // 배송관리 날짜 네비
 // ════════════════════════════════════════
 function moveTodayDate(d){
-  const inp=document.getElementById('todayDate');
-  const dt=new Date(inp.value+'T00:00:00');
-  dt.setDate(dt.getDate()+d);
-  inp.value=dt.toISOString().split('T')[0];
+  const inp = document.getElementById('todayDate');
+  const cur = inp.value || todayStr();
+  inp.value = addDays(cur, d);
   updateTodayDisp(); renderToday();
 }
 function resetTodayDate(){
-  document.getElementById('todayDate').value=todayStr();
+  document.getElementById('todayDate').value = todayStr();
   updateTodayDisp(); renderToday();
 }
 function updateTodayDisp(){
-  const v=document.getElementById('todayDate').value;
+  const v = document.getElementById('todayDate').value;
   if(!v) return;
-  const d=new Date(v+'T00:00:00');
-  const isToday=v===todayStr();
-  document.getElementById('todayDateDisp').textContent=
-    `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} (${DAYS[d.getDay()]})${isToday?' ← 오늘':''}`;
+  const isToday = v === todayStr();
+  document.getElementById('todayDateDisp').textContent =
+    dateLabel(v) + (isToday ? ' ← 오늘' : '');
 }
 
 // ════════════════════════════════════════
@@ -1312,12 +1342,60 @@ function clearParse(){
 }
 
 // ════════════════════════════════════════
-// 엑셀
+// 엑셀 (스마트스토어 양식 기준)
+// 컬럼 인덱스 (0-based):
+//  0:판매채널  1:주문번호  2:주문상태  3:총품목합계  4:총할인  5:총배송비
+//  6:총포인트  7:최종주문금액  8:주문자이름  9:이메일  10:주문자번호
+//  11:배송방식  12:배송비결제  13:송장번호  14:주문섹션번호  15:주문섹션품목번호
+//  16:구매수량  17:상품명  18:옵션명  19:판매가  ...
+//  24:수령자명  25:수령자전화  26:국가코드  27:우편번호  28:주소  29:상세주소
+//  30:배송메모  31:택배사명  32:취소사유  33:반품사유  34:취소상세  35:반품상세
+//  36:주문일  37:상품고유번호
 // ════════════════════════════════════════
+
+function parseXlRow(r){
+  // 세트 파싱 (상품명·옵션명에서 A/B/C세트 추출)
+  const productName = String(r[17]||r[18]||'');
+  const optionName  = String(r[18]||'');
+  let set = '';
+  const setMatch = (productName+' '+optionName).match(/([ABC])세트/i);
+  if(setMatch) set = setMatch[1].toUpperCase();
+
+  // 주문유형 (상품명 or 옵션명에서 정기/선택 판별)
+  const isRegular = /정기/.test(productName+optionName);
+
+  // 주소 합치기 (주소 + 상세주소)
+  const addr = [String(r[28]||''), String(r[29]||'')].filter(Boolean).join(' ').trim();
+
+  // 수령자명: 24번. 없으면 주문자(8번)
+  const name = String(r[24]||r[8]||'').trim();
+
+  // 전화: 25번(수령자). 없으면 주문자(10번)
+  const phone = String(r[25]||r[10]||'').trim();
+
+  // 배송메모: 30번
+  const request = String(r[30]||'').trim();
+
+  // 주문번호: 1번 (섹션품목번호 15번)
+  const orderNum = String(r[15]||r[1]||'').trim();
+
+  // 주문상태
+  const status = String(r[2]||'').trim();
+
+  // 현관비밀번호: 배송메모에서 추출 시도
+  let door = '';
+  const doorMatch = request.match(/현관\s*비밀번호\s*[:：]?\s*(\S+)/i)
+    || request.match(/공동\s*현관\s*[:：]?\s*(\S+)/i);
+  if(doorMatch) door = doorMatch[1];
+
+  return { name, phone, addr, door, request, set, orderType: isRegular?'sub':'once', orderNum, orderStatus: status };
+}
+
 function dzOver(e){e.preventDefault();document.getElementById('dz').classList.add('drag');}
 function dzLeave(){document.getElementById('dz').classList.remove('drag');}
 function dzDrop(e){e.preventDefault();dzLeave();const f=e.dataTransfer.files[0];if(f)procXl(f);}
 function readXl(inp){if(inp.files[0])procXl(inp.files[0]);}
+
 function procXl(file){
   const r=new FileReader();
   r.onload=e=>{
@@ -1325,38 +1403,83 @@ function procXl(file){
       const wb=XLSX.read(e.target.result,{type:'binary'});
       const ws=wb.Sheets[wb.SheetNames[0]];
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      xlData=rows.slice(1).filter(r=>r[0]).map(r=>({
-        name:String(r[0]||'').trim(), phone:String(r[1]||'').trim(),
-        addr:String(r[2]||'').trim(), set:String(r[3]||'').trim().toUpperCase().replace('세트',''),
-        orderType:/정기/.test(String(r[4]))?'sub':'once',
-        total:parseInt(r[5])||1, door:String(r[6]||'').trim(),
-        request:String(r[7]||'').trim(), memo:String(r[8]||'').trim(),
-      }));
-      document.getElementById('xlCnt').textContent=xlData.length+'건';
-      document.getElementById('xlPrev').innerHTML=xlData.slice(0,20).map((c,i)=>`<tr>
-        <td>${i+1}</td><td><strong>${c.name}</strong></td><td>${c.phone}</td>
-        <td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.addr}</td>
-        <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
-        <td><span class="badge ${c.orderType==='sub'?'b-sub':'b-once'}">${c.orderType==='sub'?'정기':'선택'}</span></td>
-        <td>${c.total}</td></tr>`).join('');
+
+      // 1행 = 헤더, 2행부터 데이터. 이름(수령자) 있는 행만
+      const dataRows = rows.slice(1).filter(r => String(r[24]||r[8]||'').trim());
+      xlData = dataRows.map(parseXlRow);
+
+      // 중복제거: 같은 이름+연락처 조합
+      const seen = new Set();
+      xlData = xlData.filter(c => {
+        const key = c.name+'|'+c.phone;
+        if(seen.has(key)) return false;
+        seen.add(key); return true;
+      });
+
+      document.getElementById('xlCnt').textContent = xlData.length+'건';
+      renderXlPreview();
       document.getElementById('xlWrap').style.display='block';
-      toast(xlData.length+'건 인식됨','info');
-    }catch(err){toast('엑셀 오류: '+err.message,'er');}
+      toast(xlData.length+'건 인식됨 (중복 제거 완료)','info');
+    }catch(err){ toast('엑셀 오류: '+err.message,'er'); }
   };
   r.readAsBinaryString(file);
 }
+
+function renderXlPreview(){
+  document.getElementById('xlPrev').innerHTML = xlData.map((c,i)=>`
+    <tr id="xlrow-${i}">
+      <td>${i+1}</td>
+      <td><strong>${c.name}</strong></td>
+      <td style="white-space:nowrap;">${c.phone}</td>
+      <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.addr}">${c.addr}</td>
+      <td>
+        <select class="inp inp-sm" onchange="xlData[${i}].set=this.value" style="width:80px;">
+          <option value="" ${!c.set?'selected':''}>미정</option>
+          <option value="A" ${c.set==='A'?'selected':''}>A세트</option>
+          <option value="B" ${c.set==='B'?'selected':''}>B세트</option>
+          <option value="C" ${c.set==='C'?'selected':''}>C세트</option>
+        </select>
+      </td>
+      <td><span class="badge ${c.orderType==='sub'?'b-sub':'b-once'}">${c.orderType==='sub'?'정기':'선택'}</span></td>
+      <td style="font-size:11px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.request}">${c.request||'—'}</td>
+      <td>
+        <button class="btn btn-d sm" onclick="xlData.splice(${i},1);renderXlPreview();document.getElementById('xlCnt').textContent=xlData.length+'건';">✕</button>
+      </td>
+    </tr>`).join('');
+}
+
 async function regXl(){
-  if(!xlData.length){toast('데이터 없음','er');return;}
+  if(!xlData.length){ toast('데이터 없음','er'); return; }
+  const noSet = xlData.filter(c=>!c.set);
+  if(noSet.length){
+    toast(`세트 미선택 ${noSet.length}건이 있습니다. 모두 선택 후 등록하세요.`,'er'); return;
+  }
   if(!confirm(xlData.length+'건을 모두 등록하시겠습니까?')) return;
   const t=todayStr(); let ok=0;
   try{
     for(const c of xlData){
-      const data={name:c.name,phone:c.phone,addr:c.addr,door:c.door,request:c.request,set:c.set,memo:c.memo,status:'active',deliveredDates:[],createdAt:new Date().toISOString(),orderType:c.orderType,total:c.total,remain:c.total,scheduleName:c.orderType==='sub'?'정기배송':'선택주문',arriveDays:[],startDate:t,onceDate:c.orderType==='once'?t:''};
+      const data={
+        name:c.name, phone:c.phone, addr:c.addr, door:c.door||'',
+        request:c.request||'', set:c.set, memo:`주문번호: ${c.orderNum||''}`,
+        status:'active', deliveredDates:[], createdAt:new Date().toISOString(),
+        orderType:c.orderType, total:1, remain:1,
+        scheduleName:c.orderType==='sub'?'정기배송':'선택주문 (1회)',
+        arriveDays:[], startDate:t, onceDate:c.orderType==='once'?t:''
+      };
       await window.__add(window.__col(window.__db,'customers'),data); ok++;
     }
     toast(ok+'건 등록 완료!','ok');
-    document.getElementById('xlWrap').style.display='none'; xlData=[];
-  }catch(e){toast(`오류 (${ok}건 완료 후 중단): `+e.message,'er');}
+    resetXl();
+  }catch(e){ toast(`오류 (${ok}건 완료 후 중단): `+e.message,'er'); }
+}
+
+function resetXl(){
+  xlData=[];
+  document.getElementById('xlWrap').style.display='none';
+  document.getElementById('xlf').value='';
+  document.getElementById('xlPrev').innerHTML='';
+  document.getElementById('xlCnt').textContent='';
+  toast('초기화 완료','ok');
 }
 
 // ════════════════════════════════════════
