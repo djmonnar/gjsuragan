@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>궁중수라간 · 배송 관리</title>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  const cfg={
+<!-- Firebase compat (v9 compat = 전통 방식, window 전역 사용 가능) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+  const _fbCfg = {
     apiKey:"AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A",
     authDomain:"gjsuragan-60505.firebaseapp.com",
     projectId:"gjsuragan-60505",
@@ -17,10 +17,8 @@
     messagingSenderId:"1009198450175",
     appId:"1:1009198450175:web:4a55da7c2092dba42613ca"
   };
-  const app=initializeApp(cfg); const db=getFirestore(app);
-  window.__db=db; window.__col=collection; window.__add=addDoc;
-  window.__upd=updateDoc; window.__del=deleteDoc; window.__doc=doc; window.__snap=onSnapshot;
-  window.dispatchEvent(new Event('fbReady'));
+  firebase.initializeApp(_fbCfg);
+  window.__DB = firebase.firestore();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -871,10 +869,11 @@ let reportOffset=0;   // 주 또는 월 오프셋
 // ════════════════════════════════════════
 // Firebase
 // ════════════════════════════════════════
-window.addEventListener('fbReady',()=>{
+function initFirestore(){
+  if(!window.__DB){ setTimeout(initFirestore, 200); return; }
   document.getElementById('fbDot').classList.add('on');
   document.getElementById('fbTxt').textContent='연결됨';
-  window.__snap(window.__col(window.__db,'customers'), snap=>{
+  window.__DB.collection('customers').onSnapshot(snap=>{
     custs=snap.docs.map(d=>({id:d.id,...d.data()}));
     refreshAll();
     document.getElementById('loading').style.display='none';
@@ -882,8 +881,9 @@ window.addEventListener('fbReady',()=>{
     toast('Firestore 오류: '+err.message,'er');
     document.getElementById('loading').style.display='none';
   });
-});
-setTimeout(()=>{ document.getElementById('loading').style.display='none'; },4000);
+}
+setTimeout(initFirestore, 300);
+setTimeout(()=>{ document.getElementById('loading').style.display='none'; },5000);
 
 // ════════════════════════════════════════
 // CRUD
@@ -932,7 +932,7 @@ async function saveNew(){
   }
 
   try{
-    await window.__add(window.__col(window.__db,'customers'), data);
+    await window.__DB.collection('customers').add(data);
     closeM('addM'); clearAdd(); toast(n+' 등록 완료!','ok');
   } catch(e){ toast('등록 오류: '+e.message,'er'); }
 }
@@ -946,7 +946,7 @@ async function saveEdit(){
     status:g('est'),remain:parseInt(g('erem'))||0,total:parseInt(g('etot'))||1,memo:g('em')};
   const od=g('eodate'); if(od) upd.onceDate=od;
   try{
-    await window.__upd(window.__doc(window.__db,'customers',editId),upd);
+    await window.__DB.collection('customers').doc(editId).update(upd);
     closeM('editM'); toast(upd.name+' 수정 완료','ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
 }
@@ -954,7 +954,7 @@ async function saveEdit(){
 async function delCust(){
   if(!confirm('삭제하시겠습니까? 복구 불가합니다.')) return;
   try{
-    await window.__del(window.__doc(window.__db,'customers',editId));
+    await window.__DB.collection('customers').doc(editId).delete();
     closeM('editM'); toast('삭제 완료','ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
 }
@@ -963,7 +963,7 @@ async function delCust(){
 async function quickDelete(id, name){
   if(!confirm(`[${name}] 고객을 삭제하시겠습니까?\n삭제된 데이터는 복구되지 않습니다.`)) return;
   try{
-    await window.__del(window.__doc(window.__db,'customers',id));
+    await window.__DB.collection('customers').doc(id).delete();
     toast(name+' 삭제 완료','ok');
   } catch(e){ toast('삭제 오류: '+e.message,'er'); }
 }
@@ -975,7 +975,7 @@ async function markDone(id, dateStr){
   if((c.deliveredDates||[]).includes(t)){ toast('해당 날짜 이미 처리됨','er'); return; }
   const rem=c.remain-1, dates=[...(c.deliveredDates||[]),t], st=rem===0?'end':c.status;
   try{
-    await window.__upd(window.__doc(window.__db,'customers',id),{remain:rem,deliveredDates:dates,status:st});
+    await window.__DB.collection('customers').doc(id).update({remain:rem,deliveredDates:dates,status:st});
     toast(c.name+' 배송완료 (잔여 '+rem+'회)','ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
 }
@@ -989,7 +989,7 @@ async function markAll(){
     await Promise.all(list.map(c=>{
       if((c.deliveredDates||[]).includes(dateStr)) return;
       const rem=c.remain-1;
-      return window.__upd(window.__doc(window.__db,'customers',c.id),{
+      return window.__DB.collection('customers').doc(c.id).update({
         remain:rem,deliveredDates:[...(c.deliveredDates||[]),dateStr],status:rem===0?'end':c.status
       });
     }));
@@ -1676,7 +1676,7 @@ async function regXl(){
         scheduleName:c.orderType==='sub'?'정기배송':'선택주문 (1회)',
         arriveDays:[], startDate:t, onceDate:c.orderType==='once'?t:''
       };
-      await window.__add(window.__col(window.__db,'customers'),data); ok++;
+      await window.__DB.collection('customers').add(data); ok++;
     }
     toast(ok+'건 등록 완료!','ok');
     resetXl();
