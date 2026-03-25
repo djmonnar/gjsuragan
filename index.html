@@ -469,7 +469,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <th><input type="checkbox" id="chkAll" onchange="toggleAll(this)"></th>
         <th>고객명</th><th>연락처</th><th>배송지</th>
         <th>세트</th><th>유형</th><th>배송일정</th>
-        <th>현관번호</th><th>요청사항</th><th>잔여</th><th>상태</th><th>처리</th>
+        <th>현관번호</th><th>요청사항</th><th>수량</th><th>잔여</th><th>상태</th><th>처리</th>
       </tr></thead>
       <tbody id="todayList"></tbody>
     </table>
@@ -673,7 +673,16 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <div class="fgrp fgf" id="af-sched"><div class="flab">배송 일정 *</div><select class="inp" id="ach"><option value="">주기를 먼저 선택하세요</option></select></div>
         <div class="fgrp" id="af-total"><div class="flab">총 구독 횟수 *</div><input type="number" class="inp" id="ato" placeholder="12" min="1"></div>
         <div class="fgrp"><div class="flab">시작일 *</div><input type="date" class="inp" id="asd"></div>
-        <div class="fgrp fgf" id="af-once" style="display:none;"><div class="flab">배송 예정일 *</div><input type="date" class="inp" id="aod"></div>
+        <div class="fgrp" id="af-once-date" style="display:none;"><div class="flab">배송 예정일 *</div><input type="date" class="inp" id="aod"></div>
+        <div class="fgrp" id="af-qty" style="display:none;">
+          <div class="flab">수량 *</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button type="button" onclick="changeQty(-1)" style="width:32px;height:36px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+            <input type="number" class="inp" id="aqty" value="1" min="1" max="99" style="text-align:center;font-weight:700;font-size:16px;width:64px;">
+            <button type="button" onclick="changeQty(1)" style="width:32px;height:36px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">＋</button>
+            <span style="font-size:12px;color:var(--text3);">개</span>
+          </div>
+        </div>
         <div class="fdiv"></div>
         <div class="fsec">메모</div>
         <div class="fgrp fgf"><div class="flab">내부 메모</div><textarea class="inp" id="am" placeholder="알러지, 특이사항 등"></textarea></div>
@@ -708,8 +717,8 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
           </select>
         </div>
         <div class="fgrp"><div class="flab">상태</div><select class="inp" id="est"><option value="active">구독 중</option><option value="pause">일시정지</option><option value="end">종료</option></select></div>
-        <div class="fgrp"><div class="flab">잔여 횟수</div><input type="number" class="inp" id="erem" min="0"></div>
-        <div class="fgrp"><div class="flab">총 횟수</div><input type="number" class="inp" id="etot" min="1"></div>
+        <div class="fgrp"><div class="flab">잔여 수량</div><input type="number" class="inp" id="erem" min="0"></div>
+        <div class="fgrp"><div class="flab">총 수량 / 횟수</div><input type="number" class="inp" id="etot" min="1"></div>
         <div class="fgrp"><div class="flab">배송 예정일 (선택주문)</div><input type="date" class="inp" id="eodate"></div>
         <div class="fgrp fgf"><div class="flab">메모</div><textarea class="inp" id="em"></textarea></div>
       </div>
@@ -892,12 +901,12 @@ async function saveNew(){
   } else {
     const od=g('aod');
     const prod=g('aprod');
+    const qty=parseInt(document.getElementById('aqty').value)||1;
     if(!od){ toast('배송 예정일을 입력하세요','er'); return; }
     if(!prod){ toast('상품을 선택하세요','er'); return; }
-    // 세트 필드에도 set값 저장 (호환성)
-    const isSet=['A','B','C'].includes(prod);
-    data.set = isSet ? prod : prod; // 상품ID를 set 필드에 저장
-    Object.assign(data,{total:1,remain:1,onceDate:od,scheduleName:productLabel(prod),
+    data.set = prod; // 상품ID를 set 필드에도 저장 (호환성)
+    Object.assign(data,{total:qty,remain:qty,qty,onceDate:od,
+      scheduleName:productLabel(prod)+(qty>1?' x'+qty+'개':''),
       productId:prod, arriveDays:[],startDate:od});
   }
   try{
@@ -1235,6 +1244,7 @@ function renderDash(){
       <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
       <td>${c.phone}</td>
+      <td style="text-align:center;">${c.qty&&c.qty>1?`<strong style="color:var(--accent)">${c.qty}개</strong>`:'1개'}</td>
       <td>${gauge(c)}</td>
     </tr>`).join('');
 
@@ -1255,7 +1265,7 @@ function renderToday(){
   s('todayCnt',list.length+'건');
   const tb=document.getElementById('todayList');
   if(!list.length){
-    tb.innerHTML=`<tr><td colspan="12"><div class="empty"><div class="ei">📭</div><div>해당 날짜 배송 없음</div></div></td></tr>`;
+    tb.innerHTML=`<tr><td colspan="13"><div class="empty"><div class="ei">📭</div><div>해당 날짜 배송 없음</div></div></td></tr>`;
     return;
   }
   tb.innerHTML=list.map(c=>{
@@ -1326,6 +1336,7 @@ function showDet(id){
         <div class="dpr"><div class="dpl">현관번호</div><div class="dpv">${c.door||'—'}</div></div>
         <div class="dpr"><div class="dpl">요청사항</div><div class="dpv" style="font-size:12px;">${c.request||'—'}</div></div>
         <div class="dpr"><div class="dpl">배송일정</div><div class="dpv" style="font-size:12px;">${c.scheduleName||'—'}</div></div>
+        ${c.qty&&c.qty>1?`<div class="dpr"><div class="dpl">수량</div><div class="dpv" style="font-weight:700;color:var(--accent);">${c.qty}개</div></div>`:''}
         ${c.onceDate?`<div class="dpr"><div class="dpl">배송예정일</div><div class="dpv">${c.onceDate}</div></div>`:''}
         <div class="dpr">
           <div class="dpl">잔여 횟수</div>
@@ -1393,36 +1404,88 @@ function parseText(){
   const raw=document.getElementById('pasteArea').value.trim();
   if(!raw){toast('텍스트를 붙여넣어 주세요','er');return;}
   const lines=raw.split('\n').map(l=>l.trim()).filter(Boolean);
-  const p={name:'',phone:'',addr:'',door:'',request:'',set:'',orderType:'once'};
+  const p={name:'',phone:'',addr:'',door:'',request:'',set:'',productId:'',qty:1,orderType:'once'};
+
   const phoneReg=/01[016789]-?\d{3,4}-?\d{4}/;
   const addrReg=/\(?\d{5}\)?\s+.+/;
-  const setReg=/[ABC]세트/i;
+
+  // 전화번호: 모든 등장 위치 수집 → 마지막 번호 사용 (배송지 하단 기준)
+  const allPhones=[];
+  for(let i=0;i<lines.length;i++){
+    const m=lines[i].match(phoneReg);
+    if(m) allPhones.push({phone:m[0], idx:i});
+  }
+  if(allPhones.length>0) p.phone=allPhones[allPhones.length-1].phone;
+
   for(let i=0;i<lines.length;i++){
     const l=lines[i];
-    if(!p.phone&&phoneReg.test(l)) p.phone=l.match(phoneReg)[0];
+
+    // 주소 (우편번호 포함 줄)
     if(!p.addr&&addrReg.test(l)) p.addr=l.replace(/^\(?\d{5}\)?\s*/,'').trim();
-    if(!p.set&&setReg.test(l)){const m=l.match(/([ABC]세트)/i);if(m)p.set=m[1][0].toUpperCase();}
-    if(/현관|비밀번호/i.test(l)){
-      const next=lines[i+1]||'';
-      const raw2=(l+' '+next).replace(/현관\s*비밀번호\s*[:：]?/i,'').trim();
-      p.door=raw2.split('\n')[0].trim();
+
+    // 세트 인식
+    if(!p.set&&/[ABC]세트/i.test(l)){
+      const m=l.match(/([ABC])세트/i); if(m) p.set=m[1].toUpperCase();
     }
-    if(/배송\s*전|미리\s*연락|부재|문\s*앞/i.test(l)) p.request=l;
+
+    // 단품 상품 인식 - 다양한 표기 모두 처리
+    if(!p.productId){
+      if(/수제.*돼지.*갈비|돼지.*양념.*갈비|수제양념돼지갈비|돼지갈비/i.test(l)) p.productId='pork_rib';
+      else if(/양념.*LA.*갈비|LA.*갈비|라갈비/i.test(l)) p.productId='beef_la';
+    }
+
+    // 수량 인식 ("2개", "3 개", "수량: 2")
+    if(!p.qty||p.qty===1){
+      const qm=l.match(/^(\d+)\s*개$/) || l.match(/수량\s*[:：]?\s*(\d+)/);
+      if(qm) p.qty=parseInt(qm[1])||1;
+    }
+
+    // 현관번호
+    if(/현관|비밀번호/i.test(l)){
+      const combined=(l+' '+(lines[i+1]||'')).replace(/현관\s*비밀번호\s*[:：]?/i,'').trim();
+      if(!p.door) p.door=combined.split('\n')[0].trim();
+    }
+
+    // 요청사항 (부재 안내, 문 앞 등)
+    if(/배송\s*전|미리\s*연락|부재|문\s*앞|두고\s*가|놓아/i.test(l)) p.request=l;
+
+    // 정기 판별
     if(/정기/.test(l)) p.orderType='sub';
   }
-  for(let i=0;i<lines.length;i++){
-    if(phoneReg.test(lines[i])&&i>0){
-      const cand=lines[i-1];
-      if(!/[0-9]{4}|오전|오후|취소|완료|주문|배송/.test(cand)&&cand.length<=10) p.name=cand;
+
+  // 이름 추출: 마지막 전화번호 바로 위 줄 (비회원 텍스트 제거)
+  if(allPhones.length>0){
+    const lastPhoneIdx=allPhones[allPhones.length-1].idx;
+    if(lastPhoneIdx>0){
+      let cand=lines[lastPhoneIdx-1];
+      // "(비회원)", "(비회원)" 등 제거
+      cand=cand.replace(/\s*\(비회원\)\s*/g,'').trim();
+      if(!/[0-9]{6,}|오전|오후|취소|완료|주문|배송|결제|원$/.test(cand)&&cand.length>=1&&cand.length<=15){
+        p.name=cand;
+      }
     }
   }
+
+  // productId → set 동기화
+  if(p.productId&&!p.set) p.set=p.productId;
+  else if(p.set&&!p.productId&&['A','B','C'].includes(p.set)) p.productId=p.set;
+
   parsedData=p;
+
+  // 상품 표시명
+  const prodDisplay = p.productId ? productLabel(p.productId) : (p.set?p.set+'세트':'(직접 선택)');
+
   document.getElementById('parseRows').innerHTML=[
-    ['이름',p.name||'(미인식)'],['연락처',p.phone||'(미인식)'],
-    ['주소',p.addr||'(미인식)'],['현관번호',p.door||'—'],
-    ['요청사항',p.request||'—'],['세트',p.set?p.set+'세트':'(직접 선택)'],
-    ['유형',p.orderType==='sub'?'정기배송':'선택주문']
+    ['이름',       p.name||'(미인식)'],
+    ['연락처',     p.phone||'(미인식)'],
+    ['주소',       p.addr||'(미인식)'],
+    ['현관번호',   p.door||'—'],
+    ['요청사항',   p.request||'—'],
+    ['상품',       prodDisplay],
+    ['수량',       p.qty+'개'],
+    ['유형',       p.orderType==='sub'?'정기배송':'선택주문'],
   ].map(([k,v])=>`<div class="prr"><div class="prk">${k}</div><div class="prv">${v}</div></div>`).join('');
+
   document.getElementById('parseResult').classList.add('on');
   toast('인식 완료. 확인 후 등록하세요','info');
 }
@@ -1431,10 +1494,19 @@ async function regParsed(){
   if(!parsedData){toast('먼저 분석을 실행하세요','er');return;}
   const p=parsedData;
   // 모달에 값 채워서 열기
+  setTypeTab(p.orderType||'once');
   g2('an',p.name); g2('ap',p.phone); g2('aa',p.addr);
   g2('ad',p.door); g2('ar',p.request);
-  if(p.set) document.getElementById('as').value=p.set;
-  setTypeTab(p.orderType||'once');
+  // 상품 선택
+  if(p.orderType==='sub'){
+    if(p.set) document.getElementById('as').value=p.set;
+  } else {
+    const prodSel=document.getElementById('aprod');
+    const pid=p.productId||p.set||'';
+    if(pid) prodSel.value=pid;
+  }
+  // 수량
+  document.getElementById('aqty').value=p.qty||1;
   openM('addM');
 }
 
@@ -1618,6 +1690,9 @@ function setTypeTab(type){
   // 세트/상품 선택 전환
   document.getElementById('af-set').style.display=type==='sub'?'':'none';
   document.getElementById('af-prod').style.display=type==='once'?'':'none';
+  // 선택주문 전용 필드
+  document.getElementById('af-once-date').style.display=type==='once'?'':'none';
+  document.getElementById('af-qty').style.display=type==='once'?'':'none';
 }
 
 function updSch(){
@@ -1637,10 +1712,17 @@ function openEdit(id){
   openM('editM');
 }
 
+function changeQty(d){
+  const el=document.getElementById('aqty');
+  const v=parseInt(el.value)||1;
+  el.value=Math.max(1,Math.min(99,v+d));
+}
+
 function clearAdd(){
   ['an','ap','aa','ad','ar','am','ato'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('as').value='';
   document.getElementById('aprod').value='';
+  document.getElementById('aqty').value='1';
   document.getElementById('at').value='';
   document.getElementById('ach').innerHTML='<option>주기를 먼저 선택하세요</option>';
   document.getElementById('asd').value=todayStr();document.getElementById('aod').value=todayStr();
