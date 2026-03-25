@@ -154,6 +154,8 @@ tbody tr:last-child td{border-bottom:none;}
 .b-end{background:rgba(215,58,73,.1);color:#d73a49;border-color:rgba(215,58,73,.2);}
 .b-once{background:rgba(111,66,193,.1);color:#6f42c1;border-color:rgba(111,66,193,.2);}
 .b-sub{background:rgba(3,102,214,.1);color:#0366d6;border-color:rgba(3,102,214,.2);}
+.b-pork{background:rgba(210,90,60,.1);color:#d25a3c;border-color:rgba(210,90,60,.25);}
+.b-beef{background:rgba(155,60,40,.1);color:#9b3c28;border-color:rgba(155,60,40,.25);}
 
 /* ── 게이지 ── */
 .gw{display:flex;align-items:center;gap:8px;}
@@ -643,7 +645,30 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <div class="fgrp"><div class="flab">요청사항</div><input type="text" class="inp" id="ar" placeholder="문 앞에 놓아주세요"></div>
         <div class="fdiv"></div>
         <div class="fsec">구독 설정</div>
-        <div class="fgrp"><div class="flab">세트 *</div><select class="inp" id="as"><option value="">선택</option><option value="A">A세트</option><option value="B">B세트</option><option value="C">C세트</option></select></div>
+        <!-- 정기배송: 세트 선택 -->
+        <div class="fgrp" id="af-set"><div class="flab">세트 *</div>
+          <select class="inp" id="as">
+            <option value="">선택</option>
+            <option value="A">A세트</option>
+            <option value="B">B세트</option>
+            <option value="C">C세트</option>
+          </select>
+        </div>
+        <!-- 선택주문: 상품 선택 -->
+        <div class="fgrp fgf" id="af-prod" style="display:none;"><div class="flab">상품 *</div>
+          <select class="inp" id="aprod">
+            <option value="">선택하세요</option>
+            <optgroup label="반찬 세트">
+              <option value="A">A세트</option>
+              <option value="B">B세트</option>
+              <option value="C">C세트</option>
+            </optgroup>
+            <optgroup label="단품 상품">
+              <option value="pork_rib">🥩 수제 돼지양념갈비</option>
+              <option value="beef_la">🥩 양념 LA갈비</option>
+            </optgroup>
+          </select>
+        </div>
         <div class="fgrp" id="af-freq"><div class="flab">배송 주기</div><select class="inp" id="at" onchange="updSch()"><option value="">선택</option><option value="1">주 1회</option><option value="2">주 2회</option><option value="3">주 3회</option></select></div>
         <div class="fgrp fgf" id="af-sched"><div class="flab">배송 일정 *</div><select class="inp" id="ach"><option value="">주기를 먼저 선택하세요</option></select></div>
         <div class="fgrp" id="af-total"><div class="flab">총 구독 횟수 *</div><input type="number" class="inp" id="ato" placeholder="12" min="1"></div>
@@ -669,7 +694,19 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <div class="fgrp fgf"><div class="flab">배송지</div><input type="text" class="inp" id="ea"></div>
         <div class="fgrp"><div class="flab">현관 비밀번호</div><input type="text" class="inp" id="ed"></div>
         <div class="fgrp"><div class="flab">요청사항</div><input type="text" class="inp" id="er"></div>
-        <div class="fgrp"><div class="flab">세트</div><select class="inp" id="es"><option value="A">A세트</option><option value="B">B세트</option><option value="C">C세트</option></select></div>
+        <div class="fgrp"><div class="flab">상품</div>
+          <select class="inp" id="es">
+            <optgroup label="정기배송 세트">
+              <option value="A">A세트</option>
+              <option value="B">B세트</option>
+              <option value="C">C세트</option>
+            </optgroup>
+            <optgroup label="단품 상품">
+              <option value="pork_rib">🥩 수제 돼지양념갈비</option>
+              <option value="beef_la">🥩 양념 LA갈비</option>
+            </optgroup>
+          </select>
+        </div>
         <div class="fgrp"><div class="flab">상태</div><select class="inp" id="est"><option value="active">구독 중</option><option value="pause">일시정지</option><option value="end">종료</option></select></div>
         <div class="fgrp"><div class="flab">잔여 횟수</div><input type="number" class="inp" id="erem" min="0"></div>
         <div class="fgrp"><div class="flab">총 횟수</div><input type="number" class="inp" id="etot" min="1"></div>
@@ -764,6 +801,34 @@ window.addEventListener('DOMContentLoaded',()=>{
 // ════════════════════════════════════════
 // 배송 일정 데이터
 // ════════════════════════════════════════
+// ════════════════════════════════════════
+// 판매 상품 목록
+// ════════════════════════════════════════
+const PRODUCTS = [
+  // 정기배송 세트
+  { id:'A', label:'A세트', type:'sub', category:'set' },
+  { id:'B', label:'B세트', type:'sub', category:'set' },
+  { id:'C', label:'C세트', type:'sub', category:'set' },
+  // 1회 배송 상품
+  { id:'pork_rib',  label:'수제 돼지양념갈비', type:'once', category:'meat' },
+  { id:'beef_la',   label:'양념 LA갈비',        type:'once', category:'meat' },
+];
+
+// 상품ID → 라벨
+function productLabel(id){
+  const p = PRODUCTS.find(x=>x.id===id);
+  return p ? p.label : (id||'');
+}
+// 상품ID → 뱃지 CSS 클래스
+function productBadgeClass(id){
+  if(id==='A')         return 'ba';
+  if(id==='B')         return 'bb';
+  if(id==='C')         return 'bc';
+  if(id==='pork_rib')  return 'b-pork';
+  if(id==='beef_la')   return 'b-beef';
+  return 'b-pause';
+}
+
 const SCH={
   '1':[
     {l:'월 조리 → 화 도착', c:[1], a:[2]},
@@ -826,8 +891,14 @@ async function saveNew(){
     Object.assign(data,{type:parseInt(tp),scheduleName:sch.l,cookDays:sch.c,arriveDays:sch.a,total:tot,remain:tot,startDate:sd});
   } else {
     const od=g('aod');
+    const prod=g('aprod');
     if(!od){ toast('배송 예정일을 입력하세요','er'); return; }
-    Object.assign(data,{total:1,remain:1,onceDate:od,scheduleName:'선택주문 (1회)',arriveDays:[],startDate:od});
+    if(!prod){ toast('상품을 선택하세요','er'); return; }
+    // 세트 필드에도 set값 저장 (호환성)
+    const isSet=['A','B','C'].includes(prod);
+    data.set = isSet ? prod : prod; // 상품ID를 set 필드에 저장
+    Object.assign(data,{total:1,remain:1,onceDate:od,scheduleName:productLabel(prod),
+      productId:prod, arriveDays:[],startDate:od});
   }
   try{
     await window.__add(window.__col(window.__db,'customers'),data);
@@ -836,7 +907,12 @@ async function saveNew(){
 }
 
 async function saveEdit(){
-  const upd={name:g('en'),phone:g('ep'),addr:g('ea'),door:g('ed'),request:g('er'),set:g('es'),status:g('est'),remain:parseInt(g('erem'))||0,total:parseInt(g('etot'))||1,memo:g('em')};
+  const esVal=g('es');
+  const upd={name:g('en'),phone:g('ep'),addr:g('ea'),door:g('ed'),request:g('er'),
+    set:['A','B','C'].includes(esVal)?esVal:(esVal||''),
+    productId:esVal,
+    scheduleName:productLabel(esVal)||g('es'),
+    status:g('est'),remain:parseInt(g('erem'))||0,total:parseInt(g('etot'))||1,memo:g('em')};
   const od=g('eodate'); if(od) upd.onceDate=od;
   try{
     await window.__upd(window.__doc(window.__db,'customers',editId),upd);
@@ -1118,7 +1194,7 @@ function renderReportList(days){
     return `<tr>
       <td style="white-space:nowrap;font-weight:600;color:var(--text2);">${ds} (${DAYS[d.getDay()]})</td>
       <td><strong>${c.name}</strong></td>
-      <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
+      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
       <td>${c.phone}</td>
       <td style="font-size:12px;color:var(--text2);">${c.addr}</td>
@@ -1156,7 +1232,7 @@ function renderDash(){
   dt.innerHTML=!tl.length?`<tr><td colspan="5"><div class="empty"><div class="ei">📭</div><div>해당 날짜 배송 없음</div></div></td></tr>`
     :tl.slice(0,8).map(c=>`<tr>
       <td><strong>${c.name}</strong></td>
-      <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
+      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
       <td>${c.phone}</td>
       <td>${gauge(c)}</td>
@@ -1166,7 +1242,7 @@ function renderDash(){
   dl.innerHTML=!low.length?`<tr><td colspan="4"><div class="empty"><div class="ei">✅</div><div>모두 여유 있음</div></div></td></tr>`
     :low.sort((a,b)=>a.remain-b.remain).map(c=>`<tr>
       <td><strong>${c.name}</strong></td>
-      <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
+      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td style="font-weight:700;color:${c.remain===0?'var(--danger)':'var(--warn)'};">${c.remain}회</td>
       <td>${c.phone}</td>
     </tr>`).join('');
@@ -1189,7 +1265,7 @@ function renderToday(){
       <td><strong>${c.name}</strong></td>
       <td style="white-space:nowrap;">${c.phone}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.addr}">${c.addr}</td>
-      <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
+      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
       <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||''}</td>
       <td style="font-size:12px;">${c.door||'—'}</td>
@@ -1218,7 +1294,7 @@ function renderCust(){
   tb.innerHTML=list.map(c=>`<tr class="trc" onclick="showDet('${c.id}')">
     <td><strong>${c.name}</strong></td>
     <td style="white-space:nowrap;">${c.phone}</td>
-    <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
+    <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
     <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
     <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.scheduleName||''}</td>
     <td>${gauge(c)}</td>
@@ -1240,7 +1316,7 @@ function showDet(id){
           <span class="badge b-${c.status}">${SL[c.status]}</span>
         </div>
         <div style="display:flex;gap:6px;">
-          <span class="badge b${c.set.toLowerCase()}">${c.set}세트</span>
+          <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
           <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택주문':'정기배송'}</span>
         </div>
       </div>
@@ -1290,12 +1366,12 @@ function genExport(){
     <td style="color:var(--text3);">${i+1}</td><td><strong>${c.name}</strong></td>
     <td style="white-space:nowrap;">${c.phone}</td>
     <td style="font-size:11px;">${c.addr}</td>
-    <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
+    <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
     <td style="font-size:11px;color:var(--text2);">${c.request||''}</td>
   </tr>`).join('');
   let txt=`===== 궁중수라간 택배 발송 목록 =====\n날짜  : ${date} (${DAYS[dow(date)]}요일)\n총건수: ${list.length}건\n생성  : ${new Date().toLocaleString('ko-KR')}\n${'─'.repeat(40)}\n`;
   list.forEach((c,i)=>{
-    txt+=`\n[${String(i+1).padStart(2,'0')}] ${c.name} (${c.orderType==='once'?'선택':'정기'})\n     전화: ${c.phone}\n     주소: ${c.addr}\n     세트: ${c.set}세트\n`;
+    txt+=`\n[${String(i+1).padStart(2,'0')}] ${c.name} (${c.orderType==='once'?'선택':'정기'})\n     전화: ${c.phone}\n     주소: ${c.addr}\n     상품: ${productLabel(c.productId||c.set)}\n`;
     if(c.door)    txt+=`     현관: ${c.door}\n`;
     if(c.request) txt+=`     요청: ${c.request}\n`;
   });
@@ -1536,8 +1612,12 @@ function setTypeTab(type){
   orderType=type;
   document.getElementById('tTab-sub').classList.toggle('on',type==='sub');
   document.getElementById('tTab-once').classList.toggle('on',type==='once');
+  // 정기배송 전용 필드
   ['af-freq','af-sched','af-total'].forEach(id=>document.getElementById(id).style.display=type==='sub'?'':'none');
   document.getElementById('af-once').style.display=type==='once'?'':'none';
+  // 세트/상품 선택 전환
+  document.getElementById('af-set').style.display=type==='sub'?'':'none';
+  document.getElementById('af-prod').style.display=type==='once'?'':'none';
 }
 
 function updSch(){
@@ -1551,7 +1631,7 @@ function openEdit(id){
   const c=custs.find(x=>x.id===id);if(!c)return;
   editId=id;
   g2('en',c.name);g2('ep',c.phone);g2('ea',c.addr);g2('ed',c.door);g2('er',c.request);
-  document.getElementById('es').value=c.set||'A';
+  document.getElementById('es').value=c.productId||c.set||'A';
   document.getElementById('est').value=c.status;
   g2('erem',c.remain);g2('etot',c.total);g2('em',c.memo);g2('eodate',c.onceDate||'');
   openM('editM');
@@ -1559,7 +1639,9 @@ function openEdit(id){
 
 function clearAdd(){
   ['an','ap','aa','ad','ar','am','ato'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('as').value='';document.getElementById('at').value='';
+  document.getElementById('as').value='';
+  document.getElementById('aprod').value='';
+  document.getElementById('at').value='';
   document.getElementById('ach').innerHTML='<option>주기를 먼저 선택하세요</option>';
   document.getElementById('asd').value=todayStr();document.getElementById('aod').value=todayStr();
   setTypeTab('sub');
