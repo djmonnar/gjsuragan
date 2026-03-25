@@ -889,28 +889,50 @@ setTimeout(()=>{ document.getElementById('loading').style.display='none'; },4000
 // CRUD
 // ════════════════════════════════════════
 async function saveNew(){
-  const n=g('an'),p=g('ap'),a=g('aa'),d=g('ad'),r=g('ar'),s=g('as'),m=g('am');
-  if(!n||!p||!a||!s){ toast('필수 항목(*)을 입력하세요','er'); return; }
-  let data={name:n,phone:p,addr:a,door:d,request:r,set:s,memo:m,
-    status:'active',deliveredDates:[],createdAt:new Date().toISOString(),orderType};
+  const n=g('an'), ph=g('ap'), a=g('aa'), d=g('ad'), r=g('ar'), m=g('am');
+  // 공통 필수값 체크
+  if(!n){ toast('주문자명을 입력하세요','er'); return; }
+  if(!ph){ toast('연락처를 입력하세요','er'); return; }
+  if(!a){ toast('배송지 주소를 입력하세요','er'); return; }
+
+  let data={
+    name:n, phone:ph, addr:a, door:d, request:r, memo:m,
+    status:'active', deliveredDates:[], createdAt:new Date().toISOString(), orderType
+  };
+
   if(orderType==='sub'){
-    const tp=g('at'), si=document.getElementById('ach').value, tot=parseInt(g('ato'))||0, sd=g('asd');
-    if(!tp||si===''||!tot||!sd){ toast('정기배송 정보를 모두 입력하세요','er'); return; }
+    // 정기배송
+    const s=g('as'), tp=g('at'), si=document.getElementById('ach').value;
+    const tot=parseInt(g('ato'))||0, sd=g('asd');
+    if(!s)  { toast('세트를 선택하세요','er'); return; }
+    if(!tp) { toast('배송 주기를 선택하세요','er'); return; }
+    if(si===''||si===null){ toast('배송 일정을 선택하세요','er'); return; }
+    if(!tot){ toast('총 구독 횟수를 입력하세요','er'); return; }
+    if(!sd) { toast('시작일을 선택하세요','er'); return; }
     const sch=SCH[tp][parseInt(si)];
-    Object.assign(data,{type:parseInt(tp),scheduleName:sch.l,cookDays:sch.c,arriveDays:sch.a,total:tot,remain:tot,startDate:sd});
+    Object.assign(data,{
+      set:s, type:parseInt(tp),
+      scheduleName:sch.l, cookDays:sch.c, arriveDays:sch.a,
+      total:tot, remain:tot, startDate:sd
+    });
   } else {
+    // 선택주문
     const od=g('aod');
     const prod=g('aprod');
     const qty=parseInt(document.getElementById('aqty').value)||1;
-    if(!od){ toast('배송 예정일을 입력하세요','er'); return; }
+    if(!od)  { toast('배송 예정일을 선택하세요','er'); return; }
     if(!prod){ toast('상품을 선택하세요','er'); return; }
-    data.set = prod; // 상품ID를 set 필드에도 저장 (호환성)
-    Object.assign(data,{total:qty,remain:qty,qty,onceDate:od,
+    Object.assign(data,{
+      set:prod, productId:prod,
+      total:qty, remain:qty, qty,
+      onceDate:od, startDate:od,
       scheduleName:productLabel(prod)+(qty>1?' x'+qty+'개':''),
-      productId:prod, arriveDays:[],startDate:od});
+      arriveDays:[], cookDays:[]
+    });
   }
+
   try{
-    await window.__add(window.__col(window.__db,'customers'),data);
+    await window.__add(window.__col(window.__db,'customers'), data);
     closeM('addM'); clearAdd(); toast(n+' 등록 완료!','ok');
   } catch(e){ toast('등록 오류: '+e.message,'er'); }
 }
@@ -935,6 +957,15 @@ async function delCust(){
     await window.__del(window.__doc(window.__db,'customers',editId));
     closeM('editM'); toast('삭제 완료','ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
+}
+
+// 고객 목록에서 바로 삭제
+async function quickDelete(id, name){
+  if(!confirm(`[${name}] 고객을 삭제하시겠습니까?\n삭제된 데이터는 복구되지 않습니다.`)) return;
+  try{
+    await window.__del(window.__doc(window.__db,'customers',id));
+    toast(name+' 삭제 완료','ok');
+  } catch(e){ toast('삭제 오류: '+e.message,'er'); }
 }
 
 async function markDone(id, dateStr){
@@ -1309,7 +1340,10 @@ function renderCust(){
     <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.scheduleName||''}</td>
     <td>${gauge(c)}</td>
     <td><span class="badge b-${c.status}">${SL[c.status]}</span></td>
-    <td><button class="btn btn-g sm" onclick="event.stopPropagation();openEdit('${c.id}')">수정</button></td>
+    <td style="display:flex;gap:4px;">
+      <button class="btn btn-g sm" onclick="event.stopPropagation();openEdit('${c.id}')">수정</button>
+      <button class="btn btn-d sm" onclick="event.stopPropagation();quickDelete('${c.id}','${c.name}')">삭제</button>
+    </td>
   </tr>`).join('');
 }
 
@@ -1350,9 +1384,10 @@ function showDet(id){
           <div class="dpl">배송 이력</div>
           <div style="margin-top:4px;">${(c.deliveredDates||[]).slice(-5).reverse().map(d=>`<div class="dhi">✓ ${d}</div>`).join('')||'<div style="font-size:12px;color:var(--text3);">이력 없음</div>'}</div>
         </div>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button class="btn btn-p" style="flex:1;font-size:12px;" onclick="openEdit('${c.id}')">수정</button>
-          <button class="btn btn-s" style="flex:1;font-size:12px;" onclick="markDone('${c.id}')">✓ 배송완료</button>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+          <button class="btn btn-p" style="flex:1;font-size:12px;min-width:60px;" onclick="openEdit('${c.id}')">수정</button>
+          <button class="btn btn-s" style="flex:1;font-size:12px;min-width:60px;" onclick="markDone('${c.id}')">✓ 배송완료</button>
+          <button class="btn btn-d" style="width:100%;font-size:12px;margin-top:2px;" onclick="quickDelete('${c.id}','${c.name}')">🗑 삭제</button>
         </div>
       </div>
     </div>`;
