@@ -849,7 +849,6 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
   </div>
 </div>
 
-<div id="tw"></div>
 
 <script>
 // ════════════════════════════════════════
@@ -879,23 +878,32 @@ function checkSession(){
 }
 
 function doLogin(){
+  const errEl      = document.getElementById('loginErr');
+  const attemptsEl = document.getElementById('loginAttempts');
+
   if(loginAttempts >= MAX_ATTEMPTS){
-    toast('너무 많은 시도로 잠겼습니다. 페이지를 새로고침하세요.','er');
+    errEl.textContent='5회 이상 실패하여 잠겼습니다. 페이지를 새로고침하세요.';
+    errEl.style.display='block';
     return;
   }
+
   const pw = document.getElementById('pwInput').value;
+
   if(PASSWORDS.includes(pw)){
+    // ✅ 로그인 성공
     localStorage.setItem(SESSION_KEY, JSON.stringify({ts:Date.now()}));
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='block';
     document.getElementById('pwInput').value='';
     loginAttempts=0;
+    errEl.style.display='none';
   } else {
+    // ❌ 실패
     loginAttempts++;
     const left = MAX_ATTEMPTS - loginAttempts;
-    document.getElementById('loginErr').style.display='block';
-    document.getElementById('loginAttempts').textContent =
-      left > 0 ? `남은 시도: ${left}회` : '잠금됨';
+    errEl.textContent = '비밀번호가 올바르지 않습니다.';
+    errEl.style.display='block';
+    attemptsEl.textContent = left > 0 ? `남은 시도: ${left}회` : '잠금됨';
     document.getElementById('pwInput').value='';
     document.getElementById('pwInput').focus();
   }
@@ -2355,10 +2363,13 @@ document.querySelectorAll('.mbg').forEach(m=>m.addEventListener('click',e=>{if(e
 function toggleAll(el){document.querySelectorAll('.ck').forEach(c=>c.checked=el.checked);}
 
 function toast(msg,type=''){
-  const w=document.getElementById('tw'),t=document.createElement('div');
+  const w=document.getElementById('tw');
+  if(!w){ console.warn('toast:',msg); return; }
+  const t=document.createElement('div');
   t.className='toast '+type; t.appendChild(document.createTextNode(msg));
   w.appendChild(t); setTimeout(()=>t.remove(),3500);
 }
 </script>
+<div id="tw"></div>
 </body>
 </html>
