@@ -1133,10 +1133,10 @@ async function togglePause(id){
 // CSV 전체 백업
 function exportCSV(){
   if(!custs.length){ toast('내보낼 고객 데이터가 없습니다','er'); return; }
-  const header = ['이름','연락처','주소','현관번호','요청사항','세트/상품','배송유형',
+  const header=['이름','연락처','주소','현관번호','요청사항','세트/상품','배송유형',
     '배송방식','주문번호','배송일정','총횟수','잔여횟수','시작일','선택주문배송일',
     '상태','등록일','메모'];
-  const rows = custs.map(c=>[
+  const rows=custs.map(c=>[
     c.name||'', c.phone||'', c.addr||'', c.door||'', c.request||'',
     productLabel(c.productId||c.set)||c.set||'',
     c.orderType==='sub'?'정기배송':'선택주문',
@@ -1147,18 +1147,17 @@ function exportCSV(){
     c.startDate||'', c.onceDate||'',
     {active:'구독중',pause:'일시정지',end:'종료'}[c.status]||c.status||'',
     c.createdAt?c.createdAt.slice(0,10):'',
-    (c.memo||'').replace(/
-/g,' ')
+    (c.memo||'').replace(/\r?\n/g,' ')
   ]);
-  const BOM = '﻿'; // 한글 깨짐 방지
-  const csv = BOM + [header, ...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('
-');
-  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `궁중수라간_고객백업_${todayStr()}.csv`;
+  const BOM='\ufeff';
+  const lines=[header,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','));
+  const csv=BOM+lines.join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='궁중수라간_고객백업_'+todayStr()+'.csv';
   a.click();
-  toast(`${custs.length}명 CSV 백업 완료`,'ok');
+  toast(custs.length+'명 CSV 백업 완료','ok');
 }
 
 // 고객 목록에서 바로 삭제
