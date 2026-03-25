@@ -725,6 +725,102 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
   </div>
 </div>
 
+
+<!-- ══ 파싱 확인 모달 ══ -->
+<div class="mbg" id="parseM">
+  <div class="modal" style="width:720px;">
+    <div class="mh">
+      <div class="mt" id="parseMTitle">주문 확인 및 수정</div>
+      <div class="mx" onclick="closeM('parseM')">✕</div>
+    </div>
+    <div class="mb">
+      <!-- 공통: 기본 정보 -->
+      <div class="fg" style="margin-bottom:16px;">
+        <div class="fsec">배송지 정보</div>
+        <div class="fgrp"><div class="flab">주문자명 *</div><input type="text" class="inp" id="pm-name" placeholder="홍길동"></div>
+        <div class="fgrp"><div class="flab">연락처 *</div><input type="text" class="inp" id="pm-phone" placeholder="010-0000-0000"></div>
+        <div class="fgrp fgf"><div class="flab">배송지 주소 *</div><input type="text" class="inp" id="pm-addr" placeholder="도로명 주소"></div>
+        <div class="fgrp"><div class="flab">현관 비밀번호</div><input type="text" class="inp" id="pm-door" placeholder="#1234*"></div>
+        <div class="fgrp"><div class="flab">요청사항</div><input type="text" class="inp" id="pm-req" placeholder="문 앞에 놓아주세요"></div>
+      </div>
+
+      <!-- 단일 주문 섹션 -->
+      <div id="pm-single">
+        <div class="fg">
+          <div class="fsec">주문 정보</div>
+          <div class="fgrp" id="pm-prod-wrap"><div class="flab">상품 *</div>
+            <select class="inp" id="pm-prod">
+              <option value="">선택하세요</option>
+              <optgroup label="반찬 세트">
+                <option value="A">A세트</option>
+                <option value="B">B세트</option>
+                <option value="C">C세트</option>
+              </optgroup>
+              <optgroup label="단품 상품">
+                <option value="pork_rib">🥩 수제 돼지양념갈비</option>
+                <option value="beef_la">🥩 양념 LA갈비</option>
+              </optgroup>
+            </select>
+          </div>
+          <!-- 선택주문 전용 -->
+          <div class="fgrp" id="pm-date-wrap"><div class="flab">배송 예정일 *</div><input type="date" class="inp" id="pm-date"></div>
+          <div class="fgrp" id="pm-qty-wrap">
+            <div class="flab">수량</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button type="button" onclick="pmChangeQty(-1)" style="width:32px;height:36px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+              <input type="number" class="inp" id="pm-qty" value="1" min="1" max="99" style="text-align:center;font-weight:700;font-size:16px;width:64px;">
+              <button type="button" onclick="pmChangeQty(1)" style="width:32px;height:36px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">＋</button>
+              <span style="font-size:12px;color:var(--text3);">개</span>
+            </div>
+          </div>
+          <!-- 정기배송 전용 -->
+          <div class="fgrp" id="pm-set-wrap" style="display:none;"><div class="flab">세트 *</div>
+            <select class="inp" id="pm-set">
+              <option value="">선택</option>
+              <option value="A">A세트</option>
+              <option value="B">B세트</option>
+              <option value="C">C세트</option>
+            </select>
+          </div>
+          <div class="fgrp" id="pm-freq-wrap" style="display:none;"><div class="flab">배송 주기 *</div>
+            <select class="inp" id="pm-freq" onchange="pmUpdSch()">
+              <option value="">선택</option>
+              <option value="1">주 1회</option>
+              <option value="2">주 2회</option>
+              <option value="3">주 3회</option>
+            </select>
+          </div>
+          <div class="fgrp fgf" id="pm-sched-wrap" style="display:none;"><div class="flab">배송 일정 *</div>
+            <select class="inp" id="pm-sched"></select>
+          </div>
+          <div class="fgrp" id="pm-total-wrap" style="display:none;"><div class="flab">총 구독 횟수 *</div>
+            <input type="number" class="inp" id="pm-total" placeholder="12" min="1">
+          </div>
+          <div class="fgrp" id="pm-start-wrap"><div class="flab">시작일 *</div>
+            <input type="date" class="inp" id="pm-start">
+          </div>
+          <div class="fdiv"></div>
+          <div class="fsec">메모</div>
+          <div class="fgrp fgf"><div class="flab">내부 메모</div>
+            <textarea class="inp" id="pm-memo" placeholder="알러지, 특이사항 등"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- 복수 주문 섹션 -->
+      <div id="pm-multi" style="display:none;">
+        <div class="fsec" style="margin-bottom:12px;">주문 목록 <span style="font-weight:400;color:var(--text3);font-size:11px;">각 주문을 수정할 수 있습니다</span></div>
+        <div id="pm-order-list"></div>
+        <button class="btn btn-g sm" onclick="pmAddOrder()" style="margin-top:8px;">＋ 주문 추가</button>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeM('parseM')">취소</button>
+      <button class="btn btn-p" onclick="saveParsed()">✓ 등록 완료</button>
+    </div>
+  </div>
+</div>
+
 <div id="tw"></div>
 
 <script>
@@ -970,13 +1066,21 @@ async function quickDelete(id, name){
 
 async function markDone(id, dateStr){
   const c=custs.find(x=>x.id===id); if(!c) return;
-  if(c.remain<=0){ toast('잔여 횟수 없음','er'); return; }
+  if(c.remain<=0){ toast('이미 배송 완료된 건입니다','er'); return; }
   const t=dateStr||todayStr();
   if((c.deliveredDates||[]).includes(t)){ toast('해당 날짜 이미 처리됨','er'); return; }
-  const rem=c.remain-1, dates=[...(c.deliveredDates||[]),t], st=rem===0?'end':c.status;
+  const rem=c.remain-1;
+  const dates=[...(c.deliveredDates||[]),t];
+  // 선택주문: 무조건 1번이면 end / 정기배송: remain 0이면 end
+  const st = rem===0 ? 'end' : c.status;
+  const upd = {remain:rem, deliveredDates:dates, status:st};
   try{
-    await window.__DB.collection('customers').doc(id).update({remain:rem,deliveredDates:dates,status:st});
-    toast(c.name+' 배송완료 (잔여 '+rem+'회)','ok');
+    await window.__DB.collection('customers').doc(id).update(upd);
+    if(c.orderType==='once'){
+      toast(c.name+' 배송 완료! (주문 종료)','ok');
+    } else {
+      toast(c.name+' 배송완료 (잔여 '+rem+'회)','ok');
+    }
   } catch(e){ toast('오류: '+e.message,'er'); }
 }
 
@@ -1259,7 +1363,7 @@ function renderDash(){
   updateDashDisp();
   const tl=listFor(ds);
   let wk=0; for(let i=0;i<7;i++){const t=todayStr();wk+=listFor(addDays(t,i)).length;}
-  const low=custs.filter(c=>c.status==='active'&&c.remain<=3);
+  const low=custs.filter(c=>c.status==='active'&&c.orderType==='sub'&&c.remain<=3);
   s('s0',custs.length); s('s1',custs.filter(c=>c.status==='active').length);
   s('s2',tl.length); s('s3',wk); s('s4',low.length);
   s('sA',custs.filter(c=>c.set==='A'&&c.status==='active').length);
@@ -1439,148 +1543,379 @@ function parseText(){
   const raw=document.getElementById('pasteArea').value.trim();
   if(!raw){toast('텍스트를 붙여넣어 주세요','er');return;}
   const lines=raw.split('\n').map(l=>l.trim()).filter(Boolean);
-  const p={name:'',phone:'',addr:'',door:'',request:'',set:'',productId:'',qty:1,orderType:'once'};
 
   const phoneReg=/01[016789]-?\d{3,4}-?\d{4}/;
   const addrReg=/\(?\d{5}\)?\s+.+/;
 
-  // 전화번호: 모든 등장 위치 수집 → 마지막 번호 사용 (배송지 하단 기준)
+  // ── 전화번호: 마지막 등장 번호 (배송지 정보 기준) ──
   const allPhones=[];
   for(let i=0;i<lines.length;i++){
     const m=lines[i].match(phoneReg);
-    if(m) allPhones.push({phone:m[0], idx:i});
+    if(m) allPhones.push({phone:m[0],idx:i});
   }
-  if(allPhones.length>0) p.phone=allPhones[allPhones.length-1].phone;
+  const mainPhone = allPhones.length ? allPhones[allPhones.length-1].phone : '';
+  const lastPhoneIdx = allPhones.length ? allPhones[allPhones.length-1].idx : -1;
+
+  // ── 이름: 마지막 전화번호 바로 위 줄 ──
+  let mainName='';
+  if(lastPhoneIdx>0){
+    let cand=lines[lastPhoneIdx-1].replace(/\s*\(비회원\)\s*/g,'').trim();
+    if(!/[0-9]{6,}|오전|오후|취소|완료|주문|배송|결제|원$/.test(cand)&&cand.length>=1&&cand.length<=15)
+      mainName=cand;
+  }
+
+  // ── 주소 ──
+  let mainAddr='';
+  for(const l of lines){
+    if(addrReg.test(l)){ mainAddr=l.replace(/^\(?\d{5}\)?\s*/,'').trim(); break; }
+  }
+
+  // ── 현관번호 / 요청사항 ──
+  let door='', request='';
+  for(let i=0;i<lines.length;i++){
+    const l=lines[i];
+    if(/현관|비밀번호/i.test(l)&&!door){
+      const combined=(l+' '+(lines[i+1]||'')).replace(/현관\s*비밀번호\s*[:：]?/i,'').trim();
+      door=combined.split('\n')[0].trim();
+    }
+    if(/배송\s*전|미리\s*연락|부재|문\s*앞|두고\s*가|놓아/i.test(l)) request=l;
+  }
+
+  // ── 복수 주문 감지: "-001", "-002" 등 섹션번호로 분리 ──
+  // 섹션번호 패턴: 주문번호-001, 주문번호-002 ...
+  const sectionPat=/^\d{10,}-\d{3}$/;
+  const sectionIdxs=[];
+  for(let i=0;i<lines.length;i++){
+    if(sectionPat.test(lines[i])) sectionIdxs.push(i);
+  }
+
+  // 날짜 파싱 헬퍼: "3월 27일 금요일" → "2026-03-27"
+  function parseDateKo(str){
+    const m=str.match(/(\d{1,2})월\s*(\d{1,2})일/);
+    if(!m) return '';
+    const y=new Date().getFullYear();
+    const mo=String(m[1]).padStart(2,'0');
+    const d=String(m[2]).padStart(2,'0');
+    return `${y}-${mo}-${d}`;
+  }
+
+  // 상품ID 파싱 헬퍼
+  function parseProduct(str){
+    if(/[ABC]세트/i.test(str)){
+      const m=str.match(/([ABC])세트/i); return m?m[1].toUpperCase():'';
+    }
+    if(/수제.*돼지.*갈비|돼지.*양념.*갈비|수제양념돼지갈비/i.test(str)) return 'pork_rib';
+    if(/양념.*LA.*갈비|LA.*갈비|라갈비/i.test(str)) return 'beef_la';
+    return '';
+  }
+
+  // ── 섹션이 2개 이상 → 복수 주문 ──
+  if(sectionIdxs.length>=2){
+    const orders=[];
+    for(let si=0;si<sectionIdxs.length;si++){
+      const from=sectionIdxs[si];
+      const to=si+1<sectionIdxs.length ? sectionIdxs[si+1] : lines.length;
+      const seg=lines.slice(from,to);
+      // 날짜: "3월 XX일" 패턴
+      let onceDate=''; let prodId=''; let qty=1;
+      for(const l of seg){
+        if(!onceDate&&/\d{1,2}월\s*\d{1,2}일/.test(l)) onceDate=parseDateKo(l);
+        if(!prodId) prodId=parseProduct(l);
+        const qm=l.match(/^(\d+)\s*개$/);
+        if(qm) qty=parseInt(qm[1])||1;
+      }
+      if(prodId||onceDate) orders.push({onceDate,prodId,qty});
+    }
+    // 복수주문 결과 표시
+    parsedData={
+      _multi: true,
+      orders,
+      name: mainName, phone: mainPhone,
+      addr: mainAddr, door, request,
+    };
+    // 미리보기
+    let rowsHtml=`
+      <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;">📦 ${orders.length}건의 주문이 감지되었습니다</div>
+      <div class="prr"><div class="prk">이름</div><div class="prv">${mainName||'(미인식)'}</div></div>
+      <div class="prr"><div class="prk">연락처</div><div class="prv">${mainPhone||'(미인식)'}</div></div>
+      <div class="prr"><div class="prk">주소</div><div class="prv">${mainAddr||'(미인식)'}</div></div>
+      <div class="prr"><div class="prk">현관번호</div><div class="prv">${door||'—'}</div></div>
+      <div class="prr"><div class="prk">요청사항</div><div class="prv">${request||'—'}</div></div>
+      <div style="height:1px;background:var(--border);margin:8px 0;"></div>`;
+    orders.forEach((o,i)=>{
+      rowsHtml+=`
+      <div style="background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px;">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px;">주문 ${i+1}</div>
+        <div class="prr"><div class="prk">배송일</div><div class="prv">${o.onceDate||'(미인식)'}</div></div>
+        <div class="prr"><div class="prk">상품</div><div class="prv">${o.prodId?productLabel(o.prodId):'(미인식)'}</div></div>
+        <div class="prr"><div class="prk">수량</div><div class="prv">${o.qty}개</div></div>
+      </div>`;
+    });
+    document.getElementById('parseRows').innerHTML=rowsHtml;
+    document.getElementById('parseResult').classList.add('on');
+    toast(`${orders.length}건 복수 주문 감지! 확인 후 등록하세요`,'info');
+    return;
+  }
+
+  // ── 단일 주문 파싱 ──
+  const p={name:mainName,phone:mainPhone,addr:mainAddr,door,request,set:'',productId:'',qty:1,orderType:'once'};
 
   for(let i=0;i<lines.length;i++){
     const l=lines[i];
-
-    // 주소 (우편번호 포함 줄)
-    if(!p.addr&&addrReg.test(l)) p.addr=l.replace(/^\(?\d{5}\)?\s*/,'').trim();
-
-    // 세트 인식
-    if(!p.set&&/[ABC]세트/i.test(l)){
-      const m=l.match(/([ABC])세트/i); if(m) p.set=m[1].toUpperCase();
-    }
-
-    // 단품 상품 인식 - 다양한 표기 모두 처리
+    if(!p.set&&/[ABC]세트/i.test(l)){const m=l.match(/([ABC])세트/i);if(m)p.set=m[1].toUpperCase();}
     if(!p.productId){
       if(/수제.*돼지.*갈비|돼지.*양념.*갈비|수제양념돼지갈비|돼지갈비/i.test(l)) p.productId='pork_rib';
       else if(/양념.*LA.*갈비|LA.*갈비|라갈비/i.test(l)) p.productId='beef_la';
     }
-
-    // 수량 인식 ("2개", "3 개", "수량: 2")
     if(!p.qty||p.qty===1){
       const qm=l.match(/^(\d+)\s*개$/) || l.match(/수량\s*[:：]?\s*(\d+)/);
       if(qm) p.qty=parseInt(qm[1])||1;
     }
-
-    // 현관번호
-    if(/현관|비밀번호/i.test(l)){
-      const combined=(l+' '+(lines[i+1]||'')).replace(/현관\s*비밀번호\s*[:：]?/i,'').trim();
-      if(!p.door) p.door=combined.split('\n')[0].trim();
-    }
-
-    // 요청사항 (부재 안내, 문 앞 등)
-    if(/배송\s*전|미리\s*연락|부재|문\s*앞|두고\s*가|놓아/i.test(l)) p.request=l;
-
-    // 정기 판별
     if(/정기/.test(l)) p.orderType='sub';
   }
-
-  // 이름 추출: 마지막 전화번호 바로 위 줄 (비회원 텍스트 제거)
-  if(allPhones.length>0){
-    const lastPhoneIdx=allPhones[allPhones.length-1].idx;
-    if(lastPhoneIdx>0){
-      let cand=lines[lastPhoneIdx-1];
-      // "(비회원)", "(비회원)" 등 제거
-      cand=cand.replace(/\s*\(비회원\)\s*/g,'').trim();
-      if(!/[0-9]{6,}|오전|오후|취소|완료|주문|배송|결제|원$/.test(cand)&&cand.length>=1&&cand.length<=15){
-        p.name=cand;
-      }
-    }
-  }
-
-  // productId → set 동기화
   if(p.productId&&!p.set) p.set=p.productId;
   else if(p.set&&!p.productId&&['A','B','C'].includes(p.set)) p.productId=p.set;
 
   parsedData=p;
-
-  // 상품 표시명
-  const prodDisplay = p.productId ? productLabel(p.productId) : (p.set?p.set+'세트':'(직접 선택)');
-
+  const prodDisplay=p.productId?productLabel(p.productId):(p.set?p.set+'세트':'(직접 선택)');
   document.getElementById('parseRows').innerHTML=[
-    ['이름',       p.name||'(미인식)'],
-    ['연락처',     p.phone||'(미인식)'],
-    ['주소',       p.addr||'(미인식)'],
-    ['현관번호',   p.door||'—'],
-    ['요청사항',   p.request||'—'],
-    ['상품',       prodDisplay],
-    ['수량',       p.qty+'개'],
-    ['유형',       p.orderType==='sub'?'정기배송':'선택주문'],
+    ['이름',p.name||'(미인식)'],['연락처',p.phone||'(미인식)'],
+    ['주소',p.addr||'(미인식)'],['현관번호',p.door||'—'],
+    ['요청사항',p.request||'—'],['상품',prodDisplay],
+    ['수량',p.qty+'개'],['유형',p.orderType==='sub'?'정기배송':'선택주문'],
   ].map(([k,v])=>`<div class="prr"><div class="prk">${k}</div><div class="prv">${v}</div></div>`).join('');
-
   document.getElementById('parseResult').classList.add('on');
   toast('인식 완료. 확인 후 등록하세요','info');
 }
 
-async function regParsed(){
+// 파싱 후 모달 열기
+function regParsed(){
   if(!parsedData){ toast('먼저 분석을 실행하세요','er'); return; }
   const p = parsedData;
+  const t = todayStr();
 
-  // ── 필수값 검증 ──
-  if(!p.name)  { toast('이름을 인식하지 못했습니다. 직접 수정해 주세요','er'); return; }
-  if(!p.phone) { toast('연락처를 인식하지 못했습니다','er'); return; }
-  if(!p.addr)  { toast('주소를 인식하지 못했습니다','er'); return; }
+  // 공통 기본 정보 채우기
+  document.getElementById('pm-name').value  = p.name  || '';
+  document.getElementById('pm-phone').value = p.phone || '';
+  document.getElementById('pm-addr').value  = p.addr  || '';
+  document.getElementById('pm-door').value  = p.door  || '';
+  document.getElementById('pm-req').value   = p.request || '';
+  document.getElementById('pm-memo').value  = '';
 
-  const ot = p.orderType || 'once';
-  const t  = todayStr();
+  if(p._multi){
+    // ── 복수 주문 모드 ──
+    document.getElementById('parseMTitle').textContent = `주문 확인 및 수정 (${p.orders.length}건)`;
+    document.getElementById('pm-single').style.display = 'none';
+    document.getElementById('pm-multi').style.display  = 'block';
+    renderPmOrderList(p.orders);
+  } else {
+    // ── 단일 주문 모드 ──
+    document.getElementById('parseMTitle').textContent = '주문 확인 및 수정';
+    document.getElementById('pm-single').style.display = 'block';
+    document.getElementById('pm-multi').style.display  = 'none';
+    const ot = p.orderType || 'once';
+    pmSetOrderType(ot);
+    if(ot === 'once'){
+      document.getElementById('pm-prod').value  = p.productId || p.set || '';
+      document.getElementById('pm-date').value  = p.onceDate  || t;
+      document.getElementById('pm-qty').value   = p.qty || 1;
+    } else {
+      document.getElementById('pm-set').value   = p.set || '';
+      document.getElementById('pm-total').value = p.total || 12;
+      document.getElementById('pm-start').value = p.startDate || t;
+    }
+  }
+  openM('parseM');
+}
 
-  let data = {
-    name:   p.name,
-    phone:  p.phone,
-    addr:   p.addr,
-    door:   p.door    || '',
-    request:p.request || '',
-    memo:   '자동 등록 (텍스트 파싱)',
-    status: 'active',
-    deliveredDates: [],
-    createdAt: new Date().toISOString(),
-    orderType: ot,
+// 복수주문 목록 렌더링
+function renderPmOrderList(orders){
+  const wrap = document.getElementById('pm-order-list');
+  wrap.innerHTML = orders.map((o,i) => `
+    <div class="pm-order-item" id="pm-ord-${i}" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-size:12px;font-weight:700;color:var(--accent);">주문 ${i+1}</span>
+        <button class="btn btn-d sm" onclick="pmRemoveOrder(${i})">✕ 제외</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:10px;">
+        <div class="fgrp">
+          <div class="flab">상품 *</div>
+          <select class="inp" id="pm-ord-prod-${i}">
+            <option value="">선택</option>
+            <optgroup label="반찬 세트">
+              <option value="A" ${o.prodId==='A'?'selected':''}>A세트</option>
+              <option value="B" ${o.prodId==='B'?'selected':''}>B세트</option>
+              <option value="C" ${o.prodId==='C'?'selected':''}>C세트</option>
+            </optgroup>
+            <optgroup label="단품 상품">
+              <option value="pork_rib" ${o.prodId==='pork_rib'?'selected':''}>🥩 수제 돼지양념갈비</option>
+              <option value="beef_la"  ${o.prodId==='beef_la' ?'selected':''}>🥩 양념 LA갈비</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="fgrp">
+          <div class="flab">배송 예정일 *</div>
+          <input type="date" class="inp" id="pm-ord-date-${i}" value="${o.onceDate||''}">
+        </div>
+        <div class="fgrp">
+          <div class="flab">수량</div>
+          <input type="number" class="inp" id="pm-ord-qty-${i}" value="${o.qty||1}" min="1" max="99" style="text-align:center;font-weight:700;">
+        </div>
+      </div>
+    </div>`).join('');
+  // 인덱스 저장
+  wrap.dataset.count = orders.length;
+}
+
+function pmRemoveOrder(i){
+  const item = document.getElementById('pm-ord-'+i);
+  if(item) item.remove();
+  // 남은 건수 표시 업데이트
+  const remaining = document.querySelectorAll('[id^="pm-ord-"][id$="-0"], [id^="pm-ord-prod-"]').length;
+}
+
+function pmAddOrder(){
+  const wrap = document.getElementById('pm-order-list');
+  const i = parseInt(wrap.dataset.count || 0);
+  wrap.dataset.count = i+1;
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="pm-order-item" id="pm-ord-${i}" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-size:12px;font-weight:700;color:var(--accent);">주문 추가</span>
+        <button class="btn btn-d sm" onclick="pmRemoveOrder(${i})">✕ 제외</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:10px;">
+        <div class="fgrp"><div class="flab">상품 *</div>
+          <select class="inp" id="pm-ord-prod-${i}">
+            <option value="">선택</option>
+            <optgroup label="반찬 세트">
+              <option value="A">A세트</option><option value="B">B세트</option><option value="C">C세트</option>
+            </optgroup>
+            <optgroup label="단품 상품">
+              <option value="pork_rib">🥩 수제 돼지양념갈비</option>
+              <option value="beef_la">🥩 양념 LA갈비</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="fgrp"><div class="flab">배송 예정일 *</div>
+          <input type="date" class="inp" id="pm-ord-date-${i}" value="${todayStr()}">
+        </div>
+        <div class="fgrp"><div class="flab">수량</div>
+          <input type="number" class="inp" id="pm-ord-qty-${i}" value="1" min="1" max="99" style="text-align:center;font-weight:700;">
+        </div>
+      </div>
+    </div>`;
+  wrap.appendChild(div.firstElementChild);
+}
+
+// 단일주문 유형 전환
+function pmSetOrderType(ot){
+  const isOnce = ot==='once';
+  document.getElementById('pm-prod-wrap').style.display  = isOnce?'':'none';
+  document.getElementById('pm-date-wrap').style.display  = isOnce?'':'none';
+  document.getElementById('pm-qty-wrap').style.display   = isOnce?'':'none';
+  document.getElementById('pm-set-wrap').style.display   = isOnce?'none':'';
+  document.getElementById('pm-freq-wrap').style.display  = isOnce?'none':'';
+  document.getElementById('pm-sched-wrap').style.display = isOnce?'none':'';
+  document.getElementById('pm-total-wrap').style.display = isOnce?'none':'';
+  document.getElementById('pm-start-wrap').style.display = isOnce?'none':'';
+}
+
+function pmChangeQty(d){
+  const el=document.getElementById('pm-qty');
+  el.value=Math.max(1,Math.min(99,(parseInt(el.value)||1)+d));
+}
+
+function pmUpdSch(){
+  const tp=document.getElementById('pm-freq').value;
+  const sel=document.getElementById('pm-sched');
+  sel.innerHTML='';
+  if(!tp){sel.innerHTML='<option>주기를 먼저 선택하세요</option>';return;}
+  SCH[tp].forEach((sc,i)=>{const o=document.createElement('option');o.value=i;o.textContent=sc.l;sel.appendChild(o);});
+}
+
+// 최종 저장
+async function saveParsed(){
+  const name  = document.getElementById('pm-name').value.trim();
+  const phone = document.getElementById('pm-phone').value.trim();
+  const addr  = document.getElementById('pm-addr').value.trim();
+  const door  = document.getElementById('pm-door').value.trim();
+  const req   = document.getElementById('pm-req').value.trim();
+  const memo  = document.getElementById('pm-memo').value.trim();
+
+  if(!name) { toast('주문자명을 입력하세요','er'); return; }
+  if(!phone){ toast('연락처를 입력하세요','er'); return; }
+  if(!addr) { toast('주소를 입력하세요','er'); return; }
+
+  const base = {
+    name, phone, addr, door, request:req, memo:memo||'자동 등록 (텍스트 파싱)',
+    status:'active', deliveredDates:[], createdAt:new Date().toISOString(),
   };
 
-  if(ot === 'sub'){
-    // 정기배송 — 세트 필요
-    const s = p.set || '';
-    if(!s){ toast('세트를 인식하지 못했습니다. 직접 등록해주세요','er'); return; }
-    Object.assign(data, {
-      set: s, productId: s,
-      total: 12, remain: 12,          // 기본값 12회 (수정 가능)
-      startDate: t,
-      scheduleName: '정기배송',
-      arriveDays: [], cookDays: [],
-    });
-  } else {
-    // 선택주문
-    const prod = p.productId || p.set || '';
-    const qty  = p.qty || 1;
-    if(!prod){ toast('상품을 인식하지 못했습니다. 직접 등록해주세요','er'); return; }
-    Object.assign(data, {
-      set: prod, productId: prod,
-      total: qty, remain: qty, qty,
-      onceDate: t, startDate: t,
-      scheduleName: productLabel(prod) + (qty > 1 ? ' x' + qty + '개' : ''),
-      arriveDays: [], cookDays: [],
-    });
-  }
+  const isMulti = document.getElementById('pm-multi').style.display !== 'none';
 
-  try{
-    await window.__DB.collection('customers').add(data);
-    clearParse();
-    toast(p.name + ' 등록 완료!', 'ok');
-  } catch(e){
-    toast('등록 오류: ' + e.message, 'er');
+  if(isMulti){
+    // 복수 주문 수집
+    const items = document.querySelectorAll('#pm-order-list .pm-order-item');
+    if(!items.length){ toast('등록할 주문이 없습니다','er'); return; }
+    let ok=0, errs=[];
+    for(const item of items){
+      const id = item.id.replace('pm-ord-','');
+      const prod  = document.getElementById('pm-ord-prod-'+id)?.value||'';
+      const date  = document.getElementById('pm-ord-date-'+id)?.value||'';
+      const qty   = parseInt(document.getElementById('pm-ord-qty-'+id)?.value)||1;
+      if(!prod){ errs.push(`주문${parseInt(id)+1}: 상품 미선택`); continue; }
+      if(!date){ errs.push(`주문${parseInt(id)+1}: 날짜 미입력`); continue; }
+      const data={
+        ...base, orderType:'once', set:prod, productId:prod,
+        total:qty, remain:qty, qty,
+        onceDate:date, startDate:date,
+        scheduleName:productLabel(prod)+(qty>1?' x'+qty+'개':''),
+        arriveDays:[], cookDays:[],
+      };
+      try{ await window.__DB.collection('customers').add(data); ok++; }
+      catch(e){ errs.push('저장 오류: '+e.message); }
+    }
+    if(errs.length) toast(errs.join(' / '),'er');
+    if(ok>0){ closeM('parseM'); clearParse(); toast(name+' '+ok+'건 등록 완료!','ok'); }
+
+  } else {
+    // 단일 주문
+    const isSub = document.getElementById('pm-set-wrap').style.display !== 'none';
+    let data = {...base, orderType: isSub?'sub':'once'};
+
+    if(isSub){
+      const s   = document.getElementById('pm-set').value;
+      const tp  = document.getElementById('pm-freq').value;
+      const si  = document.getElementById('pm-sched').value;
+      const tot = parseInt(document.getElementById('pm-total').value)||0;
+      const sd  = document.getElementById('pm-start').value;
+      if(!s)  { toast('세트를 선택하세요','er'); return; }
+      if(!tp) { toast('배송 주기를 선택하세요','er'); return; }
+      if(si===''){ toast('배송 일정을 선택하세요','er'); return; }
+      if(!tot){ toast('총 구독 횟수를 입력하세요','er'); return; }
+      if(!sd) { toast('시작일을 선택하세요','er'); return; }
+      const sch=SCH[tp][parseInt(si)];
+      Object.assign(data,{set:s,productId:s,type:parseInt(tp),
+        scheduleName:sch.l, cookDays:sch.c, arriveDays:sch.a,
+        total:tot, remain:tot, startDate:sd});
+    } else {
+      const prod = document.getElementById('pm-prod').value;
+      const date = document.getElementById('pm-date').value;
+      const qty  = parseInt(document.getElementById('pm-qty').value)||1;
+      if(!prod){ toast('상품을 선택하세요','er'); return; }
+      if(!date){ toast('배송 예정일을 입력하세요','er'); return; }
+      Object.assign(data,{set:prod, productId:prod,
+        total:qty, remain:qty, qty,
+        onceDate:date, startDate:date,
+        scheduleName:productLabel(prod)+(qty>1?' x'+qty+'개':''),
+        arriveDays:[], cookDays:[]});
+    }
+    try{
+      await window.__DB.collection('customers').add(data);
+      closeM('parseM'); clearParse(); toast(name+' 등록 완료!','ok');
+    } catch(e){ toast('등록 오류: '+e.message,'er'); }
   }
 }
 
@@ -1735,6 +2070,12 @@ function resetXl(){
 // UI 헬퍼
 // ════════════════════════════════════════
 function gauge(c){
+  // 선택주문(1회): 수량만 표시, 게이지 없음
+  if(c.orderType==='once'){
+    const q=c.qty||c.total||1;
+    return `<span style="font-size:12px;color:var(--text2);font-weight:600;">${q > 1 ? q+'개' : '—'}</span>`;
+  }
+  // 정기배송: 잔여 게이지
   const pct=c.total>0?Math.min(100,c.remain/c.total*100):0, lo=c.remain<=3;
   return `<div class="gw"><div class="gt"><div class="gf ${lo?'low':''}" style="width:${pct}%"></div></div><span class="gn ${lo?'g-low':'g-ok'}">${c.remain}회</span></div>`;
 }
