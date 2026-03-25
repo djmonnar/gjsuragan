@@ -154,6 +154,7 @@ tbody tr:last-child td{border-bottom:none;}
 .b-sub{background:rgba(3,102,214,.1);color:#0366d6;border-color:rgba(3,102,214,.2);}
 .b-pork{background:rgba(210,90,60,.1);color:#d25a3c;border-color:rgba(210,90,60,.25);}
 .b-beef{background:rgba(155,60,40,.1);color:#9b3c28;border-color:rgba(155,60,40,.25);}
+.b-direct{background:rgba(225,50,200,.1);color:#c020b0;border-color:rgba(225,50,200,.25);}
 
 /* ── 게이지 ── */
 .gw{display:flex;align-items:center;gap:8px;}
@@ -514,17 +515,19 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
   <div class="sh">
     <div class="st"><div class="std"></div>고객 목록</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <input type="text" class="inp inp-sm" placeholder="🔍  이름 · 연락처 · 주소" id="srchQ" oninput="renderCust()" style="width:180px;">
+      <input type="text" class="inp inp-sm" placeholder="🔍  이름 · 연락처 · 주소 · 주문번호" id="srchQ" oninput="renderCust()" style="width:220px;">
       <select class="inp inp-sm" id="srchSet" onchange="renderCust()" style="width:100px;"><option value="">전체 세트</option><option value="A">A세트</option><option value="B">B세트</option><option value="C">C세트</option></select>
       <select class="inp inp-sm" id="srchType" onchange="renderCust()" style="width:110px;"><option value="">전체 유형</option><option value="sub">정기배송</option><option value="once">선택주문</option></select>
       <select class="inp inp-sm" id="srchSt" onchange="renderCust()" style="width:110px;"><option value="">전체 상태</option><option value="active">구독 중</option><option value="pause">일시정지</option><option value="end">종료</option></select>
+      <select class="inp inp-sm" id="srchDirect" onchange="renderCust()" style="width:110px;"><option value="">전체 배송</option><option value="1">직배송</option><option value="0">택배배송</option></select>
       <button class="btn btn-p sm" onclick="openM('addM')">＋ 신규 등록</button>
+      <button class="btn btn-g sm" onclick="exportCSV()" title="전체 고객 CSV 백업">⬇ CSV 백업</button>
     </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;">
     <div class="card" style="overflow:auto;max-height:calc(100vh - 220px);">
       <table>
-        <thead><tr><th>고객명</th><th>연락처</th><th>세트</th><th>유형</th><th>배송일정</th><th>잔여</th><th>상태</th><th></th></tr></thead>
+        <thead><tr><th>고객명</th><th>연락처</th><th>세트</th><th>유형</th><th>배송일정</th><th>배송</th><th>잔여</th><th>상태</th><th></th></tr></thead>
         <tbody id="custList"></tbody>
       </table>
     </div>
@@ -682,6 +685,17 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
           </div>
         </div>
         <div class="fdiv"></div>
+        <div class="fsec">추가 정보</div>
+        <div class="fgrp"><div class="flab">주문번호</div><input type="text" class="inp" id="a-ordernum" placeholder="202603258223322"></div>
+        <div class="fgrp"><div class="flab">배송 방식</div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:2px;">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400;color:var(--text);">
+              <input type="checkbox" id="a-direct" style="width:16px;height:16px;"> 직배송 (당일 배송)
+            </label>
+            <span style="font-size:11px;color:var(--text3);">사천·진주 지역 등</span>
+          </div>
+        </div>
+        <div class="fdiv"></div>
         <div class="fsec">메모</div>
         <div class="fgrp fgf"><div class="flab">내부 메모</div><textarea class="inp" id="am" placeholder="알러지, 특이사항 등"></textarea></div>
       </div>
@@ -718,6 +732,12 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <div class="fgrp"><div class="flab">잔여 수량</div><input type="number" class="inp" id="erem" min="0"></div>
         <div class="fgrp"><div class="flab">총 수량 / 횟수</div><input type="number" class="inp" id="etot" min="1"></div>
         <div class="fgrp"><div class="flab">배송 예정일 (선택주문)</div><input type="date" class="inp" id="eodate"></div>
+        <div class="fgrp"><div class="flab">주문번호</div><input type="text" class="inp" id="e-ordernum" placeholder="202603258223322"></div>
+        <div class="fgrp"><div class="flab">배송 방식</div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400;color:var(--text);margin-top:6px;">
+            <input type="checkbox" id="e-direct" style="width:16px;height:16px;"> 직배송 (당일 배송)
+          </label>
+        </div>
         <div class="fgrp fgf"><div class="flab">메모</div><textarea class="inp" id="em"></textarea></div>
       </div>
     </div>
@@ -801,6 +821,14 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
           </div>
           <div class="fdiv"></div>
           <div class="fsec">메모</div>
+          <div class="fgrp"><div class="flab">주문번호</div>
+            <input type="text" class="inp" id="pm-ordernum" placeholder="202603258223322">
+          </div>
+          <div class="fgrp"><div class="flab">배송 방식</div>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400;color:var(--text);margin-top:6px;">
+              <input type="checkbox" id="pm-direct" style="width:16px;height:16px;"> 직배송 (당일 배송)
+            </label>
+          </div>
           <div class="fgrp fgf"><div class="flab">내부 메모</div>
             <textarea class="inp" id="pm-memo" placeholder="알러지, 특이사항 등"></textarea>
           </div>
@@ -827,9 +855,10 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 // ════════════════════════════════════════
 // ★ 비밀번호 설정 - 여기를 수정하세요 ★
 // ════════════════════════════════════════
+// ★★★ 반드시 아래 비밀번호를 변경하세요! ★★★
 const PASSWORDS = [
-  'gjsrg2024',   // ← 비밀번호 1 (직접 바꿔주세요)
-  'admin1234',   // ← 비밀번호 2 (직접 바꿔주세요)
+  'tkdgns1q2w!',   // ← 비밀번호 1 (GitHub 배포 전 꼭 변경!)
+  'rndwndtnfkrks1q2w!',   // ← 비밀번호 2 (GitHub 배포 전 꼭 변경!)
 ];
 const SESSION_KEY = 'gjsr_auth';
 const SESSION_HOURS = 8; // 몇 시간 동안 로그인 유지
@@ -965,8 +994,11 @@ let reportOffset=0;   // 주 또는 월 오프셋
 // ════════════════════════════════════════
 // Firebase
 // ════════════════════════════════════════
+let _fbInitDone = false;
 function initFirestore(){
+  if(_fbInitDone) return;
   if(!window.__DB){ setTimeout(initFirestore, 200); return; }
+  _fbInitDone = true;
   document.getElementById('fbDot').classList.add('on');
   document.getElementById('fbTxt').textContent='연결됨';
   window.__DB.collection('customers').onSnapshot(snap=>{
@@ -975,6 +1007,8 @@ function initFirestore(){
     document.getElementById('loading').style.display='none';
   }, err=>{
     toast('Firestore 오류: '+err.message,'er');
+    document.getElementById('fbDot').classList.remove('on');
+    document.getElementById('fbTxt').textContent='연결 오류';
     document.getElementById('loading').style.display='none';
   });
 }
@@ -991,9 +1025,12 @@ async function saveNew(){
   if(!ph){ toast('연락처를 입력하세요','er'); return; }
   if(!a){ toast('배송지 주소를 입력하세요','er'); return; }
 
+  const isDirect = document.getElementById('a-direct').checked;
+  const orderNum = document.getElementById('a-ordernum').value.trim();
   let data={
     name:n, phone:ph, addr:a, door:d, request:r, memo:m,
-    status:'active', deliveredDates:[], createdAt:new Date().toISOString(), orderType
+    status:'active', deliveredDates:[], createdAt:new Date().toISOString(),
+    orderType, isDirect, orderNum
   };
 
   if(orderType==='sub'){
@@ -1039,7 +1076,9 @@ async function saveEdit(){
     set:['A','B','C'].includes(esVal)?esVal:(esVal||''),
     productId:esVal,
     scheduleName:productLabel(esVal)||g('es'),
-    status:g('est'),remain:parseInt(g('erem'))||0,total:parseInt(g('etot'))||1,memo:g('em')};
+    status:g('est'),remain:parseInt(g('erem'))||0,total:parseInt(g('etot'))||1,memo:g('em'),
+    isDirect: document.getElementById('e-direct').checked,
+    orderNum: document.getElementById('e-ordernum').value.trim()};
   const od=g('eodate'); if(od) upd.onceDate=od;
   try{
     await window.__DB.collection('customers').doc(editId).update(upd);
@@ -1053,6 +1092,65 @@ async function delCust(){
     await window.__DB.collection('customers').doc(editId).delete();
     closeM('editM'); toast('삭제 완료','ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
+}
+
+// 잔여 횟수 충전 (정기 갱신)
+async function chargeRemain(id){
+  const c=custs.find(x=>x.id===id); if(!c) return;
+  const add=parseInt(prompt(`${c.name} 고객의 잔여 횟수를 추가합니다.
+현재 잔여: ${c.remain}회
+추가할 횟수를 입력하세요:`,'12'));
+  if(!add||isNaN(add)||add<=0){ toast('올바른 횟수를 입력하세요','er'); return; }
+  try{
+    await window.__DB.collection('customers').doc(id).update({
+      remain:c.remain+add, status:'active'
+    });
+    toast(`${c.name} +${add}회 충전 완료 (총 ${c.remain+add}회)`,'ok');
+  } catch(e){ toast('오류: '+e.message,'er'); }
+}
+
+// 일시정지 / 재개 토글
+async function togglePause(id){
+  const c=custs.find(x=>x.id===id); if(!c) return;
+  const isPaused=c.status==='pause';
+  const newStatus=isPaused?'active':'pause';
+  const label=isPaused?'재개':'일시정지';
+  if(!confirm(`${c.name} 구독을 ${label}하시겠습니까?`)) return;
+  try{
+    await window.__DB.collection('customers').doc(id).update({status:newStatus});
+    toast(`${c.name} 구독 ${label}됨`,'ok');
+  } catch(e){ toast('오류: '+e.message,'er'); }
+}
+
+// CSV 전체 백업
+function exportCSV(){
+  if(!custs.length){ toast('내보낼 고객 데이터가 없습니다','er'); return; }
+  const header = ['이름','연락처','주소','현관번호','요청사항','세트/상품','배송유형',
+    '배송방식','주문번호','배송일정','총횟수','잔여횟수','시작일','선택주문배송일',
+    '상태','등록일','메모'];
+  const rows = custs.map(c=>[
+    c.name||'', c.phone||'', c.addr||'', c.door||'', c.request||'',
+    productLabel(c.productId||c.set)||c.set||'',
+    c.orderType==='sub'?'정기배송':'선택주문',
+    c.isDirect?'직배송':'택배',
+    c.orderNum||'',
+    c.scheduleName||'',
+    c.total||'', c.remain||'',
+    c.startDate||'', c.onceDate||'',
+    {active:'구독중',pause:'일시정지',end:'종료'}[c.status]||c.status||'',
+    c.createdAt?c.createdAt.slice(0,10):'',
+    (c.memo||'').replace(/
+/g,' ')
+  ]);
+  const BOM = '﻿'; // 한글 깨짐 방지
+  const csv = BOM + [header, ...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('
+');
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `궁중수라간_고객백업_${todayStr()}.csv`;
+  a.click();
+  toast(`${custs.length}명 CSV 백업 완료`,'ok');
 }
 
 // 고객 목록에서 바로 삭제
@@ -1081,6 +1179,21 @@ async function markDone(id, dateStr){
     } else {
       toast(c.name+' 배송완료 (잔여 '+rem+'회)','ok');
     }
+  } catch(e){ toast('오류: '+e.message,'er'); }
+}
+
+// 배송완료 취소 (실수 방지)
+async function undoMarkDone(id, dateStr){
+  const c=custs.find(x=>x.id===id); if(!c) return;
+  const dates=(c.deliveredDates||[]).filter(d=>d!==dateStr);
+  const newRemain=c.remain+1;
+  const newStatus=c.status==='end'?'active':c.status;
+  if(!confirm(`${c.name}의 [${dateStr}] 배송완료를 취소하시겠습니까?`)) return;
+  try{
+    await window.__DB.collection('customers').doc(id).update({
+      remain:newRemain, deliveredDates:dates, status:newStatus
+    });
+    toast(c.name+' 배송완료 취소됨','ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
 }
 
@@ -1125,7 +1238,15 @@ function isDelivSub(c,ds){
   const cookFromArrive=(c.arriveDays||[]).map(a=>a===0?6:a-1);
   return cookFromArrive.includes(d);
 }
-function isDelivOnce(c,ds){ return c.status==='active'&&c.remain>0&&c.orderType==='once'&&c.onceDate===ds; }
+function isDelivOnce(c,ds){
+  if(c.status!=='active'||c.remain<=0||c.orderType!=='once') return false;
+  if(c.isDirect){
+    // 직배송: onceDate 당일 배송
+    return c.onceDate===ds;
+  }
+  // 일반 택배: onceDate 당일 (기존 동일)
+  return c.onceDate===ds;
+}
 function isDeliv(c,ds){ return isDelivSub(c,ds)||isDelivOnce(c,ds); }
 function listFor(ds){ return custs.filter(c=>isDeliv(c,ds)); }
 function todayList(){ return listFor(todayStr()); }
@@ -1411,7 +1532,10 @@ function renderToday(){
       <td style="white-space:nowrap;">${c.phone}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.addr}">${c.addr}</td>
       <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-      <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
+      <td>
+        <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span>
+        ${c.isDirect?'<span class="badge b-direct" style="margin-left:3px;">직배송</span>':''}
+      </td>
       <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||''}</td>
       <td style="font-size:12px;">${c.door||'—'}</td>
       <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
@@ -1427,9 +1551,11 @@ function renderCust(){
   const fs=document.getElementById('srchSet')?.value||'';
   const ft=document.getElementById('srchType')?.value||'';
   const fst=document.getElementById('srchSt')?.value||'';
+  const fd=document.getElementById('srchDirect')?.value||'';
   const list=custs.filter(c=>
-    (!q||c.name.includes(q)||c.phone.includes(q)||(c.addr||'').includes(q))
+    (!q||c.name.includes(q)||c.phone.includes(q)||(c.addr||'').includes(q)||(c.orderNum||'').includes(q))
     &&(!fs||c.set===fs)&&(!ft||c.orderType===ft)&&(!fst||c.status===fst)
+    &&(!fd||(fd==='1'?c.isDirect:!c.isDirect))
   );
   const tb=document.getElementById('custList');
   if(!list.length){
@@ -1437,18 +1563,38 @@ function renderCust(){
     return;
   }
   tb.innerHTML=list.map(c=>`<tr class="trc" onclick="showDet('${c.id}')">
-    <td><strong>${c.name}</strong></td>
+    <td>
+      <strong>${c.name}</strong>
+      ${c.orderNum?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">#${c.orderNum}</div>`:''}
+    </td>
     <td style="white-space:nowrap;">${c.phone}</td>
     <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
     <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
     <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.scheduleName||''}</td>
+    <td>${c.isDirect?'<span class="badge b-direct">직배송</span>':'<span style="font-size:11px;color:var(--text3);">택배</span>'}</td>
     <td>${gauge(c)}</td>
     <td><span class="badge b-${c.status}">${SL[c.status]}</span></td>
-    <td style="display:flex;gap:4px;">
+    <td style="display:flex;gap:4px;flex-wrap:wrap;">
       <button class="btn btn-g sm" onclick="event.stopPropagation();openEdit('${c.id}')">수정</button>
+      ${c.orderType==='sub'?`<button class="btn sm" style="background:rgba(3,102,214,.1);color:#0366d6;border:1px solid rgba(3,102,214,.3);" onclick="event.stopPropagation();chargeRemain('${c.id}')">충전</button>`:''}
       <button class="btn btn-d sm" onclick="event.stopPropagation();quickDelete('${c.id}','${c.name}')">삭제</button>
     </td>
   </tr>`).join('');
+}
+
+// 선택주문 배송일 변경
+async function editOnceDate(id, currentDate){
+  const c=custs.find(x=>x.id===id); if(!c) return;
+  const newDate=prompt(`${c.name}의 배송 예정일을 변경합니다.
+현재: ${currentDate||'미설정'}
+
+새 날짜를 입력하세요 (YYYY-MM-DD):`, currentDate||todayStr());
+  if(!newDate) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(newDate)){ toast('날짜 형식이 올바르지 않습니다 (YYYY-MM-DD)','er'); return; }
+  try{
+    await window.__DB.collection('customers').doc(id).update({onceDate:newDate, startDate:newDate});
+    toast(`${c.name} 배송일 → ${newDate} 변경 완료`,'ok');
+  } catch(e){ toast('오류: '+e.message,'er'); }
 }
 
 function showDet(id){
@@ -1474,24 +1620,39 @@ function showDet(id){
         <div class="dpr"><div class="dpl">현관번호</div><div class="dpv">${c.door||'—'}</div></div>
         <div class="dpr"><div class="dpl">요청사항</div><div class="dpv" style="font-size:12px;">${c.request||'—'}</div></div>
         <div class="dpr"><div class="dpl">배송일정</div><div class="dpv" style="font-size:12px;">${c.scheduleName||'—'}</div></div>
+        <div class="dpr"><div class="dpl">배송 방식</div><div class="dpv">${c.isDirect?'<span class="badge b-direct">🚗 직배송</span>':'<span style="font-size:12px;">📦 택배</span>'}</div></div>
+        ${c.orderNum?`<div class="dpr"><div class="dpl">주문번호</div><div class="dpv" style="font-size:12px;font-family:monospace;">${c.orderNum}</div></div>`:''}
         ${c.qty&&c.qty>1?`<div class="dpr"><div class="dpl">수량</div><div class="dpv" style="font-weight:700;color:var(--accent);">${c.qty}개</div></div>`:''}
         ${c.onceDate?`<div class="dpr"><div class="dpl">배송예정일</div><div class="dpv">${c.onceDate}</div></div>`:''}
+        ${c.orderType==='sub'?`
         <div class="dpr">
           <div class="dpl">잔여 횟수</div>
           <div style="margin-top:4px;">
             <div style="font-size:22px;font-weight:700;color:${isLow?'var(--danger)':'var(--accent)'};margin-bottom:6px;">${c.remain}<span style="font-size:13px;font-weight:400;color:var(--text3);"> / ${c.total}회</span></div>
             <div class="gt" style="height:6px;"><div class="gf ${isLow?'low':''}" style="width:${pct}%"></div></div>
           </div>
-        </div>
+        </div>`:''}
         ${c.memo?`<div class="dpr"><div class="dpl">메모</div><div class="dpv" style="font-size:12px;background:var(--bg3);padding:8px;border-radius:4px;">${c.memo}</div></div>`:''}
         <div class="dpr">
-          <div class="dpl">배송 이력</div>
-          <div style="margin-top:4px;">${(c.deliveredDates||[]).slice(-5).reverse().map(d=>`<div class="dhi">✓ ${d}</div>`).join('')||'<div style="font-size:12px;color:var(--text3);">이력 없음</div>'}</div>
+          <div class="dpl">배송 이력 <span style="font-size:9px;color:var(--text3);">(클릭 → 취소)</span></div>
+          <div style="margin-top:4px;">
+            ${(c.deliveredDates||[]).slice(-5).reverse().map(d=>`
+              <div class="dhi" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>✓ ${d}</span>
+                <button onclick="undoMarkDone('${c.id}','${d}')" style="border:none;background:none;color:var(--danger);cursor:pointer;font-size:11px;padding:0 2px;" title="취소">↩</button>
+              </div>`).join('')||'<div style="font-size:12px;color:var(--text3);">이력 없음</div>'}
+          </div>
         </div>
-        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
-          <button class="btn btn-p" style="flex:1;font-size:12px;min-width:60px;" onclick="openEdit('${c.id}')">수정</button>
-          <button class="btn btn-s" style="flex:1;font-size:12px;min-width:60px;" onclick="markDone('${c.id}')">✓ 배송완료</button>
-          <button class="btn btn-d" style="width:100%;font-size:12px;margin-top:2px;" onclick="quickDelete('${c.id}','${c.name}')">🗑 삭제</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
+          <button class="btn btn-p" style="font-size:12px;" onclick="openEdit('${c.id}')">✏ 수정</button>
+          <button class="btn btn-s" style="font-size:12px;" onclick="markDone('${c.id}')">✓ 배송완료</button>
+          ${c.orderType==='sub'?`
+          <button class="btn btn-g" style="font-size:12px;" onclick="togglePause('${c.id}')">${c.status==='pause'?'▶ 재개':'⏸ 일시정지'}</button>
+          <button class="btn" style="font-size:12px;background:rgba(3,102,214,.1);color:#0366d6;border-color:rgba(3,102,214,.3);" onclick="chargeRemain('${c.id}')">＋ 횟수 충전</button>
+          `:`
+          <button class="btn btn-g" style="font-size:12px;grid-column:1/-1;" onclick="editOnceDate('${c.id}','${c.onceDate||''}')">📅 배송일 변경</button>
+          `}
+          <button class="btn btn-d" style="font-size:12px;grid-column:1/-1;" onclick="quickDelete('${c.id}','${c.name}')">🗑 삭제</button>
         </div>
       </div>
     </div>`;
@@ -1519,13 +1680,31 @@ function genExport(){
     <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
     <td style="font-size:11px;color:var(--text2);">${c.request||''}</td>
   </tr>`).join('');
-  let txt=`===== 궁중수라간 택배 발송 목록 =====\n날짜  : ${date} (${DAYS[dow(date)]}요일)\n총건수: ${list.length}건\n생성  : ${new Date().toLocaleString('ko-KR')}\n${'─'.repeat(40)}\n`;
-  list.forEach((c,i)=>{
-    txt+=`\n[${String(i+1).padStart(2,'0')}] ${c.name} (${c.orderType==='once'?'선택':'정기'})\n     전화: ${c.phone}\n     주소: ${c.addr}\n     상품: ${productLabel(c.productId||c.set)}\n`;
-    if(c.door)    txt+=`     현관: ${c.door}\n`;
-    if(c.request) txt+=`     요청: ${c.request}\n`;
-  });
-  txt+=`\n${'─'.repeat(40)}\nEND`;
+  const directList  = list.filter(c=>c.isDirect);
+  const courierList = list.filter(c=>!c.isDirect);
+  let txt=`===== 궁중수라간 발송 목록 =====\n날짜  : ${date} (${DAYS[dow(date)]}요일)\n총 ${list.length}건 (직배송 ${directList.length}건 / 택배 ${courierList.length}건)\n생성  : ${new Date().toLocaleString('ko-KR')}\n`;
+
+  if(directList.length){
+    txt+=`\n${'━'.repeat(40)}\n🚗 직배송 (${directList.length}건)\n${'─'.repeat(40)}`;
+    directList.forEach((c,i)=>{
+      txt+=`\n[직${String(i+1).padStart(2,'0')}] ${c.name}\n     전화: ${c.phone}\n     주소: ${c.addr}\n     상품: ${productLabel(c.productId||c.set)}`;
+      if(c.qty&&c.qty>1) txt+=` x${c.qty}개`;
+      if(c.door)    txt+=`\n     현관: ${c.door}`;
+      if(c.request) txt+=`\n     요청: ${c.request}`;
+      txt+='\n';
+    });
+  }
+  if(courierList.length){
+    txt+=`\n${'━'.repeat(40)}\n📦 택배 (${courierList.length}건)\n${'─'.repeat(40)}`;
+    courierList.forEach((c,i)=>{
+      txt+=`\n[택${String(i+1).padStart(2,'0')}] ${c.name} (${c.orderType==='once'?'선택':'정기'})\n     전화: ${c.phone}\n     주소: ${c.addr}\n     상품: ${productLabel(c.productId||c.set)}`;
+      if(c.qty&&c.qty>1) txt+=` x${c.qty}개`;
+      if(c.door)    txt+=`\n     현관: ${c.door}`;
+      if(c.request) txt+=`\n     요청: ${c.request}`;
+      txt+='\n';
+    });
+  }
+  txt+=`\n${'━'.repeat(40)}\nEND`;
   document.getElementById('expTxt').textContent=txt;
 }
 function copyExp(){navigator.clipboard.writeText(document.getElementById('expTxt').textContent).then(()=>toast('복사됨!','ok'));}
@@ -1658,7 +1837,12 @@ function parseText(){
   }
 
   // ── 단일 주문 파싱 ──
-  const p={name:mainName,phone:mainPhone,addr:mainAddr,door,request,set:'',productId:'',qty:1,orderType:'once'};
+  // 주문번호 파싱: 숫자 15자리 이상 단독 줄
+  let parsedOrderNum='';
+  for(const l of lines){
+    if(/^\d{15,20}$/.test(l)){ parsedOrderNum=l; break; }
+  }
+  const p={name:mainName,phone:mainPhone,addr:mainAddr,door,request,set:'',productId:'',qty:1,orderType:'once',orderNum:parsedOrderNum};
 
   for(let i=0;i<lines.length;i++){
     const l=lines[i];
@@ -1725,6 +1909,11 @@ function regParsed(){
       document.getElementById('pm-start').value = p.startDate || t;
     }
   }
+  // 주문번호·직배송 채우기
+  const pmOn = document.getElementById('pm-ordernum');
+  const pmDr = document.getElementById('pm-direct');
+  if(pmOn) pmOn.value = p.orderNum||'';
+  if(pmDr) pmDr.checked = !!(p.isDirect);
   openM('parseM');
 }
 
@@ -1848,9 +2037,12 @@ async function saveParsed(){
   if(!phone){ toast('연락처를 입력하세요','er'); return; }
   if(!addr) { toast('주소를 입력하세요','er'); return; }
 
+  const isDirect = document.getElementById('pm-direct')?.checked||false;
+  const orderNum = document.getElementById('pm-ordernum')?.value.trim()||'';
   const base = {
     name, phone, addr, door, request:req, memo:memo||'자동 등록 (텍스트 파싱)',
     status:'active', deliveredDates:[], createdAt:new Date().toISOString(),
+    isDirect, orderNum,
   };
 
   const isMulti = document.getElementById('pm-multi').style.display !== 'none';
@@ -2124,6 +2316,8 @@ function openEdit(id){
   document.getElementById('es').value=c.productId||c.set||'A';
   document.getElementById('est').value=c.status;
   g2('erem',c.remain);g2('etot',c.total);g2('em',c.memo);g2('eodate',c.onceDate||'');
+  g2('e-ordernum',c.orderNum||'');
+  document.getElementById('e-direct').checked=!!(c.isDirect);
   openM('editM');
 }
 
@@ -2134,10 +2328,11 @@ function changeQty(d){
 }
 
 function clearAdd(){
-  ['an','ap','aa','ad','ar','am','ato'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['an','ap','aa','ad','ar','am','ato','a-ordernum'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('as').value='';
   document.getElementById('aprod').value='';
   document.getElementById('aqty').value='1';
+  document.getElementById('a-direct').checked=false;
   document.getElementById('at').value='';
   document.getElementById('ach').innerHTML='<option>주기를 먼저 선택하세요</option>';
   document.getElementById('asd').value=todayStr();document.getElementById('aod').value=todayStr();
