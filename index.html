@@ -387,6 +387,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
   <div class="ni"     onclick="goTab('customers')">👥 고객 관리</div>
   <div class="ni"     onclick="goTab('export')">📦 택배 전달</div>
   <div class="ni"     onclick="goTab('import')">📥 일괄 등록</div>
+  <div class="ni"     onclick="goTab('imweb')">🏪 아임웹 연동</div>
 </nav>
 
 <!-- ══════════ 대시보드 ══════════ -->
@@ -624,6 +625,86 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 </div>
 
 </div><!-- /app -->
+
+<!-- ══════════ 아임웹 연동 ══════════ -->
+<div class="page" id="page-imweb">
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <div class="card" style="padding:20px 24px;">
+      <div class="sh" style="margin-bottom:14px;">
+        <div class="st"><div class="std"></div>아임웹 API 설정</div>
+        <span id="imweb-conn-status" style="font-size:12px;color:var(--text3);">미연결</span>
+      </div>
+      <div class="ibox" style="margin-bottom:16px;">
+        <b>아임웹 관리자 → 환경설정 → 외부 서비스 연동(API) → Rest API V2</b>에서<br>
+        API Key와 Secret Key를 발급받아 입력하세요. 설정은 이 기기에만 저장됩니다.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+        <div class="fgrp">
+          <div class="flab">API Key</div>
+          <input type="password" class="inp" id="iw-apikey" placeholder="아임웹 API Key" autocomplete="off">
+        </div>
+        <div class="fgrp">
+          <div class="flab">Secret Key</div>
+          <input type="password" class="inp" id="iw-secret" placeholder="아임웹 Secret Key" autocomplete="off">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-p" onclick="imwebSaveKeys()">💾 저장 및 연결 확인</button>
+        <button class="btn btn-g sm" onclick="imwebClearKeys()">🗑 키 삭제</button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin-left:8px;">
+          <input type="checkbox" id="iw-show" onchange="imwebToggleShow(this)"> 키 표시
+        </label>
+      </div>
+    </div>
+
+    <div class="card" style="padding:20px 24px;">
+      <div class="sh" style="margin-bottom:14px;">
+        <div class="st"><div class="std"></div>신규 주문 불러오기</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap;">
+        <div class="fgrp"><div class="flab">조회 시작일</div><input type="date" class="inp" id="iw-from"></div>
+        <div class="fgrp"><div class="flab">조회 종료일</div><input type="date" class="inp" id="iw-to"></div>
+        <div class="fgrp"><div class="flab">주문 상태</div>
+          <select class="inp" id="iw-status">
+            <option value="">전체</option>
+            <option value="ready">결제완료</option>
+            <option value="ing">배송준비중</option>
+            <option value="send">배송중</option>
+          </select>
+        </div>
+        <button class="btn btn-p" onclick="imwebFetch()" id="iw-fetch-btn" style="height:38px;">📥 주문 불러오기</button>
+      </div>
+      <div id="iw-loading" style="display:none;text-align:center;padding:32px;color:var(--text3);">
+        <div class="spin" style="margin:0 auto 12px;"></div>
+        <div style="font-size:13px;">아임웹에서 주문을 불러오는 중...</div>
+      </div>
+      <div id="iw-result-wrap" style="display:none;">
+        <div class="sh" style="margin-bottom:8px;">
+          <div style="font-size:13px;font-weight:600;">불러온 주문 <span id="iw-cnt" style="color:var(--text3);font-weight:400;"></span></div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-d sm" onclick="imwebReset()">🗑 초기화</button>
+            <button class="btn btn-p sm" onclick="imwebRegAll()">✓ 선택 항목 등록</button>
+          </div>
+        </div>
+        <div class="ibox" style="margin-bottom:10px;border-color:rgba(227,98,9,.3);background:rgba(227,98,9,.06);">
+          ⚠ <b>세트/상품을 반드시 확인하세요.</b> 이미 등록된 주문번호는 자동 제외됩니다.
+        </div>
+        <div class="card" style="overflow:auto;max-height:420px;"><div class="tw">
+          <table>
+            <thead><tr>
+              <th><input type="checkbox" id="iw-chk-all" onchange="imwebToggleAll(this)"></th>
+              <th>#</th><th>주문번호</th><th>수령자</th><th>연락처</th><th>주소</th>
+              <th>상품명</th><th>세트/상품 확인</th><th>배송메모</th><th>주문일</th><th>제외</th>
+            </tr></thead>
+            <tbody id="iw-tbody"></tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
 
 <!-- ══ 신규 등록 모달 ══ -->
 <div class="mbg" id="addM">
@@ -1128,6 +1209,279 @@ async function togglePause(id){
     await window.__DB.collection('customers').doc(id).update({status:newStatus});
     toast(`${c.name} 구독 ${label}됨`,'ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
+}
+
+// ════════════════════════════════════════
+// 아임웹 API 연동
+// ════════════════════════════════════════
+const IW_KEY_STORE = 'iw_keys';
+let iwOrders = []; // 불러온 주문 목록
+
+function imwebSaveKeys(){
+  const ak = document.getElementById('iw-apikey').value.trim();
+  const sk = document.getElementById('iw-secret').value.trim();
+  if(!ak || !sk){ toast('API Key와 Secret Key를 모두 입력하세요','er'); return; }
+  localStorage.setItem(IW_KEY_STORE, JSON.stringify({ak, sk}));
+  toast('저장 완료! 연결을 확인합니다...','info');
+  imwebTestConn();
+}
+
+function imwebLoadKeys(){
+  const s = localStorage.getItem(IW_KEY_STORE);
+  if(!s) return null;
+  try{ return JSON.parse(s); } catch(e){ return null; }
+}
+
+function imwebClearKeys(){
+  if(!confirm('저장된 API 키를 삭제하시겠습니까?')) return;
+  localStorage.removeItem(IW_KEY_STORE);
+  document.getElementById('iw-apikey').value = '';
+  document.getElementById('iw-secret').value = '';
+  document.getElementById('imweb-conn-status').textContent = '미연결';
+  document.getElementById('imweb-conn-status').style.color = 'var(--text3)';
+  toast('키 삭제 완료','ok');
+}
+
+function imwebToggleShow(el){
+  const t = el.checked ? 'text' : 'password';
+  document.getElementById('iw-apikey').type = t;
+  document.getElementById('iw-secret').type = t;
+}
+
+// 연결 테스트 (site_code 조회로 확인)
+async function imwebTestConn(){
+  const keys = imwebLoadKeys();
+  if(!keys){ setConnStatus(false); return; }
+  try{
+    const token = await imwebGetToken(keys.ak, keys.sk);
+    if(token){
+      setConnStatus(true);
+      toast('아임웹 연결 성공!','ok');
+    } else {
+      setConnStatus(false);
+    }
+  } catch(e){
+    setConnStatus(false);
+    toast('연결 실패: '+e.message,'er');
+  }
+}
+
+function setConnStatus(ok){
+  const el = document.getElementById('imweb-conn-status');
+  el.textContent = ok ? '🟢 연결됨' : '🔴 연결 실패';
+  el.style.color = ok ? 'var(--accent)' : 'var(--danger)';
+}
+
+// 아임웹 Access Token 발급
+async function imwebGetToken(apiKey, secret){
+  const res = await fetch('https://api.imweb.me/v2/auth', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({key: apiKey, secret: secret})
+  });
+  if(!res.ok) throw new Error('인증 실패 ('+res.status+')');
+  const data = await res.json();
+  if(data.code !== 200) throw new Error(data.msg || '인증 오류');
+  return data.data?.access_token;
+}
+
+// 주문 불러오기
+async function imwebFetch(){
+  const keys = imwebLoadKeys();
+  if(!keys){ toast('먼저 API 키를 저장해주세요','er'); goTab('imweb'); return; }
+
+  const from   = document.getElementById('iw-from').value;
+  const to     = document.getElementById('iw-to').value;
+  const status = document.getElementById('iw-status').value;
+
+  if(!from || !to){ toast('조회 기간을 선택해주세요','er'); return; }
+
+  document.getElementById('iw-loading').style.display = 'block';
+  document.getElementById('iw-result-wrap').style.display = 'none';
+  document.getElementById('iw-fetch-btn').disabled = true;
+
+  try{
+    const token = await imwebGetToken(keys.ak, keys.sk);
+
+    // 기존 주문번호 목록 (중복 방지)
+    const existingOrderNums = new Set(custs.map(c=>c.orderNum||'').filter(Boolean));
+
+    let params = `order_date_from=${from.replace(/-/g,'')}&order_date_to=${to.replace(/-/g,'')}`;
+    if(status) params += `&status=${status}`;
+    params += '&limit=100';
+
+    const res = await fetch(`https://api.imweb.me/v2/shop/orders?${params}`, {
+      headers:{'Content-Type':'application/json', 'access-token': token}
+    });
+    if(!res.ok) throw new Error('주문 조회 실패 ('+res.status+')');
+    const data = await res.json();
+    if(data.code !== 200) throw new Error(data.msg || '조회 오류');
+
+    const orders = data.data?.list || [];
+    // 이미 등록된 주문번호 제외
+    iwOrders = orders.filter(o => !existingOrderNums.has(String(o.order_no)));
+
+    document.getElementById('iw-cnt').textContent = `${iwOrders.length}건 (전체 ${orders.length}건 중 미등록)`;
+    renderImwebOrders();
+    document.getElementById('iw-result-wrap').style.display = 'block';
+    toast(`${iwOrders.length}건 불러옴 (기등록 ${orders.length - iwOrders.length}건 제외)`,'info');
+
+  } catch(e){
+    toast('오류: '+e.message,'er');
+    // CORS 오류 안내
+    if(e.message.includes('fetch') || e.message.includes('Failed')){
+      toast('CORS 오류 - 아래 안내를 확인하세요','er');
+    }
+  } finally{
+    document.getElementById('iw-loading').style.display = 'none';
+    document.getElementById('iw-fetch-btn').disabled = false;
+  }
+}
+
+// 상품명에서 세트/상품 자동 파싱
+function parseImwebProduct(prodName){
+  if(!prodName) return '';
+  const s = prodName.toUpperCase();
+  if(/A세트|A-|A_|A\s/.test(prodName)) return 'A';
+  if(/B세트|B-|B_|B\s/.test(prodName)) return 'B';
+  if(/C세트|C-|C_|C\s/.test(prodName)) return 'C';
+  if(/돼지.*갈비|양념.*갈비|돼지갈비/.test(prodName)) return 'pork_rib';
+  if(/LA.*갈비|라갈비/.test(prodName)) return 'beef_la';
+  // 옵션에서 다시 시도
+  const m = prodName.match(/([ABC])세트/i);
+  if(m) return m[1].toUpperCase();
+  return '';
+}
+
+function renderImwebOrders(){
+  const tbody = document.getElementById('iw-tbody');
+  if(!iwOrders.length){
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="ei">📭</div><div>불러온 주문 없음</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = iwOrders.map((o,i)=>{
+    const recv   = o.order_info?.recv || {};
+    const items  = o.product_list || [];
+    const prod0  = items[0] || {};
+    const prodName = (prod0.prod_name||'')+(prod0.opt_name?' / '+prod0.opt_name:'');
+    const autoProd = parseImwebProduct(prodName);
+    const addr   = (recv.addr||'')+(recv.addr_detail?' '+recv.addr_detail:'');
+    const date   = String(o.order_date||'').slice(0,8);
+    const dateStr= date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : '';
+
+    return `<tr id="iw-row-${i}">
+      <td><input type="checkbox" class="iw-ck" data-idx="${i}" checked></td>
+      <td style="color:var(--text3);">${i+1}</td>
+      <td style="font-size:11px;font-family:monospace;">${o.order_no||''}</td>
+      <td><strong>${recv.name||o.member_id||''}</strong></td>
+      <td style="white-space:nowrap;">${recv.phone||''}</td>
+      <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${addr}">${addr}</td>
+      <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${prodName}">${prodName||'—'}</td>
+      <td>
+        <select class="inp inp-sm" id="iw-prod-${i}" style="width:130px;">
+          <option value="" ${!autoProd?'selected':''}>미선택</option>
+          <optgroup label="반찬 세트">
+            <option value="A" ${autoProd==='A'?'selected':''}>A세트</option>
+            <option value="B" ${autoProd==='B'?'selected':''}>B세트</option>
+            <option value="C" ${autoProd==='C'?'selected':''}>C세트</option>
+          </optgroup>
+          <optgroup label="단품">
+            <option value="pork_rib" ${autoProd==='pork_rib'?'selected':''}>🥩 돼지양념갈비</option>
+            <option value="beef_la"  ${autoProd==='beef_la' ?'selected':''}>🥩 양념LA갈비</option>
+          </optgroup>
+        </select>
+      </td>
+      <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${recv.memo||'—'}</td>
+      <td style="font-size:11px;white-space:nowrap;">${dateStr}</td>
+      <td><button class="btn btn-d sm" onclick="iwRemoveRow(${i})">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function iwRemoveRow(i){
+  const row = document.getElementById('iw-row-'+i);
+  if(row) row.remove();
+}
+
+function imwebToggleAll(el){
+  document.querySelectorAll('.iw-ck').forEach(c=>c.checked=el.checked);
+}
+
+async function imwebRegAll(){
+  const checked = [...document.querySelectorAll('.iw-ck:checked')];
+  if(!checked.length){ toast('등록할 주문을 선택하세요','er'); return; }
+
+  const noSet = checked.filter(ck=>{
+    const idx = ck.dataset.idx;
+    return !document.getElementById('iw-prod-'+idx)?.value;
+  });
+  if(noSet.length){ toast(`세트/상품 미선택 ${noSet.length}건이 있습니다`,'er'); return; }
+
+  if(!confirm(`선택한 ${checked.length}건을 등록하시겠습니까?`)) return;
+
+  const t = todayStr(); let ok=0;
+  for(const ck of checked){
+    const i   = parseInt(ck.dataset.idx);
+    const o   = iwOrders[i];
+    const row = document.getElementById('iw-row-'+i);
+    if(!o || !row) continue;
+
+    const recv     = o.order_info?.recv || {};
+    const items    = o.product_list || [];
+    const prod0    = items[0] || {};
+    const prod     = document.getElementById('iw-prod-'+i)?.value || '';
+    const qty      = parseInt(prod0.ea)||1;
+    const addr     = (recv.addr||'')+(recv.addr_detail?' '+recv.addr_detail:'');
+    const date     = String(o.order_date||'').slice(0,8);
+    const dateStr  = date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : t;
+
+    const data = {
+      name:     recv.name||'',
+      phone:    recv.phone||'',
+      addr:     addr,
+      door:     '',
+      request:  recv.memo||'',
+      memo:     `아임웹 주문번호: ${o.order_no}`,
+      set:      prod,
+      productId:prod,
+      orderNum: String(o.order_no||''),
+      orderType:'once',
+      status:   'active',
+      deliveredDates:[],
+      createdAt:new Date().toISOString(),
+      total:qty, remain:qty, qty,
+      onceDate: dateStr,
+      startDate:dateStr,
+      scheduleName: productLabel(prod)+(qty>1?' x'+qty+'개':''),
+      arriveDays:[], cookDays:[],
+      isDirect: false,
+    };
+    try{
+      await window.__DB.collection('customers').add(data);
+      row.style.opacity='0.4';
+      ok++;
+    } catch(e){ toast('등록 오류: '+e.message,'er'); }
+  }
+  if(ok>0) toast(`${ok}건 등록 완료!`,'ok');
+}
+
+function imwebReset(){
+  iwOrders=[];
+  document.getElementById('iw-result-wrap').style.display='none';
+  document.getElementById('iw-tbody').innerHTML='';
+}
+
+// 아임웹 초기화 (goTab 시 호출)
+function initImwebTab(){
+  const keys = imwebLoadKeys();
+  if(keys){
+    if(!document.getElementById('iw-apikey').value) document.getElementById('iw-apikey').value = keys.ak;
+    if(!document.getElementById('iw-secret').value) document.getElementById('iw-secret').value = keys.sk;
+    imwebTestConn();
+  }
+  const t = todayStr();
+  if(!document.getElementById('iw-from').value) document.getElementById('iw-from').value = addDays(t,-7);
+  if(!document.getElementById('iw-to').value)   document.getElementById('iw-to').value   = t;
 }
 
 // CSV 전체 백업
@@ -2347,12 +2701,13 @@ function clearAdd(){
 }
 
 function goTab(name){
-  const tabs=['dash','today','report','customers','export','import'];
+  const tabs=['dash','today','report','customers','export','import','imweb'];
   document.querySelectorAll('.ni').forEach((t,i)=>t.classList.toggle('on',tabs[i]===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.getElementById('page-'+name).classList.add('on');
   if(name==='customers') renderCust();
   if(name==='report') renderReport();
+  if(name==='imweb') initImwebTab();
 }
 
 function openM(id){document.getElementById(id).classList.add('on');}
