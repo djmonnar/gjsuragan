@@ -1526,23 +1526,62 @@ function parseText(){
 }
 
 async function regParsed(){
-  if(!parsedData){toast('먼저 분석을 실행하세요','er');return;}
-  const p=parsedData;
-  // 모달에 값 채워서 열기
-  setTypeTab(p.orderType||'once');
-  g2('an',p.name); g2('ap',p.phone); g2('aa',p.addr);
-  g2('ad',p.door); g2('ar',p.request);
-  // 상품 선택
-  if(p.orderType==='sub'){
-    if(p.set) document.getElementById('as').value=p.set;
+  if(!parsedData){ toast('먼저 분석을 실행하세요','er'); return; }
+  const p = parsedData;
+
+  // ── 필수값 검증 ──
+  if(!p.name)  { toast('이름을 인식하지 못했습니다. 직접 수정해 주세요','er'); return; }
+  if(!p.phone) { toast('연락처를 인식하지 못했습니다','er'); return; }
+  if(!p.addr)  { toast('주소를 인식하지 못했습니다','er'); return; }
+
+  const ot = p.orderType || 'once';
+  const t  = todayStr();
+
+  let data = {
+    name:   p.name,
+    phone:  p.phone,
+    addr:   p.addr,
+    door:   p.door    || '',
+    request:p.request || '',
+    memo:   '자동 등록 (텍스트 파싱)',
+    status: 'active',
+    deliveredDates: [],
+    createdAt: new Date().toISOString(),
+    orderType: ot,
+  };
+
+  if(ot === 'sub'){
+    // 정기배송 — 세트 필요
+    const s = p.set || '';
+    if(!s){ toast('세트를 인식하지 못했습니다. 직접 등록해주세요','er'); return; }
+    Object.assign(data, {
+      set: s, productId: s,
+      total: 12, remain: 12,          // 기본값 12회 (수정 가능)
+      startDate: t,
+      scheduleName: '정기배송',
+      arriveDays: [], cookDays: [],
+    });
   } else {
-    const prodSel=document.getElementById('aprod');
-    const pid=p.productId||p.set||'';
-    if(pid) prodSel.value=pid;
+    // 선택주문
+    const prod = p.productId || p.set || '';
+    const qty  = p.qty || 1;
+    if(!prod){ toast('상품을 인식하지 못했습니다. 직접 등록해주세요','er'); return; }
+    Object.assign(data, {
+      set: prod, productId: prod,
+      total: qty, remain: qty, qty,
+      onceDate: t, startDate: t,
+      scheduleName: productLabel(prod) + (qty > 1 ? ' x' + qty + '개' : ''),
+      arriveDays: [], cookDays: [],
+    });
   }
-  // 수량
-  document.getElementById('aqty').value=p.qty||1;
-  openM('addM');
+
+  try{
+    await window.__DB.collection('customers').add(data);
+    clearParse();
+    toast(p.name + ' 등록 완료!', 'ok');
+  } catch(e){
+    toast('등록 오류: ' + e.message, 'er');
+  }
 }
 
 function clearParse(){
