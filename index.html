@@ -624,8 +624,6 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
   </div>
 </div>
 
-</div><!-- /app -->
-
 <!-- ══════════ 아임웹 연동 ══════════ -->
 <div class="page" id="page-imweb">
   <div style="display:flex;flex-direction:column;gap:20px;">
@@ -658,46 +656,40 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
       </div>
     </div>
 
+    <!-- 아임웹 엑셀 업로드 -->
     <div class="card" style="padding:20px 24px;">
       <div class="sh" style="margin-bottom:14px;">
-        <div class="st"><div class="std"></div>신규 주문 불러오기</div>
+        <div class="st"><div class="std"></div>📊 아임웹 주문 엑셀 업로드</div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap;">
-        <div class="fgrp"><div class="flab">조회 시작일</div><input type="date" class="inp" id="iw-from"></div>
-        <div class="fgrp"><div class="flab">조회 종료일</div><input type="date" class="inp" id="iw-to"></div>
-        <div class="fgrp"><div class="flab">주문 상태</div>
-          <select class="inp" id="iw-status">
-            <option value="">전체</option>
-            <option value="ready">결제완료</option>
-            <option value="ing">배송준비중</option>
-            <option value="send">배송중</option>
-          </select>
-        </div>
-        <button class="btn btn-p" onclick="imwebFetch()" id="iw-fetch-btn" style="height:38px;">📥 주문 불러오기</button>
+      <div class="ibox" style="margin-bottom:14px;">
+        <b>아임웹 관리자 → 쇼핑 → 주문 → 내보내기(엑셀)</b>로 다운받은 파일을 올려주세요.<br>
+        상품명·옵션에서 날짜·세트·정기/선택을 자동으로 인식합니다. <b>거래종료·취소는 자동 제외</b>됩니다.
       </div>
-      <div id="iw-loading" style="display:none;text-align:center;padding:32px;color:var(--text3);">
-        <div class="spin" style="margin:0 auto 12px;"></div>
-        <div style="font-size:13px;">아임웹에서 주문을 불러오는 중...</div>
+      <div class="dz" id="iw-dz" onclick="document.getElementById('iw-xlf').click()"
+           ondragover="iwDzOver(event)" ondragleave="iwDzLeave()" ondrop="iwDzDrop(event)">
+        <div style="font-size:32px;margin-bottom:8px;">🏪</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text2);">아임웹 주문 엑셀을 드래그하거나 클릭</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">.xlsx .xls 지원 · 헤더 1행 자동 건너뜀</div>
       </div>
-      <div id="iw-result-wrap" style="display:none;">
+      <input type="file" id="iw-xlf" accept=".xlsx,.xls" style="display:none" onchange="iwReadXl(this)">
+      <div id="iw-xl-wrap" style="display:none;margin-top:14px;">
         <div class="sh" style="margin-bottom:8px;">
-          <div style="font-size:13px;font-weight:600;">불러온 주문 <span id="iw-cnt" style="color:var(--text3);font-weight:400;"></span></div>
+          <div style="font-size:13px;font-weight:600;">미리보기 <span id="iw-xl-cnt" style="color:var(--text3);font-weight:400;font-size:12px;"></span></div>
           <div style="display:flex;gap:6px;">
-            <button class="btn btn-d sm" onclick="imwebReset()">🗑 초기화</button>
-            <button class="btn btn-p sm" onclick="imwebRegAll()">✓ 선택 항목 등록</button>
+            <button class="btn btn-d sm" onclick="iwResetXl()">🗑 초기화</button>
+            <button class="btn btn-p sm" onclick="iwRegXl()">✓ 전체 등록</button>
           </div>
         </div>
         <div class="ibox" style="margin-bottom:10px;border-color:rgba(227,98,9,.3);background:rgba(227,98,9,.06);">
-          ⚠ <b>세트/상품을 반드시 확인하세요.</b> 이미 등록된 주문번호는 자동 제외됩니다.
+          ⚠ <b>세트/상품·배송일을 반드시 확인하세요.</b> ✕로 개별 제외 가능.
         </div>
-        <div class="card" style="overflow:auto;max-height:420px;"><div class="tw">
+        <div class="card" style="overflow:auto;max-height:440px;"><div class="tw">
           <table>
             <thead><tr>
-              <th><input type="checkbox" id="iw-chk-all" onchange="imwebToggleAll(this)"></th>
               <th>#</th><th>주문번호</th><th>수령자</th><th>연락처</th><th>주소</th>
-              <th>상품명</th><th>세트/상품 확인</th><th>배송메모</th><th>주문일</th><th>제외</th>
+              <th>유형</th><th>세트/상품</th><th>배송일/배송일정</th><th>수량</th><th>배송메모</th><th>제외</th>
             </tr></thead>
-            <tbody id="iw-tbody"></tbody>
+            <tbody id="iw-xl-tbody"></tbody>
           </table>
         </div></div>
       </div>
@@ -705,6 +697,8 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 
   </div>
 </div>
+
+</div><!-- /app -->
 
 <!-- ══ 신규 등록 모달 ══ -->
 <div class="mbg" id="addM">
@@ -1483,6 +1477,305 @@ function initImwebTab(){
   if(!document.getElementById('iw-from').value) document.getElementById('iw-from').value = addDays(t,-7);
   if(!document.getElementById('iw-to').value)   document.getElementById('iw-to').value   = t;
 }
+
+// ════════════════════════════════════════
+// 아임웹 엑셀 업로드 전용 파싱
+// 컬럼(0-based): [01]주문번호 [02]주문상태 [16]구매수량
+//   [17]상품명 [18]옵션명 [24]수령자명 [25]전화 [28]주소 [29]상세주소
+//   [30]배송메모 [36]주문일
+// ════════════════════════════════════════
+let iwXlData = [];
+
+function iwDzOver(e){ e.preventDefault(); document.getElementById('iw-dz').classList.add('drag'); }
+function iwDzLeave(){ document.getElementById('iw-dz').classList.remove('drag'); }
+function iwDzDrop(e){ e.preventDefault(); iwDzLeave(); const f=e.dataTransfer.files[0]; if(f) iwProcXl(f); }
+function iwReadXl(inp){ if(inp.files[0]) iwProcXl(inp.files[0]); }
+
+function iwProcXl(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false});
+      const dataRows = rows.slice(1).filter(r => r.length > 5); // 헤더 제외
+      iwXlData = dataRows.map(iwParseRow).filter(r => r !== null);
+      document.getElementById('iw-xl-cnt').textContent =
+        `${iwXlData.length}건 (제외됨 ${dataRows.length - iwXlData.length}건)`;
+      iwRenderXl();
+      document.getElementById('iw-xl-wrap').style.display = 'block';
+      toast(`아임웹 엑셀 ${iwXlData.length}건 로드됨`, 'info');
+    } catch(err){ toast('엑셀 읽기 오류: '+err.message,'er'); }
+  };
+  reader.readAsBinaryString(file);
+}
+
+// 아임웹 날짜 파싱: "3월 27일 금요일..." → "2026-03-27"
+function iwParseDateKo(str, orderDateStr){
+  const m = str.match(/(\d{1,2})월\s*(\d{1,2})일/);
+  if(!m) return '';
+  // 연도: 주문일에서 추출, 없으면 현재 연도
+  let y = new Date().getFullYear();
+  if(orderDateStr){
+    const ym = String(orderDateStr).match(/^(\d{4})/);
+    if(ym) y = parseInt(ym[1]);
+  }
+  return `${y}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;
+}
+
+// 정기배송 옵션에서 스케줄 자동 매칭
+function iwMatchSch(optName){
+  if(!optName) return {freq:'', schIdx:''};
+  // 주기 파싱
+  const fm = optName.match(/주\s*(\d)회/);
+  const freq = fm ? fm[1] : '';
+  // 요일 매칭
+  const schMap = {
+    '월 조리': {freq:'1', idx:0},  '화 조리': {freq:'1', idx:1},
+    '수 조리': {freq:'1', idx:2},  '목 조리': {freq:'1', idx:3},
+    '금 조리': {freq:'1', idx:4},
+    '월.수 조리': {freq:'2', idx:0}, '월/수 조리': {freq:'2', idx:0},
+    '화.목 조리': {freq:'2', idx:1}, '화/목 조리': {freq:'2', idx:1},
+    '수.금 조리': {freq:'2', idx:2}, '수/금 조리': {freq:'2', idx:2},
+    '목.토 조리': {freq:'2', idx:3}, '목/토 조리': {freq:'2', idx:3},
+    '금.일 조리': {freq:'2', idx:4}, '금/일 조리': {freq:'2', idx:4},
+    '월.수.금 조리': {freq:'3', idx:0}, '월/수/금 조리': {freq:'3', idx:0},
+    '화.목.토 조리': {freq:'3', idx:1}, '화/목/토 조리': {freq:'3', idx:1},
+  };
+  for(const [key, val] of Object.entries(schMap)){
+    if(optName.includes(key.replace('.','/')) || optName.includes(key.replace('/','.'))
+       || optName.includes(key)){
+      return {freq: val.freq, schIdx: val.idx};
+    }
+  }
+  return {freq, schIdx:''};
+}
+
+function iwParseRow(r){
+  const status   = r[2] || '';
+  // 거래종료·취소·반품 제외
+  if(/거래종료|취소완료|반품완료|취소|반품/.test(status)) return null;
+
+  const orderNo  = String(r[1]  || '').trim();
+  const qty      = parseInt(r[16]) || 1;
+  const prodName = String(r[17] || '').trim();
+  const optName  = String(r[18] || '').trim();
+  const recv     = String(r[24] || '').trim();
+  const phone    = String(r[25] || '').trim();
+  const addr     = (String(r[28]||'')+' '+String(r[29]||'')).trim();
+  const memo     = String(r[30] || '').trim();
+  const orderDate= String(r[36] || '');
+
+  // 상품 파싱
+  const combined = prodName + ' ' + optName;
+  let prod = '', orderType = 'once', onceDate = '', schInfo = {};
+
+  if(/수제.*돼지.*갈비|돼지.*양념.*갈비|수제양념돼지갈비/.test(combined)){
+    prod = 'pork_rib';
+  } else if(/양념.*LA.*갈비|LA.*갈비|라갈비/.test(combined)){
+    prod = 'beef_la';
+  } else {
+    const sm = combined.match(/([ABC])세트/i);
+    if(sm) prod = sm[1].toUpperCase();
+  }
+
+  // 정기/선택 구분
+  if(/정기구독|정기배송/.test(combined)){
+    orderType = 'sub';
+    schInfo = iwMatchSch(optName);
+  } else {
+    orderType = 'once';
+    // 날짜 파싱 (상품명에서)
+    if(/\d{1,2}월\s*\d{1,2}일/.test(prodName)){
+      onceDate = iwParseDateKo(prodName, orderDate);
+    }
+  }
+
+  // 횟수 파싱 (정기)
+  const tm = optName.match(/총\s*(\d+)회/);
+  const total = tm ? parseInt(tm[1]) : 12;
+
+  return { orderNo, status, recv, phone, addr, memo, orderDate,
+           prod, qty, orderType, onceDate, total, schInfo, optName, prodName,
+           _excluded: false };
+}
+
+const IW_PROD_OPTIONS = `
+  <option value="">미선택</option>
+  <optgroup label="반찬 세트">
+    <option value="A">A세트</option>
+    <option value="B">B세트</option>
+    <option value="C">C세트</option>
+  </optgroup>
+  <optgroup label="단품">
+    <option value="pork_rib">🥩 수제 돼지양념갈비</option>
+    <option value="beef_la">🥩 양념 LA갈비</option>
+  </optgroup>`;
+
+function iwRenderXl(){
+  const tbody = document.getElementById('iw-xl-tbody');
+  if(!iwXlData.length){
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="ei">📭</div><div>데이터 없음</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = iwXlData.map((row, i) => {
+    const typeBadge = row.orderType === 'sub'
+      ? '<span class="badge b-sub">정기</span>'
+      : '<span class="badge b-once">선택</span>';
+    // 배송일/일정 표시
+    let dateDisplay = '';
+    if(row.orderType === 'once'){
+      dateDisplay = `<input type="date" class="inp inp-sm" id="iw-xl-date-${i}" value="${row.onceDate}" style="width:130px;">`;
+    } else {
+      // 정기: 주기 + 일정 선택
+      const freq = row.schInfo.freq || '';
+      dateDisplay = `
+        <select class="inp inp-sm" id="iw-xl-freq-${i}" onchange="iwXlUpdSch(${i})" style="width:70px;margin-bottom:4px;">
+          <option value="">주기</option>
+          <option value="1" ${freq==='1'?'selected':''}>주1회</option>
+          <option value="2" ${freq==='2'?'selected':''}>주2회</option>
+          <option value="3" ${freq==='3'?'selected':''}>주3회</option>
+        </select>
+        <select class="inp inp-sm" id="iw-xl-sched-${i}" style="width:130px;"></select>`;
+    }
+    return `<tr id="iw-xl-row-${i}">
+      <td style="color:var(--text3);">${i+1}</td>
+      <td style="font-size:10px;font-family:monospace;">${row.orderNo}</td>
+      <td><strong>${row.recv}</strong></td>
+      <td style="white-space:nowrap;font-size:12px;">${row.phone}</td>
+      <td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${row.addr}">${row.addr}</td>
+      <td>${typeBadge}</td>
+      <td>
+        <select class="inp inp-sm" id="iw-xl-prod-${i}" style="width:130px;">
+          ${IW_PROD_OPTIONS}
+        </select>
+      </td>
+      <td style="min-width:140px;">${dateDisplay}</td>
+      <td style="text-align:center;">${row.qty}</td>
+      <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${row.memo||'—'}</td>
+      <td><button class="btn btn-d sm" onclick="iwXlRemove(${i})">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  // 렌더 후 값 세팅
+  iwXlData.forEach((row, i) => {
+    const prodEl = document.getElementById('iw-xl-prod-'+i);
+    if(prodEl) prodEl.value = row.prod;
+    if(row.orderType === 'sub'){
+      iwXlUpdSch(i, row.schInfo.schIdx);
+    }
+  });
+}
+
+function iwXlUpdSch(i, presetIdx){
+  const freq = document.getElementById('iw-xl-freq-'+i)?.value;
+  const sel  = document.getElementById('iw-xl-sched-'+i);
+  if(!sel) return;
+  sel.innerHTML = '<option value="">일정 선택</option>';
+  if(!freq||!SCH[freq]) return;
+  SCH[freq].forEach((sc, idx) => {
+    const opt = document.createElement('option');
+    opt.value = idx;
+    opt.textContent = sc.l;
+    if(presetIdx !== undefined && presetIdx !== '' && parseInt(presetIdx) === idx) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function iwXlRemove(i){
+  const row = document.getElementById('iw-xl-row-'+i);
+  if(row) row.remove();
+}
+
+function iwResetXl(){
+  iwXlData = [];
+  document.getElementById('iw-xl-wrap').style.display = 'none';
+  document.getElementById('iw-xl-tbody').innerHTML = '';
+  document.getElementById('iw-xlf').value = '';
+}
+
+async function iwRegXl(){
+  const rows = document.querySelectorAll('[id^="iw-xl-row-"]');
+  if(!rows.length){ toast('등록할 데이터가 없습니다','er'); return; }
+
+  // 검증
+  let errs = [];
+  rows.forEach(row => {
+    const i = row.id.replace('iw-xl-row-','');
+    const prod = document.getElementById('iw-xl-prod-'+i)?.value;
+    if(!prod) errs.push(`행${parseInt(i)+1}: 세트/상품 미선택`);
+  });
+  if(errs.length){ toast(errs.slice(0,3).join(' / ')+(errs.length>3?` 외 ${errs.length-3}건`:''),'er'); return; }
+  if(!confirm(`${rows.length}건을 등록하시겠습니까?`)) return;
+
+  // 기존 주문번호 목록 (중복 방지)
+  const existNums = new Set(custs.map(c=>c.orderNum||'').filter(Boolean));
+
+  let ok=0, skip=0;
+  for(const row of rows){
+    const i    = row.id.replace('iw-xl-row-','');
+    const d    = iwXlData[parseInt(i)];
+    if(!d) continue;
+
+    const prod = document.getElementById('iw-xl-prod-'+i)?.value || '';
+    const orderNum = d.orderNo;
+
+    // 중복 체크
+    if(existNums.has(orderNum)){ skip++; continue; }
+
+    let data = {
+      name:     d.recv,
+      phone:    d.phone,
+      addr:     d.addr,
+      door:     '',
+      request:  d.memo,
+      memo:     `아임웹 주문번호: ${orderNum}`,
+      set:      prod,
+      productId:prod,
+      orderNum: orderNum,
+      status:   'active',
+      deliveredDates:[],
+      createdAt:new Date().toISOString(),
+      isDirect: false,
+    };
+
+    if(d.orderType === 'sub'){
+      const freq  = document.getElementById('iw-xl-freq-'+i)?.value;
+      const schIdx= document.getElementById('iw-xl-sched-'+i)?.value;
+      if(!freq||schIdx===''||schIdx===undefined){ toast(`행${parseInt(i)+1}: 배송 일정을 선택하세요`,'er'); continue; }
+      const sch = SCH[freq][parseInt(schIdx)];
+      Object.assign(data, {
+        orderType:'sub', type:parseInt(freq),
+        scheduleName:sch.l, cookDays:sch.c, arriveDays:sch.a,
+        total:d.total, remain:d.total,
+        startDate:todayStr(),
+      });
+    } else {
+      const onceDate = document.getElementById('iw-xl-date-'+i)?.value || todayStr();
+      Object.assign(data, {
+        orderType:'once',
+        total:d.qty, remain:d.qty, qty:d.qty,
+        onceDate, startDate:onceDate,
+        scheduleName:productLabel(prod)+(d.qty>1?' x'+d.qty+'개':''),
+        arriveDays:[], cookDays:[],
+      });
+    }
+
+    try{
+      await window.__DB.collection('customers').add(data);
+      row.style.opacity = '0.35';
+      row.style.pointerEvents = 'none';
+      ok++;
+    } catch(e){ toast('오류: '+e.message,'er'); }
+  }
+
+  let msg = `${ok}건 등록 완료!`;
+  if(skip) msg += ` (중복 ${skip}건 건너뜀)`;
+  toast(msg, 'ok');
+}
+
+// CSS용 드래그 스타일 (iw-dz)
+// (기존 .dz 스타일 공유)
 
 // CSV 전체 백업
 function exportCSV(){
