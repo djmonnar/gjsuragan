@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>궁중수라간 식단표 자동 생성기 (AI 탑재)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+    
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #F3F4F6;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        #editor-panel {
+            width: 420px;
+            background-color: #ffffff;
+            border-right: 1px solid #E5E7EB;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+        }
+
+        #preview-panel {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            padding: 40px;
+            background-color: #E5E7EB;
+        }
+
+        #capture-area {
+            width: 860px;
+            height: 1100px;
+            background-color: #FAF8F5;
+            position: relative;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+            padding-bottom: 20px;
+            word-break: keep-all; 
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-top: 4px;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #D97706;
+            box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+        }
+        
+        input[type="checkbox"] {
+            accent-color: #EF4444; /* 빨간색 체크박스 */
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #4B5563;
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: #2D2A26;
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        .file-upload-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="editor-panel">
+        <div class="p-5 border-b border-gray-200 bg-[#2D2A26] text-white">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <span>🍲</span> 궁중수라간 관리자
+            </h1>
+            <p class="text-xs text-gray-400 mt-1">AI 기능이 탑재된 스마트 식단표 생성기</p>
+        </div>
+
+        <div class="p-4 border-b border-gray-200 bg-gray-50">
+            <label class="block font-bold text-gray-700 mb-1 flex items-center gap-1">
+                🔑 Gemini API 키 설정 <span class="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded ml-1">저장됨</span>
+            </label>
+            <input type="password" id="api-key-input" placeholder="새로 발급받은 API 키를 붙여넣어주세요">
+            <p class="text-[11px] text-gray-500 mt-1.5 break-keep">이 브라우저에 안전하게 저장되므로 매번 입력할 필요가 없습니다. 키가 변경되었을 때만 새로 입력해 주세요.</p>
+        </div>
+
+        <div class="p-5 border-b border-indigo-100 bg-indigo-50/50">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-indigo-600 font-bold text-lg">✨ AI 자동 입력</span>
+                <span class="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Gemini</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3 break-keep">식단표 이미지(카톡 캡쳐 등)를 업로드하면 AI가 텍스트를 분석하여 5일치 양식을 자동으로 채워줍니다.</p>
+            
+            <div class="file-upload-wrapper">
+                <button class="w-full py-2.5 bg-white border border-indigo-200 text-indigo-600 font-semibold rounded-lg shadow-sm hover:bg-indigo-50 transition-colors flex justify-center items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    식단표 이미지 업로드 (자동 변환)
+                </button>
+                <input type="file" id="ai-file-input" accept="image/*">
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 space-y-8 bg-gray-50" id="form-container">
+            </div>
+
+        <div class="p-5 border-t border-gray-200 bg-white flex flex-col gap-3">
+            <button onclick="downloadPNG()" class="w-full py-3 bg-[#D97706] hover:bg-[#B45309] text-white font-bold rounded-lg transition-colors flex justify-center items-center gap-2 shadow-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                상세페이지용 이미지(PNG) 추출
+            </button>
+            <button onclick="resetData()" class="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-lg transition-colors text-sm">
+                입력 내용 초기화
+            </button>
+        </div>
+    </div>
+
+    <div id="preview-panel">
+        <div id="capture-area">
+            <div class="h-[120px] flex flex-col items-center justify-center border-b border-[#E8E4DF] mb-6 relative">
+                <h1 class="text-[32px] font-extrabold text-[#2D2A26] tracking-tight mb-1.5 whitespace-nowrap">
+                    주간 수라상 식단표
+                </h1>
+                <p class="text-[#6B655E] text-[16px] font-medium whitespace-nowrap">정성을 다해 담아낸 궁중수라간의 건강한 한 끼</p>
+                <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-[#D97706]"></div>
+            </div>
+
+            <div class="px-8 grid grid-cols-2 gap-x-6 gap-y-4" id="menu-grid">
+                </div>
+        </div>
+    </div>
+
+    <div id="loading" class="loading-overlay">
+        <svg class="animate-spin h-10 w-10 text-indigo-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span class="text-xl font-bold text-gray-800" id="loading-text">처리 중입니다...</span>
+        <p class="text-sm text-gray-500 mt-2" id="loading-subtext">잠시만 기다려주세요.</p>
+    </div>
+
+    <script>
+        // API 키 로컬 스토리지 연동 (수동 입력 방식)
+        const apiKeyInput = document.getElementById('api-key-input');
+        apiKeyInput.value = localStorage.getItem('suraganGeminiApiKey') || "";
+        apiKeyInput.addEventListener('input', (e) => {
+            localStorage.setItem('suraganGeminiApiKey', e.target.value.trim());
+        });
+        
+        // 지능형 모델 탐색 및 백오프 통신 엔진
+        async function fetchWithSmartFallback(payload, activeApiKey) {
+            const modelsToTry = [
+                'gemini-2.5-flash-preview-09-2025', 
+                'gemini-2.5-flash', 
+                'gemini-2.0-flash', 
+                'gemini-1.5-flash'
+            ];
+            
+            for (const modelName of modelsToTry) {
+                const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${activeApiKey}`;
+                
+                for (let attempt = 0; attempt < 3; attempt++) {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.status === 404) {
+                        console.warn(`${modelName} 모델을 찾을 수 없어 다음 버전으로 자동 전환합니다.`);
+                        break; 
+                    }
+                    
+                    if (response.ok) {
+                        return await response.json();
+                    }
+                    
+                    if (response.status === 400 || response.status === 403) {
+                        const errData = await response.json().catch(() => ({}));
+                        throw new Error(errData.error?.message || `API 접근 권한 오류 (상태: ${response.status}). API 키가 정확한지 확인해주세요.`);
+                    }
+                    
+                    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+                }
+            }
+            throw new Error("현재 API 키로 접근 가능한 구글 AI 모델이 없습니다.");
+        }
+
+        document.getElementById('ai-file-input').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // 로컬 스토리지에서 등록된 API 키를 가져옵니다.
+            const userApiKey = localStorage.getItem('suraganGeminiApiKey');
+            
+            if (!userApiKey) {
+                alert("상단 🔑 Gemini API 키 설정 란에 구글에서 발급받은 API 키를 먼저 입력해주세요!");
+                e.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const base64Data = event.target.result.split(',')[1];
+                const mimeType = file.type;
+                await processImageWithGemini(base64Data, mimeType, userApiKey);
+                e.target.value = ''; 
+            };
+            reader.readAsDataURL(file);
+        });
+
+        async function processImageWithGemini(base64Data, mimeType, activeApiKey) {
+            showLoading("✨ AI가 이미지를 분석 중입니다...", "최적의 AI 모델을 찾아 메뉴를 분석 중입니다. (약 5~10초 소요)");
+            
+            try {
+                const prompt = `
+                    첨부된 주간 식단표 이미지에서 월요일부터 금요일까지 5일치 메뉴 데이터를 추출해주세요.
+                    반드시 아래의 JSON 배열 형식으로만 반환해야 합니다.
+                    - 해당 날짜에 "휴무", "공휴일" 등의 내용이 적혀 있다면 isHoliday를 true로 설정하고, holidayMessage에 "삼일절 휴무", "임시공휴일 휴무" 등 사유를 적어주세요.
+                    - 반찬이 여러 개일 경우 하나의 문자열 안에 쉼표(,)로 구분하여 작성하세요.
+                    - 날짜(date)나 도착안내(arrival)가 이미지에 있다면 그대로 추출하고, 없다면 문맥에 맞게 추론하여 짧게 적어주세요.
+                `;
+
+                const schema = {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            id: { type: "STRING", description: "mon, tue, wed, thu, fri 중 하나" },
+                            dayName: { type: "STRING", description: "월요일, 화요일 등" },
+                            date: { type: "STRING", description: "예: 3/23 (월)" },
+                            arrival: { type: "STRING", description: "예: 3/24 (화) 도착" },
+                            isHoliday: { type: "BOOLEAN", description: "해당 날짜가 휴무일인지 여부 (true/false)" },
+                            holidayMessage: { type: "STRING", description: "휴무일일 경우 보여줄 메시지. 예: 법정공휴일 휴무입니다." },
+                            main: { type: "STRING", description: "메인 요리 (휴무일이면 빈칸)" },
+                            soup: { type: "STRING", description: "국물 요리 (휴무일이면 빈칸)" },
+                            sides: { type: "STRING", description: "반찬들 (반드시 쉼표로 구분. 휴무일이면 빈칸)" },
+                            salad: { type: "STRING", description: "샐러드 메뉴 (휴무일이면 빈칸)" }
+                        },
+                        required: ["id", "dayName", "date", "arrival", "isHoliday", "holidayMessage", "main", "soup", "sides", "salad"]
+                    }
+                };
+
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [
+                            { text: prompt },
+                            { inlineData: { mimeType: mimeType, data: base64Data } }
+                        ]
+                    }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: schema
+                    }
+                };
+
+                const result = await fetchWithSmartFallback(payload, activeApiKey);
+
+                const textResult = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (textResult) {
+                    const parsedData = JSON.parse(textResult);
+                    if (Array.isArray(parsedData) && parsedData.length === 5) {
+                        menuData = parsedData.map(item => ({
+                            ...item,
+                            isHoliday: item.isHoliday || false,
+                            holidayMessage: item.holidayMessage || ""
+                        }));
+                        localStorage.setItem('suraganMenuData', JSON.stringify(menuData));
+                        renderForm();
+                        renderPreview();
+                    } else {
+                        throw new Error("데이터 형식이 올바르지 않거나 5일치 데이터가 아닙니다.");
+                    }
+                } else {
+                    throw new Error("AI 응답을 파싱할 수 없습니다.");
+                }
+
+            } catch (error) {
+                console.error("AI 변환 실패:", error);
+                alert(`이미지 분석 중 오류가 발생했습니다.\n\n상세 사유: ${error.message}\n\n오류가 반복되면 수동으로 입력해주세요.`);
+            } finally {
+                hideLoading();
+            }
+        }
+
+
+        // --- 기존 데이터 관리 및 렌더링 로직 ---
+        const defaultData = [
+            { id: 'mon', dayName: '월요일', date: "3/23 (월)", arrival: "3/24 (화) 도착", isHoliday: false, holidayMessage: "", main: "오삼불고기", soup: "바지락된장국", sides: "해파리냉채, 콩나물크래미무침, 메추리알소세지짜장볶음, 도라지들깨나물", salad: "베트남짜조 샐러드" },
+            { id: 'tue', dayName: '화요일', date: "3/24 (화)", arrival: "3/25 (수) 도착", isHoliday: false, holidayMessage: "", main: "궁중돼지갈비찜", soup: "얼큰어묵탕", sides: "참치두부조림, 연근참깨무침, 새송이야채볶음, 매콤감자조림", salad: "두부 샐러드" },
+            { id: 'wed', dayName: '수요일', date: "3/25 (수)", arrival: "3/26 (목) 도착", isHoliday: false, holidayMessage: "", main: "기사식당달콤제육볶음", soup: "닭곰탕", sides: "소세지야채볶음, 건새우마늘쫑볶음, 우엉잡채, 취나물무침", salad: "당근라페리코타 샐러드" },
+            { id: 'thu', dayName: '목요일', date: "3/26 (목)", arrival: "3/27 (금) 도착", isHoliday: false, holidayMessage: "", main: "미트볼토마토소스조림", soup: "얼큰오징어뭇국", sides: "야채전, 무파래무침, 달콤감자조림, 버터갈릭새우", salad: "감자사라다 샐러드" },
+            { id: 'fri', dayName: '금요일', date: "3/27 (금)", arrival: "3/28 (토) 도착", isHoliday: false, holidayMessage: "", main: "궁중순살찜닭", soup: "만두전골", sides: "해물까스, 가지볶음, 미나리숙주무침, 알마늘장아찌", salad: "초코그래놀라 샐러드" }
+        ];
+
+        let menuData = JSON.parse(localStorage.getItem('suraganMenuData')) || [...defaultData];
+        menuData = menuData.map(item => ({ ...item, isHoliday: item.isHoliday || false, holidayMessage: item.holidayMessage || "" }));
+
+        const formContainer = document.getElementById('form-container');
+        const grid = document.getElementById('menu-grid');
+
+        function renderForm() {
+            formContainer.innerHTML = '';
+            menuData.forEach((menu, index) => {
+                const block = document.createElement('div');
+                block.className = `bg-white p-4 rounded-lg border ${menu.isHoliday ? 'border-red-300 bg-red-50' : 'border-gray-200'} shadow-sm relative transition-colors`;
+                
+                block.innerHTML = `
+                    <div class="absolute -top-3 left-4 ${menu.isHoliday ? 'bg-red-500' : 'bg-[#D97706]'} text-white px-2 py-0.5 rounded text-xs font-bold shadow-sm transition-colors">
+                        Day ${index + 1} (${menu.dayName})
+                    </div>
+                    
+                    <div class="flex items-center gap-2 mt-1 mb-3">
+                        <input type="checkbox" id="holiday-${index}" ${menu.isHoliday ? 'checked' : ''} onchange="toggleHoliday(${index}, this.checked)">
+                        <label for="holiday-${index}" class="${menu.isHoliday ? 'text-red-600 font-bold' : 'text-gray-600'} cursor-pointer">이 날짜를 휴무일로 지정</label>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mt-2">
+                        <div><label>표기 날짜</label><input type="text" value="${menu.date}" oninput="updateData(${index}, 'date', this.value)"></div>
+                        ${!menu.isHoliday ? `<div><label>도착 안내</label><input type="text" value="${menu.arrival}" oninput="updateData(${index}, 'arrival', this.value)"></div>` : '<div></div>'}
+                    </div>
+
+                    <div class="${menu.isHoliday ? 'block' : 'hidden'} mt-3">
+                        <label class="text-red-600 font-bold">휴무 안내 문구</label>
+                        <input type="text" value="${menu.holidayMessage}" placeholder="예: 삼일절 법정공휴일 휴무입니다." oninput="updateData(${index}, 'holidayMessage', this.value)">
+                    </div>
+
+                    <div class="${menu.isHoliday ? 'hidden' : 'block'}">
+                        <div class="mt-3">
+                            <label>메인 요리</label><input type="text" value="${menu.main}" oninput="updateData(${index}, 'main', this.value)">
+                        </div>
+                        <div class="mt-3">
+                            <label>국/탕</label><input type="text" value="${menu.soup}" oninput="updateData(${index}, 'soup', this.value)">
+                        </div>
+                        <div class="mt-3">
+                            <label>반찬 (쉼표 ',' 로 구분)</label>
+                            <input type="text" value="${menu.sides}" placeholder="예: 잡채, 계란말이, 김치" oninput="updateData(${index}, 'sides', this.value)">
+                        </div>
+                        <div class="mt-3">
+                            <label>샐러드</label><input type="text" value="${menu.salad}" oninput="updateData(${index}, 'salad', this.value)">
+                        </div>
+                    </div>
+                `;
+                formContainer.appendChild(block);
+            });
+        }
+
+        function toggleHoliday(index, isChecked) {
+            menuData[index].isHoliday = isChecked;
+            if(isChecked && !menuData[index].holidayMessage) {
+                menuData[index].holidayMessage = "공휴일로 인하여 휴무입니다.";
+            }
+            localStorage.setItem('suraganMenuData', JSON.stringify(menuData));
+            renderForm();
+            renderPreview();
+        }
+
+        function updateData(index, field, value) {
+            menuData[index][field] = value;
+            localStorage.setItem('suraganMenuData', JSON.stringify(menuData));
+            renderPreview();
+        }
+
+        function renderPreview() {
+            grid.innerHTML = '';
+            
+            menuData.forEach(menu => {
+                let cardBodyHTML = '';
+
+                if (menu.isHoliday) {
+                    cardBodyHTML = `
+                        <div class="flex-1 flex flex-col items-center justify-center bg-[#FAF8F5] rounded-xl border border-dashed border-[#D97706] mb-1 p-4 text-center">
+                            <div class="text-[32px] mb-2">🏖️</div>
+                            <div class="text-[17px] font-extrabold text-[#2D2A26] mb-1 whitespace-nowrap">휴무 안내</div>
+                            <div class="text-[14px] font-medium text-[#6B655E] whitespace-nowrap">${menu.holidayMessage || '휴무입니다.'}</div>
+                        </div>
+                    `;
+                } else {
+                    const sidesArray = menu.sides.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                    const sidesHTML = sidesArray.map(side => `
+                        <li class="flex items-start text-[14.5px] text-[#4A4540] leading-tight mb-[4px]">
+                            <span class="w-[4px] h-[4px] bg-[#9CA3AF] rounded-full mr-2.5 mt-[7.5px] shrink-0"></span>
+                            <span class="flex-1 whitespace-nowrap overflow-visible">${side}</span>
+                        </li>
+                    `).join('');
+
+                    cardBodyHTML = `
+                        <div class="flex flex-col gap-3 flex-1 mb-2">
+                            <div class="flex items-center">
+                                <span class="bg-[#EBF5FF] text-[#0369A1] font-bold text-[13.5px] w-[52px] h-[26px] flex items-center justify-center rounded-md shrink-0 mr-3">메인</span>
+                                <span class="text-[16px] font-bold text-[#1e293b] whitespace-nowrap overflow-visible mt-[1px]">${menu.main}</span>
+                            </div>
+                            <div class="flex items-center">
+                                <span class="bg-[#F0FDF4] text-[#15803D] font-bold text-[13.5px] w-[52px] h-[26px] flex items-center justify-center rounded-md shrink-0 mr-3">국물</span>
+                                <span class="text-[15.5px] font-bold text-[#334155] whitespace-nowrap overflow-visible mt-[1px]">${menu.soup}</span>
+                            </div>
+                            <div class="flex items-start">
+                                <span class="bg-[#F3F4F6] text-[#4B5563] font-bold text-[13.5px] w-[52px] h-[26px] flex items-center justify-center rounded-md shrink-0 mr-3">반찬</span>
+                                <ul class="flex flex-col w-full pt-[2px]">${sidesHTML}</ul>
+                            </div>
+                        </div>
+                        <div class="mt-auto bg-[#F8FAFCEE] rounded-xl px-4 py-3 flex items-center border border-slate-100">
+                            <span class="bg-[#F1F5F9] text-[#475569] font-bold text-[13px] w-[52px] h-[26px] flex items-center justify-center rounded-md shrink-0 mr-3">샐러드</span>
+                            <span class="text-[14.5px] font-bold text-[#334155] whitespace-nowrap overflow-visible mt-[1px]">${menu.salad}</span>
+                        </div>
+                    `;
+                }
+
+                const cardHTML = `
+                    <div class="bg-white rounded-2xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border ${menu.isHoliday ? 'border-red-100' : 'border-[#F0EBE1]'} flex flex-col h-[285px]">
+                        <div class="flex justify-between items-center mb-3">
+                            <h2 class="text-[22px] font-bold ${menu.isHoliday ? 'text-[#8C8273]' : 'text-[#2D2A26]'} tracking-tight whitespace-nowrap">${menu.date}</h2>
+                            ${menu.isHoliday ? '' : `
+                            <span class="bg-[#FFF8F0] text-[#D97706] text-[13px] font-bold px-3 py-1.5 rounded-full flex items-center justify-center gap-1 border border-[#FDE6D5] whitespace-nowrap shrink-0">
+                                🚚 ${menu.arrival}
+                            </span>
+                            `}
+                        </div>
+                        <hr class="border-t border-dashed border-gray-200 mb-3">
+                        ${cardBodyHTML}
+                    </div>
+                `;
+                grid.innerHTML += cardHTML;
+            });
+
+            const brandCardHTML = `
+                <div class="bg-[#2D2A26] rounded-2xl p-5 shadow-lg flex flex-col justify-center items-center text-center h-[285px]">
+                    <div class="w-10 h-10 bg-[#D97706] rounded-full flex items-center justify-center mb-3 text-white text-xl">🍲</div>
+                    <h3 class="text-white text-[19px] font-bold mb-2.5 whitespace-nowrap">건강한 한 주의 시작</h3>
+                    <p class="text-[#D1D5DB] text-[14px] leading-relaxed break-keep">
+                        궁중수라간은 신선한 식재료와 정성 어린 조리로 고객님의 식탁에 품격을 더합니다.<br><br>
+                        <span class="text-[#FDE6D5] font-semibold">정기 구독으로 매일 새로운<br>맛의 즐거움을 경험하세요.</span>
+                    </p>
+                </div>
+            `;
+            grid.innerHTML += brandCardHTML;
+        }
+
+        function resetData() {
+            if(confirm("입력한 내용을 모두 지우고 기본 템플릿으로 되돌리시겠습니까?")) {
+                menuData = JSON.parse(JSON.stringify(defaultData));
+                localStorage.setItem('suraganMenuData', JSON.stringify(menuData));
+                renderForm();
+                renderPreview();
+            }
+        }
+
+        function showLoading(mainText, subText) {
+            document.getElementById('loading-text').innerText = mainText;
+            document.getElementById('loading-subtext').innerText = subText;
+            document.getElementById('loading').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        async function downloadPNG() {
+            const captureArea = document.getElementById('capture-area');
+            showLoading("이미지를 추출하고 있습니다...", "상세페이지용 고화질 파일을 생성합니다.");
+            
+            try {
+                await document.fonts.ready;
+                const dataUrl = await htmlToImage.toPng(captureArea, {
+                    pixelRatio: 2,
+                    backgroundColor: '#FAF8F5',
+                    style: { transform: 'none' }
+                });
+                
+                const link = document.createElement('a');
+                link.href = dataUrl;
+                link.download = `궁중수라간_식단표_${new Date().toISOString().slice(0,10)}.png`;
+                link.click();
+            } catch (error) {
+                console.error("PNG 생성 실패:", error);
+                alert("이미지 생성 중 오류가 발생했습니다.");
+            } finally {
+                hideLoading();
+            }
+        }
+
+        renderForm();
+        renderPreview();
+    </script>
+</body>
+</html>
