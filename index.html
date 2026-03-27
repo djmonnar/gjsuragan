@@ -806,6 +806,22 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <div class="fgrp"><div class="flab">상태</div><select class="inp" id="est"><option value="active">구독 중</option><option value="pause">일시정지</option><option value="end">종료</option></select></div>
         <div class="fgrp"><div class="flab">잔여 수량</div><input type="number" class="inp" id="erem" min="0"></div>
         <div class="fgrp"><div class="flab">총 수량 / 횟수</div><input type="number" class="inp" id="etot" min="1"></div>
+        <!-- 정기배송 일정 (정기배송일 때만 표시) -->
+        <div class="fgrp" id="ef-sched-wrap">
+          <div class="flab">배송 주기</div>
+          <select class="inp" id="e-freq" onchange="editUpdSch()">
+            <option value="">선택</option>
+            <option value="1">주 1회</option>
+            <option value="2">주 2회</option>
+            <option value="3">주 3회</option>
+          </select>
+        </div>
+        <div class="fgrp" id="ef-sched-sel">
+          <div class="flab">배송 일정</div>
+          <select class="inp" id="e-sched">
+            <option value="">주기를 먼저 선택하세요</option>
+          </select>
+        </div>
         <div class="fgrp"><div class="flab">배송 예정일 (선택주문)</div><input type="date" class="inp" id="eodate"></div>
         <div class="fgrp"><div class="flab">주문번호</div><input type="text" class="inp" id="e-ordernum" placeholder="202603258223322"></div>
         <div class="fgrp"><div class="flab">배송 방식</div>
@@ -1158,11 +1174,27 @@ async function saveEdit(){
   const upd={name:g('en'),phone:g('ep'),addr:g('ea'),door:g('ed'),request:g('er'),
     set:['A','B','C'].includes(esVal)?esVal:(esVal||''),
     productId:esVal,
-    scheduleName:productLabel(esVal)||g('es'),
     status:g('est'),remain:parseInt(g('erem'))||0,total:parseInt(g('etot'))||1,memo:g('em'),
     isDirect: document.getElementById('e-direct').checked,
     orderNum: document.getElementById('e-ordernum').value.trim()};
   const od=g('eodate'); if(od) upd.onceDate=od;
+
+  // 정기배송 일정 저장
+  const freq  = document.getElementById('e-freq').value;
+  const schIdx= document.getElementById('e-sched').value;
+  if(freq && schIdx !== ''){
+    const sch = SCH[freq][parseInt(schIdx)];
+    if(sch){
+      upd.type         = parseInt(freq);
+      upd.scheduleName = sch.l;
+      upd.cookDays     = sch.c;
+      upd.arriveDays   = sch.a;
+    }
+  } else if(!freq) {
+    // 선택주문이면 scheduleName을 상품 라벨로
+    upd.scheduleName = productLabel(esVal) || esVal;
+  }
+
   try{
     await window.__DB.collection('customers').doc(editId).update(upd);
     closeM('editM'); toast(upd.name+' 수정 완료','ok');
@@ -2972,7 +3004,48 @@ function openEdit(id){
   g2('erem',c.remain);g2('etot',c.total);g2('em',c.memo);g2('eodate',c.onceDate||'');
   g2('e-ordernum',c.orderNum||'');
   document.getElementById('e-direct').checked=!!(c.isDirect);
+
+  // 정기/선택 구분에 따라 일정 필드 표시
+  const isSub = c.orderType === 'sub';
+  document.getElementById('ef-sched-wrap').style.display = isSub ? '' : 'none';
+  document.getElementById('ef-sched-sel').style.display  = isSub ? '' : 'none';
+
+  if(isSub){
+    // 현재 저장된 cookDays로 주기·일정 역산
+    const freq = String(c.type || (c.cookDays && c.cookDays.length) || '');
+    document.getElementById('e-freq').value = freq;
+    editUpdSch(); // 드롭다운 옵션 생성
+
+    // 현재 cookDays와 일치하는 인덱스 선택
+    if(freq && c.cookDays && c.cookDays.length){
+      const cookKey = c.cookDays.slice().sort((a,b)=>a-b).join(',');
+      const schIndexMap = {
+        '1':{1:0,2:1,3:2,4:3,5:4},
+        '2':{'1,3':0,'1,4':1,'2,4':2,'3,5':3,'1,5':4},
+        '3':{'1,3,5':0,'2,4,5':1},
+      };
+      const idx = freq === '1'
+        ? (schIndexMap['1'][c.cookDays[0]] ?? '')
+        : (schIndexMap[freq]?.[cookKey] ?? '');
+      document.getElementById('e-sched').value = String(idx);
+    }
+  }
+
   openM('editM');
+}
+
+// 수정 모달 배송 일정 드롭다운 업데이트
+function editUpdSch(){
+  const freq = document.getElementById('e-freq').value;
+  const sel  = document.getElementById('e-sched');
+  sel.innerHTML = '<option value="">선택하세요</option>';
+  if(!freq || !SCH[freq]) return;
+  SCH[freq].forEach((sc,i)=>{
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = sc.l;
+    sel.appendChild(opt);
+  });
 }
 
 function changeQty(d){
