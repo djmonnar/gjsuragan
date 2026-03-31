@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주간 식단표 업로드 매뉴얼 (상품 등록 편)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+            background-color: #f8fafc;
+        }
+        .step-card {
+            transition: all 0.2s ease-in-out;
+        }
+        .step-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        .completed-text {
+            text-decoration: line-through;
+            color: #94a3b8;
+        }
+        .image-placeholder {
+            background-image: repeating-linear-gradient(45deg, #f1f5f9 25%, transparent 25%, transparent 75%, #f1f5f9 75%, #f1f5f9), repeating-linear-gradient(45deg, #f1f5f9 25%, #ffffff 25%, #ffffff 75%, #f1f5f9 75%, #f1f5f9);
+            background-position: 0 0, 10px 10px;
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased pb-20">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 text-white p-2 rounded-lg">
+                    <i class="ri-calendar-check-line text-xl"></i>
+                </div>
+                <h1 class="text-xl font-bold text-slate-900">궁중수라간 주간 식단표 매뉴얼</h1>
+            </div>
+            <div class="text-sm text-slate-500 font-medium">
+                Part 1. 아임웹 상품 등록
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        
+        <!-- Intro -->
+        <div class="bg-blue-50 border border-blue-100 rounded-xl p-6 mb-10 flex gap-4 items-start">
+            <i class="ri-information-fill text-2xl text-blue-500 mt-1"></i>
+            <div>
+                <h2 class="text-lg font-bold text-blue-900 mb-2">매주 진행되는 식단표 업데이트 가이드입니다.</h2>
+                <p class="text-blue-800 leading-relaxed">
+                    작업 중 헷갈리는 부분이 있다면 이 매뉴얼을 순서대로 차근차근 따라 해 주세요. 
+                    각 단계를 완료할 때마다 우측의 체크박스(✔️)를 누르면 진행 상황을 쉽게 파악할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <!-- Section 1 -->
+        <div class="mb-12">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-white font-bold">1</span>
+                <h2 class="text-2xl font-bold text-slate-800">메뉴 이미지 생성하기</h2>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Step 1 -->
+                <article class="step-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex gap-4 relative overflow-hidden" id="card-1">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span class="text-blue-600">Step 1.</span> 식단표 텍스트 복사
+                            </h3>
+                            <input type="checkbox" class="w-6 h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer step-checkbox" data-target="card-1">
+                        </div>
+                        <div class="text-slate-600 mb-4 step-content">
+                            전달받은 '궁중수라간 식단표' 원본 파일이나 게시글에서 업데이트할 날짜의 메뉴 텍스트를 드래그하여 복사(<kbd class="bg-slate-100 px-1 py-0.5 rounded border border-slate-300 text-sm">Ctrl</kbd>+<kbd class="bg-slate-100 px-1 py-0.5 rounded border border-slate-300 text-sm">C</kbd>)합니다.
+                        </div>
+                        
+                        <!-- UI Mockup: 식단표 원본 -->
+                        <div class="w-full bg-white border border-orange-200 rounded-xl shadow-sm p-5 max-w-sm mx-auto font-sans step-content">
+                            <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
+                                <div class="text-xl font-bold text-gray-800">4/6 (월)</div>
+                                <div class="bg-orange-50 text-orange-600 px-3 py-1 rounded text-sm font-medium"><i class="ri-truck-line"></i> 4/7 (화) 도착</div>
+                            </div>
+                            <div class="space-y-4 px-2">
+                                <div class="font-bold text-lg text-amber-900 flex items-center gap-2"><i class="ri-restaurant-2-line"></i> 훈제오리볶음</div>
+                                <div class="font-medium text-amber-800 flex items-center gap-2 border-t border-dashed border-gray-200 pt-3"><i class="ri-bowl-line"></i> 꽃게된장찌개</div>
+                                <div class="flex items-start gap-2 text-gray-600">
+                                    <i class="ri-record-circle-line text-gray-300 mt-1"></i>
+                                    <ul class="space-y-2 text-[15px]">
+                                        <li>· 시래기된장무침</li>
+                                        <li>· 닭가슴살감자조림</li>
+                                        <li>· 오이지무침</li>
+                                        <li>· 고추장멸치볶음</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="mt-5 bg-green-50 text-green-800 p-4 rounded-b-xl -mx-5 -mb-5 font-bold flex items-center gap-2 text-[15px]">
+                                <i class="ri-leaf-line text-lg"></i> 훈제오리샐러드 & 케이준드레싱
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 2 -->
+                <article class="step-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex gap-4 relative overflow-hidden" id="card-2">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span class="text-blue-600">Step 2.</span> 메뉴 템플릿 생성기 입력
+                            </h3>
+                            <input type="checkbox" class="w-6 h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer step-checkbox" data-target="card-2">
+                        </div>
+                        <ul class="list-disc list-inside text-slate-600 mb-4 space-y-2 step-content">
+                            <li>메뉴 템플릿 생성기에 접속합니다.</li>
+                            <li>왼쪽 <strong>'빠른 텍스트 붙여넣기'</strong> 입력창에 복사한 식단표를 그대로 붙여넣기(<kbd class="bg-slate-100 px-1 py-0.5 rounded border border-slate-300 text-sm">Ctrl</kbd>+<kbd class="bg-slate-100 px-1 py-0.5 rounded border border-slate-300 text-sm">V</kbd>) 합니다.</li>
+                            <li>입력창 우측 상단의 ✨<strong>[마법 자동분류]</strong> 버튼을 클릭합니다.</li>
+                        </ul>
+                        
+                        <!-- UI Mockup: 메뉴 템플릿 생성기 -->
+                        <div class="w-full border border-gray-200 rounded-xl shadow-sm bg-gray-50 flex flex-col md:flex-row overflow-hidden text-sm step-content font-sans">
+                            <!-- Left panel -->
+                            <div class="w-full md:w-3/5 p-5 bg-white border-r border-gray-100">
+                                <div class="flex justify-between items-center mb-3">
+                                    <span class="font-bold text-blue-600 flex items-center gap-1"><i class="ri-image-edit-line"></i> 메뉴 이미지 제작</span>
+                                </div>
+                                
+                                <div class="border border-blue-100 rounded-lg p-3 mb-4 bg-white relative">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="font-bold text-blue-500 text-xs flex items-center gap-1"><i class="ri-link"></i> 빠른 텍스트 붙여넣기</span>
+                                        <span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold">마법 자동분류 ✨</span>
+                                    </div>
+                                    <div class="text-gray-400 h-16 text-xs bg-white">홈페이지 식단표 글씨를 드래그해서 여기에 통째로 붙여넣어보세요!</div>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-3 mb-3">
+                                    <div><label class="text-xs text-gray-500 block mb-1">날짜</label><div class="w-full border border-gray-200 rounded p-2 text-gray-700 bg-white">4/17 (금)</div></div>
+                                    <div><label class="text-xs text-gray-500 block mb-1">배송 정보</label><div class="w-full border border-gray-200 rounded p-2 text-gray-700 bg-white">4/18 (토) 도착</div></div>
+                                </div>
+                                <div class="mb-3"><label class="text-xs text-gray-500 block mb-1">메인</label><div class="w-full border border-gray-200 rounded p-2 text-gray-700 bg-white">중화비빔덮밥소스</div></div>
+                                <div class="mb-3"><label class="text-xs text-gray-500 block mb-1">국물</label><div class="w-full border border-gray-200 rounded p-2 text-gray-700 bg-white">우거지된장국</div></div>
+                                <div class="mb-3">
+                                    <label class="text-xs text-gray-500 block mb-1">반찬 (줄바꿈으로 구분)</label>
+                                    <div class="w-full border border-gray-200 rounded p-2 text-gray-700 bg-white h-24 overflow-hidden text-xs leading-relaxed">만두탕수<br>꽃맛살오이무침<br>해파리냉채<br>쑥갓무침</div>
+                                </div>
+                                <div><label class="text-xs text-gray-500 block mb-1">하단 메뉴 (샐러드 등)</label><div class="w-full border border-gray-200 rounded p-2 text-gray-700 bg-white">에그마요샐러드 & 사우전드드레싱</div></div>
+                            </div>
+                            <!-- Right panel (Preview) -->
+                            <div class="w-full md:w-2/5 p-5 flex flex-col items-center justify-center bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHBhdGggZD0iTTEgMWgydjExem0xMCAwaDJ2MmgtMnoiIGZpbGw9IiNmM2Y0ZjYiIGZpbGwtb3BhY2l0eT0iMC40Ii8+PC9zdmc+')] relative">
+                                <div class="text-[11px] text-gray-500 mb-3 absolute top-6 flex items-center gap-1"><i class="ri-sparkling-fill text-yellow-400"></i> 미리보기</div>
+                                <div class="bg-white rounded-lg shadow-sm w-[220px] p-4 mt-8 border border-gray-100 pointer-events-none">
+                                    <div class="font-bold border-b border-gray-100 pb-3 mb-3 flex justify-between items-center text-sm">4/17 (금) <span class="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-1 rounded flex items-center gap-1"><i class="ri-truck-line"></i> 4/18 (토) 도착</span></div>
+                                    <div class="text-[13px] font-bold mb-3 flex items-start gap-2"><span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap mt-0.5">메인</span> 중화비빔덮밥소스</div>
+                                    <div class="text-[13px] font-bold mb-3 flex items-start gap-2 border-b border-dashed border-gray-200 pb-3"><span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap mt-0.5">국물</span> 우거지된장국</div>
+                                    <div class="text-[13px] text-gray-600 flex items-start gap-2">
+                                        <span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap mt-0.5">반찬</span>
+                                        <ul class="space-y-1 text-xs"><li>· 만두탕수</li><li>· 꽃맛살오이무침</li><li>· 해파리냉채</li><li>· 쑥갓무침</li></ul>
+                                    </div>
+                                    <div class="mt-4 bg-green-50 text-green-700 p-2 rounded text-[11px] font-bold flex items-center gap-1"><span class="bg-green-100 text-green-700 px-1 rounded text-[10px]">샐러드</span> 에그마요샐러드...</div>
+                                </div>
+                                <div class="mt-4 bg-[#2563eb] text-white rounded-full px-5 py-2 text-[13px] font-bold flex items-center gap-1 shadow-sm"><i class="ri-download-2-line"></i> 심플 이미지 다운로드</div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 3 -->
+                <article class="step-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex gap-4 relative overflow-hidden" id="card-3">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span class="text-blue-600">Step 3.</span> 이미지 다운로드
+                            </h3>
+                            <input type="checkbox" class="w-6 h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer step-checkbox" data-target="card-3">
+                        </div>
+                        <ul class="list-disc list-inside text-slate-600 mb-4 space-y-2 step-content">
+                            <li>오른쪽 미리보기 화면에 메뉴가 예쁘게 잘 분류되어 들어갔는지 확인합니다.</li>
+                            <li>이상이 없다면 하단의 파란색 <strong>[심플 이미지 다운로드]</strong> 버튼을 클릭하여 이미지를 PC에 저장합니다.</li>
+                        </ul>
+                        
+                        <!-- Warning Box -->
+                        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg mb-4 flex gap-3 items-start">
+                            <i class="ri-error-warning-fill text-red-500 text-xl"></i>
+                            <div>
+                                <h4 class="text-red-800 font-bold mb-1">절대 주의! (가장 중요)</h4>
+                                <p class="text-red-700 text-sm">다운로드한 이미지를 열어보고 <strong>글자가 깨지거나 잘린 부분이 없는지 반드시 두 번 확인</strong>해 주세요!</p>
+                            </div>
+                        </div>
+
+                        <!-- UI Mockup: 다운로드 이미지 미리보기 -->
+                        <div class="w-full bg-slate-50 border border-slate-200 rounded-xl p-8 flex flex-col items-center justify-center step-content bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHBhdGggZD0iTTEgMWgydjExem0xMCAwaDJ2MmgtMnoiIGZpbGw9IiNmM2Y0ZjYiIGZpbGwtb3BhY2l0eT0iMC41Ii8+PC9zdmc+')]">
+                            <div class="text-xs text-gray-500 mb-4 flex items-center gap-1"><i class="ri-sparkling-fill text-yellow-400"></i> 미리보기</div>
+                            
+                            <div class="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] w-full max-w-sm p-6 border border-gray-100">
+                                <div class="flex justify-between items-center mb-5 border-b border-gray-100 pb-4">
+                                    <div class="text-2xl font-bold text-gray-900 tracking-tight">4/6 (월)</div>
+                                    <div class="bg-orange-50 text-orange-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"><i class="ri-truck-line text-sm"></i> 4/7 (화) 도착</div>
+                                </div>
+                                <div class="space-y-5">
+                                    <div class="flex items-start gap-3">
+                                        <span class="bg-[#f0f4ff] text-[#4f80ff] px-2 py-0.5 rounded text-xs font-bold mt-0.5">메인</span> 
+                                        <span class="font-bold text-lg text-gray-900 tracking-tight">훈제오리볶음</span>
+                                    </div>
+                                    <div class="flex items-start gap-3 border-t border-dashed border-gray-200 pt-5">
+                                        <span class="bg-[#f0f4ff] text-[#4f80ff] px-2 py-0.5 rounded text-xs font-bold mt-0.5">국물</span> 
+                                        <span class="font-bold text-lg text-gray-900 tracking-tight">꽃게된장찌개</span>
+                                    </div>
+                                    <div class="flex items-start gap-3 border-t border-dashed border-gray-200 pt-5">
+                                        <span class="bg-[#f0f4ff] text-[#4f80ff] px-2 py-0.5 rounded text-xs font-bold mt-0.5">반찬</span>
+                                        <ul class="space-y-2 text-[15px] text-gray-600 font-medium">
+                                            <li>· 시래기된장무침</li>
+                                            <li>· 닭가슴살감자조림</li>
+                                            <li>· 오이지무침</li>
+                                            <li>· 고추장멸치볶음</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="mt-6 bg-[#f0fdf4] text-[#166534] p-4 rounded-b-xl -mx-6 -mb-6 flex items-center gap-3">
+                                    <span class="bg-[#dcfce7] text-[#15803d] px-2 py-0.5 rounded text-xs font-bold">샐러드</span>
+                                    <span class="font-bold text-[15px]">훈제오리샐러드 & 케이준드레싱</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-8 bg-[#2563eb] text-white rounded-full px-8 py-3 text-[14px] font-bold flex items-center gap-2 shadow-md">
+                                <i class="ri-download-2-line text-lg"></i> 심플 이미지 다운로드
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </div>
+
+        <!-- Section 2 -->
+        <div class="mb-12">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-white font-bold">2</span>
+                <h2 class="text-2xl font-bold text-slate-800">아임웹 상품 등록 및 수정</h2>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Step 4 -->
+                <article class="step-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex gap-4 relative overflow-hidden" id="card-4">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span class="text-blue-600">Step 4.</span> 기존 상품 복제하기
+                            </h3>
+                            <input type="checkbox" class="w-6 h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer step-checkbox" data-target="card-4">
+                        </div>
+                        <ul class="list-disc list-inside text-slate-600 mb-4 space-y-2 step-content">
+                            <li>아임웹 관리자 페이지에 접속합니다.</li>
+                            <li>왼쪽 메뉴에서 <strong>[쇼핑] <i class="ri-arrow-right-s-line align-middle"></i> [상품] <i class="ri-arrow-right-s-line align-middle"></i> [기획전]</strong> 탭으로 이동합니다.</li>
+                            <li>리스트에 있는 기존 상품 중 하나를 선택하고, 우측 끝에 있는 점 3개(⋮) 버튼을 눌러 <strong>[복제]</strong>를 클릭합니다.</li>
+                        </ul>
+                        
+                        <!-- UI Mockup: 아임웹 상품 목록 -->
+                        <div class="w-full border border-gray-200 rounded-lg shadow-sm overflow-hidden bg-white text-xs step-content font-sans overflow-x-auto">
+                            <table class="w-full text-left border-collapse min-w-[700px]">
+                                <thead class="bg-white border-b border-gray-100 text-gray-500 font-medium text-[11px] text-center">
+                                    <tr>
+                                        <th class="p-3 w-8 border-r border-gray-100"><input type="checkbox" class="rounded border-gray-300"></th>
+                                        <th class="p-3 w-16 whitespace-nowrap">상품번호</th>
+                                        <th class="p-3 text-left">상품명</th>
+                                        <th class="p-3 w-20">판매가</th>
+                                        <th class="p-3 w-20">상태</th>
+                                        <th class="p-3 w-16">재고</th>
+                                        <th class="p-3 w-20">카테고리</th>
+                                        <th class="p-3 w-24">기획전</th>
+                                        <th class="p-3 w-12"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 text-gray-700 text-center">
+                                    <!-- Row 1 -->
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="p-3 border-r border-gray-100"><input type="checkbox" class="rounded border-gray-300"></td>
+                                        <td class="p-3 font-medium text-gray-800">44</td>
+                                        <td class="p-3 text-left">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 border border-gray-200 bg-white rounded flex items-center justify-center p-0.5"><div class="w-full h-full bg-gray-100 rounded-[2px]"></div></div>
+                                                <div>
+                                                    <div class="font-bold text-[13px] text-gray-900 mb-0.5 flex items-center gap-1 cursor-pointer">4월.13일 월요일 (14일 화요일 배송완료) <i class="ri-external-link-line text-gray-300 hover:text-gray-500"></i></div>
+                                                    <div class="text-gray-400 text-[11px]">선택주문 세트 3종</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="p-3 font-bold text-gray-900">₩39,000</td>
+                                        <td class="p-3"><span class="flex items-center justify-center gap-1 cursor-pointer text-gray-800">판매중 <i class="ri-arrow-down-s-line text-gray-400"></i></span></td>
+                                        <td class="p-3 text-gray-400">-</td>
+                                        <td class="p-3 text-gray-800">1회주문</td>
+                                        <td class="p-3 text-gray-800">4월 셋째 주</td>
+                                        <td class="p-3"><i class="ri-more-2-fill text-gray-500 text-lg cursor-pointer hover:text-gray-800"></i></td>
+                                    </tr>
+                                    <!-- Row 2 -->
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="p-3 border-r border-gray-100"><input type="checkbox" class="rounded border-gray-300"></td>
+                                        <td class="p-3 font-medium text-gray-800">43</td>
+                                        <td class="p-3 text-left">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 border border-gray-200 bg-white rounded flex items-center justify-center p-0.5"><div class="w-full h-full bg-gray-100 rounded-[2px]"></div></div>
+                                                <div>
+                                                    <div class="font-bold text-[13px] text-gray-900 mb-0.5 flex items-center gap-1 cursor-pointer">4월.14일 화요일 (15일 수요일 배송완료) <i class="ri-external-link-line text-gray-300 hover:text-gray-500"></i></div>
+                                                    <div class="text-gray-400 text-[11px]">선택주문 세트 3종</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="p-3 font-bold text-gray-900">₩39,000</td>
+                                        <td class="p-3"><span class="flex items-center justify-center gap-1 cursor-pointer text-gray-800">판매중 <i class="ri-arrow-down-s-line text-gray-400"></i></span></td>
+                                        <td class="p-3 text-gray-400">-</td>
+                                        <td class="p-3 text-gray-800">1회주문</td>
+                                        <td class="p-3 text-gray-800">4월 셋째 주</td>
+                                        <td class="p-3 relative">
+                                            <!-- Tooltip Popover Mock -->
+                                            <div class="absolute right-8 top-1/2 -translate-y-1/2 bg-white border border-gray-200 shadow-lg rounded-md flex flex-col w-20 overflow-hidden z-10 text-left">
+                                                <div class="px-3 py-2 hover:bg-gray-50 text-gray-700 cursor-pointer">수정</div>
+                                                <div class="px-3 py-2 bg-blue-50 text-[#1e60f0] font-bold cursor-pointer border-l-2 border-[#1e60f0]">복제</div>
+                                                <div class="px-3 py-2 hover:bg-gray-50 text-red-600 cursor-pointer">삭제</div>
+                                            </div>
+                                            <i class="ri-more-2-fill text-[#1e60f0] text-lg cursor-pointer"></i>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 5 -->
+                <article class="step-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex gap-4 relative overflow-hidden" id="card-5">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span class="text-blue-600">Step 5.</span> 대표 이미지 교체
+                            </h3>
+                            <input type="checkbox" class="w-6 h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer step-checkbox" data-target="card-5">
+                        </div>
+                        <ul class="list-disc list-inside text-slate-600 mb-4 space-y-2 step-content">
+                            <li>복제된 상품의 수정 페이지로 들어갑니다.</li>
+                            <li>'이미지' 항목에서 기존에 등록되어 있던 대표 이미지를 삭제(X 버튼 또는 휴지통 아이콘 클릭)합니다.</li>
+                            <li>빈 이미지 칸을 클릭하여, 앞서 <strong>1단계에서 다운로드했던 새로운 메뉴 이미지</strong>를 업로드합니다.</li>
+                        </ul>
+                        
+                        <!-- UI Mockup: 상품 이미지 업로드 -->
+                        <div class="w-full border border-gray-200 rounded-lg shadow-sm p-6 bg-white text-sm step-content font-sans">
+                            <h4 class="font-bold text-lg mb-6 pb-4 border-b border-gray-100">상품 정보</h4>
+                            
+                            <div class="mb-8">
+                                <label class="font-bold text-gray-900 flex items-center gap-1 mb-3">이미지 <span class="text-red-500 text-[8px] ml-0.5">●</span></label>
+                                <div class="flex gap-3 items-center">
+                                    <!-- Image Replace Mockup -->
+                                    <div class="relative w-[100px] h-[100px] border-2 border-gray-900 rounded-xl overflow-hidden group shadow-sm bg-white cursor-pointer">
+                                        <div class="absolute top-0 left-0 bg-black text-white text-[10px] px-2 py-0.5 rounded-br-lg z-10 font-bold">대표</div>
+                                        <div class="w-full h-full p-2 flex flex-col opacity-60 pointer-events-none scale-75 origin-top-left transform mt-3">
+                                            <b class="text-[12px] mb-1 text-black">4/17 (금)</b>
+                                            <div class="flex items-center gap-1 mt-1"><span class="bg-blue-100 text-blue-600 text-[10px] px-1 rounded">메인</span><span class="text-[11px] text-black font-bold">중화비빔덮밥...</span></div>
+                                        </div>
+                                    </div>
+                                    <!-- Empty slot -->
+                                    <div class="w-[100px] h-[100px] border border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center text-gray-400 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
+                                        <i class="ri-image-add-line text-2xl mb-1 text-gray-400"></i>
+                                    </div>
+                                </div>
+                                <p class="text-[12px] text-gray-500 mt-4">지원되는 이미지 형식: PNG, GIF, JPG/JPEG, BMP | 권장 해상도: 750 x 750px 이상</p>
+                            </div>
+
+                            <div>
+                                <div class="flex flex-col md:flex-row gap-6">
+                                    <div class="flex-1">
+                                        <label class="font-bold text-gray-900 flex items-center gap-1 mb-2 text-[14px]">상품명 <span class="text-red-500 text-[8px] ml-0.5">●</span></label>
+                                        <input type="text" class="w-full border border-gray-300 rounded-lg p-3 text-[14px] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-shadow text-gray-900" value="4월.17일 금요일 (18일 토요일 배송완료)">
+                                    </div>
+                                    <div class="w-full md:w-[250px]">
+                                        <label class="font-bold text-gray-900 flex items-center gap-1 mb-2 text-[14px]">카테고리 <span class="text-red-500 text-[8px] ml-0.5">●</span> <i class="ri-question-line text-gray-400 font-normal"></i></label>
+                                        <div class="w-full border border-gray-300 rounded-lg p-2.5 text-sm flex justify-between items-center bg-white cursor-pointer h-[46px]">
+                                            <span class="bg-gray-100 text-gray-800 px-2.5 py-1 rounded text-[13px] flex items-center gap-1">1회주문 <i class="ri-close-line text-gray-400 hover:text-gray-600"></i></span>
+                                            <i class="ri-arrow-down-s-line text-gray-500 text-lg"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 6 -->
+                <article class="step-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex gap-4 relative overflow-hidden" id="card-6">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span class="text-blue-600">Step 6.</span> 상품명 변경
+                            </h3>
+                            <input type="checkbox" class="w-6 h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer step-checkbox" data-target="card-6">
+                        </div>
+                        <ul class="list-disc list-inside text-slate-600 mb-4 space-y-2 step-content">
+                            <li>새로 등록한 메뉴 이미지의 날짜와 내용에 맞게 <strong>[상품명]</strong>을 알맞게 수정합니다.</li>
+                            <li class="text-sm text-slate-500 bg-slate-50 p-2 rounded block mt-2 border border-slate-100">예시: 4월 17일 금요일 (18일 토요일 배송완료) 선택주문 세트 3종</li>
+                        </ul>
+                    </div>
+                </article>
+
+                <!-- Step 7 -->
+                <article class="step-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex gap-4 relative overflow-hidden border-l-4 border-l-blue-500" id="card-7">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span class="text-blue-600">Step 7.</span> 판매 기간 설정 <span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full ml-2">중요 ⭐</span>
+                            </h3>
+                            <input type="checkbox" class="w-6 h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer step-checkbox" data-target="card-7">
+                        </div>
+                        <ul class="list-disc list-inside text-slate-600 mb-4 space-y-2 step-content">
+                            <li>스크롤을 아래로 내려 <strong>[판매 설정]</strong> 섹션을 찾습니다.</li>
+                            <li>'판매기간 설정'이 켜져 있는지 확인하고, <strong>[종료일]</strong>을 다음과 같이 설정합니다.</li>
+                        </ul>
+                        
+                        <div class="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-100 step-content">
+                            <ul class="space-y-2 font-medium text-blue-900">
+                                <li>👉 <strong>종료 날짜 :</strong> 식단표 배송 날짜의 <span class="text-blue-600 font-bold border-b-2 border-blue-300">하루 전날</span></li>
+                                <li>👉 <strong>종료 시간 :</strong> <span class="text-blue-600 font-bold border-b-2 border-blue-300">12시 00분</span> (낮 12시)</li>
+                            </ul>
+                            <p class="text-sm text-blue-700 mt-3"><i class="ri-lightbulb-flash-line"></i> 예시: 4월 17일(금) 메뉴라면, 4/16(목) 12시 00분으로 설정</p>
+                        </div>
+
+                        <!-- UI Mockup: 판매 설정 -->
+                        <div class="w-full border border-gray-200 rounded-xl shadow-sm bg-[#fcfcfc] text-sm step-content font-sans overflow-hidden">
+                            <div class="flex justify-between items-center p-5 border-b border-gray-100 cursor-pointer">
+                                <h4 class="font-bold text-[16px] text-gray-900">판매 설정</h4>
+                                <i class="ri-arrow-up-s-line text-gray-500 text-xl"></i>
+                            </div>
+                            
+                            <div class="p-6">
+                                <div class="mb-8">
+                                    <label class="block font-bold text-gray-800 mb-3 text-[14px]">판매 상태</label>
+                                    <div class="flex gap-6">
+                                        <label class="flex items-center gap-2 cursor-pointer text-gray-900 font-medium text-[14px]">
+                                            <div class="w-[18px] h-[18px] rounded-full border-[6px] border-gray-800 bg-white flex-shrink-0"></div> 판매중
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer text-gray-500 text-[14px]">
+                                            <div class="w-[18px] h-[18px] rounded-full border border-gray-300 bg-white flex-shrink-0"></div> 품절
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer text-gray-500 text-[14px]">
+                                            <div class="w-[18px] h-[18px] rounded-full border border-gray-300 bg-white flex-shrink-0"></div> 숨김
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="w-full">
+                                    <div class="flex justify-between items-center mb-5">
+                                        <label class="font-bold text-gray-800 text-[14px]">판매기간 설정</label>
+                                        <!-- Toggle switch -->
+                                        <div class="w-11 h-6 bg-gray-900 rounded-full relative cursor-pointer">
+                                            <div class="w-[18px] h-[18px] bg-white rounded-full absolute top-[3px] right-[3px]"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex flex-col md:flex-row items-center gap-2 md:gap-4 text-gray-700">
+                                        <div class="flex-1 w-full">
+                                            <div class="text-[13px] font-bold mb-2 text-gray-800">시작일</div>
+                                            <div class="flex gap-2">
+                                                <div class="border border-gray-200 rounded-lg py-2.5 px-3 flex-1 flex items-center gap-2 bg-white text-[14px] cursor-pointer text-gray-800 font-medium">
+                                                    <i class="ri-calendar-line text-gray-400"></i> 2026.03.31
+                                                </div>
+                                                <div class="border border-gray-200 rounded-lg py-2.5 px-0 w-[70px] text-center bg-white text-[14px] cursor-pointer text-gray-800 font-medium">13 시</div>
+                                                <div class="border border-gray-200 rounded-lg py-2.5 px-0 w-[70px] text-center bg-white text-[14px] cursor-pointer text-gray-800 font-medium">16 분</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="py-2 md:pt-8 md:pb-0 text-gray-300 font-medium px-1">~</div>
+                                        
+                                        <div class="flex-1 w-full relative">
+                                            <div class="absolute -top-8 left-0 bg-[#2563eb] text-white text-[11px] font-bold px-2 py-1 rounded animate-bounce shadow-md">종료일을 변경해주세요!</div>
+                                            <div class="text-[13px] font-bold mb-2 text-[#2563eb]">종료일</div>
+                                            <div class="flex gap-2">
+                                                <div class="border-[1.5px] border-[#2563eb] rounded-lg py-2.5 px-3 flex-1 flex items-center gap-2 bg-[#eff6ff] text-[14px] text-[#1d4ed8] font-bold cursor-pointer">
+                                                    <i class="ri-calendar-event-fill text-[#3b82f6]"></i> 2026.04.16
+                                                </div>
+                                                <div class="border-[1.5px] border-[#2563eb] rounded-lg py-2.5 px-0 w-[70px] text-center bg-[#eff6ff] text-[14px] text-[#1d4ed8] font-bold cursor-pointer">12 시</div>
+                                                <div class="border-[1.5px] border-[#2563eb] rounded-lg py-2.5 px-0 w-[70px] text-center bg-[#eff6ff] text-[14px] text-[#1d4ed8] font-bold cursor-pointer">00 분</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 8 -->
+                <article class="step-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex gap-4 relative overflow-hidden" id="card-8">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span class="text-blue-600">Step 8.</span> 저장 및 완료
+                            </h3>
+                            <input type="checkbox" class="w-6 h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer step-checkbox" data-target="card-8">
+                        </div>
+                        <ul class="list-disc list-inside text-slate-600 mb-4 space-y-2 step-content">
+                            <li>모든 수정이 끝났다면, 페이지 하단 또는 우측 상단의 <strong>[저장]</strong> 버튼을 클릭합니다.</li>
+                            <li>목록으로 돌아가 상품이 정상적으로 등록되었는지 확인합니다.</li>
+                        </ul>
+                    </div>
+                </article>
+            </div>
+        </div>
+
+        <!-- Section 3 -->
+        <div class="mb-12">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-white font-bold">3</span>
+                <h2 class="text-2xl font-bold text-slate-800">지난 식단표 상품 정리 (금요일 마감)</h2>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Step 9 -->
+                <article class="step-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex gap-4 relative overflow-hidden border-l-4 border-l-slate-400" id="card-9">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span class="text-blue-600">Step 9.</span> 지난 상품 숨김 처리 <span class="bg-slate-100 text-slate-700 text-xs px-2 py-1 rounded-full ml-2">권장 👍</span>
+                            </h3>
+                            <input type="checkbox" class="w-6 h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer step-checkbox" data-target="card-9">
+                        </div>
+                        <ul class="list-disc list-inside text-slate-600 mb-4 space-y-2 step-content">
+                            <li>매주 금요일 업무 마감 시, <strong>판매 기간이 끝난 지난주 식단표 상품(보통 5개)</strong>을 찾아 왼쪽 체크박스를 선택합니다.</li>
+                            <li>목록 상단에 나타나는 메뉴 중 <strong>[상태 변경] <i class="ri-arrow-right-s-line align-middle"></i> [숨김]</strong>을 클릭하여 쇼핑몰에서 보이지 않도록 처리합니다.</li>
+                            <li class="text-red-500 font-medium text-sm mt-2 p-2 bg-red-50 rounded">※ [삭제] 버튼을 눌러 완전 삭제도 가능하지만, 혹시 모를 상황(기록 확인 등)을 대비해 가급적 <strong>'숨김'</strong> 처리를 권장합니다.</li>
+                        </ul>
+                        
+                        <!-- UI Mockup: 지난 상품 숨김 처리 -->
+                        <div class="w-full border border-gray-200 rounded-lg shadow-sm overflow-hidden bg-gray-50 p-4 text-xs step-content font-sans">
+                            <!-- Action Bar -->
+                            <div class="flex flex-wrap items-center gap-2 bg-white border border-gray-200 rounded-lg mb-4 p-2 shadow-sm relative">
+                                <label class="flex items-center gap-1.5 bg-slate-800 text-white px-2.5 py-1.5 rounded text-[13px] font-bold">
+                                    <i class="ri-checkbox-fill text-blue-400 text-base"></i> 5개 선택됨
+                                </label>
+                                <span class="text-[#2563eb] font-bold text-[13px] cursor-pointer hover:underline px-1 mr-2">전체 상품 선택</span>
+                                <button class="border border-gray-300 px-3 py-1.5 rounded text-[13px] bg-white hover:bg-gray-50 text-gray-700 font-medium">복제</button>
+                                <button class="border border-gray-300 px-3 py-1.5 rounded text-[13px] bg-white hover:bg-red-50 text-red-600 font-medium">삭제</button>
+                                
+                                <div class="relative ml-1">
+                                    <div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-[#2563eb] text-white text-[11px] font-bold px-2 py-1 rounded animate-bounce shadow-md whitespace-nowrap z-20">클릭하여 '숨김' 권장!</div>
+                                    <button class="border border-[#2563eb] bg-[#eff6ff] text-[#1d4ed8] px-3 py-1.5 rounded text-[13px] font-bold flex items-center gap-1 shadow-[0_0_0_2px_rgba(59,130,246,0.2)]">상태 변경 <i class="ri-arrow-down-s-line"></i></button>
+                                    
+                                    <!-- Dropdown Mock -->
+                                    <div class="absolute top-full left-0 mt-1 bg-white border border-gray-200 shadow-lg rounded w-24 overflow-hidden z-10">
+                                        <div class="px-3 py-2 text-sm text-gray-400 line-through">판매중</div>
+                                        <div class="px-3 py-2 text-sm text-gray-400 line-through">품절</div>
+                                        <div class="px-3 py-2 text-sm bg-[#eff6ff] text-[#1d4ed8] font-bold flex justify-between items-center cursor-pointer">숨김 <i class="ri-check-line"></i></div>
+                                    </div>
+                                </div>
+                                
+                                <button class="border border-gray-300 px-3 py-1.5 rounded text-[13px] bg-white text-gray-400 cursor-not-allowed">카테고리 변경</button>
+                                <button class="border border-gray-300 px-3 py-1.5 rounded text-[13px] bg-white text-gray-400 cursor-not-allowed flex items-center gap-1">기타 일괄 변경 <i class="ri-arrow-down-s-line"></i></button>
+                            </div>
+
+                            <!-- List Mock -->
+                            <div class="bg-white border border-gray-200 rounded-lg overflow-x-auto">
+                                <table class="w-full text-left border-collapse min-w-[700px]">
+                                    <tbody class="divide-y divide-gray-100 text-gray-700 text-center">
+                                        <!-- Row 1 -->
+                                        <tr class="bg-blue-50/30">
+                                            <td class="p-3 border-r border-gray-100 w-8"><i class="ri-checkbox-fill text-slate-800 text-lg"></i></td>
+                                            <td class="p-3 font-medium text-gray-800 w-12">37</td>
+                                            <td class="p-3 text-left">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="w-10 h-10 border border-gray-200 bg-white rounded flex items-center justify-center p-0.5"><div class="w-full h-full bg-gray-100 rounded-[2px] overflow-hidden opacity-50 relative"><div class="absolute inset-0 bg-black/10 flex items-center justify-center"><i class="ri-eye-off-line text-white"></i></div></div></div>
+                                                    <div>
+                                                        <div class="font-bold text-[13px] text-gray-500 mb-0.5 line-through">4월 6일 월요일 (7일 화요일 배송완료)</div>
+                                                        <div class="text-gray-400 text-[11px]">선택주문 세트 3종</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="p-3 text-gray-500">₩39,000</td>
+                                            <td class="p-3"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold shadow-inner">숨김</span></td>
+                                            <td class="p-3 text-gray-400">4월 둘째 주</td>
+                                        </tr>
+                                        <!-- Row 2 -->
+                                        <tr class="bg-blue-50/30">
+                                            <td class="p-3 border-r border-gray-100 w-8"><i class="ri-checkbox-fill text-slate-800 text-lg"></i></td>
+                                            <td class="p-3 font-medium text-gray-800 w-12">36</td>
+                                            <td class="p-3 text-left">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="w-10 h-10 border border-gray-200 bg-white rounded flex items-center justify-center p-0.5"><div class="w-full h-full bg-gray-100 rounded-[2px] overflow-hidden opacity-50 relative"><div class="absolute inset-0 bg-black/10 flex items-center justify-center"><i class="ri-eye-off-line text-white"></i></div></div></div>
+                                                    <div>
+                                                        <div class="font-bold text-[13px] text-gray-500 mb-0.5 line-through">4월 7일 화요일 (8일 수요일 배송완료)</div>
+                                                        <div class="text-gray-400 text-[11px]">선택주문 세트 3종</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="p-3 text-gray-500">₩39,000</td>
+                                            <td class="p-3"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold shadow-inner">숨김</span></td>
+                                            <td class="p-3 text-gray-400">4월 둘째 주</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </div>
+
+        <!-- Completion Message -->
+        <div class="bg-green-50 border border-green-200 rounded-xl p-8 text-center mt-12 mb-12 shadow-sm">
+            <div class="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                <i class="ri-check-double-line"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-green-800 mb-2">수고하셨습니다!</h2>
+            <p class="text-green-700 text-lg">
+                1부 상품 등록 과정이 모두 완료되었습니다.<br>
+                이제 '디자인 모드'에서 쇼핑몰 화면을 수정하는 2단계로 넘어가시면 됩니다.
+            </p>
+        </div>
+
+    </main>
+
+    <!-- Floating Progress Indicator -->
+    <div class="fixed bottom-6 right-6 bg-white p-4 rounded-xl shadow-lg border border-slate-200 z-50">
+        <div class="text-sm font-bold text-slate-700 mb-2">진행률</div>
+        <div class="flex items-center gap-3">
+            <div class="w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div id="progress-bar" class="h-full bg-blue-600 transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <span id="progress-text" class="text-sm font-bold text-blue-600">0/9</span>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const checkboxes = document.querySelectorAll('.step-checkbox');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            const totalSteps = checkboxes.length;
+
+            const updateProgress = () => {
+                const checkedCount = document.querySelectorAll('.step-checkbox:checked').length;
+                const percentage = (checkedCount / totalSteps) * 100;
+                
+                progressBar.style.width = `${percentage}%`;
+                progressText.textContent = `${checkedCount}/${totalSteps}`;
+
+                if (checkedCount === totalSteps) {
+                    progressBar.classList.remove('bg-blue-600');
+                    progressBar.classList.add('bg-green-500');
+                    progressText.classList.remove('text-blue-600');
+                    progressText.classList.add('text-green-600');
+                } else {
+                    progressBar.classList.add('bg-blue-600');
+                    progressBar.classList.remove('bg-green-500');
+                    progressText.classList.add('text-blue-600');
+                    progressText.classList.remove('text-green-600');
+                }
+            };
+
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const targetId = e.target.getAttribute('data-target');
+                    const targetCard = document.getElementById(targetId);
+                    const contentElements = targetCard.querySelectorAll('.step-content, .image-placeholder, h3');
+                    
+                    if (e.target.checked) {
+                        targetCard.classList.add('opacity-60', 'bg-slate-50');
+                        contentElements.forEach(el => el.classList.add('completed-text'));
+                    } else {
+                        targetCard.classList.remove('opacity-60', 'bg-slate-50');
+                        contentElements.forEach(el => el.classList.remove('completed-text'));
+                    }
+                    
+                    updateProgress();
+                });
+            });
+        });
+    </script>
+</body>
+</html>
