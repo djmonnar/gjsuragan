@@ -2975,17 +2975,14 @@ function toggleTheme(){
 
 function setTypeTab(type){
   orderType=type;
-  document.getElementById('tTab-sub').classList.toggle('on',type==='sub');
-  document.getElementById('tTab-once').classList.toggle('on',type==='once');
-  // 정기배송 전용 필드
-  ['af-freq','af-sched','af-total'].forEach(id=>document.getElementById(id).style.display=type==='sub'?'':'none');
-  document.getElementById('af-once').style.display=type==='once'?'':'none';
-  // 세트/상품 선택 전환
-  document.getElementById('af-set').style.display=type==='sub'?'':'none';
-  document.getElementById('af-prod').style.display=type==='once'?'':'none';
-  // 선택주문 전용 필드
-  document.getElementById('af-once-date').style.display=type==='once'?'':'none';
-  document.getElementById('af-qty').style.display=type==='once'?'':'none';
+  const $e = id => document.getElementById(id);
+  if($e('tTab-sub'))  $e('tTab-sub').classList.toggle('on',type==='sub');
+  if($e('tTab-once')) $e('tTab-once').classList.toggle('on',type==='once');
+  ['af-freq','af-sched','af-total'].forEach(id=>{const el=$e(id);if(el)el.style.display=type==='sub'?'':'none';});
+  if($e('af-set'))       $e('af-set').style.display=type==='sub'?'':'none';
+  if($e('af-prod'))      $e('af-prod').style.display=type==='once'?'':'none';
+  if($e('af-once-date')) $e('af-once-date').style.display=type==='once'?'':'none';
+  if($e('af-qty'))       $e('af-qty').style.display=type==='once'?'':'none';
 }
 
 function updSch(){
