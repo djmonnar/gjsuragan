@@ -408,14 +408,10 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
     <div class="sc ca"><div class="sl">활성 구독</div><div class="sv" id="s1">0</div><div class="ss">명 정기배송</div></div>
     <div class="sc cd"><div class="sl" id="dash-date-lbl">오늘 배송</div><div class="sv" id="s2">0</div><div class="ss">건 출고</div></div>
     <div class="sc ci"><div class="sl">이번 주</div><div class="sv" id="s3">0</div><div class="ss">건 예정</div></div>
-    <div class="sc cw"><div class="sl">갱신 임박</div><div class="sv" id="s4">0</div><div class="ss">명 (3회 이하)</div></div>
+    <div class="sc cw"><div class="sl">내일 배송</div><div class="sv" id="s4">0</div><div class="ss">건 예정</div></div>
   </div>
 
-  <div id="warnBanner" style="display:none">
-    <div class="alert al-w">⚠ <strong>잔여 배송 3회 이하</strong> 고객이 있습니다.
-      <button class="btn btn-g sm" style="margin-left:auto;" onclick="goTab('customers')">확인 →</button>
-    </div>
-  </div>
+  <!-- warnBanner 제거됨 -->
 
   <div class="g2">
     <!-- 선택 날짜 배송 목록 -->
@@ -429,11 +425,11 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <tbody id="dToday"></tbody></table>
       </div>
     </div>
-    <!-- 갱신 임박 -->
+    <!-- 내일 배송 예정 -->
     <div>
-      <div class="sh"><div class="st"><div class="std" style="background:var(--warn)"></div>갱신 임박</div></div>
+      <div class="sh"><div class="st"><div class="std" style="background:var(--info)"></div>내일 배송 예정</div></div>
       <div class="card">
-        <table><thead><tr><th>고객명</th><th>세트</th><th>잔여</th><th>연락처</th></tr></thead>
+        <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th></tr></thead>
         <tbody id="dLow"></tbody></table>
       </div>
     </div>
@@ -2264,14 +2260,15 @@ function renderDash(){
   updateDashDisp();
   const tl=listFor(ds);
   let wk=0; for(let i=0;i<7;i++){const t=todayStr();wk+=listFor(addDays(t,i)).length;}
-  const low=custs.filter(c=>c.status==='active'&&c.orderType==='sub'&&c.remain<=3);
+  // 내일 배송 목록
+  const tmrStr = addDays(todayStr(), 1);
+  const tmrList = listFor(tmrStr);
   s('s0',custs.length); s('s1',custs.filter(c=>c.status==='active').length);
-  s('s2',tl.length); s('s3',wk); s('s4',low.length);
+  s('s2',tl.length); s('s3',wk); s('s4',tmrList.length);
   s('sA',custs.filter(c=>c.set==='A'&&c.status==='active').length);
   s('sB',custs.filter(c=>c.set==='B'&&c.status==='active').length);
   s('sC',custs.filter(c=>c.set==='C'&&c.status==='active').length);
   s('nBadge',listFor(todayStr()).length);
-  document.getElementById('warnBanner').style.display=low.length?'block':'none';
 
   const dt=document.getElementById('dToday');
   dt.innerHTML=!tl.length?`<tr><td colspan="5"><div class="empty"><div class="ei">📭</div><div>해당 날짜 배송 없음</div></div></td></tr>`
@@ -2285,11 +2282,12 @@ function renderDash(){
     </tr>`).join('');
 
   const dl=document.getElementById('dLow');
-  dl.innerHTML=!low.length?`<tr><td colspan="4"><div class="empty"><div class="ei">✅</div><div>모두 여유 있음</div></div></td></tr>`
-    :low.sort((a,b)=>a.remain-b.remain).map(c=>`<tr>
+  dl.innerHTML=!tmrList.length
+    ?`<tr><td colspan="4"><div class="empty"><div class="ei">📭</div><div>내일 배송 없음</div></div></td></tr>`
+    :tmrList.map(c=>`<tr>
       <td><strong>${c.name}</strong></td>
       <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-      <td style="font-weight:700;color:${c.remain===0?'var(--danger)':'var(--warn)'};">${c.remain}회</td>
+      <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
       <td>${c.phone}</td>
     </tr>`).join('');
 }
