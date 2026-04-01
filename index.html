@@ -779,6 +779,66 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
   </div>
 </div>
 
+
+<!-- ══ 배송지 상세 모달 ══ -->
+<div class="mbg" id="addrM">
+  <div class="modal" style="width:480px;">
+    <div class="mh">
+      <div class="mt">📦 배송지 상세</div>
+      <div class="mx" onclick="closeM('addrM')">✕</div>
+    </div>
+    <div class="mb" style="display:flex;flex-direction:column;gap:14px;">
+
+      <div>
+        <div class="flab" style="margin-bottom:6px;">고객명</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div id="am-name" style="flex:1;font-size:15px;font-weight:700;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);"></div>
+          <button class="btn btn-g sm" onclick="copyField('am-name')">📋 복사</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="flab" style="margin-bottom:6px;">연락처</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div id="am-phone" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);"></div>
+          <button class="btn btn-g sm" onclick="copyField('am-phone')">📋 복사</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="flab" style="margin-bottom:6px;">배송지 주소</div>
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <div id="am-addr" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);line-height:1.6;word-break:break-all;"></div>
+          <button class="btn btn-g sm" onclick="copyField('am-addr')">📋 복사</button>
+        </div>
+      </div>
+
+      <div id="am-door-wrap">
+        <div class="flab" style="margin-bottom:6px;">현관 비밀번호</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div id="am-door" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);"></div>
+          <button class="btn btn-g sm" onclick="copyField('am-door')">📋 복사</button>
+        </div>
+      </div>
+
+      <div id="am-req-wrap">
+        <div class="flab" style="margin-bottom:6px;">요청사항</div>
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <div id="am-req" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);line-height:1.6;word-break:break-all;"></div>
+          <button class="btn btn-g sm" onclick="copyField('am-req')">📋 복사</button>
+        </div>
+      </div>
+
+      <!-- 전체 복사 버튼 -->
+      <button class="btn btn-p" style="width:100%;" onclick="copyAllAddr()">📋 전체 복사 (이름·연락처·주소·현관번호)</button>
+
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeM('addrM')">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 수정 모달 -->
 <div class="mbg" id="editM">
   <div class="modal">
@@ -1809,6 +1869,40 @@ async function iwRegXl(){
 // CSS용 드래그 스타일 (iw-dz)
 // (기존 .dz 스타일 공유)
 
+
+// ════════════════════════════
+// 배송지 상세 모달
+// ════════════════════════════
+function showAddrModal(id){
+  const c = custs.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('am-name').textContent  = c.name  || '';
+  document.getElementById('am-phone').textContent = c.phone || '';
+  document.getElementById('am-addr').textContent  = c.addr  || '';
+  document.getElementById('am-door').textContent  = c.door  || '—';
+  document.getElementById('am-req').textContent   = c.request || '—';
+  // 현관번호/요청사항 없으면 흐리게
+  document.getElementById('am-door-wrap').style.opacity = c.door    ? '1' : '0.4';
+  document.getElementById('am-req-wrap').style.opacity  = c.request ? '1' : '0.4';
+  openM('addrM');
+}
+
+function copyField(id){
+  const text = document.getElementById(id)?.textContent?.trim() || '';
+  if(!text || text === '—') { toast('복사할 내용 없음','er'); return; }
+  navigator.clipboard.writeText(text).then(()=>toast('복사됨!','ok'));
+}
+
+function copyAllAddr(){
+  const name  = document.getElementById('am-name')?.textContent?.trim()  || '';
+  const phone = document.getElementById('am-phone')?.textContent?.trim() || '';
+  const addr  = document.getElementById('am-addr')?.textContent?.trim()  || '';
+  const door  = document.getElementById('am-door')?.textContent?.trim()  || '';
+  const parts = [name, phone, addr];
+  if(door && door !== '—') parts.push('현관: ' + door);
+  navigator.clipboard.writeText(parts.join('\n')).then(()=>toast('전체 복사됨!','ok'));
+}
+
 // CSV 전체 백업
 function exportCSV(){
   if(!custs.length){ toast('내보낼 고객 데이터가 없습니다','er'); return; }
@@ -2216,7 +2310,7 @@ function renderToday(){
       <td><input type="checkbox" class="ck" data-id="${c.id}"></td>
       <td><strong>${c.name}</strong></td>
       <td style="white-space:nowrap;">${c.phone}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.addr}">${c.addr}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
       <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td>
         <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span>
