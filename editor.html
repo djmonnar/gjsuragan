@@ -148,6 +148,14 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
     <div id="day-list"></div>
     <button class="add-btn" onclick="openModal(null)">+ 새 날짜 추가</button>
     <button class="clean-btn" onclick="cleanupPast()">🗑 지나간 날짜 자동 삭제</button>
+    <!-- 코드 복사 버튼 (크게, 눈에 잘 띄게) -->
+    <div style="margin:0 16px 16px;display:flex;flex-direction:column;gap:8px;">
+      <button id="main-copy-btn" onclick="copyCode()" style="width:100%;padding:14px;background:#EA580C;color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s;box-shadow:0 4px 12px rgba(234,88,12,.3);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        아임웹 HTML 코드 복사
+      </button>
+      <p style="font-size:11px;color:#9CA3AF;text-align:center;margin:0;">복사 후 아임웹 → HTML 블록에 붙여넣기</p>
+    </div>
   </div>
 
   <!-- 가져오기 탭 -->
@@ -649,7 +657,6 @@ container.innerHTML=html;
 
 async function copyCode(){
   const html=generateHTML();
-  const btn=document.getElementById('copy-btn');
   try{
     await navigator.clipboard.writeText(html);
   }catch(e){
@@ -657,13 +664,22 @@ async function copyCode(){
     ta.value=html; ta.style.cssText='position:fixed;top:-9999px;';
     document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
   }
+  // 상단 버튼
+  const btn=document.getElementById('copy-btn');
   btn.classList.add('ok');
   btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> 복사 완료!';
+  // 사이드바 버튼
+  const mbtn=document.getElementById('main-copy-btn');
+  const origInner=mbtn.innerHTML;
+  mbtn.style.background='#16A34A';
+  mbtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> 복사 완료! 아임웹에 붙여넣기 하세요';
   setTimeout(()=>{
     btn.classList.remove('ok');
     btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 아임웹 코드 복사';
-  },2500);
-  toast('HTML 코드가 클립보드에 복사되었습니다 ✓');
+    mbtn.style.background='#EA580C';
+    mbtn.innerHTML=origInner;
+  },3000);
+  toast('✓ HTML 코드 복사 완료! 아임웹 HTML 블록에 붙여넣기 하세요.');
 }
 
 // ── 엑셀 가져오기 ──
