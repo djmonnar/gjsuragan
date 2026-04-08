@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>궁중수라간 월식단표 편집기</title>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:flex;height:100vh;overflow:hidden;font-size:14px;color:#1F2937;}
+#sidebar{width:400px;background:#fff;border-right:1px solid #E5E7EB;display:flex;flex-direction:column;height:100vh;z-index:10;box-shadow:2px 0 8px rgba(0,0,0,.06);}
+#sidebar-header{background:#2D2A26;color:#fff;padding:16px 20px;flex-shrink:0;}
+#sidebar-header h1{font-size:16px;font-weight:700;}
+#sidebar-header p{font-size:11px;color:#9CA3AF;margin-top:3px;}
+.tab-bar{display:flex;border-bottom:1px solid #E5E7EB;background:#fff;flex-shrink:0;}
+.tab-btn{flex:1;padding:11px 6px;border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;color:#6B7280;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.tab-btn.on{color:#EA580C;border-bottom-color:#EA580C;}
+.tab-btn:hover:not(.on){color:#374151;background:#F9FAFB;}
+.tab-pane{display:none;flex:1;overflow-y:auto;flex-direction:column;}
+.tab-pane.on{display:flex;}
+.list-header{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #F3F4F6;flex-shrink:0;}
+.list-header span{font-size:12px;color:#6B7280;}
+#day-list{flex:1;overflow-y:auto;}
+.day-item{display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #F3F4F6;transition:background .1s;cursor:default;}
+.day-item:hover{background:#FFF7ED;}
+.day-item.past{opacity:.45;}
+.di-info{flex:1;min-width:0;}
+.di-date{font-weight:700;font-size:13px;color:#1F2937;}
+.di-main{font-size:12px;color:#6B7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.past-badge{font-size:10px;background:#FEE2E2;color:#DC2626;border-radius:4px;padding:1px 5px;margin-left:6px;}
+.di-actions{display:flex;gap:4px;flex-shrink:0;}
+.ibtn{width:28px;height:28px;border:1px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s;}
+.ibtn:hover{background:#F3F4F6;}
+.ibtn.del:hover{background:#FEE2E2;border-color:#FCA5A5;}
+.add-btn{margin:12px 16px;padding:10px;background:#FFF7ED;border:1.5px dashed #FDBA74;border-radius:8px;color:#EA580C;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;width:calc(100% - 32px);transition:all .15s;}
+.add-btn:hover{background:#FFEDD5;border-color:#FB923C;}
+.clean-btn{margin:0 16px 12px;padding:8px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;color:#6B7280;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;width:calc(100% - 32px);transition:all .15s;}
+.clean-btn:hover{background:#FEF2F2;border-color:#FCA5A5;color:#DC2626;}
+.imp-sec{padding:16px;border-bottom:1px solid #F3F4F6;}
+.imp-sec h3{font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;}
+.imp-sec p{font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.6;}
+.up-btn{width:100%;padding:10px;border:1.5px dashed #D1D5DB;border-radius:8px;background:#F9FAFB;color:#374151;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.up-btn:hover{border-color:#EA580C;background:#FFF7ED;color:#EA580C;}
+.key-wrap{margin-top:10px;}
+.key-wrap label{font-size:11px;font-weight:700;color:#6B7280;display:block;margin-bottom:4px;}
+.key-wrap input{width:100%;padding:7px 10px;border:1px solid #E5E7EB;border-radius:6px;font-family:inherit;font-size:12px;outline:none;}
+.key-wrap input:focus{border-color:#EA580C;}
+.key-wrap a{color:#EA580C;font-weight:700;font-size:11px;margin-left:6px;}
+.set-sec{padding:14px 16px;border-bottom:1px solid #F3F4F6;}
+.set-sec h3{font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+.fg{margin-bottom:10px;}
+.fg label{font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:4px;}
+.fg input{width:100%;padding:7px 10px;border:1px solid #E5E7EB;border-radius:6px;font-family:inherit;font-size:13px;outline:none;}
+.fg input:focus{border-color:#EA580C;}
+#preview-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#prev-bar{background:#fff;border-bottom:1px solid #E5E7EB;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+#prev-bar h2{font-size:14px;font-weight:700;color:#374151;}
+.copy-btn{padding:8px 16px;background:#EA580C;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s;}
+.copy-btn:hover{background:#C2410C;}
+.copy-btn.ok{background:#16A34A;}
+#prev-wrap{flex:1;overflow-y:auto;background:#D1D5DB;padding:20px;}
+#prev-inner{background:#FDFCF8;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.12);overflow:hidden;}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(2px);}
+.modal-bg.on{display:flex;}
+.modal{background:#fff;border-radius:16px;width:500px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+.mh{padding:18px 24px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1;}
+.mh h3{font-size:15px;font-weight:700;}
+.mx{width:30px;height:30px;border:1px solid #E5E7EB;border-radius:7px;background:#F9FAFB;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.mx:hover{background:#FEE2E2;}
+.mb{padding:18px 24px;}
+.mf{display:grid;margin-bottom:12px;}
+.mf label{font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;}
+.mf input{padding:9px 12px;border:1px solid #E5E7EB;border-radius:8px;font-family:inherit;font-size:14px;outline:none;width:100%;}
+.mf input:focus{border-color:#EA580C;box-shadow:0 0 0 2px rgba(234,88,12,.1);}
+.mf-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.sides-wrap{display:flex;flex-direction:column;gap:7px;}
+.side-row{display:flex;gap:6px;align-items:center;}
+.side-n{font-size:11px;font-weight:700;color:#9CA3AF;width:14px;text-align:center;flex-shrink:0;}
+.side-row input{flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:7px;font-family:inherit;font-size:13px;outline:none;}
+.side-row input:focus{border-color:#EA580C;}
+.mfoot{padding:14px 24px;border-top:1px solid #F3F4F6;display:flex;justify-content:space-between;align-items:center;position:sticky;bottom:0;background:#fff;}
+.btn-pri{padding:9px 20px;background:#EA580C;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-pri:hover{background:#C2410C;}
+.btn-sec{padding:9px 14px;background:#fff;color:#374151;border:1px solid #E5E7EB;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-sec:hover{background:#F9FAFB;}
+.btn-del{padding:9px 14px;background:#fff;color:#DC2626;border:1px solid #FCA5A5;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-del:hover{background:#FEF2F2;}
+#loading{display:none;position:fixed;inset:0;background:rgba(255,255,255,.92);z-index:2000;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+#loading.on{display:flex;}
+#loading p{font-size:15px;font-weight:700;color:#374151;}
+#loading small{font-size:12px;color:#9CA3AF;}
+.spinner{width:40px;height:40px;border:3px solid #FFEDD5;border-top-color:#EA580C;border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#1F2937;color:#fff;padding:10px 22px;border-radius:99px;font-size:13px;font-weight:600;z-index:3000;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;}
+#toast.on{transform:translateX(-50%) translateY(0);}
+/* ── widget styles ── */
+#ksura-wrap{font-family:'Gowun Batang',serif;background-color:#FDFCF8;padding:20px;color:#4A3B32;word-break:keep-all;}
+#ksura-wrap *{box-sizing:border-box;}
+.ksura-header{text-align:center;margin-bottom:32px;}
+.ksura-info{display:inline-flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px;font-size:17px;color:#796B5F;}
+.ksura-info b{color:#EA580C;}
+.ksura-delivery-notice{display:flex;align-items:center;gap:8px;background:#fff;padding:5px 14px;border-radius:10px;border:1px solid #F5F5F4;}
+.ksura-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-bottom:20px;font-size:14px;color:#6C5E52;}
+.ksura-legend div{display:flex;align-items:center;gap:6px;}
+.ksura-grid{display:grid;gap:12px;grid-template-columns:repeat(5,1fr);}
+.ksura-dummy{visibility:hidden;height:80px;}
+.ksura-card{display:flex;flex-direction:column;background:#fff;border:1px solid #E8E1DA;border-radius:14px;overflow:hidden;height:100%;}
+.ksura-card-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #F5F2ED;}
+.ksura-date{font-size:17px;font-weight:bold;}
+.ksura-badge{display:flex;align-items:center;gap:5px;background:#FFF7ED;color:#C2410C;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:bold;border:1px solid #FFEDD5;}
+.ksura-card-body{display:flex;flex-direction:column;justify-content:space-between;flex:1;padding:14px;}
+.ksura-main{font-size:16px;font-weight:bold;color:#5C3A21;line-height:1.3;margin-bottom:12px;display:flex;align-items:flex-start;gap:5px;}
+.ksura-menu-list{border-top:1px dashed #E8E1DA;padding-top:12px;display:flex;flex-direction:column;gap:10px;}
+.ksura-menu-item{display:flex;align-items:flex-start;gap:8px;}
+.ksura-soup{font-size:13px;font-weight:bold;color:#6B5A4E;}
+.ksura-sides{display:flex;flex-direction:column;gap:4px;width:100%;font-size:12px;color:#4A443E;}
+.ksura-salad{background:#F0FDF4;margin:14px -14px -14px -14px;padding:10px 14px;border-top:1px solid #DCFCE7;display:flex;align-items:flex-start;gap:7px;font-size:12px;font-weight:bold;color:#14532D;line-height:1.4;}
+.ksura-origin-box{background-color:#F9F8F6;border:1px solid #E8E1DA;border-radius:12px;padding:20px;margin-top:32px;color:#6C5E52;}
+.ksura-origin-title{font-size:15px;font-weight:bold;color:#4A3B32;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.ksura-origin-list{font-size:13px;line-height:1.8;display:grid;grid-template-columns:repeat(2,1fr);gap:6px 14px;}
+.ksura-origin-item{display:flex;align-items:flex-start;gap:5px;}
+.ksura-origin-label{font-weight:bold;color:#5C3A21;min-width:70px;flex-shrink:0;}
+.ksura-footer{text-align:center;margin-top:32px;font-size:15px;color:#8C7E72;}
+.ksura-line{width:50px;height:4px;background:#FED7AA;margin:14px auto;border-radius:4px;}
+.ksura-tel{font-size:20px;font-weight:bold;color:#4A3B32;margin-top:6px;}
+::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:#f1f1f1;}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px;}
+</style>
+</head>
+<body>
+<!-- Sidebar -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h1>🍲 궁중수라간 식단표 편집기</h1>
+    <p>엑셀·이미지 가져오기 → 수정 → 아임웹 코드 복사</p>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn on" onclick="switchTab('list',this)">📋 메뉴 목록</button>
+    <button class="tab-btn" onclick="switchTab('import',this)">📥 가져오기</button>
+    <button class="tab-btn" onclick="switchTab('settings',this)">⚙️ 설정</button>
+  </div>
+
+  <!-- 목록 탭 -->
+  <div id="tab-list" class="tab-pane on">
+    <div class="list-header">
+      <span id="day-count">0개</span>
+      <span id="month-badge" style="font-size:13px;font-weight:700;color:#EA580C;"></span>
+    </div>
+    <div id="day-list"></div>
+    <button class="add-btn" onclick="openModal(null)">+ 새 날짜 추가</button>
+    <button class="clean-btn" onclick="cleanupPast()">🗑 지나간 날짜 자동 삭제</button>
+  </div>
+
+  <!-- 가져오기 탭 -->
+  <div id="tab-import" class="tab-pane">
+    <div class="imp-sec">
+      <h3>✨ AI 이미지 분석 (Gemini)</h3>
+      <p>엑셀 캡쳐, 카톡 식단표 이미지를 올리면 AI가 메뉴를 자동으로 읽어옵니다.</p>
+      <div class="key-wrap" style="margin-bottom:10px;">
+        <label>Gemini API 키 <a href="https://aistudio.google.com/app/apikey" target="_blank">발급받기 →</a></label>
+        <input type="password" id="gemini-key" placeholder="API 키 입력" />
+      </div>
+      <label style="position:relative;display:block;">
+        <button class="up-btn" style="pointer-events:none;">📷 식단표 이미지 업로드 (AI 자동 변환)</button>
+        <input type="file" id="img-input" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+      </label>
+    </div>
+    <div class="imp-sec">
+      <h3>📊 엑셀 파일 가져오기 (.xlsx)</h3>
+      <p>엑셀 구조: 요일 헤더행(월화수목금) → 날짜행 → 국 → 메인 → 반찬4개<br>샐러드가 별도 시트에 있으면 같이 인식합니다.</p>
+      <label style="position:relative;display:block;">
+        <button class="up-btn" style="pointer-events:none;">📁 엑셀 파일 업로드</button>
+        <input type="file" id="excel-input" accept=".xlsx,.xls" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+      </label>
+    </div>
+    <div class="imp-sec">
+      <h3>✏️ 직접 입력</h3>
+      <p>'메뉴 목록' 탭 → '+ 새 날짜 추가' 버튼으로 하루씩 추가하세요.</p>
+    </div>
+  </div>
+
+  <!-- 설정 탭 -->
+  <div id="tab-settings" class="tab-pane">
+    <div class="set-sec">
+      <h3>기본 정보</h3>
+      <div class="fg"><label>월 제목</label><input type="text" id="s-title" placeholder="4월 식단표"></div>
+      <div class="fg"><label>전화번호</label><input type="text" id="s-tel" placeholder="010-3507-1278"></div>
+      <div class="fg"><label>하단 문구</label><input type="text" id="s-footer" placeholder="건강하고 신선한 식재료로..."></div>
+    </div>
+    <div class="set-sec">
+      <h3>원산지 표기</h3>
+      <div id="origin-rows"></div>
+      <button onclick="addOrigin()" style="font-size:12px;color:#EA580C;background:none;border:none;cursor:pointer;padding:4px 0;font-weight:700;">+ 항목 추가</button>
+    </div>
+    <div class="set-sec">
+      <button class="btn-pri" onclick="saveSettings()" style="width:100%;">설정 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview -->
+<div id="preview-panel">
+  <div id="prev-bar">
+    <h2>실시간 미리보기</h2>
+    <button class="copy-btn" id="copy-btn" onclick="copyCode()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      아임웹 코드 복사
+    </button>
+  </div>
+  <div id="prev-wrap">
+    <div id="prev-inner">
+      <div id="ksura-wrap"><div id="ksura-render-area"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-bg" id="edit-modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="mh">
+      <h3 id="modal-ttl">날짜 추가</h3>
+      <button class="mx" onclick="closeModal()">✕</button>
+    </div>
+    <div class="mb">
+      <input type="hidden" id="e-id">
+      <div class="mf-row">
+        <div class="mf"><label>날짜 (예: 4/1 (수))</label><input type="text" id="e-date" placeholder="4/1 (수)"></div>
+        <div class="mf"><label>배송 도착 (예: 4/2 (목))</label><input type="text" id="e-arr" placeholder="4/2 (목)"></div>
+      </div>
+      <div class="mf" style="margin-bottom:12px;"><label>메인 요리</label><input type="text" id="e-main" placeholder="닭볶음탕"></div>
+      <div class="mf" style="margin-bottom:12px;"><label>국</label><input type="text" id="e-soup" placeholder="팽이유부된장국"></div>
+      <div class="mf" style="margin-bottom:12px;">
+        <label>반찬 (최대 4가지)</label>
+        <div class="sides-wrap">
+          <div class="side-row"><span class="side-n">1</span><input type="text" id="e-s1" placeholder="반찬 1"></div>
+          <div class="side-row"><span class="side-n">2</span><input type="text" id="e-s2" placeholder="반찬 2"></div>
+          <div class="side-row"><span class="side-n">3</span><input type="text" id="e-s3" placeholder="반찬 3"></div>
+          <div class="side-row"><span class="side-n">4</span><input type="text" id="e-s4" placeholder="반찬 4"></div>
+        </div>
+      </div>
+      <div class="mf"><label>샐러드</label><input type="text" id="e-salad" placeholder="데리야끼닭다리살샐러드 &amp; 오리엔탈드레싱"></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn-del" id="m-del-btn" onclick="deleteActive()">삭제</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-sec" onclick="closeModal()">취소</button>
+        <button class="btn-pri" onclick="saveEntry()">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="spinner"></div>
+  <p id="loading-msg">처리 중...</p>
+  <small id="loading-sub"></small>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ── SVG 아이콘 ──
+const IC = {
+  truck:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>`,
+  main:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>`,
+  soup:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A47C5A" stroke-width="2"><path d="M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"/><path d="M7 21v-8a3 3 0 0 1 6 0v8"/><path d="M12 21v-8"/></svg>`,
+  dot:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A89F91" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/></svg>`,
+  leaf:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2" style="flex-shrink:0;margin-top:2px;"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.77 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>`,
+  info:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`,
+  print:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`
+};
+
+// ── 기본 데이터 ──
+const DEFAULT_MENU = [
+  {id:'dm0',isDummy:true},{id:'dm1',isDummy:true},
+  {id:'d-4-1',date:'4/1 (수)',arrival:'4/2 (목)',main:'닭볶음탕',soup:'팽이유부된장국',sides:['동태전','돈육우엉채볶음','콩나물무볶음','오징어젓갈'],salad:'데리야끼닭다리살샐러드 & 오리엔탈드레싱'},
+  {id:'d-4-2',date:'4/2 (목)',arrival:'4/3 (금)',main:'된장불고기',soup:'참치김치찌개',sides:['전통잡채','꼬막살양념무침','어묵야채볶음','숙주나물무침'],salad:'베이컨시저샐러드 & 시저드레싱'},
+  {id:'d-4-3',date:'4/3 (금)',arrival:'4/4 (토)',main:'눈꽃함박스테이크',soup:'얼큰소고기무국',sides:['크림새우','꽈리메추리알조림','무생채','명란감자샐러드'],salad:'쉬림프샐러드 & 유자드레싱'}
+];
+const DEFAULT_SETTINGS = {
+  monthTitle:'4월 식단표', tel:'010-3507-1278',
+  footerText:'건강하고 신선한 식재료로 매일 아침 정성껏 조리합니다.',
+  originItems:[
+    {label:'쌀·잡곡',value:'국내산'},
+    {label:'배추김치',value:'배추(국내산), 고춧가루(국내산·중국산 혼합)'},
+    {label:'돼지고기',value:'국내산(찌개·볶음용), 스페인산·미국산(불고기·삼겹·돈까스 등)'},
+    {label:'소고기',value:'호주산·미국산(불고기·국거리·함박스테이크 등)'},
+    {label:'닭고기',value:'국내산(볶음탕), 브라질산·태국산(치킨류 등)'},
+    {label:'수산물류',value:'가자미·동태·명란(러시아산), 새우(베트남·태국산), 바지락·꼬막(국내산)'},
+    {label:'계란류',value:'국내산'},
+    {label:'신선채소',value:'국내산 위주 (샐러드 포함)'}
+  ]
+};
+
+// ── 상태 ──
+let menuData = JSON.parse(localStorage.getItem('ksura_menu') || 'null') || JSON.parse(JSON.stringify(DEFAULT_MENU));
+let settings = JSON.parse(localStorage.getItem('ksura_settings') || 'null') || JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+let activeId = null;
+
+function persist(){
+  localStorage.setItem('ksura_menu', JSON.stringify(menuData));
+  localStorage.setItem('ksura_settings', JSON.stringify(settings));
+}
+
+// ── 날짜 유틸 ──
+const DOW_KO = ['일','월','화','수','목','금','토'];
+
+function parseDateStr(s){
+  if(!s) return null;
+  const m = s.match(/(\d+)\/(\d+)/);
+  if(!m) return null;
+  const now = new Date();
+  return new Date(now.getFullYear(), parseInt(m[1])-1, parseInt(m[2]));
+}
+function formatDate(d){
+  return `${d.getMonth()+1}/${d.getDate()} (${DOW_KO[d.getDay()]})`;
+}
+function nextDay(dateStr){
+  const d = parseDateStr(dateStr);
+  if(!d) return '';
+  d.setDate(d.getDate()+1);
+  return formatDate(d);
+}
+function isPast(entry){
+  const d = parseDateStr(entry.date);
+  if(!d) return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return d < today;
+}
+
+// ── 탭 ──
+function switchTab(name, btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('on'));
+  document.getElementById('tab-'+name).classList.add('on');
+  if(name==='settings') loadSettingsUI();
+}
+
+// ── 목록 렌더 ──
+function renderList(){
+  const real = menuData.filter(d=>!d.isDummy);
+  document.getElementById('day-count').textContent = real.length+'개 항목';
+  document.getElementById('month-badge').textContent = settings.monthTitle||'';
+  const list = document.getElementById('day-list');
+  list.innerHTML = '';
+  real.forEach(e=>{
+    const past = isPast(e);
+    const div = document.createElement('div');
+    div.className = 'day-item'+(past?' past':'');
+    div.innerHTML = `
+      <div class="di-info">
+        <div class="di-date">${e.date}${past?'<span class="past-badge">지남</span>':''}</div>
+        <div class="di-main">${e.main} · ${e.soup}</div>
+      </div>
+      <div class="di-actions">
+        <button class="ibtn" title="수정" onclick="openModal('${e.id}')">✏️</button>
+        <button class="ibtn del" title="삭제" onclick="deleteEntry('${e.id}')">🗑</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+// ── 지나간 날짜 삭제 ──
+function cleanupPast(){
+  const before = menuData.filter(d=>!d.isDummy).length;
+  menuData = menuData.filter(d=>d.isDummy||!isPast(d));
+  const removed = before - menuData.filter(d=>!d.isDummy).length;
+  if(!removed){toast('삭제할 지난 날짜가 없습니다');return;}
+  persist(); renderList(); renderPreview();
+  toast(`지나간 날짜 ${removed}개 삭제 완료 ✓`);
+}
+
+// ── 정렬 ──
+function sortData(){
+  const dummies = menuData.filter(d=>d.isDummy);
+  const real = menuData.filter(d=>!d.isDummy).sort((a,b)=>{
+    const da=parseDateStr(a.date), db=parseDateStr(b.date);
+    return (da&&db) ? da-db : 0;
+  });
+  menuData = [...dummies, ...real];
+}
+
+// ── 모달 ──
+function openModal(id){
+  activeId = id;
+  const del = document.getElementById('m-del-btn');
+  if(id){
+    const e = menuData.find(d=>d.id===id); if(!e) return;
+    document.getElementById('modal-ttl').textContent = '날짜 수정';
+    document.getElementById('e-date').value = e.date||'';
+    document.getElementById('e-arr').value = e.arrival||'';
+    document.getElementById('e-main').value = e.main||'';
+    document.getElementById('e-soup').value = e.soup||'';
+    const s = e.sides||[];
+    for(let i=1;i<=4;i++) document.getElementById('e-s'+i).value = s[i-1]||'';
+    document.getElementById('e-salad').value = e.salad||'';
+    del.style.display='block';
+  } else {
+    document.getElementById('modal-ttl').textContent = '새 날짜 추가';
+    ['e-date','e-arr','e-main','e-soup','e-s1','e-s2','e-s3','e-s4','e-salad'].forEach(i=>document.getElementById(i).value='');
+    del.style.display='none';
+  }
+  document.getElementById('edit-modal').classList.add('on');
+  setTimeout(()=>document.getElementById('e-date').focus(),80);
+}
+function closeModal(){
+  document.getElementById('edit-modal').classList.remove('on');
+  activeId=null;
+}
+function saveEntry(){
+  const date = document.getElementById('e-date').value.trim();
+  if(!date){toast('날짜를 입력해주세요');return;}
+  const sides=[];
+  for(let i=1;i<=4;i++){const v=document.getElementById('e-s'+i).value.trim();if(v)sides.push(v);}
+  const entry={
+    id: activeId||('d-'+Date.now()),
+    date, arrival: document.getElementById('e-arr').value.trim()||nextDay(date),
+    main: document.getElementById('e-main').value.trim(),
+    soup: document.getElementById('e-soup').value.trim(),
+    sides, salad: document.getElementById('e-salad').value.trim()
+  };
+  if(activeId){
+    const i=menuData.findIndex(d=>d.id===activeId);
+    if(i!==-1) menuData[i]=entry;
+  } else {
+    menuData.push(entry); sortData();
+  }
+  persist(); renderList(); renderPreview(); closeModal();
+  toast(activeId?'수정 완료 ✓':'추가 완료 ✓');
+}
+function deleteEntry(id){
+  if(!confirm('이 항목을 삭제할까요?')) return;
+  menuData=menuData.filter(d=>d.id!==id);
+  persist(); renderList(); renderPreview();
+  toast('삭제 완료');
+}
+function deleteActive(){
+  if(!activeId) return;
+  if(!confirm('이 항목을 삭제할까요?')) return;
+  menuData=menuData.filter(d=>d.id!==activeId);
+  persist(); renderList(); renderPreview(); closeModal();
+  toast('삭제 완료');
+}
+
+// ── 설정 UI ──
+function loadSettingsUI(){
+  document.getElementById('s-title').value = settings.monthTitle||'';
+  document.getElementById('s-tel').value = settings.tel||'';
+  document.getElementById('s-footer').value = settings.footerText||'';
+  renderOriginRows();
+}
+function renderOriginRows(){
+  const c=document.getElementById('origin-rows'); c.innerHTML='';
+  (settings.originItems||[]).forEach((item,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:grid;grid-template-columns:80px 1fr 24px;gap:6px;margin-bottom:7px;align-items:center;';
+    row.innerHTML=`
+      <input type="text" value="${item.label}" placeholder="항목명" onchange="settings.originItems[${i}].label=this.value" style="padding:6px 8px;border:1px solid #E5E7EB;border-radius:6px;font-family:inherit;font-size:12px;outline:none;">
+      <input type="text" value="${item.value}" placeholder="원산지" onchange="settings.originItems[${i}].value=this.value" style="padding:6px 8px;border:1px solid #E5E7EB;border-radius:6px;font-family:inherit;font-size:12px;outline:none;">
+      <button onclick="removeOrigin(${i})" style="width:24px;height:24px;border:1px solid #FCA5A5;border-radius:4px;background:#FEF2F2;color:#DC2626;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;">✕</button>`;
+    c.appendChild(row);
+  });
+}
+function addOrigin(){ (settings.originItems||(settings.originItems=[])).push({label:'',value:''}); renderOriginRows(); }
+function removeOrigin(i){ settings.originItems.splice(i,1); renderOriginRows(); }
+function saveSettings(){
+  settings.monthTitle = document.getElementById('s-title').value.trim()||'식단표';
+  settings.tel = document.getElementById('s-tel').value.trim();
+  settings.footerText = document.getElementById('s-footer').value.trim();
+  persist(); renderList(); renderPreview();
+  toast('설정 저장 완료 ✓');
+}
+
+// ── 미리보기 렌더링 ──
+function renderWidget(data, cfg){
+  const t=cfg.monthTitle||'식단표', tel=cfg.tel||'', foot=cfg.footerText||'', ori=cfg.originItems||[];
+  let h=`
+    <div class="ksura-header">
+      <div class="ksura-info">
+        <span style="font-weight:bold;border-bottom:2px solid #FED7AA;padding-bottom:2px;">${t}</span> |
+        <div class="ksura-delivery-notice">${IC.truck} 오늘 조리해서 <b>내일 식탁으로</b></div>
+      </div>
+    </div>
+    <div class="ksura-legend">
+      <div style="color:#5C3A21;font-weight:bold;display:flex;align-items:center;gap:5px;">${IC.main} 메인요리</div>
+      <div>${IC.soup} 국</div><div>${IC.dot} 반찬</div><div>${IC.leaf} 매일 샐러드</div>
+    </div>
+    <div class="ksura-grid">`;
+  data.forEach(day=>{
+    if(day.isDummy){h+='<div class="ksura-dummy"></div>';return;}
+    h+=`<div class="ksura-card">
+      <div class="ksura-card-head">
+        <span class="ksura-date">${day.date}</span>
+        <div class="ksura-badge">${IC.truck} ${day.arrival} 도착</div>
+      </div>
+      <div class="ksura-card-body">
+        <div>
+          <div class="ksura-main">${IC.main}<span>${day.main}</span></div>
+          <div class="ksura-menu-list">
+            <div class="ksura-menu-item">${IC.soup}<div class="ksura-soup">${day.soup}</div></div>
+            <div class="ksura-menu-item">${IC.dot}<div class="ksura-sides">${(day.sides||[]).map(s=>`<span>· ${s}</span>`).join('')}</div></div>
+          </div>
+        </div>
+        <div class="ksura-salad">${IC.leaf}<span>${day.salad}</span></div>
+      </div>
+    </div>`;
+  });
+  h+='</div>';
+  if(ori.length){
+    h+=`<div class="ksura-origin-box">
+      <div class="ksura-origin-title">${IC.info} 원산지 표기 안내</div>
+      <div class="ksura-origin-list">${ori.map(o=>`<div class="ksura-origin-item"><span class="ksura-origin-label">${o.label}</span><span>${o.value}</span></div>`).join('')}</div>
+    </div>`;
+  }
+  h+=`<div class="ksura-footer">${foot}<div class="ksura-line"></div><div class="ksura-tel">${tel}</div></div>`;
+  return h;
+}
+function renderPreview(){
+  document.getElementById('ksura-render-area').innerHTML = renderWidget(menuData, settings);
+}
+
+// ── 아임웹 코드 생성 ──
+function generateHTML(){
+  const t=settings.monthTitle||'식단표', tel=settings.tel||'', foot=settings.footerText||'';
+  const ori=settings.originItems||[];
+  const dataStr=JSON.stringify(menuData,null,8);
+
+  // SVG 문자열 (standalone HTML에 인라인)
+  const svgTruck=IC.truck.replace(/`/g,'');
+  const svgMain=IC.main.replace(/`/g,'');
+  const svgSoup=IC.soup.replace(/`/g,'');
+  const svgDot=IC.dot.replace(/`/g,'');
+  const svgLeaf=IC.leaf.replace(/`/g,'');
+  const svgInfo=IC.info.replace(/`/g,'');
+  const svgPrint=IC.print.replace(/`/g,'');
+
+  const oriHtml=ori.map(o=>`<div class="ksura-origin-item"><span class="ksura-origin-label">${o.label}</span><span>${o.value}</span></div>`).join('\n                    ');
+
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>궁중수라간 식단표 - ${t}</title>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<style>
+#ksura-wrap{font-family:'Gowun Batang',serif;background-color:#FDFCF8;padding:20px;max-width:1600px;margin:0 auto;color:#4A3B32;word-break:keep-all;}
+#ksura-wrap *{box-sizing:border-box;}
+.ksura-header{text-align:center;margin-bottom:40px;}
+.ksura-info{display:inline-flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px;font-size:18px;color:#796B5F;}
+.ksura-info b{color:#EA580C;}
+.ksura-delivery-notice{display:flex;align-items:center;gap:8px;background:#fff;padding:6px 16px;border-radius:12px;border:1px solid #F5F5F4;box-shadow:0 2px 4px rgba(0,0,0,.02);}
+.ksura-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;margin-bottom:24px;font-size:15px;color:#6C5E52;}
+.ksura-legend div{display:flex;align-items:center;gap:8px;}
+.ksura-grid{display:grid;gap:16px;grid-template-columns:1fr;}
+@media(min-width:640px){.ksura-grid{grid-template-columns:repeat(2,1fr);}}
+@media(min-width:1024px){.ksura-grid{grid-template-columns:repeat(3,1fr);}}
+@media(min-width:1280px){.ksura-grid{grid-template-columns:repeat(5,1fr);}}
+.ksura-dummy{display:none;}
+@media(min-width:1280px){.ksura-dummy{display:block;visibility:hidden;height:100px;}}
+.ksura-card{display:flex;flex-direction:column;background:#fff;border:1px solid #E8E1DA;border-radius:16px;overflow:hidden;transition:.3s;height:100%;}
+.ksura-card:hover{border-color:#FED7AA;box-shadow:0 10px 20px rgba(253,186,116,.15);transform:translateY(-2px);}
+.ksura-card-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #F5F2ED;}
+.ksura-date{font-size:20px;font-weight:bold;}
+.ksura-badge{display:flex;align-items:center;gap:6px;background:#FFF7ED;color:#C2410C;padding:4px 10px;border-radius:6px;font-size:13px;font-weight:bold;border:1px solid #FFEDD5;}
+.ksura-card-body{display:flex;flex-direction:column;justify-content:space-between;flex:1;padding:20px;}
+.ksura-main{font-size:20px;font-weight:bold;color:#5C3A21;line-height:1.3;margin-bottom:16px;display:flex;align-items:flex-start;gap:6px;}
+.ksura-menu-list{border-top:1px dashed #E8E1DA;padding-top:16px;display:flex;flex-direction:column;gap:12px;}
+.ksura-menu-item{display:flex;align-items:flex-start;gap:10px;}
+.ksura-soup{font-size:16px;font-weight:bold;color:#6B5A4E;}
+.ksura-sides{display:flex;flex-direction:column;gap:6px;width:100%;font-size:15px;color:#4A443E;}
+.ksura-salad{background:#F0FDF4;margin:20px -20px -20px -20px;padding:12px 20px;border-top:1px solid #DCFCE7;display:flex;align-items:flex-start;gap:8px;font-size:15px;font-weight:bold;color:#14532D;line-height:1.4;}
+.ksura-origin-box{background-color:#F9F8F6;border:1px solid #E8E1DA;border-radius:12px;padding:24px;margin-top:40px;color:#6C5E52;}
+.ksura-origin-title{font-size:17px;font-weight:bold;color:#4A3B32;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.ksura-origin-list{font-size:14px;line-height:1.8;display:grid;grid-template-columns:1fr;gap:8px 16px;}
+@media(min-width:768px){.ksura-origin-list{grid-template-columns:repeat(2,1fr);}}
+.ksura-origin-item{display:flex;align-items:flex-start;gap:6px;}
+.ksura-origin-label{font-weight:bold;color:#5C3A21;min-width:75px;flex-shrink:0;}
+.ksura-footer{text-align:center;margin-top:40px;font-size:16px;color:#8C7E72;}
+.ksura-line{width:60px;height:4px;background:#FED7AA;margin:16px auto;border-radius:4px;}
+.ksura-tel{font-size:22px;font-weight:bold;color:#4A3B32;margin-top:8px;}
+.ksura-print-btn{background-color:#EA580C;color:white;border:none;padding:8px 16px;border-radius:8px;font-family:inherit;font-size:15px;font-weight:bold;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-left:8px;}
+.ksura-print-btn:hover{background-color:#C2410C;}
+@media print{@page{size:A4 landscape;margin:10mm;}.ksura-print-btn{display:none!important;}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}.ksura-grid{grid-template-columns:repeat(5,1fr)!important;gap:8px;}.ksura-dummy{display:block!important;visibility:hidden;}}
+</style>
+</head>
+<body>
+<div id="ksura-wrap"><div id="ksura-render-area"></div></div>
+<script>
+const icons={
+  truck:\`${svgTruck}\`,main:\`${svgMain}\`,soup:\`${svgSoup}\`,
+  dot:\`${svgDot}\`,leaf:\`${svgLeaf}\`,info:\`${svgInfo}\`,print:\`${svgPrint}\`
+};
+const menuData=${dataStr};
+const container=document.getElementById('ksura-render-area');
+let html=\`
+  <div class="ksura-header">
+    <div class="ksura-info">
+      <span style="font-weight:bold;border-bottom:2px solid #FED7AA;padding-bottom:2px;">${t}</span> |
+      <div class="ksura-delivery-notice">\${icons.truck} 오늘 조리해서 <b>내일 식탁으로</b></div>
+      <button class="ksura-print-btn" onclick="window.print()">\${icons.print} 인쇄하기</button>
+    </div>
+  </div>
+  <div class="ksura-legend">
+    <div style="color:#5C3A21;font-weight:bold;display:flex;align-items:center;gap:6px;">\${icons.main} 메인요리</div>
+    <div>\${icons.soup} 국</div><div>\${icons.dot} 반찬</div><div>\${icons.leaf} 매일 샐러드</div>
+  </div>
+  <div class="ksura-grid">
+\`;
+menuData.forEach(day=>{
+  if(day.isDummy){html+='<div class="ksura-dummy"></div>';return;}
+  html+=\`<div class="ksura-card">
+    <div class="ksura-card-head">
+      <span class="ksura-date">\${day.date}</span>
+      <div class="ksura-badge">\${icons.truck} \${day.arrival} 도착</div>
+    </div>
+    <div class="ksura-card-body">
+      <div>
+        <div class="ksura-main">\${icons.main}<span>\${day.main}</span></div>
+        <div class="ksura-menu-list">
+          <div class="ksura-menu-item">\${icons.soup}<div class="ksura-soup">\${day.soup}</div></div>
+          <div class="ksura-menu-item">\${icons.dot}<div class="ksura-sides">\${(day.sides||[]).map(s=>'<span>· '+s+'</span>').join('')}</div></div>
+        </div>
+      </div>
+      <div class="ksura-salad">\${icons.leaf}<span>\${day.salad}</span></div>
+    </div>
+  </div>\`;
+});
+html+=\`</div>
+<div class="ksura-origin-box">
+  <div class="ksura-origin-title">\${icons.info} 궁중수라간 원산지 표기 안내</div>
+  <div class="ksura-origin-list">
+    ${oriHtml}
+  </div>
+</div>
+<div class="ksura-footer">
+  ${foot}
+  <div class="ksura-line"></div>
+  <div class="ksura-tel">${tel}</div>
+</div>\`;
+container.innerHTML=html;
+<\/script>
+</body>
+</html>`;
+}
+
+async function copyCode(){
+  const html=generateHTML();
+  const btn=document.getElementById('copy-btn');
+  try{
+    await navigator.clipboard.writeText(html);
+  }catch(e){
+    const ta=document.createElement('textarea');
+    ta.value=html; ta.style.cssText='position:fixed;top:-9999px;';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+  }
+  btn.classList.add('ok');
+  btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> 복사 완료!';
+  setTimeout(()=>{
+    btn.classList.remove('ok');
+    btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 아임웹 코드 복사';
+  },2500);
+  toast('HTML 코드가 클립보드에 복사되었습니다 ✓');
+}
+
+// ── 엑셀 가져오기 ──
+document.getElementById('excel-input').addEventListener('change',function(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'array'});
+      const allEntries=[], saladMap={};
+      const DAY=['월','화','수','목','금'];
+
+      wb.SheetNames.forEach(sheetName=>{
+        const ws=wb.Sheets[sheetName];
+        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+        if(!rows||rows.length<3) return;
+        const isSalad=sheetName.includes('샐러드')||sheetName.toLowerCase().includes('salad');
+
+        // 요일 헤더 행 찾기
+        let hRow=-1;
+        for(let r=0;r<Math.min(rows.length,10);r++){
+          const cnt=DAY.filter(d=>rows[r].some(c=>String(c).trim()===d)).length;
+          if(cnt>=3){hRow=r;break;}
+        }
+        if(hRow===-1) return;
+
+        // 헤더 행에서 요일 컬럼 인덱스
+        const colIdx=[];
+        rows[hRow].forEach((c,i)=>{if(DAY.includes(String(c).trim())) colIdx.push(i);});
+        if(!colIdx.length){
+          // fallback: 연속 5컬럼
+          const fi=rows[hRow].findIndex(c=>c!=='');
+          for(let i=fi;i<fi+5&&i<rows[hRow].length;i++) colIdx.push(i);
+        }
+
+        // 날짜 행 찾기
+        let dRow=-1;
+        for(let r=hRow+1;r<Math.min(rows.length,hRow+5);r++){
+          const rs=rows[r].join('');
+          if(/\d+월\d+일|\d+\/\d+/.test(rs)){dRow=r;break;}
+        }
+        if(dRow===-1) dRow=hRow+1;
+
+        const dataStart=dRow+1;
+
+        colIdx.forEach(ci=>{
+          const raw=String(rows[dRow][ci]||'').trim(); if(!raw) return;
+          // 날짜 파싱
+          let mo,dy;
+          let dm=raw.match(/(\d+)월\s*(\d+)일/);
+          if(dm){mo=parseInt(dm[1]);dy=parseInt(dm[2]);}
+          else{dm=raw.match(/(\d+)\/(\d+)/);if(dm){mo=parseInt(dm[1]);dy=parseInt(dm[2]);}}
+          if(!mo||!dy) return;
+
+          const yr=new Date().getFullYear();
+          const dateObj=new Date(yr,mo-1,dy);
+          const fDate=`${mo}/${dy} (${['일','월','화','수','목','금','토'][dateObj.getDay()]})`;
+          const arrObj=new Date(dateObj.getTime()+86400000);
+          const fArr=`${arrObj.getMonth()+1}/${arrObj.getDate()} (${['일','월','화','수','목','금','토'][arrObj.getDay()]})`;
+
+          if(isSalad){
+            const sv=String((rows[dataStart]&&rows[dataStart][ci])||'').trim();
+            saladMap[fDate]=sv; return;
+          }
+
+          const col=[];
+          for(let r=dataStart;r<dataStart+8&&r<rows.length;r++) col.push(String(rows[r][ci]||'').trim());
+
+          allEntries.push({
+            id:'d-'+mo+'-'+dy,date:fDate,arrival:fArr,
+            soup:col[0]||'',main:col[1]||'',
+            sides:col.slice(2,6).filter(v=>v),salad:''
+          });
+        });
+      });
+
+      // 샐러드 매핑
+      allEntries.forEach(e=>{if(saladMap[e.date]) e.salad=saladMap[e.date];});
+
+      if(!allEntries.length){toast('엑셀에서 메뉴 데이터를 찾지 못했습니다');e.target.value='';return;}
+
+      const dummies=menuData.filter(d=>d.isDummy);
+      const newDates=new Set(allEntries.map(e=>e.date));
+      const keep=menuData.filter(d=>!d.isDummy&&!newDates.has(d.date));
+      menuData=[...dummies,...keep,...allEntries];
+      sortData(); persist(); renderList(); renderPreview();
+      switchTab('list',document.querySelectorAll('.tab-btn')[0]);
+      toast(`엑셀에서 ${allEntries.length}개 항목을 가져왔습니다 ✓`);
+    }catch(err){
+      console.error(err); toast('엑셀 파싱 오류: '+err.message);
+    }
+    e.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// ── Gemini AI 이미지 분석 ──
+const geminiKeyEl=document.getElementById('gemini-key');
+geminiKeyEl.value=localStorage.getItem('ksura_gkey')||'';
+geminiKeyEl.addEventListener('input',()=>localStorage.setItem('ksura_gkey',geminiKeyEl.value.trim()));
+
+document.getElementById('img-input').addEventListener('change',async function(e){
+  const file=e.target.files[0]; if(!file) return;
+  const key=localStorage.getItem('ksura_gkey')||'';
+  if(!key){toast('Gemini API 키를 먼저 입력해주세요');e.target.value='';return;}
+  const reader=new FileReader();
+  reader.onload=async function(ev){
+    const b64=ev.target.result.split(',')[1];
+    await analyzeImage(b64,file.type,key);
+    e.target.value='';
+  };
+  reader.readAsDataURL(file);
+});
+
+async function analyzeImage(b64,mime,key){
+  showLoad('AI가 식단표 이미지를 분석 중입니다...','날짜·메인·국·반찬·샐러드를 자동으로 읽고 있습니다 (5~15초)');
+  const prompt=`첨부 식단표 이미지에서 날짜별 메뉴를 모두 추출하세요. 날짜 형식은 "월/일 (요일)" 예: 4/1 (수). 배송 도착은 다음날 같은 형식. 반찬은 배열로 최대 4개.`;
+  const schema={type:'ARRAY',items:{type:'OBJECT',properties:{
+    date:{type:'STRING'},arrival:{type:'STRING'},main:{type:'STRING'},
+    soup:{type:'STRING'},sides:{type:'ARRAY',items:{type:'STRING'}},salad:{type:'STRING'}
+  },required:['date','arrival','main','soup','sides','salad']}};
+  const models=['gemini-2.5-flash-preview-05-20','gemini-2.5-flash','gemini-2.0-flash','gemini-1.5-flash'];
+  let lastErr;
+  for(const model of models){
+    const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    try{
+      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt},{inlineData:{mimeType:mime,data:b64}}]}],
+          generationConfig:{responseMimeType:'application/json',responseSchema:schema}})});
+      if(res.status===404) continue;
+      if(!res.ok){const er=await res.json().catch(()=>({}));throw new Error(er?.error?.message||'오류 '+res.status);}
+      const result=await res.json();
+      const text=result.candidates?.[0]?.content?.parts?.[0]?.text;
+      if(!text) throw new Error('응답 없음');
+      const parsed=JSON.parse(text);
+      if(!Array.isArray(parsed)||!parsed.length) throw new Error('데이터 없음');
+      const entries=parsed.map(p=>({
+        id:'d-ai-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),
+        date:p.date,arrival:p.arrival,main:p.main,soup:p.soup,
+        sides:Array.isArray(p.sides)?p.sides:[],salad:p.salad||''
+      }));
+      const dummies=menuData.filter(d=>d.isDummy);
+      const newDates=new Set(entries.map(e=>e.date));
+      const keep=menuData.filter(d=>!d.isDummy&&!newDates.has(d.date));
+      menuData=[...dummies,...keep,...entries];
+      sortData(); persist(); hideLoad(); renderList(); renderPreview();
+      switchTab('list',document.querySelectorAll('.tab-btn')[0]);
+      toast(`AI가 ${entries.length}개 날짜를 읽어왔습니다 ✓`);
+      return;
+    }catch(err){lastErr=err;console.warn(model,err.message);}
+  }
+  hideLoad();
+  toast('AI 분석 실패: '+(lastErr?.message||'알 수 없는 오류'));
+}
+
+// ── 로딩 & 토스트 ──
+function showLoad(msg,sub){
+  document.getElementById('loading-msg').textContent=msg||'처리 중...';
+  document.getElementById('loading-sub').textContent=sub||'';
+  document.getElementById('loading').classList.add('on');
+}
+function hideLoad(){ document.getElementById('loading').classList.remove('on'); }
+let _tt;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('on');
+  clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('on'),2600);
+}
+
+// ── 초기 실행 ──
+loadSettingsUI();
+renderList();
+renderPreview();
+</script>
+</body>
+</html>
