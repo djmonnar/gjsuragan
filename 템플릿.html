@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>메뉴 템플릿 생성기</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 폰트 로드: Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide 아이콘 라이브러리 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        .font-noto { font-family: 'Noto Sans KR', sans-serif; }
+        textarea { resize: none; }
+        .pattern-dots {
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50 p-4 md:p-8 flex flex-col items-center">
+
+    <div class="max-w-5xl w-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row border border-gray-100 relative">
+        
+        <!-- 왼쪽: 입력 폼 -->
+        <div class="w-full md:w-1/2 p-6 md:p-8 bg-gray-50/50 border-r border-gray-100 flex flex-col gap-5">
+            <div class="flex items-center gap-2 mb-2">
+                <i data-lucide="image" class="text-blue-500 w-6 h-6"></i>
+                <h2 class="text-xl font-bold text-gray-800">메뉴 이미지 제작</h2>
+            </div>
+
+            <!-- 마법 자동분류 -->
+            <div class="bg-white p-4 rounded-xl border border-blue-100 shadow-sm flex flex-col gap-2">
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-sm font-bold text-blue-600 flex items-center gap-1.5">
+                        <i data-lucide="wand-2" class="w-4 h-4"></i> 빠른 텍스트 붙여넣기
+                    </label>
+                    <button id="btnAutoFill" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-md font-bold transition">
+                        마법 자동분류 ✨
+                    </button>
+                </div>
+                <textarea id="rawText" placeholder="홈페이지 식단표 글씨를 드래그해서 여기에 통째로 붙여넣어보세요!" rows="3" class="w-full text-[13px] px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition placeholder-gray-400 leading-relaxed"></textarea>
+            </div>
+
+            <div class="border-t border-gray-200 my-1"></div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-sm font-semibold text-gray-600">날짜</label>
+                    <input type="text" id="inputDate" value="3/16 (월)" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
+                </div>
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-sm font-semibold text-gray-600">배송 정보</label>
+                    <input type="text" id="inputDelivery" value="3/17 (화) 도착" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-semibold text-gray-600">메인</label>
+                <input type="text" id="inputMain1" value="통등심돈까스+소스" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-semibold text-gray-600">국물</label>
+                <input type="text" id="inputMain2" value="의정부부대찌개" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-semibold text-gray-600">반찬 (줄바꿈으로 구분)</label>
+                <textarea id="inputSides" rows="4" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">매콤달콤곤약면무침
+단호박샐러드
+양념고추찌
+건새우볶음</textarea>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-semibold text-gray-600">하단 메뉴 (샐러드 등)</label>
+                <input type="text" id="inputBottom" value="치폴레핫치킨 샐러드" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
+            </div>
+        </div>
+
+        <!-- 오른쪽: 심플해진 미리보기 -->
+        <div class="w-full md:w-1/2 p-6 md:p-8 flex flex-col items-center justify-center bg-gray-50 pattern-dots">
+            <div class="mb-4 text-gray-400 text-sm font-medium">✨ 미리보기</div>
+            
+            <div class="w-full overflow-x-auto hide-scrollbar flex md:justify-center justify-start pb-2">
+                <div class="w-[360px] md:w-[400px] shrink-0 bg-white border border-gray-200 rounded-[16px] overflow-hidden shadow-sm font-noto">
+                    
+                    <!-- 헤더 -->
+                    <div class="bg-white px-5 py-4 flex justify-between items-center border-b border-gray-100">
+                        <div id="prevDate" class="text-[22px] md:text-[24px] font-extrabold text-gray-800"></div>
+                        <div class="bg-orange-50 text-orange-600 border border-orange-100 rounded-full px-3 py-1.5 flex items-center">
+                            <span class="text-[13px] mr-1.5 mb-0.5">🚚</span>
+                            <div id="prevDelivery" class="text-[13px] md:text-[14px] font-bold"></div>
+                        </div>
+                    </div>
+
+                    <!-- 메인 콘텐츠 -->
+                    <div class="px-5 py-5 bg-white">
+                        
+                        <!-- 메인 -->
+                        <div class="flex items-center">
+                            <div class="bg-blue-50 text-blue-600 text-[12px] font-extrabold px-2.5 py-1 rounded-md mr-3 shrink-0">메인</div>
+                            <div class="flex-1 min-w-0">
+                                <div id="prevMain1" class="font-extrabold text-gray-900 truncate" style="font-size: 24px;"></div>
+                            </div>
+                        </div>
+
+                        <!-- 절개선 -->
+                        <div class="border-t border-dashed border-gray-200 my-4"></div>
+
+                        <!-- 국물 -->
+                        <div class="flex items-center">
+                            <div class="bg-blue-50 text-blue-600 text-[12px] font-extrabold px-2.5 py-1 rounded-md mr-3 shrink-0">국물</div>
+                            <div class="flex-1 min-w-0">
+                                <div id="prevMain2" class="font-bold text-gray-800 truncate" style="font-size: 22px;"></div>
+                            </div>
+                        </div>
+
+                        <!-- 절개선 -->
+                        <div class="border-t border-dashed border-gray-200 my-5"></div>
+
+                        <!-- 반찬 (1열 4행 구조로 변경) -->
+                        <div class="flex items-start">
+                            <div class="bg-blue-50 text-blue-600 text-[12px] font-extrabold px-2.5 py-1 rounded-md mr-3 shrink-0 mt-0.5">반찬</div>
+                            <div class="flex-1 min-w-0">
+                                <div id="prevSides" class="flex flex-col gap-y-2.5"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 하단 샐러드 -->
+                    <div class="bg-green-50/50 border-t border-green-100 px-5 py-4 flex items-center">
+                        <div class="bg-green-100 text-green-700 text-[12px] font-extrabold px-2.5 py-1 rounded-md mr-3 shrink-0">샐러드</div>
+                        <div class="flex-1 min-w-0">
+                            <div id="prevBottom" class="font-extrabold text-green-800 truncate whitespace-nowrap overflow-hidden" style="font-size: 20px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btnDownload" class="mt-6 flex items-center gap-2 px-6 py-3 rounded-full font-bold text-white shadow-lg transition-all transform hover:scale-105 bg-blue-600 hover:bg-blue-700">
+                <i data-lucide="download" class="w-5 h-5"></i>
+                <span id="btnText">심플 이미지 다운로드</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const inputs = {
+            date: document.getElementById('inputDate'),
+            delivery: document.getElementById('inputDelivery'),
+            main1: document.getElementById('inputMain1'),
+            main2: document.getElementById('inputMain2'),
+            sides: document.getElementById('inputSides'),
+            bottom: document.getElementById('inputBottom'),
+            rawText: document.getElementById('rawText')
+        };
+
+        const previews = {
+            date: document.getElementById('prevDate'),
+            delivery: document.getElementById('prevDelivery'),
+            main1: document.getElementById('prevMain1'),
+            main2: document.getElementById('prevMain2'),
+            sides: document.getElementById('prevSides'),
+            bottom: document.getElementById('prevBottom')
+        };
+
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+            updatePreview();
+        });
+
+        function autoResizeText(element, text, defaultSize, minSize) {
+            element.textContent = text;
+            element.style.fontSize = defaultSize + 'px';
+            
+            let currentSize = defaultSize;
+            while (element.scrollWidth > element.clientWidth && currentSize > minSize) {
+                currentSize -= 1;
+                element.style.fontSize = currentSize + 'px';
+            }
+        }
+
+        function updatePreview() {
+            previews.date.textContent = inputs.date.value;
+            previews.delivery.textContent = inputs.delivery.value;
+            
+            autoResizeText(previews.main1, inputs.main1.value, 24, 14);
+            autoResizeText(previews.main2, inputs.main2.value, 22, 14);
+            autoResizeText(previews.bottom, inputs.bottom.value, 20, 12);
+
+            previews.sides.innerHTML = '';
+            const sideLines = inputs.sides.value.split('\n');
+            sideLines.forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed) {
+                    const pDiv = document.createElement('div');
+                    pDiv.className = 'flex items-center w-full';
+                    pDiv.innerHTML = `
+                        <div class="w-1 h-1 rounded-full bg-gray-400 shrink-0 mr-2"></div>
+                        <div class="text-[14px] md:text-[15px] text-gray-600 font-bold truncate flex-1">${trimmed}</div>
+                    `;
+                    previews.sides.appendChild(pDiv);
+                }
+            });
+        }
+
+        Object.keys(inputs).forEach(key => {
+            if (key !== 'rawText') {
+                inputs[key].addEventListener('input', updatePreview);
+            }
+        });
+
+        document.getElementById('btnAutoFill').addEventListener('click', () => {
+            const rawText = inputs.rawText.value;
+            if (!rawText.trim()) return;
+            
+            const lines = rawText.split('\n')
+                .map(l => l.replace(/메인요리/g, ''))
+                .map(l => l.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\u2600-\u26FF\u2700-\u27BF]/gu, ''))
+                .map(l => l.replace(/^[^가-힣a-zA-Z0-9(]+/g, '').trim())
+                .filter(l => /[가-힣a-zA-Z]/.test(l));
+            
+            if (lines.length < 3) {
+                alert("텍스트가 짧습니다. 식단표 텍스트 전체를 복사해서 붙여넣어주세요.");
+                return;
+            }
+
+            if (lines.length > 0) inputs.date.value = lines[0];
+            if (lines.length > 1) inputs.delivery.value = lines[1];
+            if (lines.length > 2) inputs.main1.value = lines[2];
+            if (lines.length > 3) inputs.main2.value = lines[3];
+            
+            if (lines.length > 5) {
+                inputs.bottom.value = lines[lines.length - 1];
+                inputs.sides.value = lines.slice(4, lines.length - 1).join('\n');
+            } else if (lines.length === 5) {
+                inputs.sides.value = lines[4];
+                inputs.bottom.value = '';
+            }
+
+            inputs.rawText.value = '';
+            updatePreview();
+        });
+
+        document.getElementById('btnDownload').addEventListener('click', async () => {
+            const btnText = document.getElementById('btnText');
+            const originalText = btnText.innerText;
+            btnText.innerText = '이미지 생성 중...';
+            
+            try {
+                await document.fonts.ready;
+
+                const scale = 3;
+                const canvas = document.createElement('canvas');
+                canvas.width = 400 * scale;
+                canvas.height = 400 * scale;
+                const ctx = canvas.getContext('2d');
+                ctx.scale(scale, scale);
+
+                function roundRect(x, y, w, h, radius) {
+                    ctx.beginPath();
+                    ctx.moveTo(x + radius, y);
+                    ctx.lineTo(x + w - radius, y);
+                    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+                    ctx.lineTo(x + w, y + h - radius);
+                    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+                    ctx.lineTo(x + radius, y + h);
+                    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+                    ctx.lineTo(x, y + radius);
+                    ctx.quadraticCurveTo(x, y, x + radius, y);
+                    ctx.closePath();
+                }
+
+                function fillTextAutoFit(text, x, y, maxWidth, defaultSize, fontStyle, color) {
+                    let fontSize = defaultSize;
+                    ctx.font = `${fontStyle} ${fontSize}px "Noto Sans KR"`;
+                    
+                    while (ctx.measureText(text).width > maxWidth && fontSize > 12) {
+                        fontSize -= 0.5;
+                        ctx.font = `${fontStyle} ${fontSize}px "Noto Sans KR"`;
+                    }
+                    
+                    let fitText = text;
+                    if (ctx.measureText(fitText).width > maxWidth) {
+                         while(ctx.measureText(fitText + '...').width > maxWidth && fitText.length > 0) {
+                             fitText = fitText.slice(0, -1);
+                         }
+                         fitText += '...';
+                    }
+                    
+                    ctx.fillStyle = color;
+                    ctx.fillText(fitText, x, y);
+                }
+
+                // 1. 배경 및 외곽선
+                roundRect(1, 1, 398, 398, 16);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+                ctx.strokeStyle = '#e5e7eb';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.clip();
+
+                // 2. 헤더
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, 400, 60);
+                
+                ctx.fillStyle = '#1f2937';
+                ctx.font = '800 24px "Noto Sans KR"';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(inputs.date.value, 20, 30);
+
+                const deliveryText = inputs.delivery.value;
+                ctx.font = '700 14px "Noto Sans KR"';
+                const badgeWidth = ctx.measureText(deliveryText).width + 36;
+                const badgeX = 400 - 20 - badgeWidth;
+                
+                roundRect(badgeX, 15, badgeWidth, 30, 15);
+                ctx.fillStyle = '#fff7ed';
+                ctx.fill();
+                ctx.strokeStyle = '#ffedd5';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.fillStyle = '#ea580c';
+                ctx.font = '13px "Segoe UI Emoji", sans-serif';
+                ctx.fillText('🚚', badgeX + 10, 30);
+                ctx.font = '700 14px "Noto Sans KR"';
+                ctx.fillText(deliveryText, badgeX + 28, 30);
+
+                ctx.beginPath();
+                ctx.moveTo(0, 60);
+                ctx.lineTo(400, 60);
+                ctx.strokeStyle = '#f3f4f6';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // 3. 메인
+                roundRect(20, 85, 42, 24, 6);
+                ctx.fillStyle = '#eff6ff';
+                ctx.fill();
+                ctx.fillStyle = '#2563eb';
+                ctx.font = '800 12px "Noto Sans KR"';
+                ctx.fillText('메인', 29, 97);
+                fillTextAutoFit(inputs.main1.value, 72, 97, 296, 24, '800', '#111827');
+
+                ctx.beginPath();
+                ctx.setLineDash([4, 4]);
+                ctx.moveTo(20, 125);
+                ctx.lineTo(380, 125);
+                ctx.strokeStyle = '#e5e7eb';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // 4. 국물
+                roundRect(20, 142, 42, 24, 6);
+                ctx.fillStyle = '#eff6ff';
+                ctx.fill();
+                ctx.fillStyle = '#2563eb';
+                ctx.font = '800 12px "Noto Sans KR"';
+                ctx.fillText('국물', 29, 154);
+                fillTextAutoFit(inputs.main2.value, 72, 154, 296, 22, '700', '#1f2937');
+
+                ctx.beginPath();
+                ctx.setLineDash([4, 4]);
+                ctx.moveTo(20, 184);
+                ctx.lineTo(380, 184);
+                ctx.strokeStyle = '#e5e7eb';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // 5. 반찬 (1열 4행 구조로 변경)
+                roundRect(20, 200, 42, 24, 6);
+                ctx.fillStyle = '#eff6ff';
+                ctx.fill();
+                ctx.fillStyle = '#2563eb';
+                ctx.font = '800 12px "Noto Sans KR"';
+                ctx.fillText('반찬', 29, 212);
+
+                const sideLines = inputs.sides.value.split('\n').map(l => l.trim()).filter(l => l !== '');
+                
+                let startY = 212;
+                for (let i = 0; i < sideLines.length; i++) {
+                    const xBase = 72; // 모든 반찬의 X 좌표를 동일하게 설정 (1열 구조)
+                    const y = startY + (i * 30); // 세로로만 쌓음
+                    
+                    if (y > 330) break; // 하단 영역 침범 방지
+
+                    ctx.beginPath();
+                    ctx.arc(xBase + 3, y, 2.5, 0, Math.PI * 2);
+                    ctx.fillStyle = '#9ca3af';
+                    ctx.fill();
+
+                    // 가로 폭을 넓게(296px) 사용하여 긴 이름도 잘 수용하도록 함
+                    fillTextAutoFit(sideLines[i], xBase + 12, y, 296, 16, '700', '#4b5563');
+                }
+
+                // 6. 하단 샐러드
+                ctx.fillStyle = '#f0fdf4';
+                ctx.globalAlpha = 0.5;
+                ctx.fillRect(0, 340, 400, 60);
+                ctx.globalAlpha = 1.0;
+                
+                ctx.beginPath();
+                ctx.moveTo(0, 340);
+                ctx.lineTo(400, 340);
+                ctx.strokeStyle = '#dcfce7';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                roundRect(20, 358, 50, 24, 6);
+                ctx.fillStyle = '#dcfce7';
+                ctx.fill();
+                ctx.fillStyle = '#15803d';
+                ctx.font = '800 12px "Noto Sans KR"';
+                ctx.fillText('샐러드', 27, 370);
+                fillTextAutoFit(inputs.bottom.value, 80, 370, 290, 20, '800', '#166534');
+
+                const url = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                const safeDateStr = inputs.date.value.replace(/[\/\(\)\s]/g, '');
+                link.download = `메뉴_${safeDateStr}.png`;
+                link.href = url;
+                link.click();
+
+            } catch (err) {
+                console.error("이미지 저장 실패:", err);
+                alert("이미지 저장 중 오류가 발생했습니다.");
+            } finally {
+                btnText.innerText = originalText;
+            }
+        });
+    </script>
+</body>
+</html>
