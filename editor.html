@@ -8,6 +8,25 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:flex;height:100vh;overflow:hidden;font-size:14px;color:#1F2937;}
+/* 모바일: 세로 스택, 탭으로 편집기↔미리보기 전환 */
+@media(max-width:768px){
+  body{flex-direction:column;height:auto;overflow:auto;}
+  #sidebar{width:100%;height:auto;box-shadow:none;border-right:none;border-bottom:1px solid #E5E7EB;}
+  #preview-panel{display:none;height:auto;}
+  #preview-panel.mob-on{display:flex;}
+  #prev-wrap{height:auto;overflow:visible;padding:12px;}
+  .tab-pane{overflow:visible;max-height:none;}
+  #day-list{overflow:visible;max-height:none;}
+  .ksura-grid{grid-template-columns:1fr!important;}
+  .ksura-dummy{display:none!important;}
+  /* 모바일 하단 고정 전환 버튼 */
+  #mob-toggle{display:flex;}
+}
+@media(min-width:769px){#mob-toggle{display:none!important;}}
+#mob-toggle{display:none;position:fixed;bottom:16px;right:16px;z-index:500;gap:8px;}
+#mob-toggle button{padding:10px 16px;border:none;border-radius:99px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2);}
+#mob-edit-btn{background:#fff;color:#374151;}
+#mob-prev-btn{background:#EA580C;color:#fff;}
 #sidebar{width:400px;background:#fff;border-right:1px solid #E5E7EB;display:flex;flex-direction:column;height:100vh;z-index:10;box-shadow:2px 0 8px rgba(0,0,0,.06);}
 #sidebar-header{background:#2D2A26;color:#fff;padding:16px 20px;flex-shrink:0;}
 #sidebar-header h1{font-size:16px;font-weight:700;}
@@ -255,6 +274,12 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
       </div>
     </div>
   </div>
+</div>
+
+<!-- 모바일 전환 버튼 -->
+<div id="mob-toggle">
+  <button id="mob-edit-btn" onclick="mobShow('edit')">✏️ 편집</button>
+  <button id="mob-prev-btn" onclick="mobShow('preview')">👁 미리보기</button>
 </div>
 
 <!-- Loading -->
@@ -847,6 +872,23 @@ function toast(msg){
   const el=document.getElementById('toast');
   el.textContent=msg; el.classList.add('on');
   clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('on'),2600);
+}
+
+// ── 모바일 편집↔미리보기 전환 ──
+function mobShow(mode){
+  const sidebar=document.getElementById('sidebar');
+  const preview=document.getElementById('preview-panel');
+  const editBtn=document.getElementById('mob-edit-btn');
+  const prevBtn=document.getElementById('mob-prev-btn');
+  if(mode==='preview'){
+    sidebar.style.display='none';
+    preview.classList.add('mob-on');
+    editBtn.style.opacity='1'; prevBtn.style.opacity='.5';
+  } else {
+    sidebar.style.display='flex';
+    preview.classList.remove('mob-on');
+    editBtn.style.opacity='.5'; prevBtn.style.opacity='1';
+  }
 }
 
 // ── 초기 실행 ──
