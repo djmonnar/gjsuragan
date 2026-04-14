@@ -2498,7 +2498,7 @@ function renderDash(){
   const dLowCourierWrap = document.getElementById('dash-next-courier-wrap');
   const dLowCourier = document.getElementById('dLowCourier');
   if(dLowCourierWrap && dLowCourier){
-    dLowCourierWrap.style.display = tmrCourier.length ? 'block' : 'block';
+    dLowCourierWrap.style.display = tmrCourier.length ? 'block' : 'none';
     dLowCourier.innerHTML = tmrCourier.length
       ? tmrCourier.map(c=>`<tr class="trc" onclick="pickCust('${c.id}')">
           <td><strong>${esc(c.name)}</strong></td>
