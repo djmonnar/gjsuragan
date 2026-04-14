@@ -338,6 +338,26 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 .view-tabs{display:flex;gap:0;background:var(--bg3);border-radius:8px;padding:3px;width:fit-content;}
 .vt{padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:var(--tr);}
 .vt.on{background:var(--surface);color:var(--text);box-shadow:var(--sh0);}
+
+/* ── 월간 상세 아이템 ── */
+.month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.mc{aspect-ratio:auto;min-height:150px;align-items:stretch;padding:6px;}
+.mc-d{font-size:12px;font-weight:700;margin-bottom:6px;}
+.mc-items{display:flex;flex-direction:column;gap:4px;width:100%;}
+.mc-item{font-size:11px;line-height:1.35;border-radius:6px;padding:4px 6px;background:var(--surface2);border:1px solid var(--border);overflow:hidden;}
+.mc-item strong{font-weight:700;}
+.mc-item.direct{border-color:rgba(192,32,176,.28);background:rgba(192,32,176,.06);}
+.mc-item.courier{border-color:rgba(3,102,214,.22);background:rgba(3,102,214,.05);}
+.mc-more{margin-top:4px;font-size:11px;font-weight:700;color:var(--accent);background:transparent;border:none;cursor:pointer;text-align:left;padding:2px 0;}
+
+/* ── 날짜별 상세 모달 ── */
+.day-detail-list{display:flex;flex-direction:column;gap:10px;}
+.day-detail-item{border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--surface2);}
+.day-detail-item.direct{border-left:4px solid #c020b0;}
+.day-detail-item.courier{border-left:4px solid var(--info);}
+.day-detail-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;}
+.day-detail-name{font-size:14px;font-weight:700;}
+.day-detail-sub{font-size:12px;color:var(--text2);}
 </style>
 </head>
 <body>
@@ -442,9 +462,31 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
     <!-- 내일 배송 예정 -->
     <div>
       <div class="sh"><div class="st"><div class="std" style="background:var(--info)"></div>내일 배송 예정</div></div>
-      <div class="card">
-        <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th></tr></thead>
-        <tbody id="dLow"></tbody></table>
+
+      <!-- 내일 직배송 -->
+      <div id="dash-next-direct-wrap" style="display:none;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:700;color:#c020b0;padding:6px 12px;background:rgba(192,32,176,.08);border-radius:6px;margin-bottom:6px;">
+          🚗 직배송
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th></tr></thead>
+            <tbody id="dLowDirect"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 내일 택배 -->
+      <div id="dash-next-courier-wrap">
+        <div style="font-size:11px;font-weight:700;color:var(--info);padding:6px 12px;background:rgba(3,102,214,.06);border-radius:6px 6px 0 0;border:1px solid var(--border);border-bottom:none;">
+          📦 택배
+        </div>
+        <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
+          <table>
+            <thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th></tr></thead>
+            <tbody id="dLowCourier"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -1047,12 +1089,31 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 </div>
 
 
+<!-- ══ 월간 날짜 상세 모달 ══ -->
+<div class="mbg" id="dayListM">
+  <div class="modal" style="width:720px;max-width:92vw;">
+    <div class="mh">
+      <div class="mt" id="dayListTitle">배송 상세</div>
+      <div class="mx" onclick="closeM('dayListM')">✕</div>
+    </div>
+    <div class="mb">
+      <div id="dayListBody" class="day-detail-list"></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeM('dayListM')">닫기</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ════════════════════════════════════════
 // ★ 비밀번호 설정 - 여기를 수정하세요 ★
 // ════════════════════════════════════════
 // ★★★ 반드시 아래 비밀번호를 변경하세요! ★★★
-const PASSWORDS = ['CHANGE_ME_PASSWORD'];
+const PASSWORDS = [
+  'tkdgns1q2w!',
+  'rndwndtnfkrks1q2w!',
+];
 const SESSION_KEY = 'gjsr_auth';
 const SESSION_HOURS = 8; // 몇 시간 동안 로그인 유지
 
@@ -2050,32 +2111,84 @@ function dow(ds){
 }
 function isDelivSub(c,ds){
   if(c.status!=='active'||c.remain<=0||c.orderType!=='sub') return false;
-
-  // 최초 배송 시작일 이전에는 절대 노출하지 않음
-  if(c.startDate && ds < c.startDate) return false;
-
   const d=dow(ds);
-
   // cookDays가 저장된 경우: 조리일 기준으로 표시 (오늘 조리=오늘 출고)
   if(c.cookDays&&c.cookDays.length>0){
     return c.cookDays.includes(d);
   }
-
   // cookDays가 없는 기존 데이터 폴백:
   // arriveDays에서 하루 전날(조리일)을 역산 → 그게 오늘이면 표시
+  // arriveDays = 도착요일, 조리일 = 도착일 - 1 (일요일 이전이면 토=6)
   const cookFromArrive=(c.arriveDays||[]).map(a=>a===0?6:a-1);
   return cookFromArrive.includes(d);
 }
 function isDelivOnce(c,ds){
   if(c.status!=='active'||c.remain<=0||c.orderType!=='once') return false;
-
-  // 시작일 이전 노출 방지
-  if(c.startDate && ds < c.startDate) return false;
-
+  if(c.isDirect){
+    // 직배송: onceDate 당일 배송
+    return c.onceDate===ds;
+  }
+  // 일반 택배: onceDate 당일 (기존 동일)
   return c.onceDate===ds;
 }
 function isDeliv(c,ds){ return isDelivSub(c,ds)||isDelivOnce(c,ds); }
 function listFor(ds){ return custs.filter(c=>isDeliv(c,ds)); }
+
+function esc(s){
+  return String(s ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function shortProduct(c){
+  return productLabel(c.productId || c.set);
+}
+
+function shortType(c){
+  return c.isDirect ? '직배송' : '택배';
+}
+
+function getDayDeliveryItems(ds){
+  return listFor(ds).slice().sort((a,b)=>{
+    if(!!a.isDirect !== !!b.isDirect) return a.isDirect ? -1 : 1;
+    return String(a.name||'').localeCompare(String(b.name||''), 'ko');
+  });
+}
+
+function openDayListModal(ds){
+  const list = getDayDeliveryItems(ds);
+  const d = new Date(ds + 'T00:00:00');
+  document.getElementById('dayListTitle').textContent =
+    `${ds} (${DAYS[d.getDay()]}요일) 배송 예정 ${list.length}건`;
+
+  const body = document.getElementById('dayListBody');
+  if(!list.length){
+    body.innerHTML = `<div class="empty"><div class="ei">📭</div><div>배송 예정 없음</div></div>`;
+    openM('dayListM');
+    return;
+  }
+
+  body.innerHTML = list.map(c => `
+    <div class="day-detail-item ${c.isDirect ? 'direct' : 'courier'}">
+      <div class="day-detail-top">
+        <div class="day-detail-name">${esc(c.name)}</div>
+        <span class="badge ${c.isDirect ? 'b-direct' : (c.orderType==='once' ? 'b-once' : 'b-sub')}">
+          ${c.isDirect ? '직배송' : (c.orderType==='once' ? '선택' : '정기')}
+        </span>
+      </div>
+      <div class="day-detail-sub">
+        ${esc(shortProduct(c))}
+        ${c.qty && c.qty > 1 ? ` · ${c.qty}개` : ''}
+        ${c.phone ? ` · ${esc(c.phone)}` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  openM('dayListM');
+}
 function todayList(){ return listFor(todayStr()); }
 
 // ════════════════════════════════════════
@@ -2252,11 +2365,20 @@ function renderMonth(){
   for(let i=0;i<firstDow;i++) cal+=`<div class="mc other-month"></div>`;
   for(let d=1;d<=totalDays;d++){
     const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const cnt=listFor(ds).length;
+    const items=getDayDeliveryItems(ds);
     const isToday=ds===todayStr();
-    cal+=`<div class="mc${isToday?' today':''}${cnt>0?' has-d':''}" onclick="jumpToDate('${ds}')">
+    const preview=items.slice(0,5);
+    cal+=`<div class="mc${isToday?' today':''}${items.length>0?' has-d':''}" onclick="jumpToDate('${ds}')">
       <div class="mc-d">${d}</div>
-      ${cnt?`<div class="mc-n">${cnt}</div>`:''}
+      <div class="mc-items">
+        ${preview.map(c=>`
+          <div class="mc-item ${c.isDirect ? 'direct' : 'courier'}" title="${esc(c.name)} / ${esc(shortProduct(c))}">
+            <strong>${esc(c.name)}</strong><br>
+            ${esc(shortProduct(c))} · ${esc(shortType(c))}
+          </div>
+        `).join('')}
+        ${items.length > 5 ? `<button class="mc-more" onclick="event.stopPropagation(); openDayListModal('${ds}')">+${items.length - 5}건 더보기</button>` : ''}
+      </div>
     </div>`;
   }
   cal+='</div>';
@@ -2311,58 +2433,81 @@ function renderDash(){
   updateDashDisp();
   const tl=listFor(ds);
   let wk=0; for(let i=0;i<7;i++){const t=todayStr();wk+=listFor(addDays(t,i)).length;}
-  // 내일 배송 목록
   const tmrStr = addDays(todayStr(), 1);
   const tmrList = listFor(tmrStr);
-  s('s0',custs.length); s('s1',custs.filter(c=>c.status==='active').length);
-  s('s2',tl.length); s('s3',wk); s('s4',tmrList.length);
+
+  s('s0',custs.length);
+  s('s1',custs.filter(c=>c.status==='active').length);
+  s('s2',tl.length);
+  s('s3',wk);
+  s('s4',tmrList.length);
   s('sA',custs.filter(c=>c.set==='A'&&c.status==='active').length);
   s('sB',custs.filter(c=>c.set==='B'&&c.status==='active').length);
   s('sC',custs.filter(c=>c.set==='C'&&c.status==='active').length);
   s('nBadge',listFor(todayStr()).length);
 
-  // 직배송/택배 분리
   const directList  = tl.filter(c=>c.isDirect);
   const courierList = tl.filter(c=>!c.isDirect);
 
-  // 직배송 섹션
   const dDirectWrap  = document.getElementById('dash-direct-wrap');
   const dTodayDirect = document.getElementById('dTodayDirect');
   if(dDirectWrap && dTodayDirect){
     dDirectWrap.style.display = directList.length ? '' : 'none';
-    dTodayDirect.innerHTML = directList.slice(0,5).map(c=>`<tr>
-      <td><strong>${c.name}</strong></td>
-      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-      <td style="font-size:11px;color:var(--text3);">${c.scheduleName||c.onceDate||''}</td>
-      <td>${c.phone}</td>
-    </tr>`).join('');
+    dTodayDirect.innerHTML = directList.length
+      ? directList.slice(0,5).map(c=>`<tr class="trc" onclick="pickCust('${c.id}')">
+          <td><strong>${esc(c.name)}</strong></td>
+          <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${esc(shortProduct(c))}</span></td>
+          <td>${esc(c.phone||'')}</td>
+          <td>${c.orderType==='once' ? `${c.qty||1}개` : `${c.remain||0}회`}</td>
+        </tr>`).join('')
+      : '';
   }
 
-  // 택배 섹션 라벨
   const courierLabel = document.getElementById('dash-courier-label');
-  if(courierLabel) courierLabel.style.display = directList.length ? '' : 'none';
+  if(courierLabel) courierLabel.style.display = courierList.length ? '' : 'none';
 
   const dt=document.getElementById('dToday');
   dt.innerHTML=!courierList.length
-    ?`<tr><td colspan="6"><div class="empty"><div class="ei">📦</div><div>택배 없음</div></div></td></tr>`
-    :courierList.slice(0,8).map(c=>`<tr>
-      <td><strong>${c.name}</strong></td>
-      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
+    ?`<tr><td colspan="5"><div class="empty"><div class="ei">📦</div><div>택배 없음</div></div></td></tr>`
+    :courierList.slice(0,8).map(c=>`<tr class="trc" onclick="pickCust('${c.id}')">
+      <td><strong>${esc(c.name)}</strong></td>
+      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${esc(shortProduct(c))}</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-      <td>${c.phone}</td>
-      <td style="text-align:center;">${c.qty&&c.qty>1?`<strong style="color:var(--accent)">${c.qty}개</strong>`:'1개'}</td>
-      <td>${gauge(c)}</td>
+      <td>${esc(c.phone||'')}</td>
+      <td>${c.orderType==='once' ? `${c.qty||1}개` : `${c.remain||0}회`}</td>
     </tr>`).join('');
 
-  const dl=document.getElementById('dLow');
-  dl.innerHTML=!tmrList.length
-    ?`<tr><td colspan="4"><div class="empty"><div class="ei">📭</div><div>내일 배송 없음</div></div></td></tr>`
-    :tmrList.map(c=>`<tr>
-      <td><strong>${c.name}</strong></td>
-      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-      <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-      <td>${c.phone}</td>
-    </tr>`).join('');
+  // 내일 배송 분리
+  const tmrDirect = tmrList.filter(c=>c.isDirect);
+  const tmrCourier = tmrList.filter(c=>!c.isDirect);
+
+  const dLowDirectWrap = document.getElementById('dash-next-direct-wrap');
+  const dLowDirect = document.getElementById('dLowDirect');
+  if(dLowDirectWrap && dLowDirect){
+    dLowDirectWrap.style.display = tmrDirect.length ? '' : 'none';
+    dLowDirect.innerHTML = tmrDirect.length
+      ? tmrDirect.map(c=>`<tr class="trc" onclick="pickCust('${c.id}')">
+          <td><strong>${esc(c.name)}</strong></td>
+          <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${esc(shortProduct(c))}</span></td>
+          <td><span class="badge b-direct">직배송</span></td>
+          <td>${esc(c.phone||'')}</td>
+        </tr>`).join('')
+      : '';
+  }
+
+  const dLowCourierWrap = document.getElementById('dash-next-courier-wrap');
+  const dLowCourier = document.getElementById('dLowCourier');
+  if(dLowCourierWrap && dLowCourier){
+    dLowCourierWrap.style.display = tmrCourier.length ? 'block' : 'block';
+    dLowCourier.innerHTML = tmrCourier.length
+      ? tmrCourier.map(c=>`<tr class="trc" onclick="pickCust('${c.id}')">
+          <td><strong>${esc(c.name)}</strong></td>
+          <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${esc(shortProduct(c))}</span></td>
+          <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
+          <td>${esc(c.phone||'')}</td>
+        </tr>`).join('')
+      : `<tr><td colspan="4"><div class="empty"><div class="ei">📭</div><div>내일 택배 없음</div></div></td></tr>`;
+  }
 }
 
 function renderToday(){
