@@ -11,7 +11,7 @@
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         
         body {
-            font-family: 'Pretendard', sans-serif;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
             background-color: #F3F4F6;
             margin: 0;
             height: 100vh;
@@ -65,10 +65,14 @@
         }
         
         input[type="checkbox"] {
-            accent-color: #EF4444; /* 빨간색 체크박스 */
+            accent-color: #EF4444; 
             width: 16px;
             height: 16px;
             cursor: pointer;
+        }
+        
+        input[type="checkbox"].accent-indigo {
+            accent-color: #4F46E5;
         }
 
         label {
@@ -149,7 +153,8 @@
         </div>
 
         <div class="flex-1 overflow-y-auto p-5 space-y-8 bg-gray-50" id="form-container">
-            </div>
+            <!-- 폼이 여기에 생성됩니다 -->
+        </div>
 
         <div class="p-5 border-t border-gray-200 bg-white flex flex-col gap-3">
             <button onclick="downloadPNG()" class="w-full py-3 bg-[#D97706] hover:bg-[#B45309] text-white font-bold rounded-lg transition-colors flex justify-center items-center gap-2 shadow-sm">
@@ -173,7 +178,8 @@
             </div>
 
             <div class="px-8 grid grid-cols-2 gap-x-6 gap-y-4" id="menu-grid">
-                </div>
+                <!-- 프리뷰 카드가 여기에 생성됩니다 -->
+            </div>
         </div>
     </div>
 
@@ -187,14 +193,14 @@
     </div>
 
     <script>
-        // API 키 로컬 스토리지 연동 (수동 입력 방식)
+        // API 키 로컬 스토리지 연동
         const apiKeyInput = document.getElementById('api-key-input');
         apiKeyInput.value = localStorage.getItem('suraganGeminiApiKey') || "";
         apiKeyInput.addEventListener('input', (e) => {
             localStorage.setItem('suraganGeminiApiKey', e.target.value.trim());
         });
         
-        // 지능형 모델 탐색 및 백오프 통신 엔진
+        // 지능형 모델 탐색 엔진
         async function fetchWithSmartFallback(payload, activeApiKey) {
             const modelsToTry = [
                 'gemini-2.5-flash-preview-09-2025', 
@@ -237,7 +243,6 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            // 로컬 스토리지에서 등록된 API 키를 가져옵니다.
             const userApiKey = localStorage.getItem('suraganGeminiApiKey');
             
             if (!userApiKey) {
@@ -260,10 +265,12 @@
             showLoading("✨ AI가 이미지를 분석 중입니다...", "최적의 AI 모델을 찾아 메뉴를 분석 중입니다. (약 5~10초 소요)");
             
             try {
+                // 프롬프트에 공란(isEmpty) 조건 추가
                 const prompt = `
                     첨부된 주간 식단표 이미지에서 월요일부터 금요일까지 5일치 메뉴 데이터를 추출해주세요.
                     반드시 아래의 JSON 배열 형식으로만 반환해야 합니다.
-                    - 해당 날짜에 "휴무", "공휴일" 등의 내용이 적혀 있다면 isHoliday를 true로 설정하고, holidayMessage에 "삼일절 휴무", "임시공휴일 휴무" 등 사유를 적어주세요.
+                    - 중요: 달이 바뀌거나 이미지가 잘려 이미지에 특정 요일의 식단 정보가 전혀 없다면(예: 수, 목, 금 3일치만 있는 경우), 데이터가 없는 요일의 isEmpty 값을 true로 설정하고 나머지 필드(main, soup 등)는 빈 문자열로 비워주세요. 무조건 월~금 5개의 배열 요소를 반환해야 합니다.
+                    - 해당 날짜에 "휴무", "공휴일" 등의 내용이 적혀 있다면 isHoliday를 true로 설정하고, holidayMessage에 "삼일절 휴무" 등 사유를 적어주세요.
                     - 반찬이 여러 개일 경우 하나의 문자열 안에 쉼표(,)로 구분하여 작성하세요.
                     - 날짜(date)나 도착안내(arrival)가 이미지에 있다면 그대로 추출하고, 없다면 문맥에 맞게 추론하여 짧게 적어주세요.
                 `;
@@ -275,16 +282,17 @@
                         properties: {
                             id: { type: "STRING", description: "mon, tue, wed, thu, fri 중 하나" },
                             dayName: { type: "STRING", description: "월요일, 화요일 등" },
+                            isEmpty: { type: "BOOLEAN", description: "해당 날짜의 식단 정보가 이미지에 아예 없어서 공란으로 처리해야 하는 경우 true" },
                             date: { type: "STRING", description: "예: 3/23 (월)" },
                             arrival: { type: "STRING", description: "예: 3/24 (화) 도착" },
                             isHoliday: { type: "BOOLEAN", description: "해당 날짜가 휴무일인지 여부 (true/false)" },
-                            holidayMessage: { type: "STRING", description: "휴무일일 경우 보여줄 메시지. 예: 법정공휴일 휴무입니다." },
-                            main: { type: "STRING", description: "메인 요리 (휴무일이면 빈칸)" },
-                            soup: { type: "STRING", description: "국물 요리 (휴무일이면 빈칸)" },
-                            sides: { type: "STRING", description: "반찬들 (반드시 쉼표로 구분. 휴무일이면 빈칸)" },
-                            salad: { type: "STRING", description: "샐러드 메뉴 (휴무일이면 빈칸)" }
+                            holidayMessage: { type: "STRING", description: "휴무일일 경우 보여줄 메시지" },
+                            main: { type: "STRING", description: "메인 요리 (휴무/공란이면 빈칸)" },
+                            soup: { type: "STRING", description: "국물 요리 (휴무/공란이면 빈칸)" },
+                            sides: { type: "STRING", description: "반찬들 (반드시 쉼표로 구분. 휴무/공란이면 빈칸)" },
+                            salad: { type: "STRING", description: "샐러드 메뉴 (휴무/공란이면 빈칸)" }
                         },
-                        required: ["id", "dayName", "date", "arrival", "isHoliday", "holidayMessage", "main", "soup", "sides", "salad"]
+                        required: ["id", "dayName", "isEmpty", "date", "arrival", "isHoliday", "holidayMessage", "main", "soup", "sides", "salad"]
                     }
                 };
 
@@ -310,6 +318,7 @@
                     if (Array.isArray(parsedData) && parsedData.length === 5) {
                         menuData = parsedData.map(item => ({
                             ...item,
+                            isEmpty: item.isEmpty || false,
                             isHoliday: item.isHoliday || false,
                             holidayMessage: item.holidayMessage || ""
                         }));
@@ -334,15 +343,21 @@
 
         // --- 기존 데이터 관리 및 렌더링 로직 ---
         const defaultData = [
-            { id: 'mon', dayName: '월요일', date: "3/23 (월)", arrival: "3/24 (화) 도착", isHoliday: false, holidayMessage: "", main: "오삼불고기", soup: "바지락된장국", sides: "해파리냉채, 콩나물크래미무침, 메추리알소세지짜장볶음, 도라지들깨나물", salad: "베트남짜조 샐러드" },
-            { id: 'tue', dayName: '화요일', date: "3/24 (화)", arrival: "3/25 (수) 도착", isHoliday: false, holidayMessage: "", main: "궁중돼지갈비찜", soup: "얼큰어묵탕", sides: "참치두부조림, 연근참깨무침, 새송이야채볶음, 매콤감자조림", salad: "두부 샐러드" },
-            { id: 'wed', dayName: '수요일', date: "3/25 (수)", arrival: "3/26 (목) 도착", isHoliday: false, holidayMessage: "", main: "기사식당달콤제육볶음", soup: "닭곰탕", sides: "소세지야채볶음, 건새우마늘쫑볶음, 우엉잡채, 취나물무침", salad: "당근라페리코타 샐러드" },
-            { id: 'thu', dayName: '목요일', date: "3/26 (목)", arrival: "3/27 (금) 도착", isHoliday: false, holidayMessage: "", main: "미트볼토마토소스조림", soup: "얼큰오징어뭇국", sides: "야채전, 무파래무침, 달콤감자조림, 버터갈릭새우", salad: "감자사라다 샐러드" },
-            { id: 'fri', dayName: '금요일', date: "3/27 (금)", arrival: "3/28 (토) 도착", isHoliday: false, holidayMessage: "", main: "궁중순살찜닭", soup: "만두전골", sides: "해물까스, 가지볶음, 미나리숙주무침, 알마늘장아찌", salad: "초코그래놀라 샐러드" }
+            { id: 'mon', dayName: '월요일', isEmpty: false, date: "3/23 (월)", arrival: "3/24 (화) 도착", isHoliday: false, holidayMessage: "", main: "오삼불고기", soup: "바지락된장국", sides: "해파리냉채, 콩나물크래미무침, 메추리알소세지짜장볶음, 도라지들깨나물", salad: "베트남짜조 샐러드" },
+            { id: 'tue', dayName: '화요일', isEmpty: false, date: "3/24 (화)", arrival: "3/25 (수) 도착", isHoliday: false, holidayMessage: "", main: "궁중돼지갈비찜", soup: "얼큰어묵탕", sides: "참치두부조림, 연근참깨무침, 새송이야채볶음, 매콤감자조림", salad: "두부 샐러드" },
+            { id: 'wed', dayName: '수요일', isEmpty: false, date: "3/25 (수)", arrival: "3/26 (목) 도착", isHoliday: false, holidayMessage: "", main: "기사식당달콤제육볶음", soup: "닭곰탕", sides: "소세지야채볶음, 건새우마늘쫑볶음, 우엉잡채, 취나물무침", salad: "당근라페리코타 샐러드" },
+            { id: 'thu', dayName: '목요일', isEmpty: false, date: "3/26 (목)", arrival: "3/27 (금) 도착", isHoliday: false, holidayMessage: "", main: "미트볼토마토소스조림", soup: "얼큰오징어뭇국", sides: "야채전, 무파래무침, 달콤감자조림, 버터갈릭새우", salad: "감자사라다 샐러드" },
+            { id: 'fri', dayName: '금요일', isEmpty: false, date: "3/27 (금)", arrival: "3/28 (토) 도착", isHoliday: false, holidayMessage: "", main: "궁중순살찜닭", soup: "만두전골", sides: "해물까스, 가지볶음, 미나리숙주무침, 알마늘장아찌", salad: "초코그래놀라 샐러드" }
         ];
 
         let menuData = JSON.parse(localStorage.getItem('suraganMenuData')) || [...defaultData];
-        menuData = menuData.map(item => ({ ...item, isHoliday: item.isHoliday || false, holidayMessage: item.holidayMessage || "" }));
+        // 하위 호환을 위해 없던 속성 초기화
+        menuData = menuData.map(item => ({ 
+            ...item, 
+            isEmpty: item.isEmpty || false,
+            isHoliday: item.isHoliday || false, 
+            holidayMessage: item.holidayMessage || "" 
+        }));
 
         const formContainer = document.getElementById('form-container');
         const grid = document.getElementById('menu-grid');
@@ -351,46 +366,72 @@
             formContainer.innerHTML = '';
             menuData.forEach((menu, index) => {
                 const block = document.createElement('div');
-                block.className = `bg-white p-4 rounded-lg border ${menu.isHoliday ? 'border-red-300 bg-red-50' : 'border-gray-200'} shadow-sm relative transition-colors`;
+                
+                // 공란(isEmpty)일 경우와 아닐 경우의 테두리/배경색 다르게 적용
+                let bgClass = 'bg-white border-gray-200';
+                if (menu.isEmpty) bgClass = 'bg-gray-100 border-gray-300 opacity-80';
+                else if (menu.isHoliday) bgClass = 'bg-red-50 border-red-300';
+
+                let badgeClass = 'bg-[#D97706]';
+                if (menu.isEmpty) badgeClass = 'bg-gray-500';
+                else if (menu.isHoliday) badgeClass = 'bg-red-500';
+
+                block.className = `p-4 rounded-lg border ${bgClass} shadow-sm relative transition-all duration-200`;
                 
                 block.innerHTML = `
-                    <div class="absolute -top-3 left-4 ${menu.isHoliday ? 'bg-red-500' : 'bg-[#D97706]'} text-white px-2 py-0.5 rounded text-xs font-bold shadow-sm transition-colors">
-                        Day ${index + 1} (${menu.dayName})
+                    <div class="absolute -top-3 left-4 ${badgeClass} text-white px-2 py-0.5 rounded text-xs font-bold shadow-sm transition-colors">
+                        Day ${index + 1} (${menu.dayName}) ${menu.isEmpty ? '- 공란' : ''}
                     </div>
                     
-                    <div class="flex items-center gap-2 mt-1 mb-3">
-                        <input type="checkbox" id="holiday-${index}" ${menu.isHoliday ? 'checked' : ''} onchange="toggleHoliday(${index}, this.checked)">
-                        <label for="holiday-${index}" class="${menu.isHoliday ? 'text-red-600 font-bold' : 'text-gray-600'} cursor-pointer">이 날짜를 휴무일로 지정</label>
+                    <div class="flex justify-end mb-1">
+                        <label class="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 cursor-pointer hover:text-indigo-600 transition-colors">
+                            <input type="checkbox" ${!menu.isEmpty ? 'checked' : ''} onchange="toggleEmpty(${index}, !this.checked)" class="accent-indigo">
+                            이 요일 식단 표시하기
+                        </label>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3 mt-2">
-                        <div><label>표기 날짜</label><input type="text" value="${menu.date}" oninput="updateData(${index}, 'date', this.value)"></div>
-                        ${!menu.isHoliday ? `<div><label>도착 안내</label><input type="text" value="${menu.arrival}" oninput="updateData(${index}, 'arrival', this.value)"></div>` : '<div></div>'}
-                    </div>
+                    <div class="${menu.isEmpty ? 'opacity-30 pointer-events-none' : ''} transition-opacity duration-200">
+                        <div class="flex items-center gap-2 mt-1 mb-3">
+                            <input type="checkbox" id="holiday-${index}" ${menu.isHoliday ? 'checked' : ''} onchange="toggleHoliday(${index}, this.checked)">
+                            <label for="holiday-${index}" class="${menu.isHoliday ? 'text-red-600 font-bold' : 'text-gray-600'} cursor-pointer">이 날짜를 휴무일로 지정</label>
+                        </div>
 
-                    <div class="${menu.isHoliday ? 'block' : 'hidden'} mt-3">
-                        <label class="text-red-600 font-bold">휴무 안내 문구</label>
-                        <input type="text" value="${menu.holidayMessage}" placeholder="예: 삼일절 법정공휴일 휴무입니다." oninput="updateData(${index}, 'holidayMessage', this.value)">
-                    </div>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <div><label>표기 날짜</label><input type="text" value="${menu.date}" oninput="updateData(${index}, 'date', this.value)"></div>
+                            ${!menu.isHoliday ? `<div><label>도착 안내</label><input type="text" value="${menu.arrival}" oninput="updateData(${index}, 'arrival', this.value)"></div>` : '<div></div>'}
+                        </div>
 
-                    <div class="${menu.isHoliday ? 'hidden' : 'block'}">
-                        <div class="mt-3">
-                            <label>메인 요리</label><input type="text" value="${menu.main}" oninput="updateData(${index}, 'main', this.value)">
+                        <div class="${menu.isHoliday ? 'block' : 'hidden'} mt-3">
+                            <label class="text-red-600 font-bold">휴무 안내 문구</label>
+                            <input type="text" value="${menu.holidayMessage}" placeholder="예: 삼일절 법정공휴일 휴무입니다." oninput="updateData(${index}, 'holidayMessage', this.value)">
                         </div>
-                        <div class="mt-3">
-                            <label>국/탕</label><input type="text" value="${menu.soup}" oninput="updateData(${index}, 'soup', this.value)">
-                        </div>
-                        <div class="mt-3">
-                            <label>반찬 (쉼표 ',' 로 구분)</label>
-                            <input type="text" value="${menu.sides}" placeholder="예: 잡채, 계란말이, 김치" oninput="updateData(${index}, 'sides', this.value)">
-                        </div>
-                        <div class="mt-3">
-                            <label>샐러드</label><input type="text" value="${menu.salad}" oninput="updateData(${index}, 'salad', this.value)">
+
+                        <div class="${menu.isHoliday ? 'hidden' : 'block'}">
+                            <div class="mt-3">
+                                <label>메인 요리</label><input type="text" value="${menu.main}" oninput="updateData(${index}, 'main', this.value)">
+                            </div>
+                            <div class="mt-3">
+                                <label>국/탕</label><input type="text" value="${menu.soup}" oninput="updateData(${index}, 'soup', this.value)">
+                            </div>
+                            <div class="mt-3">
+                                <label>반찬 (쉼표 ',' 로 구분)</label>
+                                <input type="text" value="${menu.sides}" placeholder="예: 잡채, 계란말이, 김치" oninput="updateData(${index}, 'sides', this.value)">
+                            </div>
+                            <div class="mt-3">
+                                <label>샐러드</label><input type="text" value="${menu.salad}" oninput="updateData(${index}, 'salad', this.value)">
+                            </div>
                         </div>
                     </div>
                 `;
                 formContainer.appendChild(block);
             });
+        }
+
+        function toggleEmpty(index, isObjEmpty) {
+            menuData[index].isEmpty = isObjEmpty;
+            localStorage.setItem('suraganMenuData', JSON.stringify(menuData));
+            renderForm();
+            renderPreview();
         }
 
         function toggleHoliday(index, isChecked) {
@@ -413,6 +454,16 @@
             grid.innerHTML = '';
             
             menuData.forEach(menu => {
+                // isEmpty(공란)일 경우 카드의 틀만 남기고 투명하게 렌더링
+                if (menu.isEmpty) {
+                    grid.innerHTML += `
+                        <div class="bg-transparent rounded-2xl border-2 border-dashed border-[#E5E7EB] flex flex-col items-center justify-center h-[285px] opacity-70">
+                            <span class="text-gray-300 text-sm font-semibold tracking-widest">공 란</span>
+                        </div>
+                    `;
+                    return; // 이 요일은 여기서 렌더링 종료
+                }
+
                 let cardBodyHTML = '';
 
                 if (menu.isHoliday) {
@@ -424,7 +475,7 @@
                         </div>
                     `;
                 } else {
-                    const sidesArray = menu.sides.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                    const sidesArray = menu.sides ? menu.sides.split(',').map(s => s.trim()).filter(s => s.length > 0) : [];
                     const sidesHTML = sidesArray.map(side => `
                         <li class="flex items-start text-[14.5px] text-[#4A4540] leading-tight mb-[4px]">
                             <span class="w-[4px] h-[4px] bg-[#9CA3AF] rounded-full mr-2.5 mt-[7.5px] shrink-0"></span>
@@ -505,14 +556,19 @@
 
         async function downloadPNG() {
             const captureArea = document.getElementById('capture-area');
-            showLoading("이미지를 추출하고 있습니다...", "상세페이지용 고화질 파일을 생성합니다.");
+            showLoading("이미지를 추출하고 있습니다...", "글자 깨짐 방지를 위해 최적화 중입니다.");
             
             try {
+                // 글자 깨짐 완전 방지를 위해 폰트 로딩 대기 시간 약간 추가 (과거 요청사항 반영)
                 await document.fonts.ready;
+                await new Promise(r => setTimeout(r, 800)); 
+
                 const dataUrl = await htmlToImage.toPng(captureArea, {
                     pixelRatio: 2,
                     backgroundColor: '#FAF8F5',
-                    style: { transform: 'none' }
+                    style: { transform: 'none' },
+                    // 캐시 방지 옵션
+                    cacheBust: true,
                 });
                 
                 const link = document.createElement('a');
