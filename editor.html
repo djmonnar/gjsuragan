@@ -412,14 +412,17 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
       <button class="mx" onclick="closeProofModal()">✕</button>
     </div>
     <div class="mb">
+      <div style="font-size:11px;color:#9CA3AF;line-height:1.65;margin-bottom:12px;">기본 검수는 형식/빈칸/날짜를 확인합니다. Gemini API 키가 입력되어 있으면 메뉴명 오타, 띄어쓰기, 표기 통일까지 AI가 검수하고 수정안도 반영할 수 있습니다.</div>
       <div id="proof-summary"></div>
       <div id="proof-list"></div>
     </div>
-    <div class="mfoot">
-      <button class="btn-sec" onclick="runProofread()">다시 검사</button>
-      <div style="display:flex;gap:8px;">
+    <div class="mfoot" style="gap:8px;flex-wrap:wrap;justify-content:space-between;">
+      <button class="btn-sec" onclick="runProofread()">기본 검사</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+        <button class="btn-sec" onclick="runAiProofread()">Gemini AI 검수</button>
+        <button class="btn-pri" onclick="applyAiProofread()">AI 수정 반영</button>
+        <button class="btn-sec" onclick="applySafeAutofix()">안전한 자동 정리</button>
         <button class="btn-sec" onclick="closeProofModal()">닫기</button>
-        <button class="btn-pri" onclick="applySafeAutofix()">안전한 자동 정리 적용</button>
       </div>
     </div>
   </div>
@@ -518,6 +521,7 @@ let state = loadState();
 let activeEntryId = null;
 let activeEntryMonthId = null;
 let proofIssuesCache = [];
+let aiProofResultCache = null;
 
 function loadState(){
   try{
@@ -1694,6 +1698,218 @@ async function analyzeImage(b64, mime, key){
   toast('AI 분석 실패: ' + (lastErr?.message || '알 수 없는 오류'));
 }
 
+function buildAiProofPrompt(monthObj){
+  const payload = monthObj.menuData.map((entry, idx)=>(
+    {
+      no: idx + 1,
+      date: entry.date || '',
+      arrival: entry.arrival || '',
+      main: entry.main || '',
+      soup: entry.soup || '',
+      sides: Array.isArray(entry.sides) ? entry.sides.slice(0,4) : [],
+      salad: entry.salad || ''
+    }
+  ));
+  return [
+    '너는 한국어 반찬 식단표 전문 교정자다.',
+    '역할: 식단표의 메뉴명 오타, 띄어쓰기, 표기 통일, 어색한 OCR 결과만 자연스럽게 교정한다.',
+    '중요 규칙:',
+    '1) 날짜(date)와 배송도착(arrival)는 의미를 바꾸지 말 것. 날짜가 이미 정상이라면 그대로 유지.',
+    '2) 메뉴 구성 자체를 새로 창작하지 말 것. 확실한 오타/띄어쓰기/표기 통일만 수정.',
+    '3) sides는 최대 4개 유지.',
+    '4) 불확실하면 원문 유지.',
+    '5) 한국어 식당 메뉴 표기로 자연스럽게 다듬되 과도한 윤문 금지.',
+    '6) 출력은 반드시 JSON 스키마에 맞춰 반환.',
+    '',
+    '검수 대상 월: ' + monthObj.year + '년 ' + monthObj.month + '월',
+    JSON.stringify(payload, null, 2)
+  ] .join('\n');
+}
+
+function compareAiEntries(originalEntries, correctedEntries){
+  const issues = [];
+  correctedEntries.forEach((fixed, idx)=>{
+    const src = originalEntries[idx] || {};
+    const tag = src.date || fixed.date || ('항목 ' + (idx + 1));
+    const pushChange = (label, before, after)=>{
+      const b = normalizeSpaces(before || '');
+      const a = normalizeSpaces(after || '');
+      if(b === a) return;
+      issues.push({type:'fix', text:tag + ': ' + label + ' → "' + b + '" → "' + a + '"'});
+    };
+    pushChange('날짜', src.date, fixed.date);
+    pushChange('도착일', src.arrival, fixed.arrival);
+    pushChange('메인 요리', src.main, fixed.main);
+    pushChange('국', src.soup, fixed.soup);
+    pushChange('샐러드', src.salad, fixed.salad);
+    const maxLen = Math.max((src.sides || []).length, (fixed.sides || []).length);
+    for(let i=0;i<maxLen;i++){
+      pushChange('반찬 ' + (i+1), (src.sides || [])[i] || '', (fixed.sides || [])[i] || '');
+    }
+  });
+  if(!issues.length) issues.push({type:'good', text:'Gemini가 확실한 오타나 표기 불일치를 찾지 못해 원문을 유지했습니다.'});
+  return issues;
+}
+
+function sanitizeAiCorrectedEntries(monthObj, aiEntries){
+  return monthObj.menuData.map((entry, idx)=>{
+    const ai = aiEntries[idx] || {};
+    const originalDate = parseDateParts(entry.date, monthObj.year, monthObj.month);
+    const originalArrival = entry.arrival ? parseDateParts(entry.arrival, monthObj.year, monthObj.month) : null;
+    const candidateDate = normalizeSpaces(ai.date || entry.date);
+    const candidateArrival = normalizeSpaces(ai.arrival || entry.arrival);
+    const parsedCandidateDate = candidateDate ? parseDateParts(candidateDate, monthObj.year, monthObj.month) : null;
+    const parsedCandidateArrival = candidateArrival ? parseDateParts(candidateArrival, monthObj.year, monthObj.month) : null;
+
+    const safe = normalizeEntry({
+      id: entry.id,
+      date: (()=>{
+        if(!candidateDate) return entry.date;
+        if(!originalDate) return candidateDate;
+        if(parsedCandidateDate && parsedCandidateDate.year === originalDate.year && parsedCandidateDate.month === originalDate.month && parsedCandidateDate.day === originalDate.day){
+          return candidateDate;
+        }
+        return entry.date;
+      })(),
+      arrival: (()=>{
+        if(!candidateArrival) return entry.arrival;
+        if(!originalArrival) return candidateArrival;
+        if(parsedCandidateArrival && parsedCandidateArrival.year === originalArrival.year && parsedCandidateArrival.month === originalArrival.month && parsedCandidateArrival.day === originalArrival.day){
+          return candidateArrival;
+        }
+        return entry.arrival;
+      })(),
+      main: normalizeSpaces(ai.main || entry.main),
+      soup: normalizeSpaces(ai.soup || entry.soup),
+      sides: Array.isArray(ai.sides) ? ai.sides : entry.sides,
+      salad: normalizeSpaces(ai.salad || entry.salad)
+    }, monthObj.year, monthObj.month);
+
+    if(!safe.arrival && safe.date){
+      safe.arrival = nextDay(safe.date, monthObj.year, monthObj.month);
+    }
+    return safe;
+  });
+}
+
+async function requestGeminiProofread(monthObj, key){
+  const schema = {
+    type:'OBJECT',
+    properties:{
+      summary:{type:'STRING'},
+      notes:{type:'ARRAY', items:{type:'STRING'}},
+      entries:{
+        type:'ARRAY',
+        items:{
+          type:'OBJECT',
+          properties:{
+            date:{type:'STRING'},
+            arrival:{type:'STRING'},
+            main:{type:'STRING'},
+            soup:{type:'STRING'},
+            sides:{type:'ARRAY', items:{type:'STRING'}},
+            salad:{type:'STRING'}
+          },
+          required:['date','arrival','main','soup','sides','salad']
+        }
+      }
+    },
+    required:['summary','entries']
+  };
+
+  const prompt = buildAiProofPrompt(monthObj);
+  const models = ['gemini-2.5-flash','gemini-2.0-flash','gemini-1.5-flash'];
+  let lastErr;
+  for(const model of models){
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + key;
+    try{
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          contents:[{role:'user', parts:[{text: prompt}]}],
+          generationConfig:{responseMimeType:'application/json', responseSchema:schema}
+        })
+      });
+      if(res.status === 404) continue;
+      if(!res.ok){
+        const er = await res.json().catch(()=>({}));
+        throw new Error(er?.error?.message || ('오류 ' + res.status));
+      }
+      const result = await res.json();
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      if(!text) throw new Error('응답 없음');
+      const parsed = JSON.parse(text);
+      if(!parsed || !Array.isArray(parsed.entries)) throw new Error('검수 결과 형식 오류');
+      if(parsed.entries.length !== monthObj.menuData.length) throw new Error('검수 결과 개수가 원본과 다릅니다');
+      return parsed;
+    }catch(err){
+      lastErr = err;
+      console.warn(model, err.message);
+    }
+  }
+  throw lastErr || new Error('Gemini 호출 실패');
+}
+
+function renderAiProofResult(cache, applied){
+  const month = getSelectedMonth();
+  const summary = document.getElementById('proof-summary');
+  const list = document.getElementById('proof-list');
+  const fixCount = (cache.issues || []).filter(item=>item.type === 'fix').length;
+  const noteItems = (cache.notes || []).map(text=>({type:'warn', text}));
+  const items = noteItems.concat(cache.issues || []);
+  summary.textContent = month.title + ' Gemini AI 검수 결과 · 수정 ' + fixCount + '건' + (applied ? ' 반영 완료' : ' 감지');
+  list.innerHTML = ([cache.summary ? {type:'good', text:cache.summary} : null].concat(items).filter(Boolean))
+    .map(item=>'<div class="proof-item ' + item.type + '">' + escapeHtml(item.text) + '</div>').join('');
+}
+
+async function runAiProofread(applyAfter){
+  const month = getSelectedMonth();
+  const key = (localStorage.getItem('ksura_gkey') || '').trim();
+  if(!key){ toast('Gemini API 키를 먼저 입력해주세요'); return; }
+  if(!month.menuData.length){ toast('검수할 메뉴가 없습니다'); return; }
+
+  showLoad('Gemini가 메뉴명을 검수 중입니다...','오타, 띄어쓰기, 표기 통일을 확인하고 있습니다');
+  try{
+    const parsed = await requestGeminiProofread(month, key);
+    const correctedEntries = sanitizeAiCorrectedEntries(month, parsed.entries || []);
+    const issues = compareAiEntries(month.menuData, correctedEntries);
+    aiProofResultCache = {
+      monthId: month.id,
+      summary: normalizeSpaces(parsed.summary || ''),
+      notes: Array.isArray(parsed.notes) ? parsed.notes.map(v=>normalizeSpaces(v)).filter(Boolean) : [],
+      correctedEntries,
+      issues
+    };
+    hideLoad();
+    renderAiProofResult(aiProofResultCache, false);
+    if(applyAfter){
+      applyAiProofread(true);
+    } else {
+      toast('Gemini AI 검수가 완료되었습니다 ✓');
+    }
+  }catch(err){
+    hideLoad();
+    toast('Gemini AI 검수 실패: ' + (err?.message || '알 수 없는 오류'));
+  }
+}
+
+function applyAiProofread(fromAuto){
+  const month = getSelectedMonth();
+  if(!aiProofResultCache || aiProofResultCache.monthId !== month.id || !Array.isArray(aiProofResultCache.correctedEntries)){
+    if(fromAuto) return;
+    runAiProofread(true);
+    return;
+  }
+  month.menuData = aiProofResultCache.correctedEntries.map(entry=>normalizeEntry(entry, month.year, month.month));
+  sortMonthData(month);
+  persist();
+  renderList();
+  renderPreview();
+  renderAiProofResult(aiProofResultCache, true);
+  toast('Gemini AI 수정 내용을 반영했습니다 ✓');
+}
+
 function collectProofIssues(monthObj){
   const issues = [];
   const dateSeen = new Map();
@@ -1763,6 +1979,7 @@ function collectProofIssues(monthObj){
 
 function renderProofModal(){
   const month = getSelectedMonth();
+  aiProofResultCache = null;
   proofIssuesCache = collectProofIssues(month);
   const summary = document.getElementById('proof-summary');
   const list = document.getElementById('proof-list');
@@ -1784,6 +2001,7 @@ function runProofread(){
 
 function applySafeAutofix(){
   const month = getSelectedMonth();
+  aiProofResultCache = null;
   month.menuData = month.menuData.map(entry=>{
     const fixed = clone(entry);
     fixed.main = normalizeSpaces(fixed.main);
