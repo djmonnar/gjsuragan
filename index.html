@@ -2111,24 +2111,17 @@ function dow(ds){
 }
 function isDelivSub(c,ds){
   if(c.status!=='active'||c.remain<=0||c.orderType!=='sub') return false;
+  if(c.startDate && ds < c.startDate) return false;
   const d=dow(ds);
-  // cookDays가 저장된 경우: 조리일 기준으로 표시 (오늘 조리=오늘 출고)
   if(c.cookDays&&c.cookDays.length>0){
     return c.cookDays.includes(d);
   }
-  // cookDays가 없는 기존 데이터 폴백:
-  // arriveDays에서 하루 전날(조리일)을 역산 → 그게 오늘이면 표시
-  // arriveDays = 도착요일, 조리일 = 도착일 - 1 (일요일 이전이면 토=6)
   const cookFromArrive=(c.arriveDays||[]).map(a=>a===0?6:a-1);
   return cookFromArrive.includes(d);
 }
 function isDelivOnce(c,ds){
   if(c.status!=='active'||c.remain<=0||c.orderType!=='once') return false;
-  if(c.isDirect){
-    // 직배송: onceDate 당일 배송
-    return c.onceDate===ds;
-  }
-  // 일반 택배: onceDate 당일 (기존 동일)
+  if(c.startDate && ds < c.startDate) return false;
   return c.onceDate===ds;
 }
 function isDeliv(c,ds){ return isDelivSub(c,ds)||isDelivOnce(c,ds); }
