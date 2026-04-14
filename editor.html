@@ -96,6 +96,17 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 .fg input:focus,.fg select:focus{border-color:#EA580C;}
 .fg-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .mini-help{font-size:11px;color:#9CA3AF;line-height:1.55;margin-top:-4px;margin-bottom:10px;}
+.import-filter-box{margin:10px 0 12px;padding:10px;border:1px solid #E5E7EB;border-radius:10px;background:#FAFAFA;}
+.import-filter-title{font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;}
+.import-mode-row{display:flex;flex-direction:column;gap:6px;}
+.import-radio{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#374151;line-height:1.5;cursor:pointer;}
+.import-radio input{margin-top:2px;accent-color:#EA580C;}
+.import-month-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;}
+.import-month-grid label{display:flex;align-items:center;gap:6px;padding:8px 9px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;transition:all .15s;}
+.import-month-grid label.on{border-color:#FDBA74;background:#FFF7ED;color:#C2410C;}
+.import-month-grid input{margin:0;accent-color:#EA580C;}
+.import-subhelp{font-size:11px;color:#9CA3AF;line-height:1.55;margin-top:8px;}
+@media(max-width:768px){.import-month-grid{grid-template-columns:repeat(3,1fr);}}
 
 #preview-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;}
 #prev-bar{background:#fff;border-bottom:1px solid #E5E7EB;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px;}
@@ -257,6 +268,19 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
     <div class="imp-sec">
       <h3>📊 엑셀 파일 가져오기 (.xlsx)</h3>
       <p>엑셀 구조: 요일 헤더행(월~금) → 날짜행 → 국 → 메인 → 반찬4개. 날짜에 월 표기가 있으면 해당 월로, 없으면 현재 선택 월로 넣습니다.</p>
+      <div class="import-filter-box">
+        <div class="import-filter-title">가져올 달 선택</div>
+        <div class="import-mode-row">
+          <label class="import-radio"><input type="radio" name="excel-import-mode" value="all" checked onchange="setExcelImportMode(this.value)"> <span>파일 안에서 읽힌 달 전부 가져오기</span></label>
+          <label class="import-radio"><input type="radio" name="excel-import-mode" value="current" onchange="setExcelImportMode(this.value)"> <span>현재 선택 월만 가져오기 (<b id="excel-current-month-label"></b>)</span></label>
+          <label class="import-radio"><input type="radio" name="excel-import-mode" value="custom" onchange="setExcelImportMode(this.value)"> <span>직접 체크한 달만 가져오기</span></label>
+        </div>
+        <div id="excel-custom-months" style="display:none;">
+          <div class="import-month-grid" id="excel-month-grid"></div>
+          <div class="import-subhelp">여러 달을 같이 체크할 수 있습니다. 예: 4월, 5월만.</div>
+        </div>
+      </div>
+      <div class="tip-box" id="excel-import-tip">현재는 파일 안에서 읽힌 달 전부를 가져오도록 설정되어 있습니다.</div>
       <label style="position:relative;display:block;">
         <button class="up-btn" style="pointer-events:none;">📁 엑셀 파일 업로드</button>
         <input type="file" id="excel-input" accept=".xlsx,.xls" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
@@ -443,7 +467,10 @@ function clone(obj){
   return JSON.parse(JSON.stringify(obj));
 }
 function normalizeSpaces(v){
-  return String(v || '').replace(/\u00A0/g,' ').replace(/\s+/g,' ').trim();
+  return String(v == null ? '' : v)
+    .replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
 }
 function toMonthNumber(v){
   const n = parseInt(v,10);
@@ -788,11 +815,80 @@ function saveSelectedMonthMeta(){
   toast('선택 월 정보 저장 완료 ✓');
 }
 
+function getExcelImportMode(){
+  const checked = document.querySelector('input[name="excel-import-mode"]:checked');
+  return checked ? checked.value : 'all';
+}
+function getCustomExcelMonths(){
+  return Array.from(document.querySelectorAll('.excel-month-check:checked'))
+    .map(el=>parseInt(el.value,10))
+    .filter(Number.isFinite)
+    .sort((a,b)=>a-b);
+}
+function renderExcelMonthGrid(){
+  const wrap = document.getElementById('excel-month-grid');
+  if(!wrap) return;
+  const selected = new Set(getCustomExcelMonths());
+  wrap.innerHTML = '';
+  for(let m=1; m<=12; m++){
+    const label = document.createElement('label');
+    if(selected.has(m)) label.classList.add('on');
+    label.innerHTML = '<input type="checkbox" class="excel-month-check" value="' + m + '" ' + (selected.has(m) ? 'checked' : '') + ' onchange="toggleCustomExcelMonth(this)"><span>' + m + '월</span>';
+    wrap.appendChild(label);
+  }
+}
+function toggleCustomExcelMonth(input){
+  const label = input.closest('label');
+  if(label) label.classList.toggle('on', input.checked);
+  updateImportTip();
+}
+function setExcelImportMode(mode){
+  const box = document.getElementById('excel-custom-months');
+  if(box) box.style.display = mode === 'custom' ? 'block' : 'none';
+  updateImportTip();
+}
+function filterEntriesByExcelMode(entries, selected){
+  const mode = getExcelImportMode();
+  if(mode === 'current'){
+    return entries.filter(item=>{
+      const parsed = parseDateParts(item.date, item.year || selected.year, item.month || selected.month);
+      const year = parsed ? parsed.year : (item.year || selected.year);
+      const month = parsed ? parsed.month : (item.month || selected.month);
+      return year === selected.year && month === selected.month;
+    });
+  }
+  if(mode === 'custom'){
+    const picked = new Set(getCustomExcelMonths());
+    if(!picked.size) return [];
+    return entries.filter(item=>{
+      const parsed = parseDateParts(item.date, item.year || selected.year, item.month || selected.month);
+      const month = parsed ? parsed.month : (item.month || selected.month);
+      return picked.has(month);
+    });
+  }
+  return entries.slice();
+}
 function updateImportTip(){
   const month = getSelectedMonth();
   const el = document.getElementById('image-month-tip');
   if(el){
     el.innerHTML = '현재 선택 월: <b>' + month.title + '</b> · 이미지에 월이 없으면 이 월 기준으로 읽습니다.';
+  }
+  const currentMonthLabel = document.getElementById('excel-current-month-label');
+  if(currentMonthLabel) currentMonthLabel.textContent = month.title;
+  const excelTip = document.getElementById('excel-import-tip');
+  if(excelTip){
+    const mode = getExcelImportMode();
+    if(mode === 'current'){
+      excelTip.innerHTML = '현재는 <b>' + month.title + '</b>만 가져오도록 설정되어 있습니다.';
+    } else if(mode === 'custom'){
+      const picked = getCustomExcelMonths();
+      excelTip.innerHTML = picked.length
+        ? '현재는 선택한 달만 가져옵니다: <b>' + picked.map(v=>v + '월').join(', ') + '</b>'
+        : '직접 체크한 달만 가져오도록 설정되어 있습니다. 아래에서 월을 먼저 체크하세요.';
+    } else {
+      excelTip.innerHTML = '현재는 파일 안에서 읽힌 달 전부를 가져오도록 설정되어 있습니다.';
+    }
   }
 }
 
@@ -1279,90 +1375,215 @@ function mergeEntriesIntoMonths(entries, fallbackYear, fallbackMonth){
   toast('가져오기 완료: ' + importedCount + '개' + (skippedCount ? ' / 건너뜀 ' + skippedCount + '개' : ''));
 }
 
+
+function extractMonthFromSheetName(sheetName){
+  const m = normalizeSpaces(sheetName).match(/(\d{1,2})\s*월/);
+  return m ? parseInt(m[1],10) : null;
+}
+function excelSerialToJsDate(value){
+  const num = Number(value);
+  if(!Number.isFinite(num) || num < 30000 || num > 80000) return null;
+  if(typeof XLSX === 'undefined' || !XLSX.SSF || !XLSX.SSF.parse_date_code) return null;
+  const parsed = XLSX.SSF.parse_date_code(num);
+  if(!parsed || !parsed.y || !parsed.m || !parsed.d) return null;
+  const dt = new Date(parsed.y, parsed.m - 1, parsed.d);
+  if(Number.isNaN(dt.getTime())) return null;
+  return dt;
+}
+function parseDateCellValue(value, fallbackYear, fallbackMonth){
+  if(typeof value === 'number'){
+    const dt = excelSerialToJsDate(value);
+    if(dt){
+      return {
+        year: dt.getFullYear(),
+        month: dt.getMonth() + 1,
+        day: dt.getDate(),
+        date: dt,
+        inputDow: null
+      };
+    }
+  }
+  const raw = normalizeSpaces(value);
+  if(/^\d{4,6}(?:\.0+)?$/.test(raw)){
+    const dt = excelSerialToJsDate(Number(raw));
+    if(dt){
+      return {
+        year: dt.getFullYear(),
+        month: dt.getMonth() + 1,
+        day: dt.getDate(),
+        date: dt,
+        inputDow: null
+      };
+    }
+  }
+  return parseDateParts(raw, fallbackYear, fallbackMonth);
+}
+function detectWeekdayGroups(row){
+  const groups = [];
+  let current = [];
+  (row || []).forEach((cell, idx)=>{
+    const txt = normalizeSpaces(cell);
+    if(DAY.includes(txt)){
+      current.push(idx);
+    } else if(current.length){
+      if(current.length >= 3) groups.push(current.slice());
+      current = [];
+    }
+  });
+  if(current.length >= 3) groups.push(current.slice());
+  return groups;
+}
+function readCell(rows, r, c){
+  if(r < 0 || r >= rows.length) return null;
+  const row = rows[r] || [];
+  return c >= 0 && c < row.length ? row[c] : null;
+}
+function getGroupTypeFromSheet(rows, headerRow, group, sheetName){
+  if(/샐러드|salad/i.test(normalizeSpaces(sheetName))) return 'salad';
+  const start = group[0];
+  const end = group[group.length - 1];
+  const texts = [];
+  for(let r=Math.max(0, headerRow - 2); r<headerRow; r++){
+    for(let c=start; c<=end; c++){
+      const txt = normalizeSpaces(readCell(rows, r, c));
+      if(txt) texts.push(txt);
+    }
+  }
+  const merged = texts.join(' ');
+  return /샐러드|salad/i.test(merged) ? 'salad' : 'meal';
+}
+function hasMeaningfulImportRows(rows, dateRow, group, groupType){
+  const row1 = group.map(c=>normalizeSpaces(readCell(rows, dateRow + 1, c))).filter(Boolean);
+  if(!row1.length) return false;
+  if(groupType === 'salad') return true;
+  const row2 = group.map(c=>normalizeSpaces(readCell(rows, dateRow + 2, c))).filter(Boolean);
+  return !!row2.length;
+}
+function normalizeDressingName(text){
+  let v = normalizeSpaces(text).replace(/^&\s*/, '');
+  if(!v) return '';
+  if(!/(드레싱|소스)$/i.test(v)) v += '드레싱';
+  return v;
+}
+function buildSaladText(name, dressing){
+  const cleanName = normalizeSpaces(name);
+  const cleanDressing = normalizeDressingName(dressing);
+  if(cleanName && cleanDressing) return cleanName + ' & ' + cleanDressing;
+  return cleanName || cleanDressing || '';
+}
+function parseWorkbookEntries(workbook, selected){
+  const entriesMap = new Map();
+
+  workbook.SheetNames.forEach(sheetName=>{
+    const ws = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
+    if(!rows || !rows.length) return;
+
+    let headerRow = -1;
+    for(let r=0; r<Math.min(rows.length, 12); r++){
+      const count = (rows[r] || []).filter(cell => DAY.includes(normalizeSpaces(cell))).length;
+      if(count >= 3){
+        headerRow = r;
+        break;
+      }
+    }
+    if(headerRow === -1) return;
+
+    const groups = detectWeekdayGroups(rows[headerRow]);
+    if(!groups.length) return;
+
+    const sheetMonth = extractMonthFromSheetName(sheetName) || selected.month;
+
+    groups.forEach(group=>{
+      const groupType = getGroupTypeFromSheet(rows, headerRow, group, sheetName);
+
+      for(let r=headerRow + 1; r<rows.length; r++){
+        const parsedCols = [];
+        group.forEach(ci=>{
+          const parsed = parseDateCellValue(readCell(rows, r, ci), selected.year, sheetMonth);
+          if(parsed) parsedCols.push({col: ci, parsed});
+        });
+
+        if(!parsedCols.length) continue;
+        if(!hasMeaningfulImportRows(rows, r, group, groupType)) continue;
+
+        parsedCols.forEach(item=>{
+          const p = item.parsed;
+          const key = p.year + '-' + String(p.month).padStart(2,'0') + '-' + String(p.day).padStart(2,'0');
+          if(!entriesMap.has(key)){
+            const arrivalDate = new Date(p.year, p.month - 1, p.day + 1);
+            entriesMap.set(key, {
+              year: p.year,
+              month: p.month,
+              date: formatDateObj(p.date),
+              arrival: formatDateObj(arrivalDate),
+              soup: '',
+              main: '',
+              sides: [],
+              salad: ''
+            });
+          }
+          const entry = entriesMap.get(key);
+
+          if(groupType === 'salad'){
+            const saladName = readCell(rows, r + 1, item.col);
+            const dressing = readCell(rows, r + 2, item.col);
+            const saladText = buildSaladText(saladName, dressing);
+            if(saladText) entry.salad = saladText;
+          } else {
+            entry.soup = normalizeSpaces(readCell(rows, r + 1, item.col));
+            entry.main = normalizeSpaces(readCell(rows, r + 2, item.col));
+            entry.sides = [];
+            for(let offset=3; offset<=6; offset++){
+              const side = normalizeSpaces(readCell(rows, r + offset, item.col));
+              if(side) entry.sides.push(side);
+            }
+            entry.sides = entry.sides.slice(0,4);
+          }
+        });
+      }
+    });
+  });
+
+  return Array.from(entriesMap.values()).sort((a,b)=>{
+    const da = parseDateParts(a.date, a.year, a.month);
+    const db = parseDateParts(b.date, b.year, b.month);
+    if(da && db) return da.date - db.date;
+    return 0;
+  });
+}
+
 document.getElementById('excel-input').addEventListener('change', function(e){
   const file = e.target.files[0];
   if(!file) return;
   const reader = new FileReader();
   reader.onload = function(ev){
     try{
+      const selectedMonth = getSelectedMonth();
       const wb = XLSX.read(ev.target.result, {type:'array'});
-      const allEntries = [];
-      const DAY = ['월','화','수','목','금'];
-      const selected = getSelectedMonth();
-
-      wb.SheetNames.forEach(sheetName=>{
-        const ws = wb.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-        if(!rows || rows.length < 3) return;
-        const isSalad = sheetName.includes('샐러드') || sheetName.toLowerCase().includes('salad');
-
-        let headerRow = -1;
-        for(let r=0;r<Math.min(rows.length,10);r++){
-          const cnt = DAY.filter(d => rows[r].some(c => String(c).trim() === d)).length;
-          if(cnt >= 3){ headerRow = r; break; }
-        }
-        if(headerRow === -1) return;
-
-        const colIdx = [];
-        rows[headerRow].forEach((c,i)=>{ if(DAY.includes(String(c).trim())) colIdx.push(i); });
-        if(!colIdx.length){
-          const firstIdx = rows[headerRow].findIndex(c=>String(c).trim() !== '');
-          for(let i=firstIdx;i<firstIdx+5 && i<rows[headerRow].length;i++) colIdx.push(i);
-        }
-
-        let dateRow = -1;
-        for(let r=headerRow+1;r<Math.min(rows.length,headerRow+5);r++){
-          const rowText = rows[r].join(' ');
-          if(/\d+월\d+일|\d+\/\d+/.test(rowText)){ dateRow = r; break; }
-        }
-        if(dateRow === -1) dateRow = headerRow + 1;
-        const dataStart = dateRow + 1;
-
-        const saladMap = {};
-
-        colIdx.forEach(ci=>{
-          const rawDate = normalizeSpaces(rows[dateRow][ci]);
-          if(!rawDate) return;
-
-          const parsed = parseDateParts(rawDate, selected.year, selected.month);
-          if(!parsed) return;
-
-          if(isSalad){
-            saladMap[parsed.month + '/' + parsed.day] = normalizeSpaces((rows[dataStart] && rows[dataStart][ci]) || '');
-            return;
-          }
-
-          const col = [];
-          for(let r=dataStart;r<dataStart+8 && r<rows.length;r++) col.push(normalizeSpaces(rows[r][ci]));
-
-          allEntries.push({
-            year: parsed.year,
-            month: parsed.month,
-            date: formatDateObj(parsed.date),
-            arrival: formatDateObj(new Date(parsed.year, parsed.month - 1, parsed.day + 1)),
-            soup: col[0] || '',
-            main: col[1] || '',
-            sides: col.slice(2,6).filter(Boolean),
-            salad: ''
-          });
-        });
-
-        if(Object.keys(saladMap).length){
-          allEntries.forEach(entry=>{
-            const parsedEntry = parseDateParts(entry.date, entry.year, entry.month);
-            if(!parsedEntry) return;
-            const key = parsedEntry.month + '/' + parsedEntry.day;
-            if(saladMap[key]) entry.salad = saladMap[key];
-          });
-        }
-      });
+      const allEntries = parseWorkbookEntries(wb, selectedMonth);
 
       if(!allEntries.length){
         toast('엑셀에서 메뉴 데이터를 찾지 못했습니다');
         e.target.value = '';
         return;
       }
-      mergeEntriesIntoMonths(allEntries, getSelectedMonth().year, getSelectedMonth().month);
+
+      const filteredEntries = filterEntriesByExcelMode(allEntries, selectedMonth);
+      if(!filteredEntries.length){
+        const mode = getExcelImportMode();
+        if(mode === 'custom'){
+          toast(getCustomExcelMonths().length ? '선택한 달에 해당하는 식단이 엑셀에 없습니다' : '가져올 달을 먼저 체크해주세요');
+        } else if(mode === 'current'){
+          toast('현재 선택 월에 해당하는 식단이 엑셀에 없습니다');
+        } else {
+          toast('엑셀에서 메뉴 데이터를 찾지 못했습니다');
+        }
+        e.target.value = '';
+        return;
+      }
+
+      mergeEntriesIntoMonths(filteredEntries, selectedMonth.year, selectedMonth.month);
     }catch(err){
       console.error(err);
       toast('엑셀 파싱 오류: ' + err.message);
@@ -1371,7 +1592,6 @@ document.getElementById('excel-input').addEventListener('change', function(e){
   };
   reader.readAsArrayBuffer(file);
 });
-
 const geminiKeyEl = document.getElementById('gemini-key');
 geminiKeyEl.value = localStorage.getItem('ksura_gkey') || '';
 geminiKeyEl.addEventListener('input', ()=>localStorage.setItem('ksura_gkey', geminiKeyEl.value.trim()));
@@ -1630,6 +1850,8 @@ function renderAll(){
   updateImportTip();
 }
 
+renderExcelMonthGrid();
+setExcelImportMode(getExcelImportMode());
 renderAll();
 </script>
 </body>
