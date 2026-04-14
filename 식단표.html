@@ -1,0 +1,935 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>궁중수라간 식단표 에디터</title>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f7f5f1;
+    --panel:#ffffff;
+    --line:#e8e1da;
+    --line2:#f0ebe5;
+    --text:#3f342d;
+    --sub:#7a6d62;
+    --point:#ea580c;
+    --point2:#fff7ed;
+    --green:#14532d;
+    --greenbg:#f0fdf4;
+    --shadow:0 10px 30px rgba(59,39,22,.06);
+    --radius:18px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Pretendard,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  button,input,select,textarea{font:inherit}
+  .app{max-width:1800px;margin:0 auto;padding:20px}
+  .topbar{
+    display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;
+    margin-bottom:18px
+  }
+  .titlebox h1{
+    margin:0;font-family:"Gowun Batang",serif;font-size:30px;line-height:1.2
+  }
+  .titlebox p{margin:8px 0 0;color:var(--sub);font-size:15px}
+  .layout{
+    display:grid;grid-template-columns:520px minmax(0,1fr);gap:20px;align-items:start
+  }
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow)
+  }
+  .side{
+    position:sticky;top:16px;overflow:hidden
+  }
+  .section{
+    padding:18px;border-bottom:1px solid var(--line2)
+  }
+  .section:last-child{border-bottom:0}
+  .section h2{
+    margin:0 0 12px;font-size:17px
+  }
+  .muted{color:var(--sub);font-size:13px;line-height:1.5}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:13px;font-weight:600;color:#5d4d42}
+  .input, .textarea, .select{
+    width:100%;border:1px solid var(--line);border-radius:12px;background:#fff;
+    padding:11px 12px;color:var(--text)
+  }
+  .textarea{resize:vertical;min-height:120px;line-height:1.5}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{
+    appearance:none;border:0;border-radius:12px;padding:11px 14px;font-weight:700;cursor:pointer;
+    transition:.18s ease;display:inline-flex;align-items:center;justify-content:center;gap:8px
+  }
+  .btn:hover{transform:translateY(-1px)}
+  .btn-primary{background:var(--point);color:#fff}
+  .btn-soft{background:var(--point2);color:#c2410c;border:1px solid #fed7aa}
+  .btn-line{background:#fff;color:var(--text);border:1px solid var(--line)}
+  .btn-danger{background:#fff1f2;color:#be123c;border:1px solid #fecdd3}
+  .btn[disabled]{opacity:.5;cursor:not-allowed;transform:none}
+  .month-chip-wrap{display:flex;flex-wrap:wrap;gap:8px}
+  .month-chip{
+    background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:14px;font-weight:700
+  }
+  .month-chip.active{background:var(--point2);color:#c2410c;border-color:#fed7aa}
+  .editor-header{
+    padding:18px 20px 12px;border-bottom:1px solid var(--line2)
+  }
+  .editor-header h2{margin:0 0 8px;font-size:18px}
+  .editor-tools{
+    display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between
+  }
+  .month-tabs{display:flex;flex-wrap:wrap;gap:8px}
+  .month-tab{
+    border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 14px;font-weight:800;cursor:pointer
+  }
+  .month-tab.active{background:var(--point);border-color:var(--point);color:#fff}
+  .table-wrap{padding:14px 14px 18px;overflow:auto}
+  table{width:100%;border-collapse:separate;border-spacing:0;min-width:1180px}
+  thead th{
+    position:sticky;top:0;background:#faf8f5;z-index:1;color:#5d4d42;font-size:13px;
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:11px 8px;text-align:left
+  }
+  thead th:first-child{border-left:1px solid var(--line);border-top-left-radius:14px}
+  thead th:last-child{border-right:1px solid var(--line);border-top-right-radius:14px}
+  tbody td{
+    border-bottom:1px solid var(--line2);padding:8px;background:#fff;vertical-align:top
+  }
+  tbody tr td:first-child{border-left:1px solid var(--line2)}
+  tbody tr td:last-child{border-right:1px solid var(--line2)}
+  tbody tr:last-child td:first-child{border-bottom-left-radius:14px}
+  tbody tr:last-child td:last-child{border-bottom-right-radius:14px}
+  .cell-input{
+    width:100%;min-width:120px;border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff
+  }
+  .cell-input.side{min-width:150px}
+  .date-badge{
+    display:inline-block;background:#faf4ee;border:1px solid #f0d8c4;color:#9a4f1f;border-radius:999px;
+    padding:6px 10px;font-weight:700;font-size:13px;white-space:nowrap
+  }
+  .empty-state{padding:36px 18px;text-align:center;color:var(--sub)}
+  .preview-wrap{display:grid;grid-template-rows:auto 1fr;min-height:calc(100vh - 60px)}
+  .preview-head{
+    padding:14px 18px;border-bottom:1px solid var(--line2);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap
+  }
+  .preview-head h2{margin:0;font-size:18px}
+  .preview-frame{
+    width:100%;height:calc(100vh - 160px);min-height:780px;border:0;background:#fff;border-radius:0 0 var(--radius) var(--radius)
+  }
+  .mini-note{
+    margin-top:10px;background:#faf8f5;border:1px dashed #dfd4c9;padding:10px 12px;border-radius:12px;font-size:13px;color:#6a5d52
+  }
+  @media (max-width: 1280px){
+    .layout{grid-template-columns:1fr}
+    .side{position:static}
+    .preview-frame{height:900px}
+  }
+  @media (max-width: 720px){
+    .app{padding:12px}
+    .titlebox h1{font-size:24px}
+    .section{padding:14px}
+    .grid2,.grid3{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="titlebox">
+      <h1>궁중수라간 식단표 에디터</h1>
+      <p>월 생성 → 식단 입력 → 코드 저장 → 복사 또는 TXT 다운로드까지 한 번에 처리할 수 있게 구성했습니다.</p>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="panel side">
+      <div class="section">
+        <h2>1) 월 생성</h2>
+        <div class="grid2">
+          <div class="field">
+            <label for="yearInput">년도</label>
+            <input id="yearInput" class="input" type="number" min="2024" max="2100" />
+          </div>
+          <div class="field">
+            <label for="monthSelect">월</label>
+            <select id="monthSelect" class="select"></select>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button id="addMonthBtn" class="btn btn-primary">월 추가 / 열기</button>
+        </div>
+        <div class="mini-note">최대 2개월까지 유지됩니다. 이미 있는 월을 다시 선택하면 그 월로 이동합니다.</div>
+      </div>
+
+      <div class="section">
+        <h2>2) 기존 코드 불러오기</h2>
+        <div class="field">
+          <label for="importTextarea">기존 식단표 코드 붙여넣기</label>
+          <textarea id="importTextarea" class="textarea" placeholder="기존 HTML 코드를 통째로 붙여 넣어주세요."></textarea>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button id="importBtn" class="btn btn-soft">코드 불러오기</button>
+          <button id="clearImportBtn" class="btn btn-line">입력창 비우기</button>
+        </div>
+        <div class="mini-note">기존 단일 월 코드의 <b>menuData</b>도 읽고, 이 에디터에서 저장한 신규 코드도 다시 불러올 수 있습니다.</div>
+      </div>
+
+      <div class="section">
+        <h2>3) 현재 월 관리</h2>
+        <div id="monthMeta" class="muted">아직 생성된 월이 없습니다.</div>
+        <div class="row" style="margin-top:10px">
+          <button id="deleteMonthBtn" class="btn btn-danger" disabled>선택 월 삭제</button>
+        </div>
+        <div class="mini-note">삭제는 이미 지난 달만 가능하도록 제한했습니다.</div>
+      </div>
+
+      <div class="section">
+        <h2>4) 저장 / 내보내기</h2>
+        <div class="row">
+          <button id="saveBtn" class="btn btn-primary">코드 생성</button>
+          <button id="copyBtn" class="btn btn-soft">코드 복사</button>
+          <button id="downloadTxtBtn" class="btn btn-line">TXT 다운로드</button>
+        </div>
+        <div class="field" style="margin-top:12px">
+          <label for="exportTextarea">내보낼 코드</label>
+          <textarea id="exportTextarea" class="textarea" style="min-height:240px" placeholder="여기에 생성된 코드가 표시됩니다."></textarea>
+        </div>
+      </div>
+    </aside>
+
+    <main class="panel preview-wrap">
+      <div class="editor-header">
+        <div class="editor-tools">
+          <div>
+            <h2 style="margin:0 0 6px">월별 입력</h2>
+            <div class="muted">메인요리, 국, 반찬 4종, 샐러드를 바로 입력하면 오른쪽 미리보기가 즉시 반영됩니다.</div>
+          </div>
+          <div class="month-tabs" id="monthTabs"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin:14px;border-radius:16px;overflow:hidden;border:1px solid var(--line2);box-shadow:none">
+        <div id="editorArea"></div>
+      </div>
+
+      <div class="preview-head">
+        <h2>미리보기</h2>
+        <div class="muted">실제 내보내질 식단표 코드 결과입니다.</div>
+      </div>
+      <iframe id="previewFrame" class="preview-frame" title="식단표 미리보기"></iframe>
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  const DAY_NAMES = ["일","월","화","수","목","금","토"];
+  const monthNames = Array.from({length:12}, (_,i)=> i + 1);
+  const DEFAULT_PHONE = "010-3507-1278";
+  const DEFAULT_ORIGIN_ITEMS = [
+    { label:"쌀·잡곡", value:"국내산" },
+    { label:"배추김치", value:"배추(국내산), 고춧가루(국내산·중국산 혼합)" },
+    { label:"돼지고기", value:"국내산(찌개·볶음용), 스페인산·미국산(불고기·삼겹·돈까스 등)" },
+    { label:"소고기", value:"호주산·미국산(불고기·국거리·함박스테이크 등)" },
+    { label:"닭고기", value:"국내산(볶음탕), 브라질산·태국산(치킨류 등)" },
+    { label:"수산물류", value:"가자미·동태·명란(러시아산), 새우(베트남·태국산), 바지락·꼬막(국내산)" },
+    { label:"계란류", value:"국내산" },
+    { label:"신선채소", value:"국내산 위주 (샐러드 포함)" }
+  ];
+
+  const state = {
+    maxMonths: 2,
+    phone: DEFAULT_PHONE,
+    originItems: [...DEFAULT_ORIGIN_ITEMS],
+    months: [],
+    activeKey: null
+  };
+
+  const el = {
+    yearInput: document.getElementById("yearInput"),
+    monthSelect: document.getElementById("monthSelect"),
+    addMonthBtn: document.getElementById("addMonthBtn"),
+    importTextarea: document.getElementById("importTextarea"),
+    importBtn: document.getElementById("importBtn"),
+    clearImportBtn: document.getElementById("clearImportBtn"),
+    deleteMonthBtn: document.getElementById("deleteMonthBtn"),
+    saveBtn: document.getElementById("saveBtn"),
+    copyBtn: document.getElementById("copyBtn"),
+    downloadTxtBtn: document.getElementById("downloadTxtBtn"),
+    exportTextarea: document.getElementById("exportTextarea"),
+    monthTabs: document.getElementById("monthTabs"),
+    monthMeta: document.getElementById("monthMeta"),
+    editorArea: document.getElementById("editorArea"),
+    previewFrame: document.getElementById("previewFrame")
+  };
+
+  function init(){
+    const now = new Date();
+    el.yearInput.value = now.getFullYear();
+    monthNames.forEach(m => {
+      const opt = document.createElement("option");
+      opt.value = String(m);
+      opt.textContent = m + "월";
+      if (m === now.getMonth() + 1) opt.selected = true;
+      el.monthSelect.appendChild(opt);
+    });
+
+    el.addMonthBtn.addEventListener("click", onAddMonth);
+    el.importBtn.addEventListener("click", onImportCode);
+    el.clearImportBtn.addEventListener("click", () => el.importTextarea.value = "");
+    el.deleteMonthBtn.addEventListener("click", onDeleteMonth);
+    el.saveBtn.addEventListener("click", generateExportCode);
+    el.copyBtn.addEventListener("click", copyExportCode);
+    el.downloadTxtBtn.addEventListener("click", downloadExportTxt);
+
+    createOrSwitchMonth(Number(el.yearInput.value), Number(el.monthSelect.value));
+    generateExportCode();
+  }
+
+  function monthKey(year, month){
+    return `${year}-${String(month).padStart(2, "0")}`;
+  }
+
+  function parseMonthKey(key){
+    const [year, month] = String(key).split("-").map(Number);
+    return { year, month };
+  }
+
+  function monthLabel(year, month){
+    return `${year}년 ${month}월`;
+  }
+
+  function displayMonthShort(year, month){
+    return `${month}월`;
+  }
+
+  function toKoreanDateLabel(year, month, day){
+    const d = new Date(year, month - 1, day);
+    return `${month}/${day} (${DAY_NAMES[d.getDay()]})`;
+  }
+
+  function toArrivalLabel(year, month, day){
+    const d = new Date(year, month - 1, day);
+    d.setDate(d.getDate() + 1);
+    return `${d.getMonth() + 1}/${d.getDate()} (${DAY_NAMES[d.getDay()]})`;
+  }
+
+  function weekdayColumnIndex(dateObj){
+    const day = dateObj.getDay(); // 0 sun, 1 mon ... 6 sat
+    if (day === 0 || day === 6) return -1;
+    return day - 1;
+  }
+
+  function buildWorkingItems(year, month){
+    const lastDate = new Date(year, month, 0).getDate();
+    const items = [];
+    for(let day = 1; day <= lastDate; day++){
+      const d = new Date(year, month - 1, day);
+      const wd = d.getDay();
+      if (wd === 0 || wd === 6) continue;
+      items.push({
+        day,
+        main: "",
+        soup: "",
+        sides: ["", "", "", ""],
+        salad: ""
+      });
+    }
+    return items;
+  }
+
+  function buildMonthData(year, month){
+    return {
+      key: monthKey(year, month),
+      year,
+      month,
+      items: buildWorkingItems(year, month)
+    };
+  }
+
+  function sortMonths(){
+    state.months.sort((a,b) => a.key.localeCompare(b.key));
+  }
+
+  function getMonth(key){
+    return state.months.find(m => m.key === key) || null;
+  }
+
+  function getActiveMonth(){
+    return getMonth(state.activeKey);
+  }
+
+  function createOrSwitchMonth(year, month){
+    const key = monthKey(year, month);
+    const existing = getMonth(key);
+    if (existing){
+      state.activeKey = existing.key;
+      renderAll();
+      return;
+    }
+    if (state.months.length >= state.maxMonths){
+      alert("최대 2개월까지만 추가할 수 있습니다.");
+      return;
+    }
+    state.months.push(buildMonthData(year, month));
+    sortMonths();
+    state.activeKey = key;
+    renderAll();
+  }
+
+  function isPastMonth(year, month){
+    const now = new Date();
+    const currentValue = now.getFullYear() * 100 + (now.getMonth() + 1);
+    const targetValue = year * 100 + month;
+    return targetValue < currentValue;
+  }
+
+  function onAddMonth(){
+    const year = Number(el.yearInput.value);
+    const month = Number(el.monthSelect.value);
+    if (!year || !month) return;
+    createOrSwitchMonth(year, month);
+    generateExportCode();
+  }
+
+  function onDeleteMonth(){
+    const active = getActiveMonth();
+    if (!active) return;
+    if (!isPastMonth(active.year, active.month)){
+      alert("이미 지난 달만 삭제할 수 있습니다.");
+      return;
+    }
+    const ok = confirm(`${monthLabel(active.year, active.month)} 데이터를 삭제할까요?`);
+    if (!ok) return;
+    state.months = state.months.filter(m => m.key !== active.key);
+    state.activeKey = state.months[0] ? state.months[0].key : null;
+    renderAll();
+    generateExportCode();
+  }
+
+  function updateMonthMeta(){
+    const active = getActiveMonth();
+    if (!active){
+      el.monthMeta.innerHTML = "아직 생성된 월이 없습니다.";
+      el.deleteMonthBtn.disabled = true;
+      return;
+    }
+    const deletable = isPastMonth(active.year, active.month);
+    el.monthMeta.innerHTML = `
+      <div><b>선택 월:</b> ${monthLabel(active.year, active.month)}</div>
+      <div style="margin-top:6px"><b>입력 행 수:</b> ${active.items.length}일</div>
+      <div style="margin-top:6px"><b>삭제 가능:</b> ${deletable ? "예" : "아니오 (현재 또는 미래 월)"}</div>
+    `;
+    el.deleteMonthBtn.disabled = !deletable;
+  }
+
+  function renderTabs(){
+    if (!state.months.length){
+      el.monthTabs.innerHTML = "";
+      return;
+    }
+    el.monthTabs.innerHTML = state.months.map(month => `
+      <button class="month-tab ${month.key === state.activeKey ? "active" : ""}" data-key="${month.key}">
+        ${displayMonthShort(month.year, month.month)}
+      </button>
+    `).join("");
+    el.monthTabs.querySelectorAll(".month-tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state.activeKey = btn.dataset.key;
+        renderAll();
+        generateExportCode();
+      });
+    });
+  }
+
+  function renderEditor(){
+    const active = getActiveMonth();
+    if (!active){
+      el.editorArea.innerHTML = `<div class="empty-state">왼쪽에서 년/월을 선택해 식단표를 먼저 생성해주세요.</div>`;
+      return;
+    }
+
+    const header = `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:120px">날짜</th>
+              <th style="width:150px">메인요리</th>
+              <th style="width:140px">국</th>
+              <th style="width:150px">반찬 1</th>
+              <th style="width:150px">반찬 2</th>
+              <th style="width:150px">반찬 3</th>
+              <th style="width:150px">반찬 4</th>
+              <th style="width:220px">샐러드</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${active.items.map((item, index) => `
+              <tr>
+                <td><span class="date-badge">${toKoreanDateLabel(active.year, active.month, item.day)}</span></td>
+                <td><input class="cell-input" data-field="main" data-index="${index}" value="${escapeAttr(item.main)}" placeholder="메인요리"></td>
+                <td><input class="cell-input" data-field="soup" data-index="${index}" value="${escapeAttr(item.soup)}" placeholder="국"></td>
+                <td><input class="cell-input side" data-side-index="0" data-index="${index}" value="${escapeAttr(item.sides[0] || "")}" placeholder="반찬 1"></td>
+                <td><input class="cell-input side" data-side-index="1" data-index="${index}" value="${escapeAttr(item.sides[1] || "")}" placeholder="반찬 2"></td>
+                <td><input class="cell-input side" data-side-index="2" data-index="${index}" value="${escapeAttr(item.sides[2] || "")}" placeholder="반찬 3"></td>
+                <td><input class="cell-input side" data-side-index="3" data-index="${index}" value="${escapeAttr(item.sides[3] || "")}" placeholder="반찬 4"></td>
+                <td><input class="cell-input" data-field="salad" data-index="${index}" value="${escapeAttr(item.salad)}" placeholder="샐러드"></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+    el.editorArea.innerHTML = header;
+
+    el.editorArea.querySelectorAll("input[data-field], input[data-side-index]").forEach(input => {
+      input.addEventListener("input", handleCellInput);
+    });
+  }
+
+  function handleCellInput(e){
+    const active = getActiveMonth();
+    if (!active) return;
+    const idx = Number(e.target.dataset.index);
+    const item = active.items[idx];
+    if (!item) return;
+
+    if (e.target.dataset.sideIndex !== undefined){
+      const sideIndex = Number(e.target.dataset.sideIndex);
+      item.sides[sideIndex] = e.target.value;
+    } else {
+      const field = e.target.dataset.field;
+      item[field] = e.target.value;
+    }
+    updatePreview();
+  }
+
+  function renderAll(){
+    renderTabs();
+    renderEditor();
+    updateMonthMeta();
+    updatePreview();
+  }
+
+  function updatePreview(){
+    el.previewFrame.srcdoc = buildExportHtml();
+  }
+
+  function sanitizeItemsForExport(month){
+    return {
+      year: month.year,
+      month: month.month,
+      items: month.items.map(item => ({
+        day: item.day,
+        main: item.main || "",
+        soup: item.soup || "",
+        sides: Array.isArray(item.sides) ? item.sides.map(v => v || "") : ["","","",""],
+        salad: item.salad || ""
+      }))
+    };
+  }
+
+  function buildExportData(){
+    sortMonths();
+    return {
+      months: state.months.map(sanitizeItemsForExport),
+      phone: state.phone,
+      originItems: state.originItems,
+      activeKey: state.activeKey
+    };
+  }
+
+  function buildExportHtml(){
+    const exportData = buildExportData();
+    const json = JSON.stringify(exportData, null, 2);
+
+    return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>궁중수라간 식단표</title>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<style>
+#ksura-wrap{font-family:'Gowun Batang',serif;background-color:#FDFCF8;padding:20px;max-width:1600px;margin:0 auto;color:#4A3B32;word-break:keep-all}
+#ksura-wrap *{box-sizing:border-box}
+.ksura-top-tabs{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+.ksura-month-tab{appearance:none;border:1px solid #FED7AA;background:#FFF7ED;color:#C2410C;padding:10px 16px;border-radius:999px;font-family:inherit;font-size:15px;font-weight:bold;cursor:pointer}
+.ksura-month-tab.active{background:#EA580C;border-color:#EA580C;color:#fff}
+.ksura-header{text-align:center;margin-bottom:32px}
+.ksura-info{display:inline-flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px;font-size:18px;color:#796B5F}
+.ksura-info b{color:#EA580C}
+.ksura-delivery-notice{display:flex;align-items:center;gap:8px;background:#fff;padding:6px 16px;border-radius:12px;border:1px solid #F5F5F4;box-shadow:0 2px 4px rgba(0,0,0,.02)}
+.ksura-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;margin-bottom:24px;font-size:15px;color:#6C5E52}
+.ksura-legend div{display:flex;align-items:center;gap:8px}
+.ksura-grid{display:grid;gap:16px;grid-template-columns:1fr}
+@media(min-width:640px){.ksura-grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1024px){.ksura-grid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:1280px){.ksura-grid{grid-template-columns:repeat(5,1fr)}}
+.ksura-dummy{display:none}
+@media(min-width:1280px){.ksura-dummy{display:block;visibility:hidden;height:100px}}
+.ksura-card{display:flex;flex-direction:column;background:#fff;border:1px solid #E8E1DA;border-radius:16px;overflow:hidden;transition:.3s;height:100%}
+.ksura-card:hover{border-color:#FED7AA;box-shadow:0 10px 20px rgba(253,186,116,.15);transform:translateY(-2px)}
+.ksura-card-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #F5F2ED;gap:8px}
+.ksura-date{font-size:20px;font-weight:bold}
+.ksura-badge{display:flex;align-items:center;gap:6px;background:#FFF7ED;color:#C2410C;padding:4px 10px;border-radius:6px;font-size:13px;font-weight:bold;border:1px solid #FFEDD5;white-space:nowrap}
+.ksura-card-body{display:flex;flex-direction:column;justify-content:space-between;flex:1;padding:20px}
+.ksura-main{font-size:20px;font-weight:bold;color:#5C3A21;line-height:1.3;margin-bottom:16px;display:flex;align-items:flex-start;gap:6px}
+.ksura-menu-list{border-top:1px dashed #E8E1DA;padding-top:16px;display:flex;flex-direction:column;gap:12px}
+.ksura-menu-item{display:flex;align-items:flex-start;gap:10px}
+.ksura-soup{font-size:16px;font-weight:bold;color:#6B5A4E}
+.ksura-sides{display:flex;flex-direction:column;gap:6px;width:100%;font-size:15px;color:#4A443E}
+.ksura-salad{background:#F0FDF4;margin:20px -20px -20px -20px;padding:12px 20px;border-top:1px solid #DCFCE7;display:flex;align-items:flex-start;gap:8px;font-size:15px;font-weight:bold;color:#14532D;line-height:1.4}
+.ksura-origin-box{background-color:#F9F8F6;border:1px solid #E8E1DA;border-radius:12px;padding:24px;margin-top:40px;color:#6C5E52}
+.ksura-origin-title{font-size:17px;font-weight:bold;color:#4A3B32;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.ksura-origin-list{font-size:14px;line-height:1.8;display:grid;grid-template-columns:1fr;gap:8px 16px}
+@media(min-width:768px){.ksura-origin-list{grid-template-columns:repeat(2,1fr)}}
+.ksura-origin-item{display:flex;align-items:flex-start;gap:6px}
+.ksura-origin-label{font-weight:bold;color:#5C3A21;min-width:75px;flex-shrink:0}
+.ksura-footer{text-align:center;margin-top:40px;font-size:16px;color:#8C7E72}
+.ksura-line{width:60px;height:4px;background:#FED7AA;margin:16px auto;border-radius:4px}
+.ksura-tel{font-size:22px;font-weight:bold;color:#4A3B32;margin-top:8px}
+.ksura-print-btn{background-color:#EA580C;color:white;border:none;padding:8px 16px;border-radius:8px;font-family:inherit;font-size:15px;font-weight:bold;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-left:8px}
+.ksura-print-btn:hover{background-color:#C2410C}
+.ksura-month-panel{display:none}
+.ksura-month-panel.active{display:block}
+@media print{@page{size:A4 landscape;margin:10mm}.ksura-print-btn,.ksura-top-tabs{display:none!important}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.ksura-grid{grid-template-columns:repeat(5,1fr)!important;gap:8px}.ksura-dummy{display:block!important;visibility:hidden}}
+</style>
+</head>
+<body>
+<div id="ksura-wrap"></div>
+<script id="ksura-export-data" type="application/json">${escapeScriptJson(json)}</script>
+<script>
+(function(){
+  const icons={
+    truck:\`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>\`,
+    main:\`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>\`,
+    soup:\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A47C5A" stroke-width="2"><path d="M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"/><path d="M7 21v-8a3 3 0 0 1 6 0v8"/><path d="M12 21v-8"/></svg>\`,
+    dot:\`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A89F91" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/></svg>\`,
+    leaf:\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2" style="flex-shrink:0;margin-top:2px;"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.77 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>\`,
+    info:\`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>\`,
+    print:\`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>\`
+  };
+  const dayNames=["일","월","화","수","목","금","토"];
+  const raw=document.getElementById("ksura-export-data").textContent.trim();
+  const data=JSON.parse(raw);
+  const wrap=document.getElementById("ksura-wrap");
+
+  function fmtDate(year, month, day){
+    const d=new Date(year, month-1, day);
+    return \`\${month}/\${day} (\${dayNames[d.getDay()]})\`;
+  }
+  function fmtArrival(year, month, day){
+    const d=new Date(year, month-1, day);
+    d.setDate(d.getDate()+1);
+    return \`\${d.getMonth()+1}/\${d.getDate()} (\${dayNames[d.getDay()]})\`;
+  }
+  function startDummyCount(year, month){
+    const last=new Date(year, month, 0).getDate();
+    for(let day=1; day<=last; day++){
+      const d=new Date(year, month-1, day);
+      const wd=d.getDay();
+      if(wd===0 || wd===6) continue;
+      return wd-1;
+    }
+    return 0;
+  }
+  function escapeHtml(value){
+    return String(value ?? "")
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;");
+  }
+  const months = Array.isArray(data.months) ? data.months.slice().sort((a,b)=> String(a.year).localeCompare(String(b.year)) || a.month - b.month) : [];
+  let activeKey = data.activeKey || (months[0] ? \`\${months[0].year}-\${String(months[0].month).padStart(2,"0")}\` : "");
+
+  function render(){
+    const tabs = months.map(m => {
+      const key=\`\${m.year}-\${String(m.month).padStart(2,"0")}\`;
+      return \`<button class="ksura-month-tab \${key===activeKey ? "active":""}" data-key="\${key}">\${m.month}월</button>\`;
+    }).join("");
+
+    const panels = months.map(m => {
+      const key=\`\${m.year}-\${String(m.month).padStart(2,"0")}\`;
+      let grid = "";
+      const dummyCount = startDummyCount(m.year, m.month);
+      for(let i=0;i<dummyCount;i++){ grid += '<div class="ksura-dummy"></div>'; }
+      (m.items || []).forEach(item => {
+        const sides = (item.sides || []).filter(Boolean).map(s => \`<span>· \${escapeHtml(s)}</span>\`).join("");
+        grid += \`<div class="ksura-card">
+          <div class="ksura-card-head">
+            <span class="ksura-date">\${fmtDate(m.year, m.month, item.day)}</span>
+            <div class="ksura-badge">\${icons.truck} \${fmtArrival(m.year, m.month, item.day)} 도착</div>
+          </div>
+          <div class="ksura-card-body">
+            <div>
+              <div class="ksura-main">\${icons.main}<span>\${escapeHtml(item.main || "")}</span></div>
+              <div class="ksura-menu-list">
+                <div class="ksura-menu-item">\${icons.soup}<div class="ksura-soup">\${escapeHtml(item.soup || "")}</div></div>
+                <div class="ksura-menu-item">\${icons.dot}<div class="ksura-sides">\${sides}</div></div>
+              </div>
+            </div>
+            <div class="ksura-salad">\${icons.leaf}<span>\${escapeHtml(item.salad || "")}</span></div>
+          </div>
+        </div>\`;
+      });
+
+      const origin = (data.originItems || []).map(item => \`
+        <div class="ksura-origin-item">
+          <span class="ksura-origin-label">\${escapeHtml(item.label || "")}</span>
+          <span>\${escapeHtml(item.value || "")}</span>
+        </div>\`
+      ).join("");
+
+      return \`
+      <section class="ksura-month-panel \${key===activeKey ? "active": ""}" data-key="\${key}">
+        <div class="ksura-header">
+          <div class="ksura-info">
+            <span style="font-weight:bold;border-bottom:2px solid #FED7AA;padding-bottom:2px;">\${m.month}월 식단표</span> |
+            <div class="ksura-delivery-notice">\${icons.truck} 오늘 조리해서 <b>내일 식탁으로</b></div>
+            <button class="ksura-print-btn" onclick="window.print()">\${icons.print} 인쇄하기</button>
+          </div>
+        </div>
+        <div class="ksura-legend">
+          <div style="color:#5C3A21;font-weight:bold;display:flex;align-items:center;gap:6px;">\${icons.main} 메인요리</div>
+          <div>\${icons.soup} 국</div><div>\${icons.dot} 반찬</div><div>\${icons.leaf} 매일 샐러드</div>
+        </div>
+        <div class="ksura-grid">\${grid}</div>
+        <div class="ksura-origin-box">
+          <div class="ksura-origin-title">\${icons.info} 궁중수라간 원산지 표기 안내</div>
+          <div class="ksura-origin-list">\${origin}</div>
+        </div>
+        <div class="ksura-footer">
+          건강하고 신선한 식재료로 매일 아침 정성껏 조리합니다.
+          <div class="ksura-line"></div>
+          <div class="ksura-tel">\${escapeHtml(data.phone || "")}</div>
+        </div>
+      </section>\`;
+    }).join("");
+
+    wrap.innerHTML = \`
+      <div class="ksura-top-tabs">\${tabs}</div>
+      \${panels}
+    \`;
+
+    wrap.querySelectorAll(".ksura-month-tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        activeKey = btn.dataset.key;
+        render();
+      });
+    });
+  }
+
+  render();
+})();
+<\/script>
+</body>
+</html>`;
+  }
+
+  function escapeScriptJson(jsonString){
+    return String(jsonString)
+      .replace(/<\/script/gi, "<\\/script")
+      .replace(/<!--/g, "<\\!--")
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029");
+  }
+
+  function generateExportCode(){
+    const html = buildExportHtml();
+    el.exportTextarea.value = html;
+    updatePreview();
+    return html;
+  }
+
+  async function copyExportCode(){
+    const code = el.exportTextarea.value.trim() || generateExportCode();
+    try{
+      await navigator.clipboard.writeText(code);
+      alert("코드를 복사했습니다.");
+    }catch(err){
+      el.exportTextarea.focus();
+      el.exportTextarea.select();
+      document.execCommand("copy");
+      alert("코드를 복사했습니다.");
+    }
+  }
+
+  function downloadExportTxt(){
+    const code = el.exportTextarea.value.trim() || generateExportCode();
+    const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const active = getActiveMonth();
+    const fileName = active ? `궁중수라간_식단표_${active.year}_${String(active.month).padStart(2,"0")}.txt` : "궁중수라간_식단표.txt";
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 300);
+  }
+
+  function escapeAttr(value){
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function normalizeLegacyEntrySides(value){
+    if (!Array.isArray(value)) return ["","","",""];
+    const sides = value.slice(0, 4);
+    while (sides.length < 4) sides.push("");
+    return sides.map(v => String(v ?? ""));
+  }
+
+  function parseSavedEditorCode(codeText){
+    const match = codeText.match(/<script[^>]*id=["']ksura-export-data["'][^>]*>([\s\S]*?)<\/script>/i);
+    if (!match) return null;
+    try{
+      return JSON.parse(match[1].trim());
+    }catch(err){
+      return null;
+    }
+  }
+
+  function parseLegacyMenuData(codeText){
+    const arrayMatch = codeText.match(/const\s+menuData\s*=\s*(\[[\s\S]*?\]);/);
+    if (!arrayMatch) return null;
+
+    let menuArray;
+    try{
+      menuArray = new Function(`return (${arrayMatch[1]})`)();
+    }catch(err){
+      console.error(err);
+      return null;
+    }
+    if (!Array.isArray(menuArray)) return null;
+
+    const titleYearMatch = codeText.match(/(\d{4})년/);
+    const fallbackYear = titleYearMatch ? Number(titleYearMatch[1]) : Number(el.yearInput.value) || new Date().getFullYear();
+
+    const groups = new Map();
+
+    menuArray.forEach(entry => {
+      if (!entry || entry.isDummy || !entry.date) return;
+      const dm = String(entry.date).match(/(\d{1,2})\/(\d{1,2})/);
+      if (!dm) return;
+      const month = Number(dm[1]);
+      const day = Number(dm[2]);
+      const key = monthKey(fallbackYear, month);
+      if (!groups.has(key)){
+        groups.set(key, {
+          year: fallbackYear,
+          month,
+          entries: []
+        });
+      }
+      groups.get(key).entries.push({
+        day,
+        main: String(entry.main || ""),
+        soup: String(entry.soup || ""),
+        sides: normalizeLegacyEntrySides(entry.sides),
+        salad: String(entry.salad || "")
+      });
+    });
+
+    const months = Array.from(groups.values())
+      .sort((a,b) => monthKey(a.year, a.month).localeCompare(monthKey(b.year, b.month)))
+      .slice(0, state.maxMonths)
+      .map(group => {
+        const base = buildMonthData(group.year, group.month);
+        group.entries.forEach(src => {
+          const target = base.items.find(item => item.day === src.day);
+          if (!target) return;
+          target.main = src.main;
+          target.soup = src.soup;
+          target.sides = src.sides;
+          target.salad = src.salad;
+        });
+        return base;
+      });
+
+    return {
+      months: months.map(m => sanitizeItemsForExport(m)),
+      phone: state.phone,
+      originItems: state.originItems,
+      activeKey: months[0] ? months[0].key : null
+    };
+  }
+
+  function applyImportedData(imported){
+    if (!imported || !Array.isArray(imported.months) || !imported.months.length){
+      alert("불러올 수 있는 월 데이터가 없습니다.");
+      return;
+    }
+
+    const newMonths = imported.months
+      .slice(0, state.maxMonths)
+      .map(month => {
+        const base = buildMonthData(Number(month.year), Number(month.month));
+        const incomingItems = Array.isArray(month.items) ? month.items : [];
+        incomingItems.forEach(src => {
+          const target = base.items.find(item => item.day === Number(src.day));
+          if (!target) return;
+          target.main = String(src.main || "");
+          target.soup = String(src.soup || "");
+          target.sides = normalizeLegacyEntrySides(src.sides);
+          target.salad = String(src.salad || "");
+        });
+        return base;
+      });
+
+    state.months = newMonths;
+    sortMonths();
+    const requestedActive = imported.activeKey && getMonth(imported.activeKey) ? imported.activeKey : null;
+    state.activeKey = requestedActive || (state.months[0] ? state.months[0].key : null);
+
+    if (Array.isArray(imported.originItems) && imported.originItems.length){
+      state.originItems = imported.originItems.map(item => ({
+        label: String(item.label || ""),
+        value: String(item.value || "")
+      }));
+    }
+    if (imported.phone){
+      state.phone = String(imported.phone);
+    }
+
+    renderAll();
+    generateExportCode();
+    alert("코드를 불러왔습니다.");
+  }
+
+  function onImportCode(){
+    const codeText = el.importTextarea.value.trim();
+    if (!codeText){
+      alert("불러올 코드를 먼저 붙여 넣어주세요.");
+      return;
+    }
+
+    const savedData = parseSavedEditorCode(codeText);
+    if (savedData){
+      applyImportedData(savedData);
+      return;
+    }
+
+    const legacyData = parseLegacyMenuData(codeText);
+    if (legacyData){
+      applyImportedData(legacyData);
+      return;
+    }
+
+    alert("인식 가능한 식단표 코드를 찾지 못했습니다.");
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
