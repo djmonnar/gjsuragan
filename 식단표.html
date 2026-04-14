@@ -547,6 +547,7 @@
   function buildExportHtml(){
     const exportData = buildExportData();
     const json = JSON.stringify(exportData, null, 2);
+    const scriptClose = "</scr" + "ipt>";
 
     return `<!DOCTYPE html>
 <html lang="ko">
@@ -603,7 +604,7 @@
 </head>
 <body>
 <div id="ksura-wrap"></div>
-<script id="ksura-export-data" type="application/json">${escapeScriptJson(json)}</script>
+<script id="ksura-export-data" type="application/json">${escapeScriptJson(json)}${scriptClose}
 <script>
 (function(){
   const icons={
