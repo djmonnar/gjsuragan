@@ -1052,10 +1052,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 // ★ 비밀번호 설정 - 여기를 수정하세요 ★
 // ════════════════════════════════════════
 // ★★★ 반드시 아래 비밀번호를 변경하세요! ★★★
-const PASSWORDS = [
-  'tkdgns1q2w!',
-  'rndwndtnfkrks1q2w!',
-];
+const PASSWORDS = ['CHANGE_ME_PASSWORD'];
 const SESSION_KEY = 'gjsr_auth';
 const SESSION_HOURS = 8; // 몇 시간 동안 로그인 유지
 
@@ -2053,24 +2050,28 @@ function dow(ds){
 }
 function isDelivSub(c,ds){
   if(c.status!=='active'||c.remain<=0||c.orderType!=='sub') return false;
+
+  // 최초 배송 시작일 이전에는 절대 노출하지 않음
+  if(c.startDate && ds < c.startDate) return false;
+
   const d=dow(ds);
+
   // cookDays가 저장된 경우: 조리일 기준으로 표시 (오늘 조리=오늘 출고)
   if(c.cookDays&&c.cookDays.length>0){
     return c.cookDays.includes(d);
   }
+
   // cookDays가 없는 기존 데이터 폴백:
   // arriveDays에서 하루 전날(조리일)을 역산 → 그게 오늘이면 표시
-  // arriveDays = 도착요일, 조리일 = 도착일 - 1 (일요일 이전이면 토=6)
   const cookFromArrive=(c.arriveDays||[]).map(a=>a===0?6:a-1);
   return cookFromArrive.includes(d);
 }
 function isDelivOnce(c,ds){
   if(c.status!=='active'||c.remain<=0||c.orderType!=='once') return false;
-  if(c.isDirect){
-    // 직배송: onceDate 당일 배송
-    return c.onceDate===ds;
-  }
-  // 일반 택배: onceDate 당일 (기존 동일)
+
+  // 시작일 이전 노출 방지
+  if(c.startDate && ds < c.startDate) return false;
+
   return c.onceDate===ds;
 }
 function isDeliv(c,ds){ return isDelivSub(c,ds)||isDelivOnce(c,ds); }
