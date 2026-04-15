@@ -951,9 +951,29 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
             </optgroup>
           </select>
         </div>
+        <div class="fgrp"><div class="flab">주문 유형</div>
+          <select class="inp" id="e-otype" onchange="editToggleFields()">
+            <option value="sub">정기주문</option>
+            <option value="once">선택주문</option>
+          </select>
+        </div>
         <div class="fgrp"><div class="flab">상태</div><select class="inp" id="est"><option value="active">구독 중</option><option value="pause">일시정지</option><option value="end">종료</option></select></div>
+        <div class="fgrp"><div class="flab">배송 방식</div>
+          <select class="inp" id="e-direct-mode">
+            <option value="courier">택배</option>
+            <option value="direct">직배송</option>
+          </select>
+        </div>
         <div class="fgrp"><div class="flab">잔여 수량</div><input type="number" class="inp" id="erem" min="0"></div>
         <div class="fgrp"><div class="flab">총 수량 / 횟수</div><input type="number" class="inp" id="etot" min="1"></div>
+        <div class="fgrp" id="ef-start-wrap">
+          <div class="flab">시작일 (정기주문)</div>
+          <input type="date" class="inp" id="e-startdate">
+        </div>
+        <div class="fgrp" id="ef-once-wrap">
+          <div class="flab">배송 예정일 (선택주문)</div>
+          <input type="date" class="inp" id="eodate">
+        </div>
         <!-- 정기배송 일정 (정기배송일 때만 표시) -->
         <div class="fgrp" id="ef-sched-wrap">
           <div class="flab">배송 주기</div>
@@ -970,13 +990,8 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
             <option value="">주기를 먼저 선택하세요</option>
           </select>
         </div>
-        <div class="fgrp"><div class="flab">배송 예정일 (선택주문)</div><input type="date" class="inp" id="eodate"></div>
         <div class="fgrp"><div class="flab">주문번호</div><input type="text" class="inp" id="e-ordernum" placeholder="202603258223322"></div>
-        <div class="fgrp"><div class="flab">배송 방식</div>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400;color:var(--text);margin-top:6px;">
-            <input type="checkbox" id="e-direct" style="width:16px;height:16px;"> 직배송 (당일 배송)
-          </label>
-        </div>
+        <div class="fgrp fgf"><div class="ibox"><b>수정 팁:</b> 진주·사천 고객이 택배로 잘못 주문한 경우, <b>배송 방식</b>을 직배송으로 바꾸고 <b>주문 유형</b>이 정기주문이면 주기와 배송 일정도 함께 맞춰주세요.</div></div>
         <div class="fgrp fgf"><div class="flab">메모</div><textarea class="inp" id="em"></textarea></div>
       </div>
     </div>
@@ -1335,33 +1350,62 @@ async function saveNew(){
 
 async function saveEdit(){
   const esVal=g('es');
-  const upd={name:g('en'),phone:g('ep'),addr:g('ea'),door:g('ed'),request:g('er'),
+  const orderType=document.getElementById('e-otype').value;
+  const shipMode=document.getElementById('e-direct-mode').value;
+  const curr=custs.find(x=>x.id===editId)||{};
+  const delField=firebase.firestore.FieldValue.delete();
+
+  const upd={
+    name:g('en'),
+    phone:g('ep'),
+    addr:g('ea'),
+    door:g('ed'),
+    request:g('er'),
     set:['A','B','C'].includes(esVal)?esVal:(esVal||''),
     productId:esVal,
-    status:g('est'),remain:parseInt(g('erem'))||0,total:parseInt(g('etot'))||1,memo:g('em'),
-    isDirect: document.getElementById('e-direct').checked,
-    orderNum: document.getElementById('e-ordernum').value.trim()};
-  const od=g('eodate'); if(od) upd.onceDate=od;
+    orderType:orderType,
+    status:g('est'),
+    remain:parseInt(g('erem'))||0,
+    total:parseInt(g('etot'))||1,
+    memo:g('em'),
+    isDirect: shipMode==='direct',
+    orderNum: document.getElementById('e-ordernum').value.trim()
+  };
 
-  // 정기배송 일정 저장
-  const freq  = document.getElementById('e-freq').value;
-  const schIdx= document.getElementById('e-sched').value;
-  if(freq && schIdx !== ''){
-    const sch = SCH[freq][parseInt(schIdx)];
-    if(sch){
-      upd.type         = parseInt(freq);
-      upd.scheduleName = sch.l;
-      upd.cookDays     = sch.c;
-      upd.arriveDays   = sch.a;
+  if(orderType==='sub'){
+    if(!['A','B','C'].includes(esVal)){
+      toast('정기주문은 A/B/C세트만 선택할 수 있어요','er');
+      return;
     }
-  } else if(!freq) {
-    // 선택주문이면 scheduleName을 상품 라벨로
-    upd.scheduleName = productLabel(esVal) || esVal;
+    const freq=document.getElementById('e-freq').value;
+    const schIdx=document.getElementById('e-sched').value;
+    const sd=g('e-startdate') || curr.startDate || todayStr();
+    if(!freq){ toast('배송 주기를 선택하세요','er'); return; }
+    if(schIdx==='' || schIdx===null){ toast('배송 일정을 선택하세요','er'); return; }
+    const sch = SCH[freq] && SCH[freq][parseInt(schIdx)];
+    if(!sch){ toast('배송 일정이 올바르지 않습니다','er'); return; }
+    upd.type=parseInt(freq);
+    upd.scheduleName=sch.l;
+    upd.cookDays=sch.c;
+    upd.arriveDays=sch.a;
+    upd.startDate=sd;
+    upd.onceDate=delField;
+    upd.qty=delField;
+  } else {
+    const od=g('eodate');
+    if(!od){ toast('배송 예정일을 선택하세요','er'); return; }
+    upd.onceDate=od;
+    upd.startDate=od;
+    upd.scheduleName=productLabel(esVal) + ((parseInt(g('etot'))||1)>1 ? ' x'+(parseInt(g('etot'))||1)+'개' : '');
+    upd.type=delField;
+    upd.cookDays=delField;
+    upd.arriveDays=delField;
   }
 
   try{
     await window.__DB.collection('customers').doc(editId).update(upd);
-    closeM('editM'); toast(upd.name+' 수정 완료','ok');
+    closeM('editM');
+    toast(upd.name+' 수정 완료','ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
 }
 
@@ -3366,31 +3410,30 @@ function updSch(){
 function openEdit(id){
   const c=custs.find(x=>x.id===id);if(!c)return;
   editId=id;
+  const inferredType = c.orderType || (['A','B','C'].includes(c.productId||c.set) ? 'sub' : 'once');
   g2('en',c.name);g2('ep',c.phone);g2('ea',c.addr);g2('ed',c.door);g2('er',c.request);
   document.getElementById('es').value=c.productId||c.set||'A';
+  document.getElementById('e-otype').value=inferredType;
   document.getElementById('est').value=c.status;
-  g2('erem',c.remain);g2('etot',c.total);g2('em',c.memo);g2('eodate',c.onceDate||'');
+  document.getElementById('e-direct-mode').value=!!c.isDirect ? 'direct' : 'courier';
+  g2('erem',c.remain);
+  g2('etot',c.total);
+  g2('em',c.memo);
+  g2('eodate',c.onceDate||'');
+  g2('e-startdate',c.startDate||'');
   g2('e-ordernum',c.orderNum||'');
-  document.getElementById('e-direct').checked=!!(c.isDirect);
 
-  // 정기/선택 구분에 따라 일정 필드 표시
-  const isSub = c.orderType === 'sub';
-  document.getElementById('ef-sched-wrap').style.display = isSub ? '' : 'none';
-  document.getElementById('ef-sched-sel').style.display  = isSub ? '' : 'none';
+  editToggleFields();
 
-  // 선택주문이면 반드시 초기화 (이전 정기배송 값 잔류 방지)
-  if(!isSub){
+  if(inferredType!=='sub'){
     document.getElementById('e-freq').value = '';
     document.getElementById('e-sched').innerHTML = '<option value="">선택하세요</option>';
   }
 
-  if(isSub){
-    // 현재 저장된 cookDays로 주기·일정 역산
+  if(inferredType==='sub'){
     const freq = String(c.type || (c.cookDays && c.cookDays.length) || '');
     document.getElementById('e-freq').value = freq;
-    editUpdSch(); // 드롭다운 옵션 생성
-
-    // 현재 cookDays와 일치하는 인덱스 선택
+    editUpdSch();
     if(freq && c.cookDays && c.cookDays.length){
       const cookKey = c.cookDays.slice().sort((a,b)=>a-b).join(',');
       const schIndexMap = {
@@ -3406,6 +3449,14 @@ function openEdit(id){
   }
 
   openM('editM');
+}
+
+function editToggleFields(){
+  const isSub=document.getElementById('e-otype').value==='sub';
+  document.getElementById('ef-start-wrap').style.display = isSub ? '' : 'none';
+  document.getElementById('ef-sched-wrap').style.display = isSub ? '' : 'none';
+  document.getElementById('ef-sched-sel').style.display  = isSub ? '' : 'none';
+  document.getElementById('ef-once-wrap').style.display  = isSub ? 'none' : '';
 }
 
 // 수정 모달 배송 일정 드롭다운 업데이트
