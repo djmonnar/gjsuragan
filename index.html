@@ -225,6 +225,11 @@ textarea.inp{resize:vertical;min-height:80px;line-height:1.6;}
 .dpv{font-size:13px;color:var(--text);}
 .dhi{padding:7px 10px;background:var(--bg3);border-radius:4px;margin-bottom:6px;font-size:12px;color:var(--text2);border-left:2px solid var(--accent);}
 
+
+/* ── 고객 상세 팝업 ── */
+.cust-pop .dp{position:static;border:none;background:transparent;}
+.cust-pop .dph{border:1px solid var(--border);border-radius:12px 12px 0 0;background:var(--surface2);}
+.cust-pop .dpb{border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;background:var(--surface);}
 /* ── 주문유형 탭 ── */
 .ttabs{display:flex;gap:0;background:var(--bg3);border-radius:8px;padding:3px;}
 .ttab{flex:1;padding:7px 12px;text-align:center;border-radius:6px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:var(--tr);}
@@ -1103,6 +1108,23 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
   </div>
 </div>
 
+
+
+<!-- ══ 고객 상세 팝업 ══ -->
+<div class="mbg" id="custPopupM">
+  <div class="modal" style="width:760px;max-width:94vw;">
+    <div class="mh">
+      <div class="mt" id="custPopupTitle">고객 상세 정보</div>
+      <div class="mx" onclick="closeM('custPopupM')">✕</div>
+    </div>
+    <div class="mb">
+      <div id="custPopupBody"></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeM('custPopupM')">닫기</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══ 월간 날짜 상세 모달 ══ -->
 <div class="mbg" id="dayListM">
@@ -2663,7 +2685,7 @@ function renderCust(){
     tb.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="ei">👤</div><div>검색 결과 없음</div></div></td></tr>`;
     return;
   }
-  tb.innerHTML=list.map(c=>`<tr class="trc" onclick="showDet('${c.id}')">
+  tb.innerHTML=list.map(c=>`<tr class="trc" data-cust-id="${c.id}" onclick="showDet('${c.id}', this)">
     <td>
       <strong>${c.name}</strong>
       ${c.orderNum?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">#${c.orderNum}</div>`:''}
@@ -2698,65 +2720,86 @@ async function editOnceDate(id, currentDate){
   } catch(e){ toast('오류: '+e.message,'er'); }
 }
 
-function showDet(id){
-  const c=custs.find(x=>x.id===id); if(!c) return;
-  document.querySelectorAll('.trc').forEach(r=>r.classList.remove('sel'));
-  event.currentTarget.classList.add('sel');
+function renderCustomerDetailCard(c, opts={}){
   const pct=c.total>0?Math.min(100,c.remain/c.total*100):0, isLow=c.remain<=3;
-  document.getElementById('custDetail').innerHTML=`
-    <div class="dp">
-      <div class="dph">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div style="font-size:16px;font-weight:700;">${c.name}</div>
-          <span class="badge b-${c.status}">${SL[c.status]}</span>
-        </div>
-        <div style="display:flex;gap:6px;">
-          <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
-          <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택주문':'정기배송'}</span>
-        </div>
-      </div>
-      <div class="dpb">
-        <div class="dpr"><div class="dpl">연락처</div><div class="dpv">${c.phone}</div></div>
-        <div class="dpr"><div class="dpl">배송지</div><div class="dpv" style="font-size:12px;">${c.addr}</div></div>
-        <div class="dpr"><div class="dpl">현관번호</div><div class="dpv">${c.door||'—'}</div></div>
-        <div class="dpr"><div class="dpl">요청사항</div><div class="dpv" style="font-size:12px;">${c.request||'—'}</div></div>
-        <div class="dpr"><div class="dpl">배송일정</div><div class="dpv" style="font-size:12px;">${c.scheduleName||'—'}</div></div>
-        <div class="dpr"><div class="dpl">배송 방식</div><div class="dpv">${c.isDirect?'<span class="badge b-direct">🚗 직배송</span>':'<span style="font-size:12px;">📦 택배</span>'}</div></div>
-        ${c.orderNum?`<div class="dpr"><div class="dpl">주문번호</div><div class="dpv" style="font-size:12px;font-family:monospace;">${c.orderNum}</div></div>`:''}
-        ${c.qty&&c.qty>1?`<div class="dpr"><div class="dpl">수량</div><div class="dpv" style="font-weight:700;color:var(--accent);">${c.qty}개</div></div>`:''}
-        ${c.onceDate?`<div class="dpr"><div class="dpl">배송예정일</div><div class="dpv">${c.onceDate}</div></div>`:''}
-        ${c.orderType==='sub'?`
-        <div class="dpr">
-          <div class="dpl">잔여 횟수</div>
-          <div style="margin-top:4px;">
-            <div style="font-size:22px;font-weight:700;color:${isLow?'var(--danger)':'var(--accent)'};margin-bottom:6px;">${c.remain}<span style="font-size:13px;font-weight:400;color:var(--text3);"> / ${c.total}회</span></div>
-            <div class="gt" style="height:6px;"><div class="gf ${isLow?'low':''}" style="width:${pct}%"></div></div>
+  const wrapClass = opts.popup ? 'cust-pop' : '';
+  return `
+    <div class="${wrapClass}">
+      <div class="dp">
+        <div class="dph">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="font-size:16px;font-weight:700;">${c.name}</div>
+            <span class="badge b-${c.status}">${SL[c.status]}</span>
           </div>
-        </div>`:''}
-        ${c.memo?`<div class="dpr"><div class="dpl">메모</div><div class="dpv" style="font-size:12px;background:var(--bg3);padding:8px;border-radius:4px;">${c.memo}</div></div>`:''}
-        <div class="dpr">
-          <div class="dpl">배송 이력 <span style="font-size:9px;color:var(--text3);">(클릭 → 취소)</span></div>
-          <div style="margin-top:4px;">
-            ${(c.deliveredDates||[]).slice(-5).reverse().map(d=>`
-              <div class="dhi" style="display:flex;align-items:center;justify-content:space-between;">
-                <span>✓ ${d}</span>
-                <button onclick="undoMarkDone('${c.id}','${d}')" style="border:none;background:none;color:var(--danger);cursor:pointer;font-size:11px;padding:0 2px;" title="취소">↩</button>
-              </div>`).join('')||'<div style="font-size:12px;color:var(--text3);">이력 없음</div>'}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
+            <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택주문':'정기배송'}</span>
+            ${c.isDirect?'<span class="badge b-direct">🚗 직배송</span>':'<span class="badge bb">📦 택배</span>'}
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
-          <button class="btn btn-p" style="font-size:12px;" onclick="openEdit('${c.id}')">✏ 수정</button>
-          <button class="btn btn-s" style="font-size:12px;" onclick="markDone('${c.id}')">✓ 배송완료</button>
-          ${c.orderType==='sub'?`
-          <button class="btn btn-g" style="font-size:12px;" onclick="togglePause('${c.id}')">${c.status==='pause'?'▶ 재개':'⏸ 일시정지'}</button>
-          <button class="btn" style="font-size:12px;background:rgba(3,102,214,.1);color:#0366d6;border-color:rgba(3,102,214,.3);" onclick="chargeRemain('${c.id}')">＋ 횟수 충전</button>
-          `:`
-          <button class="btn btn-g" style="font-size:12px;grid-column:1/-1;" onclick="editOnceDate('${c.id}','${c.onceDate||''}')">📅 배송일 변경</button>
-          `}
-          <button class="btn btn-d" style="font-size:12px;grid-column:1/-1;" onclick="quickDelete('${c.id}','${c.name}')">🗑 삭제</button>
+        <div class="dpb">
+          <div class="g2">
+            <div>
+              <div class="dpr"><div class="dpl">연락처</div><div class="dpv">${c.phone||'—'}</div></div>
+              <div class="dpr"><div class="dpl">배송지</div><div class="dpv" style="font-size:12px;">${c.addr||'—'}</div></div>
+              <div class="dpr"><div class="dpl">현관번호</div><div class="dpv">${c.door||'—'}</div></div>
+              <div class="dpr"><div class="dpl">요청사항</div><div class="dpv" style="font-size:12px;">${c.request||'—'}</div></div>
+              <div class="dpr"><div class="dpl">배송일정</div><div class="dpv" style="font-size:12px;">${c.scheduleName||'—'}</div></div>
+              ${c.onceDate?`<div class="dpr"><div class="dpl">배송예정일</div><div class="dpv">${c.onceDate}</div></div>`:''}
+              ${c.orderNum?`<div class="dpr"><div class="dpl">주문번호</div><div class="dpv" style="font-size:12px;font-family:monospace;">${c.orderNum}</div></div>`:''}
+            </div>
+            <div>
+              ${c.qty&&c.qty>1?`<div class="dpr"><div class="dpl">수량</div><div class="dpv" style="font-weight:700;color:var(--accent);">${c.qty}개</div></div>`:''}
+              ${c.orderType==='sub'?`
+              <div class="dpr">
+                <div class="dpl">잔여 횟수</div>
+                <div style="margin-top:4px;">
+                  <div style="font-size:22px;font-weight:700;color:${isLow?'var(--danger)':'var(--accent)'};margin-bottom:6px;">${c.remain}<span style="font-size:13px;font-weight:400;color:var(--text3);"> / ${c.total}회</span></div>
+                  <div class="gt" style="height:6px;"><div class="gf ${isLow?'low':''}" style="width:${pct}%"></div></div>
+                </div>
+              </div>`:''}
+              ${c.memo?`<div class="dpr"><div class="dpl">메모</div><div class="dpv" style="font-size:12px;background:var(--bg3);padding:8px;border-radius:4px;">${c.memo}</div></div>`:''}
+              <div class="dpr">
+                <div class="dpl">배송 이력 <span style="font-size:9px;color:var(--text3);">(클릭 → 취소)</span></div>
+                <div style="margin-top:4px;">
+                  ${(c.deliveredDates||[]).slice(-5).reverse().map(d=>`
+                    <div class="dhi" style="display:flex;align-items:center;justify-content:space-between;">
+                      <span>✓ ${d}</span>
+                      <button onclick="undoMarkDone('${c.id}','${d}')" style="border:none;background:none;color:var(--danger);cursor:pointer;font-size:11px;padding:0 2px;" title="취소">↩</button>
+                    </div>`).join('')||'<div style="font-size:12px;color:var(--text3);">이력 없음</div>'}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px;">
+            <button class="btn btn-p" style="font-size:12px;" onclick="openEdit('${c.id}')">✏ 수정</button>
+            <button class="btn btn-s" style="font-size:12px;" onclick="markDone('${c.id}')">✓ 배송완료</button>
+            ${c.orderType==='sub'?`
+            <button class="btn btn-g" style="font-size:12px;" onclick="togglePause('${c.id}')">${c.status==='pause'?'▶ 재개':'⏸ 일시정지'}</button>
+            <button class="btn" style="font-size:12px;background:rgba(3,102,214,.1);color:#0366d6;border-color:rgba(3,102,214,.3);" onclick="chargeRemain('${c.id}')">＋ 횟수 충전</button>
+            `:`
+            <button class="btn btn-g" style="font-size:12px;grid-column:1/-1;" onclick="editOnceDate('${c.id}','${c.onceDate||''}')">📅 배송일 변경</button>
+            `}
+            <button class="btn btn-d" style="font-size:12px;grid-column:1/-1;" onclick="quickDelete('${c.id}','${c.name}')">🗑 삭제</button>
+          </div>
         </div>
       </div>
     </div>`;
+}
+
+function showDet(id, rowEl=null){
+  const c=custs.find(x=>x.id===id); if(!c) return;
+  document.querySelectorAll('#custList .trc').forEach(r=>r.classList.remove('sel'));
+  const targetRow = rowEl || document.querySelector(`#custList .trc[data-cust-id="${id}"]`);
+  if(targetRow) targetRow.classList.add('sel');
+  document.getElementById('custDetail').innerHTML = renderCustomerDetailCard(c, {popup:false});
+}
+
+function openCustPopup(id){
+  const c=custs.find(x=>x.id===id); if(!c) return;
+  document.getElementById('custPopupTitle').textContent = `${c.name} 고객 정보`;
+  document.getElementById('custPopupBody').innerHTML = renderCustomerDetailCard(c, {popup:true});
+  openM('custPopupM');
 }
 
 // ════════════════════════════════════════
@@ -3489,6 +3532,10 @@ function clearAdd(){
   document.getElementById('ach').innerHTML='<option>주기를 먼저 선택하세요</option>';
   document.getElementById('asd').value=todayStr();document.getElementById('aod').value=todayStr();
   setTypeTab('sub');
+}
+
+function pickCust(id){
+  openCustPopup(id);
 }
 
 function goTab(name){
