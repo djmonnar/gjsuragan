@@ -1197,12 +1197,9 @@ body{margin:0;background:#FDFCF8;}
 .ksura-delivery-notice{display:flex;align-items:center;gap:8px;background:#fff;padding:6px 16px;border-radius:12px;border:1px solid #F5F5F4;box-shadow:0 2px 4px rgba(0,0,0,.02);}
 .ksura-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;margin-bottom:24px;font-size:15px;color:#6C5E52;}
 .ksura-legend div{display:flex;align-items:center;gap:8px;}
-.ksura-grid{display:grid;gap:16px;grid-template-columns:1fr;}
-@media(min-width:640px){.ksura-grid{grid-template-columns:repeat(2,1fr);}}
-@media(min-width:1024px){.ksura-grid{grid-template-columns:repeat(3,1fr);}}
-@media(min-width:1280px){.ksura-grid{grid-template-columns:repeat(5,1fr);}}
-.ksura-dummy{display:none;}
-@media(min-width:1280px){.ksura-dummy{display:block;visibility:hidden;height:100px;}}
+.ksura-grid{display:grid;gap:16px;grid-template-columns:repeat(5,minmax(0,1fr));}
+.ksura-dummy{display:block;visibility:hidden;height:100px;}
+@media(max-width:768px){.ksura-grid{grid-template-columns:1fr;}.ksura-dummy{display:none;}}
 .ksura-card{display:flex;flex-direction:column;background:#fff;border:1px solid #E8E1DA;border-radius:16px;overflow:hidden;transition:.3s;height:100%;}
 .ksura-card:hover{border-color:#FED7AA;box-shadow:0 10px 20px rgba(253,186,116,.15);transform:translateY(-2px);}
 .ksura-card-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #F5F2ED;}
