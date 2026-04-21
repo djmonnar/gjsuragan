@@ -339,131 +339,151 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 .vt{padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:var(--tr);}
 .vt.on{background:var(--surface);color:var(--text);box-shadow:var(--sh0);}
 
-/* ════════════════════════════════════════
-   모바일 반응형
-   ════════════════════════════════════════ */
-@media (max-width: 768px) {
 
-  /* 헤더 */
+/* ════════════════════════════════════════
+   모바일 반응형 (전면 개편)
+   ════════════════════════════════════════ */
+
+/* ── 헤더 ── */
+@media (max-width: 768px) {
   .header { padding: 0 12px; height: 52px; }
-  .logo { font-size: 14px; }
-  .logo-mark { width: 28px; height: 28px; font-size: 13px; }
-  .hdate { display: none; }
-  .divv { display: none; }
-  .fb-dot { display: none; }
+  .logo { font-size: 14px; gap: 8px; }
+  .logo-mark { width: 26px; height: 26px; font-size: 12px; }
+  .hdate, .divv, .fb-dot { display: none; }
   .tbtn { width: 32px; height: 32px; }
   .header-right { gap: 6px; }
-  .header-right .btn { padding: 5px 8px; font-size: 11px; }
+  .header-right .btn.sm { padding: 5px 10px; font-size: 11px; }
 
-  /* 탭 네비 - 스크롤 가능 */
-  .nav { padding: 0 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0; }
+  /* ── 탭 네비 ── */
+  .nav { padding: 0 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .nav::-webkit-scrollbar { display: none; }
-  .ni { padding: 0 12px; font-size: 12px; white-space: nowrap; }
+  .ni { padding: 0 11px; font-size: 12px; white-space: nowrap; height: 40px; }
   .nb { padding: 1px 5px; font-size: 9px; }
 
-  /* 페이지 패딩 */
-  .page { padding: 12px; gap: 12px; }
+  /* ── 페이지 ── */
+  .page { padding: 12px; gap: 12px; max-height: calc(100vh - 96px); }
 
-  /* 통계 카드: 5열 → 2열+1 */
+  /* ── 통계 카드 2열 ── */
   .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .stat-grid .sc:last-child { grid-column: 1 / -1; }
-  .sv { font-size: 24px; }
-  .sl { font-size: 10px; }
-  .ss { font-size: 10px; }
+  .stat-grid .sc:nth-child(5) { grid-column: 1 / -1; }
+  .sc { padding: 12px 14px; }
+  .sv { font-size: 22px; }
+  .sl { font-size: 10px; margin-bottom: 6px; }
+  .ss { font-size: 10px; margin-top: 4px; }
 
-  /* 그리드 */
-  .g2, .g3, .g4 { grid-template-columns: 1fr; gap: 12px; }
-  .fg { grid-template-columns: 1fr; }
+  /* ── 그리드 ── */
+  .g2, .g3, .g4 { grid-template-columns: 1fr; gap: 10px; }
+  .fg { grid-template-columns: 1fr; gap: 10px; }
   .fgf { grid-column: 1; }
 
-  /* 날짜 네비 */
-  .date-nav { padding: 8px 10px; gap: 6px; }
-  .date-nav input[type="date"] { width: 130px !important; font-size: 12px; }
-  .date-disp { font-size: 12px; }
+  /* ── 날짜 네비 ── */
+  .date-nav { padding: 8px 10px; gap: 6px; flex-wrap: wrap; }
+  .date-nav input[type="date"] { width: 130px !important; font-size: 12px; padding: 6px 8px; }
+  .date-disp { font-size: 12px; flex: 1; }
+  .date-nav-btn { width: 28px; height: 28px; }
+  .date-today-btn { padding: 4px 10px; font-size: 11px; }
 
-  /* 모달: 전체화면 */
-  .mbg { align-items: flex-end; }
+  /* ── 모달: 하단 시트 ── */
+  .mbg { align-items: flex-end; padding-bottom: 0; }
   .modal {
     width: 100% !important;
-    max-height: 92vh;
-    border-radius: 16px 16px 0 0;
-    animation: slideUp .25s cubic-bezier(.4,0,.2,1);
+    max-height: 88vh;
+    border-radius: 18px 18px 0 0;
+    animation: mobileSlideUp .22s cubic-bezier(.4,0,.2,1);
   }
-  @keyframes slideUp {
-    from { transform: translateY(100%); }
-    to   { transform: translateY(0); }
+  @keyframes mobileSlideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
   }
-  .mh { padding: 16px 16px 12px; }
-  .mb { padding: 16px; }
-  .mf { padding: 12px 16px; gap: 8px; }
-  .mf .btn { flex: 1; justify-content: center; }
+  .mh { padding: 14px 16px 10px; }
+  .mt { font-size: 15px; }
+  .mb { padding: 14px 16px; }
+  .mf { padding: 10px 16px 20px; gap: 8px; }
+  .mf .btn { flex: 1; justify-content: center; font-size: 13px; }
 
-  /* 고객 상세 패널 - 모바일에서 숨김 (탭으로 대체) */
-  #custDetail { display: none; }
-  .page-customers-grid { grid-template-columns: 1fr !important; }
+  /* ── 대시보드 오늘배송 패널 ── */
+  #dash-direct-wrap .card table,
+  #dToday { font-size: 12px; }
 
-  /* 테이블 - 가로 스크롤 */
-  .tw { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table { min-width: 600px; }
-  th, td { padding: 8px 10px; font-size: 12px; }
-
-  /* 배송관리 테이블 - 중요 컬럼만 */
-  #directList th:nth-child(7),
-  #directList td:nth-child(7),
-  #directList th:nth-child(9),
-  #directList td:nth-child(9) { display: none; }
-
-  #courierList th:nth-child(9),
-  #courierList td:nth-child(9) { display: none; }
-
-  /* 배송관리 섹션 헤더 */
-  #today-direct-section > div:first-child,
-  #today-courier-section > div:first-child {
-    flex-wrap: wrap;
+  /* ── 배송관리: 날짜줄 정리 ── */
+  #page-today > div:first-child {
+    flex-direction: column;
+    align-items: stretch;
     gap: 8px;
   }
+  #page-today > div:first-child .date-nav { flex: none; }
+  #page-today > div:first-child > div:last-child {
+    display: flex; gap: 8px; justify-content: space-between; align-items: center;
+  }
 
-  /* 필터 체크박스 */
-  .today-filter-ck + * { font-size: 11px; }
+  /* ── 배송 섹션 헤더 ── */
+  #today-direct-section > div:first-child,
+  #today-courier-section > div:first-child {
+    flex-wrap: wrap; gap: 8px;
+  }
 
-  /* 주간 달력: 7일 → 스크롤 */
-  .week-grid { grid-template-columns: repeat(7, minmax(44px, 1fr)); overflow-x: auto; }
+  /* ── 필터 체크박스 ── */
+  #today-courier-section .today-filter-ck,
+  #today-direct-section .today-filter-ck { width: 13px; height: 13px; }
+
+  /* ── 카드형 테이블: min-width 제거 ── */
+  .tw { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ── 고객관리 필터 줄 ── */
+  #page-customers .sh > div:last-child {
+    flex-wrap: wrap; gap: 6px;
+  }
+  #page-customers .sh > div:last-child .inp-sm {
+    flex: 1 1 calc(50% - 6px); min-width: 0;
+  }
+  #page-customers .sh > div:last-child input[type="text"] {
+    flex: 1 1 100%;
+  }
+  #page-customers .sh > div:last-child .btn {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  /* ── 고객관리 그리드 ── */
+  .cust-grid { grid-template-columns: 1fr !important; }
+  #custDetail { display: none; }
+
+  /* ── 택배 전달: 세로 레이아웃 ── */
+  #page-export .g2 { grid-template-columns: 1fr; }
+  #page-export .exptxt { max-height: 200px; font-size: 11px; }
+  #page-export table { min-width: 0; font-size: 12px; }
+  #page-export th, #page-export td { padding: 7px 8px; }
+
+  /* ── 주간/월간 ── */
+  .week-grid { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .week-grid > * { min-width: 44px; }
   .day-cell { padding: 8px 4px; }
   .dc-cnt { font-size: 16px; }
-
-  /* 월간 달력 */
-  .mc { min-height: 40px; }
+  .month-grid { gap: 3px; }
+  .mc { min-height: 38px; }
   .mc-d { font-size: 10px; }
   .mc-n { font-size: 9px; }
+  .g4 { grid-template-columns: 1fr 1fr; }
 
-  /* 로그인 */
-  .login-box { width: 90%; padding: 28px 20px; margin: 0 auto; }
-
-  /* 요약 카드 */
-  .sum-card { padding: 12px 14px; }
-  .sum-val { font-size: 20px; }
-
-  /* 배송지 모달 */
-  #addrM .modal { width: 100% !important; }
-
-  /* 주간월간 */
-  .view-tabs { width: 100%; }
-  .vt { flex: 1; text-align: center; }
-
-  /* 엑셀 드롭존 */
+  /* ── 일괄 등록 ── */
   .dz { padding: 20px; }
   .dz > div:first-child { font-size: 24px; }
+  #page-import .g2 { grid-template-columns: 1fr; }
+
+  /* ── 로그인 ── */
+  .login-box { width: 92%; padding: 28px 20px; }
+
+  /* ── 요약카드 ── */
+  .sum-card { padding: 12px 14px; }
+  .sum-val { font-size: 20px; }
+  .view-tabs { width: 100%; }
+  .vt { flex: 1; text-align: center; }
 }
 
-  /* 고객 관리 그리드 */
-  .cust-grid { grid-template-columns: 1fr !important; }
-
-/* 아주 작은 화면 (≤ 480px) */
 @media (max-width: 480px) {
-  .stat-grid { grid-template-columns: 1fr 1fr; }
-  .ni { padding: 0 10px; font-size: 11px; }
-  .header-right .btn:not(:last-child) { display: none; }
-  .date-nav input[type="date"] { width: 110px !important; }
+  .ni { padding: 0 9px; font-size: 11px; }
+  .stat-grid { gap: 6px; }
+  .g4 { grid-template-columns: 1fr 1fr; }
+  #page-export .exptxt { font-size: 10px; }
 }
 </style>
 </head>
@@ -514,7 +534,6 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
   <div class="ni"     onclick="goTab('customers')">👥 고객 관리</div>
   <div class="ni"     onclick="goTab('export')">📦 택배 전달</div>
   <div class="ni"     onclick="goTab('import')">📥 일괄 등록</div>
-  <div class="ni"     onclick="goTab('imweb')">🏪 아임웹 연동</div>
 </nav>
 
 <!-- ══════════ 대시보드 ══════════ -->
@@ -605,11 +624,19 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 
   <!-- 🚗 직배송 섹션 -->
   <div id="today-direct-section">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
       <div style="display:flex;align-items:center;gap:8px;flex:1;">
         <div style="width:4px;height:20px;background:#c020b0;border-radius:2px;"></div>
         <span style="font-size:15px;font-weight:700;color:var(--text);">🚗 직배송</span>
         <span id="direct-cnt" style="font-size:12px;background:rgba(192,32,176,.1);color:#c020b0;border:1px solid rgba(192,32,176,.25);border-radius:20px;padding:2px 10px;font-weight:600;"></span>
+      </div>
+      <!-- 직배송 세트 필터 -->
+      <div style="display:flex;gap:10px;align-items:center;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;">
+        <span style="font-size:11px;color:var(--text3);font-weight:600;">필터:</span>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="A" onchange="renderToday()" checked> A세트</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="B" onchange="renderToday()" checked> B세트</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="C" onchange="renderToday()" checked> C세트</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="single" onchange="renderToday()" checked> 단품</label>
       </div>
       <button class="btn btn-s sm" onclick="markAllDirect()">✓ 직배송 전체 완료</button>
     </div>
@@ -824,82 +851,6 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
   </div>
 </div>
 
-<!-- ══════════ 아임웹 연동 ══════════ -->
-<div class="page" id="page-imweb">
-  <div style="display:flex;flex-direction:column;gap:20px;">
-
-    <div class="card" style="padding:20px 24px;">
-      <div class="sh" style="margin-bottom:14px;">
-        <div class="st"><div class="std"></div>아임웹 API 설정</div>
-        <span id="imweb-conn-status" style="font-size:12px;color:var(--text3);">미연결</span>
-      </div>
-      <div class="ibox" style="margin-bottom:16px;">
-        <b>아임웹 관리자 → 환경설정 → 외부 서비스 연동(API) → Rest API V2</b>에서<br>
-        API Key와 Secret Key를 발급받아 입력하세요. 설정은 이 기기에만 저장됩니다.
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-        <div class="fgrp">
-          <div class="flab">API Key</div>
-          <input type="password" class="inp" id="iw-apikey" placeholder="아임웹 API Key" autocomplete="off">
-        </div>
-        <div class="fgrp">
-          <div class="flab">Secret Key</div>
-          <input type="password" class="inp" id="iw-secret" placeholder="아임웹 Secret Key" autocomplete="off">
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button class="btn btn-p" onclick="imwebSaveKeys()">💾 저장 및 연결 확인</button>
-        <button class="btn btn-g sm" onclick="imwebClearKeys()">🗑 키 삭제</button>
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin-left:8px;">
-          <input type="checkbox" id="iw-show" onchange="imwebToggleShow(this)"> 키 표시
-        </label>
-      </div>
-    </div>
-
-    <!-- 아임웹 엑셀 업로드 -->
-    <div class="card" style="padding:20px 24px;">
-      <div class="sh" style="margin-bottom:14px;">
-        <div class="st"><div class="std"></div>📊 아임웹 주문 엑셀 업로드</div>
-      </div>
-      <div class="ibox" style="margin-bottom:14px;">
-        <b>아임웹 관리자 → 쇼핑 → 주문 → 내보내기(엑셀)</b>로 다운받은 파일을 올려주세요.<br>
-        상품명·옵션에서 날짜·세트·정기/선택을 자동으로 인식합니다. <b>거래종료·취소는 자동 제외</b>됩니다.
-      </div>
-      <div class="dz" id="iw-dz" onclick="document.getElementById('iw-xlf').click()"
-           ondragover="iwDzOver(event)" ondragleave="iwDzLeave()" ondrop="iwDzDrop(event)">
-        <div style="font-size:32px;margin-bottom:8px;">🏪</div>
-        <div style="font-size:13px;font-weight:600;color:var(--text2);">아임웹 주문 엑셀을 드래그하거나 클릭</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px;">.xlsx .xls 지원 · 헤더 1행 자동 건너뜀</div>
-      </div>
-      <input type="file" id="iw-xlf" accept=".xlsx,.xls" style="display:none" onchange="iwReadXl(this)">
-      <div id="iw-xl-wrap" style="display:none;margin-top:14px;">
-        <div class="sh" style="margin-bottom:8px;">
-          <div style="font-size:13px;font-weight:600;">미리보기 <span id="iw-xl-cnt" style="color:var(--text3);font-weight:400;font-size:12px;"></span></div>
-          <div style="display:flex;gap:6px;">
-            <button class="btn btn-d sm" onclick="iwResetXl()">🗑 초기화</button>
-            <button class="btn btn-p sm" onclick="iwRegXl()">✓ 전체 등록</button>
-          </div>
-        </div>
-        <div class="ibox" style="margin-bottom:10px;border-color:rgba(227,98,9,.3);background:rgba(227,98,9,.06);">
-          ⚠ <b>세트/상품·배송일을 반드시 확인하세요.</b> ✕로 개별 제외 가능.
-        </div>
-        <div class="card" style="overflow:auto;max-height:440px;"><div class="tw">
-          <table>
-            <thead><tr>
-              <th>#</th><th>주문번호</th><th>수령자</th><th>연락처</th><th>주소</th>
-              <th>유형</th><th>세트/상품</th><th>배송일/배송일정</th><th>수량</th><th>배송메모</th><th>제외</th>
-            </tr></thead>
-            <tbody id="iw-xl-tbody"></tbody>
-          </table>
-        </div></div>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-</div><!-- /app -->
-
 <!-- ══ 신규 등록 모달 ══ -->
 <div class="mbg" id="addM">
   <div class="modal">
@@ -1060,6 +1011,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
             <optgroup label="단품 상품">
               <option value="pork_rib">🥩 수제 돼지양념갈비</option>
               <option value="beef_la">🥩 양념 LA갈비</option>
+              <option value="beef_soup">🥣 소고기무국</option>
             </optgroup>
           </select>
         </div>
@@ -2537,24 +2489,37 @@ function renderToday(){
   const courierList= allList.filter(c => !c.isDirect);
 
   s('todayCnt', allList.length + '건');
-  s('direct-cnt',  directList.length  + '건');
   s('courier-cnt', courierList.length + '건');
 
   // 직배송 섹션 표시/숨김
   const dirSec = document.getElementById('today-direct-section');
   if(dirSec) dirSec.style.display = directList.length ? '' : 'none';
 
+  // ── 직배송 필터 적용 ──
+  const allDirectCks = document.querySelectorAll('.direct-filter-ck');
+  const checkedDirectVals = Array.from(allDirectCks).filter(el=>el.checked).map(el=>el.value);
+  const filteredDirect = checkedDirectVals.length === allDirectCks.length
+    ? directList
+    : directList.filter(c=>{
+        const prod = c.productId || c.set || '';
+        const isSingle = ['pork_rib','beef_la','beef_soup'].indexOf(prod) !== -1;
+        if(isSingle) return checkedDirectVals.indexOf('single') !== -1;
+        return checkedDirectVals.indexOf(prod) !== -1;
+      });
+
+  s('direct-cnt', filteredDirect.length + '건');
+
   // ── 직배송 테이블/카드 ──
   const dtb = document.getElementById('directList');
   if(dtb){
-    if(!directList.length){
+    if(!filteredDirect.length){
       dtb.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="ei">🚗</div><div>직배송 없음</div></div></td></tr>`;
     } else {
       const isMobile = window.innerWidth <= 768;
       if(isMobile){
         // 모바일: 테이블 대신 카드 뷰
         dtb.closest('table').style.minWidth = '0';
-        dtb.innerHTML = directList.map(c => {
+        dtb.innerHTML = filteredDirect.map(c => {
           const done = (c.deliveredDates||[]).includes(ds);
           return `<tr class="${done?'trd':''}">
             <td colspan="11" style="padding:0;border:none;">
@@ -2581,7 +2546,7 @@ function renderToday(){
         }).join('');
       } else {
         dtb.closest('table').style.minWidth = '';
-        dtb.innerHTML = directList.map(c => {
+        dtb.innerHTML = filteredDirect.map(c => {
           const done = (c.deliveredDates||[]).includes(ds);
           return `<tr class="${done?'trd':''}">
             <td><input type="checkbox" class="ck-direct" data-id="${c.id}"></td>
@@ -3637,13 +3602,12 @@ function clearAdd(){
 }
 
 function goTab(name){
-  const tabs=['dash','today','report','customers','export','import','imweb'];
+  const tabs=['dash','today','report','customers','export','import'];
   document.querySelectorAll('.ni').forEach((t,i)=>t.classList.toggle('on',tabs[i]===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.getElementById('page-'+name).classList.add('on');
   if(name==='customers') renderCust();
   if(name==='report') renderReport();
-  if(name==='imweb') initImwebTab();
 }
 
 function openM(id){document.getElementById(id).classList.add('on');}
