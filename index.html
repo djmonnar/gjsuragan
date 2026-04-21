@@ -338,6 +338,133 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 .view-tabs{display:flex;gap:0;background:var(--bg3);border-radius:8px;padding:3px;width:fit-content;}
 .vt{padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:var(--tr);}
 .vt.on{background:var(--surface);color:var(--text);box-shadow:var(--sh0);}
+
+/* ════════════════════════════════════════
+   모바일 반응형
+   ════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* 헤더 */
+  .header { padding: 0 12px; height: 52px; }
+  .logo { font-size: 14px; }
+  .logo-mark { width: 28px; height: 28px; font-size: 13px; }
+  .hdate { display: none; }
+  .divv { display: none; }
+  .fb-dot { display: none; }
+  .tbtn { width: 32px; height: 32px; }
+  .header-right { gap: 6px; }
+  .header-right .btn { padding: 5px 8px; font-size: 11px; }
+
+  /* 탭 네비 - 스크롤 가능 */
+  .nav { padding: 0 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0; }
+  .nav::-webkit-scrollbar { display: none; }
+  .ni { padding: 0 12px; font-size: 12px; white-space: nowrap; }
+  .nb { padding: 1px 5px; font-size: 9px; }
+
+  /* 페이지 패딩 */
+  .page { padding: 12px; gap: 12px; }
+
+  /* 통계 카드: 5열 → 2열+1 */
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-grid .sc:last-child { grid-column: 1 / -1; }
+  .sv { font-size: 24px; }
+  .sl { font-size: 10px; }
+  .ss { font-size: 10px; }
+
+  /* 그리드 */
+  .g2, .g3, .g4 { grid-template-columns: 1fr; gap: 12px; }
+  .fg { grid-template-columns: 1fr; }
+  .fgf { grid-column: 1; }
+
+  /* 날짜 네비 */
+  .date-nav { padding: 8px 10px; gap: 6px; }
+  .date-nav input[type="date"] { width: 130px !important; font-size: 12px; }
+  .date-disp { font-size: 12px; }
+
+  /* 모달: 전체화면 */
+  .mbg { align-items: flex-end; }
+  .modal {
+    width: 100% !important;
+    max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+    animation: slideUp .25s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .mh { padding: 16px 16px 12px; }
+  .mb { padding: 16px; }
+  .mf { padding: 12px 16px; gap: 8px; }
+  .mf .btn { flex: 1; justify-content: center; }
+
+  /* 고객 상세 패널 - 모바일에서 숨김 (탭으로 대체) */
+  #custDetail { display: none; }
+  .page-customers-grid { grid-template-columns: 1fr !important; }
+
+  /* 테이블 - 가로 스크롤 */
+  .tw { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 600px; }
+  th, td { padding: 8px 10px; font-size: 12px; }
+
+  /* 배송관리 테이블 - 중요 컬럼만 */
+  #directList th:nth-child(7),
+  #directList td:nth-child(7),
+  #directList th:nth-child(9),
+  #directList td:nth-child(9) { display: none; }
+
+  #courierList th:nth-child(9),
+  #courierList td:nth-child(9) { display: none; }
+
+  /* 배송관리 섹션 헤더 */
+  #today-direct-section > div:first-child,
+  #today-courier-section > div:first-child {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* 필터 체크박스 */
+  .today-filter-ck + * { font-size: 11px; }
+
+  /* 주간 달력: 7일 → 스크롤 */
+  .week-grid { grid-template-columns: repeat(7, minmax(44px, 1fr)); overflow-x: auto; }
+  .day-cell { padding: 8px 4px; }
+  .dc-cnt { font-size: 16px; }
+
+  /* 월간 달력 */
+  .mc { min-height: 40px; }
+  .mc-d { font-size: 10px; }
+  .mc-n { font-size: 9px; }
+
+  /* 로그인 */
+  .login-box { width: 90%; padding: 28px 20px; margin: 0 auto; }
+
+  /* 요약 카드 */
+  .sum-card { padding: 12px 14px; }
+  .sum-val { font-size: 20px; }
+
+  /* 배송지 모달 */
+  #addrM .modal { width: 100% !important; }
+
+  /* 주간월간 */
+  .view-tabs { width: 100%; }
+  .vt { flex: 1; text-align: center; }
+
+  /* 엑셀 드롭존 */
+  .dz { padding: 20px; }
+  .dz > div:first-child { font-size: 24px; }
+}
+
+  /* 고객 관리 그리드 */
+  .cust-grid { grid-template-columns: 1fr !important; }
+
+/* 아주 작은 화면 (≤ 480px) */
+@media (max-width: 480px) {
+  .stat-grid { grid-template-columns: 1fr 1fr; }
+  .ni { padding: 0 10px; font-size: 11px; }
+  .header-right .btn:not(:last-child) { display: none; }
+  .date-nav input[type="date"] { width: 110px !important; }
+}
 </style>
 </head>
 <body>
@@ -598,7 +725,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
       <button class="btn btn-g sm" onclick="exportCSV()" title="전체 고객 CSV 백업">⬇ CSV 백업</button>
     </div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;">
+  <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;" class="cust-grid">
     <div class="card" style="overflow:auto;max-height:calc(100vh - 220px);">
       <table>
         <thead><tr><th>고객명</th><th>연락처</th><th>세트</th><th>유형</th><th>배송일정</th><th>배송</th><th>잔여</th><th>상태</th><th></th></tr></thead>
@@ -2336,6 +2463,13 @@ function jumpToDate(ds){
 // ════════════════════════════════════════
 function refreshAll(){ renderDash(); renderToday(); renderCust(); renderReport(); }
 
+// 화면 크기 변경 시 재렌더링 (모바일↔PC 전환)
+let _resizeTimer;
+window.addEventListener('resize', ()=>{
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(()=>{ renderToday(); renderCust(); }, 200);
+});
+
 function renderDash(){
   const ds=document.getElementById('dashDate').value||todayStr();
   updateDashDisp();
@@ -2410,12 +2544,44 @@ function renderToday(){
   const dirSec = document.getElementById('today-direct-section');
   if(dirSec) dirSec.style.display = directList.length ? '' : 'none';
 
-  // ── 직배송 테이블 ──
+  // ── 직배송 테이블/카드 ──
   const dtb = document.getElementById('directList');
   if(dtb){
-    dtb.innerHTML = !directList.length
-      ? `<tr><td colspan="11"><div class="empty"><div class="ei">🚗</div><div>직배송 없음</div></div></td></tr>`
-      : directList.map(c => {
+    if(!directList.length){
+      dtb.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="ei">🚗</div><div>직배송 없음</div></div></td></tr>`;
+    } else {
+      const isMobile = window.innerWidth <= 768;
+      if(isMobile){
+        // 모바일: 테이블 대신 카드 뷰
+        dtb.closest('table').style.minWidth = '0';
+        dtb.innerHTML = directList.map(c => {
+          const done = (c.deliveredDates||[]).includes(ds);
+          return `<tr class="${done?'trd':''}">
+            <td colspan="11" style="padding:0;border:none;">
+              <div style="background:var(--surface);border:1px solid rgba(192,32,176,.2);border-radius:10px;margin:4px 0;padding:12px 14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" class="ck-direct" data-id="${c.id}">
+                    <strong style="font-size:15px;cursor:pointer;color:var(--accent);" onclick="openEdit('${c.id}')">${c.name}</strong>
+                    <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
+                  </div>
+                  ${done
+                    ? '<span class="badge b-ok">완료</span>'
+                    : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${c.id}','${ds}')">✓ 완료</button>`
+                  }
+                </div>
+                <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">📞 ${c.phone}</div>
+                <div style="font-size:12px;color:#c020b0;cursor:pointer;margin-bottom:4px;" onclick="showAddrModal('${c.id}')">📍 ${c.addr}</div>
+                ${c.door ? `<div style="font-size:12px;color:var(--text3);">🔑 현관: ${c.door}</div>` : ''}
+                ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">💬 ${c.request}</div>` : ''}
+                <div style="font-size:11px;color:var(--text3);margin-top:4px;">${c.scheduleName||c.onceDate||''}</div>
+              </div>
+            </td>
+          </tr>`;
+        }).join('');
+      } else {
+        dtb.closest('table').style.minWidth = '';
+        dtb.innerHTML = directList.map(c => {
           const done = (c.deliveredDates||[]).includes(ds);
           return `<tr class="${done?'trd':''}">
             <td><input type="checkbox" class="ck-direct" data-id="${c.id}"></td>
@@ -2431,6 +2597,8 @@ function renderToday(){
             <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓</button>`}</td>
           </tr>`;
         }).join('');
+      }
+    }
   }
 
   // ── 택배 필터 체크박스 적용 ──
@@ -2453,25 +2621,54 @@ function renderToday(){
   if(ctb){
     ctb.innerHTML = !filteredCourier.length
       ? `<tr><td colspan="13"><div class="empty"><div class="ei">📦</div><div>택배 없음</div></div></td></tr>`
-      : filteredCourier.map(c => {
-          const done = (c.deliveredDates||[]).includes(ds);
-          return `<tr class="${done?'trd':''}">
-            <td><input type="checkbox" class="ck-courier" data-id="${c.id}"></td>
-            <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-            <td style="white-space:nowrap;">${c.phone}</td>
-            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
-            <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-            <td>
-              <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span>
-            </td>
-            <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||''}</td>
-            <td style="font-size:12px;">${c.door||'—'}</td>
-            <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
-            <td>${gauge(c)}</td>
-            <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
-            <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓</button>`}</td>
-          </tr>`;
-        }).join('');
+      : (window.innerWidth <= 768
+          ? filteredCourier.map(c => {
+              const done = (c.deliveredDates||[]).includes(ds);
+              return `<tr class="${done?'trd':''}">
+                <td colspan="13" style="padding:0;border:none;">
+                  <div style="background:var(--surface);border:1px solid rgba(3,102,214,.15);border-radius:10px;margin:4px 0;padding:12px 14px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <input type="checkbox" class="ck-courier" data-id="${c.id}">
+                        <strong style="font-size:15px;cursor:pointer;color:var(--accent);" onclick="openEdit('${c.id}')">${c.name}</strong>
+                        <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
+                        <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span>
+                      </div>
+                      ${done
+                        ? '<span class="badge b-ok">완료</span>'
+                        : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${c.id}','${ds}')">✓ 완료</button>`
+                      }
+                    </div>
+                    <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">📞 ${c.phone}</div>
+                    <div style="font-size:12px;color:var(--accent);cursor:pointer;margin-bottom:4px;" onclick="showAddrModal('${c.id}')">📍 ${c.addr}</div>
+                    ${c.door ? `<div style="font-size:12px;color:var(--text3);">🔑 현관: ${c.door}</div>` : ''}
+                    ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">💬 ${c.request}</div>` : ''}
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+                      <div style="font-size:11px;color:var(--text3);">${c.scheduleName||''}</div>
+                      <div>${gauge(c)}</div>
+                    </div>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('')
+          : filteredCourier.map(c => {
+              const done = (c.deliveredDates||[]).includes(ds);
+              return `<tr class="${done?'trd':''}">
+                <td><input type="checkbox" class="ck-courier" data-id="${c.id}"></td>
+                <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
+                <td style="white-space:nowrap;">${c.phone}</td>
+                <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
+                <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
+                <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
+                <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||''}</td>
+                <td style="font-size:12px;">${c.door||'—'}</td>
+                <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
+                <td>${gauge(c)}</td>
+                <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
+                <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓</button>`}</td>
+              </tr>`;
+            }).join('')
+        );
   }
 }
 
@@ -2587,24 +2784,55 @@ function renderCust(){
     tb.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="ei">👤</div><div>검색 결과 없음</div></div></td></tr>`;
     return;
   }
-  tb.innerHTML=list.map(c=>`<tr class="trc" onclick="showDet('${c.id}')">
-    <td>
-      <strong>${c.name}</strong>
-      ${c.orderNum?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">#${c.orderNum}</div>`:''}
-    </td>
-    <td style="white-space:nowrap;">${c.phone}</td>
-    <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-    <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-    <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.scheduleName||''}</td>
-    <td>${c.isDirect?'<span class="badge b-direct">직배송</span>':'<span style="font-size:11px;color:var(--text3);">택배</span>'}</td>
-    <td>${gauge(c)}</td>
-    <td><span class="badge b-${c.status}">${SL[c.status]}</span></td>
-    <td style="display:flex;gap:4px;flex-wrap:wrap;">
-      <button class="btn btn-g sm" onclick="event.stopPropagation();openEdit('${c.id}')">수정</button>
-      ${c.orderType==='sub'?`<button class="btn sm" style="background:rgba(3,102,214,.1);color:#0366d6;border:1px solid rgba(3,102,214,.3);" onclick="event.stopPropagation();chargeRemain('${c.id}')">충전</button>`:''}
-      <button class="btn btn-d sm" onclick="event.stopPropagation();quickDelete('${c.id}','${c.name}')">삭제</button>
-    </td>
-  </tr>`).join('');
+  if(window.innerWidth <= 768){
+    // 모바일: 카드형 리스트
+    tb.closest('table').style.minWidth = '0';
+    tb.innerHTML = list.map(c=>`<tr>
+      <td colspan="9" style="padding:0;border:none;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;margin:4px 0;padding:12px 14px;cursor:pointer;"
+             onclick="openEdit('${c.id}')">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <strong style="font-size:14px;">${c.name}</strong>
+              <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
+              <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span>
+              ${c.isDirect?'<span class="badge b-direct">직배</span>':''}
+            </div>
+            <span class="badge b-${c.status}">${SL[c.status]}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:3px;">📞 ${c.phone}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">${c.scheduleName||c.onceDate||''}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>${gauge(c)}</div>
+            <div style="display:flex;gap:6px;" onclick="event.stopPropagation()">
+              ${c.orderType==='sub'?`<button class="btn sm" style="background:rgba(3,102,214,.1);color:#0366d6;border:1px solid rgba(3,102,214,.3);font-size:11px;" onclick="chargeRemain('${c.id}')">충전</button>`:''}
+              <button class="btn btn-d sm" style="font-size:11px;" onclick="quickDelete('${c.id}','${c.name}')">삭제</button>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>`).join('');
+  } else {
+    tb.closest('table').style.minWidth = '';
+    tb.innerHTML=list.map(c=>`<tr class="trc" onclick="showDet('${c.id}')">
+      <td>
+        <strong>${c.name}</strong>
+        ${c.orderNum?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">#${c.orderNum}</div>`:''}
+      </td>
+      <td style="white-space:nowrap;">${c.phone}</td>
+      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
+      <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
+      <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.scheduleName||''}</td>
+      <td>${c.isDirect?'<span class="badge b-direct">직배송</span>':'<span style="font-size:11px;color:var(--text3);">택배</span>'}</td>
+      <td>${gauge(c)}</td>
+      <td><span class="badge b-${c.status}">${SL[c.status]}</span></td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button class="btn btn-g sm" onclick="event.stopPropagation();openEdit('${c.id}')">수정</button>
+        ${c.orderType==='sub'?`<button class="btn sm" style="background:rgba(3,102,214,.1);color:#0366d6;border:1px solid rgba(3,102,214,.3);" onclick="event.stopPropagation();chargeRemain('${c.id}')">충전</button>`:''}
+        <button class="btn btn-d sm" onclick="event.stopPropagation();quickDelete('${c.id}','${c.name}')">삭제</button>
+      </td>
+    </tr>`).join('');
+  }
 }
 
 // 선택주문 배송일 변경
