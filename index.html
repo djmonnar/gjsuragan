@@ -955,7 +955,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
             <option value="">주기를 먼저 선택하세요</option>
           </select>
         </div>
-        <div class="fgrp"><div class="flab">배송 예정일 (선택주문)</div><input type="date" class="inp" id="eodate"></div>
+        <div class="fgrp"><div class="flab">배송 예정일 <span style="font-size:10px;color:var(--text3);">(선택주문 · 날짜 변경 시 수정)</span></div><input type="date" class="inp" id="eodate"></div>
         <div class="fgrp"><div class="flab">주문번호</div><input type="text" class="inp" id="e-ordernum" placeholder="202603258223322"></div>
         <div class="fgrp"><div class="flab">배송 방식</div>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400;color:var(--text);margin-top:6px;">
@@ -2082,6 +2082,7 @@ function dow(ds){
 }
 function isDelivSub(c,ds){
   if(c.status!=='active'||c.remain<=0||c.orderType!=='sub') return false;
+  if(c.startDate && ds < c.startDate) return false;  // 첫 배송일 이전 차단
   const d=dow(ds);
   // cookDays가 저장된 경우: 조리일 기준으로 표시 (오늘 조리=오늘 출고)
   if(c.cookDays&&c.cookDays.length>0){
@@ -2095,6 +2096,7 @@ function isDelivSub(c,ds){
 }
 function isDelivOnce(c,ds){
   if(c.status!=='active'||c.remain<=0||c.orderType!=='once') return false;
+  if(c.startDate && ds < c.startDate) return false;  // 첫 배송일 이전 차단
   if(c.isDirect){
     // 직배송: onceDate 당일 배송
     return c.onceDate===ds;
@@ -2359,7 +2361,7 @@ function renderDash(){
   if(dDirectWrap && dTodayDirect){
     dDirectWrap.style.display = directList.length ? '' : 'none';
     dTodayDirect.innerHTML = directList.slice(0,5).map(c=>`<tr>
-      <td><strong>${c.name}</strong></td>
+      <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
       <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td style="font-size:11px;color:var(--text3);">${c.scheduleName||c.onceDate||''}</td>
       <td>${c.phone}</td>
@@ -2374,7 +2376,7 @@ function renderDash(){
   dt.innerHTML=!courierList.length
     ?`<tr><td colspan="6"><div class="empty"><div class="ei">📦</div><div>택배 없음</div></div></td></tr>`
     :courierList.slice(0,8).map(c=>`<tr>
-      <td><strong>${c.name}</strong></td>
+      <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
       <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
       <td>${c.phone}</td>
@@ -2386,7 +2388,7 @@ function renderDash(){
   dl.innerHTML=!tmrList.length
     ?`<tr><td colspan="4"><div class="empty"><div class="ei">📭</div><div>내일 배송 없음</div></div></td></tr>`
     :tmrList.map(c=>`<tr>
-      <td><strong>${c.name}</strong></td>
+      <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
       <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
       <td>${c.phone}</td>
@@ -2417,7 +2419,7 @@ function renderToday(){
           const done = (c.deliveredDates||[]).includes(ds);
           return `<tr class="${done?'trd':''}">
             <td><input type="checkbox" class="ck-direct" data-id="${c.id}"></td>
-            <td><strong>${c.name}</strong></td>
+            <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
             <td style="white-space:nowrap;">${c.phone}</td>
             <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#c020b0;cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
             <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
@@ -2432,25 +2434,30 @@ function renderToday(){
   }
 
   // ── 택배 필터 체크박스 적용 ──
-  const checkedVals = Array.from(document.querySelectorAll('.today-filter-ck:checked')).map(el=>el.value);
+  const allFilterCks = document.querySelectorAll('.today-filter-ck');
+  const checkedVals = Array.from(allFilterCks).filter(el=>el.checked).map(el=>el.value);
+  const totalCks    = allFilterCks.length;
   const SINGLE_PRODS = ['pork_rib','beef_la','beef_soup'];
-  const filteredCourier = courierList.filter(c=>{
-    const prod = c.productId || c.set || '';
-    const isSingle = SINGLE_PRODS.indexOf(prod) !== -1;
-    if(isSingle) return checkedVals.indexOf('single') !== -1;
-    return checkedVals.indexOf(prod) !== -1;
-  });
+  const filteredCourier = checkedVals.length === totalCks
+    ? courierList  // 전체 체크 → 필터 없음
+    : courierList.filter(c=>{
+        const prod = c.productId || c.set || '';
+        const isSingle = SINGLE_PRODS.indexOf(prod) !== -1;
+        if(isSingle) return checkedVals.indexOf('single') !== -1;
+        // A,B,C 세트
+        return checkedVals.indexOf(prod) !== -1;
+      });
 
   // ── 택배 테이블 ──
   const ctb = document.getElementById('courierList');
   if(ctb){
     ctb.innerHTML = !filteredCourier.length
       ? `<tr><td colspan="13"><div class="empty"><div class="ei">📦</div><div>택배 없음</div></div></td></tr>`
-      : courierList.map(c => {
+      : filteredCourier.map(c => {
           const done = (c.deliveredDates||[]).includes(ds);
           return `<tr class="${done?'trd':''}">
             <td><input type="checkbox" class="ck-courier" data-id="${c.id}"></td>
-            <td><strong>${c.name}</strong></td>
+            <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
             <td style="white-space:nowrap;">${c.phone}</td>
             <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
             <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
