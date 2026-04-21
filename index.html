@@ -589,6 +589,11 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <option value="remain">잔여 있음</option>
         <option value="done">잔여 없음</option>
       </select>
+      <select class="inp inp-sm" id="srchSort" onchange="renderCust()" style="width:100px;">
+        <option value="recent">최신순</option>
+        <option value="name">가나다순</option>
+        <option value="remain">잔여순</option>
+      </select>
       <button class="btn btn-p sm" onclick="openM('addM')">＋ 신규 등록</button>
       <button class="btn btn-g sm" onclick="exportCSV()" title="전체 고객 CSV 백업">⬇ CSV 백업</button>
     </div>
@@ -1171,6 +1176,7 @@ const PRODUCTS = [
   // 1회 배송 상품
   { id:'pork_rib',  label:'수제 돼지양념갈비', type:'once', category:'meat' },
   { id:'beef_la',   label:'양념 LA갈비',        type:'once', category:'meat' },
+  { id:'beef_soup', label:'소고기무국',          type:'once', category:'meat' },
 ];
 
 // 상품ID → 라벨
@@ -1185,6 +1191,7 @@ function productBadgeClass(id){
   if(id==='C')         return 'bc';
   if(id==='pork_rib')  return 'b-pork';
   if(id==='beef_la')   return 'b-beef';
+  if(id==='beef_soup') return 'b-beef';
   return 'b-pause';
 }
 
@@ -2558,6 +2565,15 @@ function renderCust(){
     if(fr==='remain'&&!(c.remain>0)) return false;
     if(fr==='done'&&c.remain>0) return false;
     return true;
+  });
+
+  // 정렬
+  const sortBy = document.getElementById('srchSort')?.value || 'recent';
+  list.sort(function(a,b){
+    if(sortBy==='name')   return (a.name||'').localeCompare(b.name||'','ko');
+    if(sortBy==='remain') return (b.remain||0)-(a.remain||0);
+    // recent: createdAt 내림차순
+    return (b.createdAt||'').localeCompare(a.createdAt||'');
   });
   const tb=document.getElementById('custList');
   if(!list.length){
