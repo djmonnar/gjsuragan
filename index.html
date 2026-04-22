@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>궁중수라간 · 배송 관리</title>
 
-<!-- Firebase compat (v9 compat = 전통 방식, window 전역 사용 가능) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script>
-  const _fbCfg = {
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  const cfg={
     apiKey:"AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A",
     authDomain:"gjsuragan-60505.firebaseapp.com",
     projectId:"gjsuragan-60505",
@@ -17,8 +17,10 @@
     messagingSenderId:"1009198450175",
     appId:"1:1009198450175:web:4a55da7c2092dba42613ca"
   };
-  firebase.initializeApp(_fbCfg);
-  window.__DB = firebase.firestore();
+  const app=initializeApp(cfg); const db=getFirestore(app);
+  window.__db=db; window.__col=collection; window.__add=addDoc;
+  window.__upd=updateDoc; window.__del=deleteDoc; window.__doc=doc; window.__snap=onSnapshot;
+  window.dispatchEvent(new Event('fbReady'));
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -152,9 +154,6 @@ tbody tr:last-child td{border-bottom:none;}
 .b-end{background:rgba(215,58,73,.1);color:#d73a49;border-color:rgba(215,58,73,.2);}
 .b-once{background:rgba(111,66,193,.1);color:#6f42c1;border-color:rgba(111,66,193,.2);}
 .b-sub{background:rgba(3,102,214,.1);color:#0366d6;border-color:rgba(3,102,214,.2);}
-.b-pork{background:rgba(210,90,60,.1);color:#d25a3c;border-color:rgba(210,90,60,.25);}
-.b-beef{background:rgba(155,60,40,.1);color:#9b3c28;border-color:rgba(155,60,40,.25);}
-.b-direct{background:rgba(225,50,200,.1);color:#c020b0;border-color:rgba(225,50,200,.25);}
 
 /* ── 게이지 ── */
 .gw{display:flex;align-items:center;gap:8px;}
@@ -338,256 +337,6 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 .view-tabs{display:flex;gap:0;background:var(--bg3);border-radius:8px;padding:3px;width:fit-content;}
 .vt{padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:var(--tr);}
 .vt.on{background:var(--surface);color:var(--text);box-shadow:var(--sh0);}
-
-
-/* ════════════════════════════════════════
-   모바일 반응형 (전면 개편)
-   ════════════════════════════════════════ */
-
-/* ── 헤더 ── */
-@media (max-width: 768px) {
-  .header { padding: 0 12px; height: 52px; }
-  .logo { font-size: 14px; gap: 8px; }
-  .logo-mark { width: 26px; height: 26px; font-size: 12px; }
-  .hdate, .divv, .fb-dot { display: none; }
-  .tbtn { width: 32px; height: 32px; }
-  .header-right { gap: 6px; }
-  .header-right .btn.sm { padding: 5px 10px; font-size: 11px; }
-
-  /* ── 탭 네비 ── */
-  .nav { padding: 0 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-  .nav::-webkit-scrollbar { display: none; }
-  .ni { padding: 0 11px; font-size: 12px; white-space: nowrap; height: 40px; }
-  .nb { padding: 1px 5px; font-size: 9px; }
-
-  /* ── 페이지 ── */
-  .page { padding: 12px; gap: 12px; max-height: calc(100vh - 96px); }
-
-  /* ── 통계 카드 2열 ── */
-  .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .stat-grid .sc:nth-child(5) { grid-column: 1 / -1; }
-  .sc { padding: 12px 14px; }
-  .sv { font-size: 22px; }
-  .sl { font-size: 10px; margin-bottom: 6px; }
-  .ss { font-size: 10px; margin-top: 4px; }
-
-  /* ── 그리드 ── */
-  .g2, .g3, .g4 { grid-template-columns: 1fr; gap: 10px; }
-  .fg { grid-template-columns: 1fr; gap: 10px; }
-  .fgf { grid-column: 1; }
-
-  /* ── 날짜 네비 ── */
-  .date-nav { padding: 8px 10px; gap: 6px; flex-wrap: wrap; }
-  .date-nav input[type="date"] { width: 130px !important; font-size: 12px; padding: 6px 8px; }
-  .date-disp { font-size: 12px; flex: 1; }
-  .date-nav-btn { width: 28px; height: 28px; }
-  .date-today-btn { padding: 4px 10px; font-size: 11px; }
-
-  /* ── 모달: 하단 시트 ── */
-  .mbg { align-items: flex-end; padding-bottom: 0; }
-  .modal {
-    width: 100% !important;
-    max-height: 88vh;
-    border-radius: 18px 18px 0 0;
-    animation: mobileSlideUp .22s cubic-bezier(.4,0,.2,1);
-  }
-  @keyframes mobileSlideUp {
-    from { transform: translateY(100%); opacity: 0; }
-    to   { transform: translateY(0); opacity: 1; }
-  }
-  .mh { padding: 14px 16px 10px; }
-  .mt { font-size: 15px; }
-  .mb { padding: 14px 16px; }
-  .mf { padding: 10px 16px 20px; gap: 8px; }
-  .mf .btn { flex: 1; justify-content: center; font-size: 13px; }
-
-  /* ── 대시보드 오늘배송 패널 ── */
-  #dash-direct-wrap .card table,
-  #dToday { font-size: 12px; }
-
-  /* ── 배송관리: 날짜줄 정리 ── */
-  #page-today > div:first-child {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-  #page-today > div:first-child .date-nav { flex: none; }
-  #page-today > div:first-child > div:last-child {
-    display: flex; gap: 8px; justify-content: space-between; align-items: center;
-  }
-
-  /* ── 배송 섹션 헤더 ── */
-  #today-direct-section > div:first-child,
-  #today-courier-section > div:first-child {
-    flex-wrap: wrap; gap: 8px;
-  }
-
-  /* ── 필터 체크박스 ── */
-  #today-courier-section .today-filter-ck,
-  #today-direct-section .today-filter-ck { width: 13px; height: 13px; }
-
-  /* ── 카드형 테이블: min-width 제거 ── */
-  .tw { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-
-  /* ── 고객관리 필터 줄 ── */
-  #page-customers .sh > div:last-child {
-    flex-wrap: wrap; gap: 6px;
-  }
-  #page-customers .sh > div:last-child .inp-sm {
-    flex: 1 1 calc(50% - 6px); min-width: 0;
-  }
-  #page-customers .sh > div:last-child input[type="text"] {
-    flex: 1 1 100%;
-  }
-  #page-customers .sh > div:last-child .btn {
-    flex: 1 1 calc(50% - 6px);
-  }
-
-  /* ── 고객관리 그리드 ── */
-  .cust-grid { grid-template-columns: 1fr !important; }
-  #custDetail { display: none; }
-
-  /* ── 택배 전달: 세로 레이아웃 ── */
-  #page-export .g2 { grid-template-columns: 1fr; }
-  #page-export .exptxt { max-height: 200px; font-size: 11px; }
-  #page-export table { min-width: 0; font-size: 12px; }
-  #page-export th, #page-export td { padding: 7px 8px; }
-
-  /* ── 주간/월간 ── */
-  .week-grid { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .week-grid > * { min-width: 44px; }
-  .day-cell { padding: 8px 4px; }
-  .dc-cnt { font-size: 16px; }
-  .month-grid { gap: 3px; }
-  .mc { min-height: 38px; }
-  .mc-d { font-size: 10px; }
-  .mc-n { font-size: 9px; }
-  .g4 { grid-template-columns: 1fr 1fr; }
-
-  /* ── 일괄 등록 ── */
-  .dz { padding: 20px; }
-  .dz > div:first-child { font-size: 24px; }
-  #page-import .g2 { grid-template-columns: 1fr; }
-
-  /* ── 로그인 ── */
-  .login-box { width: 92%; padding: 28px 20px; }
-
-  /* ── 요약카드 ── */
-  .sum-card { padding: 12px 14px; }
-  .sum-val { font-size: 20px; }
-  .view-tabs { width: 100%; }
-  .vt { flex: 1; text-align: center; }
-}
-
-@media (max-width: 480px) {
-  .ni { padding: 0 9px; font-size: 11px; }
-  .stat-grid { gap: 6px; }
-  .g4 { grid-template-columns: 1fr 1fr; }
-  #page-export .exptxt { font-size: 10px; }
-}
-
-
-/* ─────────────────────────────────
-   모바일 최종 최적화 오버라이드
-   ───────────────────────────────── */
-:root{
-  --tag-a:#bde0fe;
-  --tag-b:#b7e4c7;
-  --tag-c:#d8b4fe;
-  --status-active:#dff6e4;
-  --status-choice:#ffe8cc;
-  --status-pause:#fff3bf;
-  --status-end:#e9ecef;
-  --card-gap:8px;
-  --card-pad:16px;
-}
-
-.btn,.date-nav-btn,.date-today-btn,.tbtn,.login-btn,.login-inp,.inp,select.inp,textarea.inp{min-height:44px;}
-
-.ba{background:var(--tag-a);color:#215a8a;border-color:transparent;}
-.bb{background:var(--tag-b);color:#25624b;border-color:transparent;}
-.bc{background:var(--tag-c);color:#5b3b7a;border-color:transparent;}
-
-.b-active{background:var(--status-active);color:#1f7a3d;border-color:transparent;}
-.b-choice{background:var(--status-choice);color:#b85c00;border-color:transparent;}
-.b-pause{background:var(--status-pause);color:#8a6d00;border-color:transparent;}
-.b-end{background:var(--status-end);color:#6c757d;border-color:transparent;}
-
-.stat-grid{gap:8px;}
-.sc{padding:16px;}
-.stat-line{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-bottom:4px;}
-.sc .sl{margin:0;font-size:12px;letter-spacing:0;text-transform:none;color:var(--text2);}
-.stat-number{display:flex;align-items:flex-end;gap:2px;white-space:nowrap;}
-.sc .sv{font-size:2rem;line-height:1;}
-.stat-unit{font-size:12px;color:var(--text2);padding-bottom:3px;}
-.sc .ss{margin:0;font-size:11px;color:var(--text3);}
-
-.customer-head{flex-direction:column;align-items:stretch;gap:8px;}
-.customer-search{width:100%;}
-.customer-head-actions{display:flex;gap:8px;flex-wrap:wrap;}
-.filters-panel{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-.filter-toggle-wrap{display:none;}
-
-.mobile-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:var(--card-pad);display:flex;flex-direction:column;gap:8px;}
-.mobile-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
-.mobile-card-left{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1;}
-.mobile-card-name-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.mobile-card-name{font-size:15px;font-weight:700;color:var(--text);min-width:0;}
-.mobile-card-line{font-size:13px;color:var(--text2);line-height:1.5;word-break:break-word;}
-.mobile-card-sub{font-size:12px;color:var(--text3);line-height:1.5;word-break:break-word;}
-.mobile-card-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
-.mobile-card-actions .btn{min-width:72px;justify-content:center;}
-.mobile-card-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
-.delivery-card .mobile-card-top{align-items:center;}
-.delivery-card .mobile-card-actions .btn{min-width:84px;}
-.delivery-card .mobile-card-name{cursor:pointer;}
-.customer-list-wrap thead{display:none;}
-
-@media (max-width:768px){
-  .header{padding:0 12px;}
-  .header-right .btn.sm{padding:0 10px;font-size:11px;}
-
-  .nav{padding:6px 8px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px;overflow:visible;}
-  .ni{min-width:0;height:56px;padding:6px 4px;border:1px solid var(--border);border-bottom:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;font-size:11px;line-height:1.1;white-space:normal;background:var(--surface);position:relative;}
-  .ni.on{border-color:var(--accent);background:var(--accent-xl);}
-  .nav-emoji{font-size:16px;line-height:1;}
-  .nav-label{font-size:10px;}
-  .ni.import-tab{grid-column:1 / -1;height:42px;flex-direction:row;gap:6px;}
-  .ni .nb{position:absolute;top:4px;right:6px;}
-
-  .page{padding:12px;gap:12px;max-height:calc(100vh - 118px);}
-  .stat-grid{grid-template-columns:1fr 1fr;gap:8px;}
-  .stat-grid .sc:nth-child(5){grid-column:1 / -1;}
-
-  #page-customers thead,
-  #page-today thead{display:none;}
-  #page-customers .card,
-  #page-today .card{border:none;background:transparent;box-shadow:none;}
-  #page-customers tbody tr td,
-  #page-today tbody tr td{padding:0;border:none;}
-
-  .filter-toggle-wrap{display:flex;flex:1;justify-content:center;}
-  .filters-panel{display:none;grid-template-columns:1fr 1fr;gap:8px;}
-  .filters-panel.open{display:grid;}
-  .filters-panel .inp-sm{width:100%!important;min-width:0;}
-  .customer-head-actions .btn{flex:1;justify-content:center;}
-  .cust-grid{grid-template-columns:1fr !important;}
-  #custDetail{display:none;}
-
-  #page-today > div:first-child{flex-direction:column;align-items:stretch;gap:8px;}
-  #page-today > div:first-child .date-nav{flex:none;}
-  #page-today > div:first-child > div:last-child{display:flex;gap:8px;align-items:center;justify-content:space-between;}
-
-  #today-direct-section > div:first-child,
-  #today-courier-section > div:first-child{flex-wrap:wrap;gap:8px;}
-
-  #today-courier-section .today-filter-ck,
-  #today-direct-section .today-filter-ck,
-  #today-direct-section .direct-filter-ck{width:13px;height:13px;}
-
-  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-}
-
 </style>
 </head>
 <body>
@@ -631,31 +380,12 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 
 <!-- 탭 -->
 <nav class="nav">
-  <div class="ni on" onclick="goTab('dash')">
-    <span class="nav-emoji">🏠</span>
-    <span class="nav-label">홈</span>
-  </div>
-  <div class="ni" onclick="goTab('today')">
-    <span class="nav-emoji">🚚</span>
-    <span class="nav-label">배송</span>
-    <span class="nb" id="nBadge">0</span>
-  </div>
-  <div class="ni" onclick="goTab('report')">
-    <span class="nav-emoji">📈</span>
-    <span class="nav-label">리포트</span>
-  </div>
-  <div class="ni" onclick="goTab('customers')">
-    <span class="nav-emoji">👥</span>
-    <span class="nav-label">고객</span>
-  </div>
-  <div class="ni" onclick="goTab('export')">
-    <span class="nav-emoji">📦</span>
-    <span class="nav-label">출고</span>
-  </div>
-  <div class="ni import-tab" onclick="goTab('import')">
-    <span class="nav-emoji">📥</span>
-    <span class="nav-label">일괄 등록</span>
-  </div>
+  <div class="ni on"  onclick="goTab('dash')">📊 대시보드</div>
+  <div class="ni"     onclick="goTab('today')">🚚 배송 관리 <span class="nb" id="nBadge">0</span></div>
+  <div class="ni"     onclick="goTab('report')">📈 주간 · 월간</div>
+  <div class="ni"     onclick="goTab('customers')">👥 고객 관리</div>
+  <div class="ni"     onclick="goTab('export')">📦 택배 전달</div>
+  <div class="ni"     onclick="goTab('import')">📥 일괄 등록</div>
 </nav>
 
 <!-- ══════════ 대시보드 ══════════ -->
@@ -672,29 +402,18 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 
   <!-- 통계 카드 -->
   <div class="stat-grid">
-    <div class="sc">
-      <div class="stat-line"><div class="sl">전체 고객</div><div class="stat-number"><span class="sv" id="s0">0</span><span class="stat-unit">명</span></div></div>
-      <div class="ss">등록 고객 수</div>
-    </div>
-    <div class="sc ca">
-      <div class="stat-line"><div class="sl">활성 구독</div><div class="stat-number"><span class="sv" id="s1">0</span><span class="stat-unit">명</span></div></div>
-      <div class="ss">정기배송 고객</div>
-    </div>
-    <div class="sc cd">
-      <div class="stat-line"><div class="sl" id="dash-date-lbl">오늘 배송</div><div class="stat-number"><span class="sv" id="s2">0</span><span class="stat-unit">건</span></div></div>
-      <div class="ss">출고 예정</div>
-    </div>
-    <div class="sc ci">
-      <div class="stat-line"><div class="sl">이번 주</div><div class="stat-number"><span class="sv" id="s3">0</span><span class="stat-unit">건</span></div></div>
-      <div class="ss">배송 예정</div>
-    </div>
-    <div class="sc cw">
-      <div class="stat-line"><div class="sl">내일 배송</div><div class="stat-number"><span class="sv" id="s4">0</span><span class="stat-unit">건</span></div></div>
-      <div class="ss">출고 예정</div>
-    </div>
+    <div class="sc"><div class="sl">전체 고객</div><div class="sv" id="s0">0</div><div class="ss">명 등록</div></div>
+    <div class="sc ca"><div class="sl">활성 구독</div><div class="sv" id="s1">0</div><div class="ss">명 정기배송</div></div>
+    <div class="sc cd"><div class="sl" id="dash-date-lbl">오늘 배송</div><div class="sv" id="s2">0</div><div class="ss">건 출고</div></div>
+    <div class="sc ci"><div class="sl">이번 주</div><div class="sv" id="s3">0</div><div class="ss">건 예정</div></div>
+    <div class="sc cw"><div class="sl">갱신 임박</div><div class="sv" id="s4">0</div><div class="ss">명 (3회 이하)</div></div>
   </div>
 
-  <!-- warnBanner 제거됨 -->
+  <div id="warnBanner" style="display:none">
+    <div class="alert al-w">⚠ <strong>잔여 배송 3회 이하</strong> 고객이 있습니다.
+      <button class="btn btn-g sm" style="margin-left:auto;" onclick="goTab('customers')">확인 →</button>
+    </div>
+  </div>
 
   <div class="g2">
     <!-- 선택 날짜 배송 목록 -->
@@ -703,30 +422,16 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <div class="st"><div class="std"></div><span id="dash-list-title">오늘 배송</span></div>
         <button class="btn btn-g sm" onclick="goTab('today')">전체 보기 →</button>
       </div>
-      <!-- 직배송 섹션 -->
-      <div id="dash-direct-wrap" style="display:none;margin-bottom:10px;">
-        <div style="font-size:11px;font-weight:700;color:var(--danger);padding:6px 12px;background:rgba(215,58,73,.06);border-radius:6px;margin-bottom:6px;">
-          🚗 직배송
-        </div>
-        <div class="card">
-          <table><thead><tr><th>고객명</th><th>세트</th><th>연락처</th><th>잔여</th></tr></thead>
-          <tbody id="dTodayDirect"></tbody>
-        </table></div>
-      </div>
-      <!-- 택배 섹션 -->
       <div class="card">
-        <div style="font-size:11px;font-weight:700;color:var(--info);padding:6px 12px;border-bottom:1px solid var(--border-l);" id="dash-courier-label" style="display:none;">
-          📦 택배
-        </div>
         <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
         <tbody id="dToday"></tbody></table>
       </div>
     </div>
-    <!-- 내일 배송 예정 -->
+    <!-- 갱신 임박 -->
     <div>
-      <div class="sh"><div class="st"><div class="std" style="background:var(--info)"></div>내일 배송 예정</div></div>
+      <div class="sh"><div class="st"><div class="std" style="background:var(--warn)"></div>갱신 임박</div></div>
       <div class="card">
-        <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th></tr></thead>
+        <table><thead><tr><th>고객명</th><th>세트</th><th>잔여</th><th>연락처</th></tr></thead>
         <tbody id="dLow"></tbody></table>
       </div>
     </div>
@@ -742,8 +447,6 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 
 <!-- ══════════ 배송 관리 (날짜 선택) ══════════ -->
 <div class="page" id="page-today">
-
-  <!-- 날짜 네비 + 버튼 -->
   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
     <div class="date-nav" style="flex:1;">
       <button class="date-nav-btn" onclick="moveTodayDate(-1)">&#8249;</button>
@@ -752,74 +455,23 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
       <span class="date-disp" id="todayDateDisp"></span>
       <button class="date-today-btn" onclick="resetTodayDate()">오늘</button>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <span style="font-size:12px;color:var(--text3);" id="todayCnt"></span>
+    <div style="display:flex;gap:8px;">
+      <span style="font-size:12px;color:var(--text3);align-self:center;" id="todayCnt"></span>
       <button class="btn btn-s sm" onclick="markAll()">✓ 전체 완료</button>
       <button class="btn btn-g sm" onclick="goTab('export')">📦 택배 내보내기</button>
     </div>
   </div>
-
-  <!-- 🚗 직배송 섹션 -->
-  <div id="today-direct-section">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
-      <div style="display:flex;align-items:center;gap:8px;flex:1;">
-        <div style="width:4px;height:20px;background:#c020b0;border-radius:2px;"></div>
-        <span style="font-size:15px;font-weight:700;color:var(--text);">🚗 직배송</span>
-        <span id="direct-cnt" style="font-size:12px;background:rgba(192,32,176,.1);color:#c020b0;border:1px solid rgba(192,32,176,.25);border-radius:20px;padding:2px 10px;font-weight:600;"></span>
-      </div>
-      <!-- 직배송 세트 필터 -->
-      <div style="display:flex;gap:10px;align-items:center;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;">
-        <span style="font-size:11px;color:var(--text3);font-weight:600;">필터:</span>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="A" onchange="renderToday()" checked> A세트</label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="B" onchange="renderToday()" checked> B세트</label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="C" onchange="renderToday()" checked> C세트</label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="single" onchange="renderToday()" checked> 단품</label>
-      </div>
-      <button class="btn btn-s sm" onclick="markAllDirect()">✓ 직배송 전체 완료</button>
-    </div>
-    <div class="card"><div class="tw">
-      <table>
-        <thead><tr>
-          <th><input type="checkbox" id="chkDirect" onchange="toggleDirect(this)"></th>
-          <th>고객명</th><th>연락처</th><th>배송지</th>
-          <th>세트</th><th>배송일정</th><th>현관번호</th><th>요청사항</th><th>수량</th><th>상태</th><th>처리</th>
-        </tr></thead>
-        <tbody id="directList"></tbody>
-      </table>
-    </div></div>
-  </div>
-
-  <!-- 📦 택배 섹션 -->
-  <div id="today-courier-section">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
-      <div style="display:flex;align-items:center;gap:8px;flex:1;">
-        <div style="width:4px;height:20px;background:var(--info);border-radius:2px;"></div>
-        <span style="font-size:15px;font-weight:700;color:var(--text);">📦 택배</span>
-        <span id="courier-cnt" style="font-size:12px;background:rgba(3,102,214,.1);color:var(--info);border:1px solid rgba(3,102,214,.25);border-radius:20px;padding:2px 10px;font-weight:600;"></span>
-      </div>
-      <!-- 세트 필터 체크박스 -->
-      <div style="display:flex;gap:10px;align-items:center;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;">
-        <span style="font-size:11px;color:var(--text3);font-weight:600;">필터:</span>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="today-filter-ck" value="A" onchange="renderToday()" checked> A세트</label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="today-filter-ck" value="B" onchange="renderToday()" checked> B세트</label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="today-filter-ck" value="C" onchange="renderToday()" checked> C세트</label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="today-filter-ck" value="single" onchange="renderToday()" checked> 단품</label>
-      </div>
-      <button class="btn btn-g sm" onclick="printCourierList()">🖨 인쇄</button>
-      <button class="btn btn-s sm" onclick="markAllCourier()">✓ 택배 전체 완료</button>
-    </div>
-    <div class="card"><div class="tw">
-      <table>
-        <thead><tr>
-          <th><input type="checkbox" id="chkCourier" onchange="toggleCourier(this)"></th>
-          <th>고객명</th><th>연락처</th><th>배송지</th>
-          <th>세트</th><th>유형</th><th>배송일정</th><th>현관번호</th><th>요청사항</th><th>수량</th><th>잔여</th><th>상태</th><th>처리</th>
-        </tr></thead>
-        <tbody id="courierList"></tbody>
-      </table>
-    </div></div>
-  </div>
-
+  <div class="card"><div class="tw">
+    <table>
+      <thead><tr>
+        <th><input type="checkbox" id="chkAll" onchange="toggleAll(this)"></th>
+        <th>고객명</th><th>연락처</th><th>배송지</th>
+        <th>세트</th><th>유형</th><th>배송일정</th>
+        <th>현관번호</th><th>요청사항</th><th>잔여</th><th>상태</th><th>처리</th>
+      </tr></thead>
+      <tbody id="todayList"></tbody>
+    </table>
+  </div></div>
 </div>
 
 <!-- ══════════ 주간·월간 리포트 ══════════ -->
@@ -859,47 +511,20 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 
 <!-- ══════════ 고객 관리 ══════════ -->
 <div class="page" id="page-customers">
-  <div class="sh customer-head">
+  <div class="sh">
     <div class="st"><div class="std"></div>고객 목록</div>
-
-    <input type="text" class="inp inp-sm customer-search" placeholder="🔍 이름 · 연락처 · 주소 · 주문번호" id="srchQ" oninput="renderCust()">
-
-    <div class="customer-head-actions">
-      <button class="btn btn-g sm filter-toggle-wrap" onclick="toggleCustFilters()">
-        <span id="custFilterToggleText">필터 ▼</span>
-      </button>
-      <button class="btn btn-p sm" onclick="openM('addM')">＋ 신규 등록</button>
-      <button class="btn btn-g sm" onclick="exportCSV()" title="전체 고객 CSV 백업">⬇ CSV 백업</button>
-    </div>
-
-    <div id="custFilters" class="filters-panel">
-      <select class="inp inp-sm" id="srchSet" onchange="renderCust()" style="width:110px;">
-        <option value="">전체 세트</option>
-        <option value="A">A세트</option>
-        <option value="B">B세트</option>
-        <option value="C">C세트</option>
-        <option value="pork_rib">돼지양념갈비</option>
-        <option value="beef_la">LA갈비</option>
-        <option value="beef_soup">소고기무국</option>
-      </select>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input type="text" class="inp inp-sm" placeholder="🔍  이름 · 연락처 · 주소" id="srchQ" oninput="renderCust()" style="width:180px;">
+      <select class="inp inp-sm" id="srchSet" onchange="renderCust()" style="width:100px;"><option value="">전체 세트</option><option value="A">A세트</option><option value="B">B세트</option><option value="C">C세트</option></select>
       <select class="inp inp-sm" id="srchType" onchange="renderCust()" style="width:110px;"><option value="">전체 유형</option><option value="sub">정기배송</option><option value="once">선택주문</option></select>
       <select class="inp inp-sm" id="srchSt" onchange="renderCust()" style="width:110px;"><option value="">전체 상태</option><option value="active">구독 중</option><option value="pause">일시정지</option><option value="end">종료</option></select>
-      <select class="inp inp-sm" id="srchDirect" onchange="renderCust()" style="width:110px;"><option value="">전체 배송</option><option value="1">직배송</option><option value="0">택배배송</option></select>
-      <select class="inp inp-sm" id="srchRemain" onchange="renderCust()" style="width:110px;">
-        <option value="">전체 잔여</option>
-        <option value="remain">잔여 있음</option>
-        <option value="done">잔여 없음</option>
-      </select>
-      <select class="inp inp-sm" id="srchSort" onchange="renderCust()" style="width:100px;">
-        <option value="recent">최신순</option>
-        <option value="name">가나다순</option>
-        <option value="remain">잔여순</option>
-      </select>
+      <button class="btn btn-p sm" onclick="openM('addM')">＋ 신규 등록</button>
     </div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;" class="cust-grid">
-    <div class="card customer-list-wrap" style="overflow:auto;max-height:calc(100vh - 220px);">
+  <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;">
+    <div class="card" style="overflow:auto;max-height:calc(100vh - 220px);">
       <table>
+        <thead><tr><th>고객명</th><th>연락처</th><th>세트</th><th>유형</th><th>배송일정</th><th>잔여</th><th>상태</th><th></th></tr></thead>
         <tbody id="custList"></tbody>
       </table>
     </div>
@@ -962,38 +587,28 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
     </div>
     <div style="display:flex;flex-direction:column;gap:14px;">
       <div class="sh"><div class="st"><div class="std"></div>엑셀 일괄 업로드</div></div>
-      <div class="ibox">
-        <b>스마트스토어 주문 엑셀을 그대로 업로드하세요.</b><br>
-        수령자명·연락처·주소·배송메모를 자동으로 읽어옵니다.<br>
-        세트(A·B·C)는 업로드 후 직접 선택하거나 상품명에 포함되면 자동 인식됩니다.
-      </div>
+      <div class="ibox"><b>열 순서:</b> 이름 / 연락처 / 주소 / 세트(A·B·C) / 유형(정기·선택) / 횟수 / 현관번호 / 요청사항 / 메모<br>1행은 헤더로 자동 건너뜁니다.</div>
       <div class="dz" id="dz" onclick="document.getElementById('xlf').click()" ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
         <div style="font-size:32px;margin-bottom:8px;">📊</div>
-        <div style="font-size:13px;font-weight:600;color:var(--text2);">스마트스토어 주문 엑셀을 드래그하거나 클릭</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px;">.xlsx .xls 지원 · 1행 헤더 자동 건너뜀</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text2);">엑셀 파일을 드래그하거나 클릭</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">.xlsx .xls 지원</div>
       </div>
       <input type="file" id="xlf" accept=".xlsx,.xls" style="display:none" onchange="readXl(this)">
       <div id="xlWrap" style="display:none;">
-        <div class="sh" style="margin-bottom:6px;">
+        <div class="sh">
           <div style="font-size:13px;font-weight:600;">미리보기 <span id="xlCnt" style="color:var(--text3);font-weight:400;font-size:12px;"></span></div>
-          <div style="display:flex;gap:6px;">
-            <button class="btn btn-d sm" onclick="resetXl()">🗑 초기화</button>
-            <button class="btn btn-p sm" onclick="regXl()">✓ 전체 등록</button>
-          </div>
+          <button class="btn btn-p sm" onclick="regXl()">전체 등록</button>
         </div>
-        <div class="ibox" style="margin-bottom:8px;border-color:rgba(227,98,9,.3);background:rgba(227,98,9,.06);">
-          ⚠ <b>세트를 반드시 확인하세요.</b> 미선택 시 등록되지 않습니다. 개별 ✕ 버튼으로 제외 가능합니다.
-        </div>
-        <div class="card" style="overflow:auto;max-height:360px;"><div class="tw">
-          <table>
-            <thead><tr><th>#</th><th>수령자명</th><th>연락처</th><th>주소</th><th>세트 ⚠확인</th><th>유형</th><th>배송메모</th><th>제외</th></tr></thead>
-            <tbody id="xlPrev"></tbody>
-          </table>
+        <div class="card" style="overflow:auto;max-height:300px;"><div class="tw">
+          <table><thead><tr><th>#</th><th>이름</th><th>연락처</th><th>주소</th><th>세트</th><th>유형</th><th>횟수</th></tr></thead>
+          <tbody id="xlPrev"></tbody></table>
         </div></div>
       </div>
     </div>
   </div>
 </div>
+
+</div><!-- /app -->
 
 <!-- ══ 신규 등록 모달 ══ -->
 <div class="mbg" id="addM">
@@ -1016,121 +631,18 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <div class="fgrp"><div class="flab">요청사항</div><input type="text" class="inp" id="ar" placeholder="문 앞에 놓아주세요"></div>
         <div class="fdiv"></div>
         <div class="fsec">구독 설정</div>
-        <!-- 정기배송: 세트 선택 -->
-        <div class="fgrp" id="af-set"><div class="flab">세트 *</div>
-          <select class="inp" id="as">
-            <option value="">선택</option>
-            <option value="A">A세트</option>
-            <option value="B">B세트</option>
-            <option value="C">C세트</option>
-          </select>
-        </div>
-        <!-- 선택주문: 상품 선택 -->
-        <div class="fgrp fgf" id="af-prod" style="display:none;"><div class="flab">상품 *</div>
-          <select class="inp" id="aprod">
-            <option value="">선택하세요</option>
-            <optgroup label="반찬 세트">
-              <option value="A">A세트</option>
-              <option value="B">B세트</option>
-              <option value="C">C세트</option>
-            </optgroup>
-            <optgroup label="단품 상품">
-              <option value="pork_rib">🥩 수제 돼지양념갈비</option>
-              <option value="beef_la">🥩 양념 LA갈비</option>
-            </optgroup>
-          </select>
-        </div>
+        <div class="fgrp"><div class="flab">세트 *</div><select class="inp" id="as"><option value="">선택</option><option value="A">A세트</option><option value="B">B세트</option><option value="C">C세트</option></select></div>
         <div class="fgrp" id="af-freq"><div class="flab">배송 주기</div><select class="inp" id="at" onchange="updSch()"><option value="">선택</option><option value="1">주 1회</option><option value="2">주 2회</option><option value="3">주 3회</option></select></div>
         <div class="fgrp fgf" id="af-sched"><div class="flab">배송 일정 *</div><select class="inp" id="ach"><option value="">주기를 먼저 선택하세요</option></select></div>
         <div class="fgrp" id="af-total"><div class="flab">총 구독 횟수 *</div><input type="number" class="inp" id="ato" placeholder="12" min="1"></div>
         <div class="fgrp"><div class="flab">시작일 *</div><input type="date" class="inp" id="asd"></div>
-        <div class="fgrp" id="af-once-date" style="display:none;"><div class="flab">배송 예정일 *</div><input type="date" class="inp" id="aod"></div>
-        <div class="fgrp" id="af-qty" style="display:none;">
-          <div class="flab">수량 *</div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <button type="button" onclick="changeQty(-1)" style="width:32px;height:36px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
-            <input type="number" class="inp" id="aqty" value="1" min="1" max="99" style="text-align:center;font-weight:700;font-size:16px;width:64px;">
-            <button type="button" onclick="changeQty(1)" style="width:32px;height:36px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">＋</button>
-            <span style="font-size:12px;color:var(--text3);">개</span>
-          </div>
-        </div>
-        <div class="fdiv"></div>
-        <div class="fsec">추가 정보</div>
-        <div class="fgrp"><div class="flab">주문번호</div><input type="text" class="inp" id="a-ordernum" placeholder="202603258223322"></div>
-        <div class="fgrp"><div class="flab">배송 방식</div>
-          <div style="display:flex;gap:8px;align-items:center;margin-top:2px;">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400;color:var(--text);">
-              <input type="checkbox" id="a-direct" style="width:16px;height:16px;"> 직배송 (당일 배송)
-            </label>
-            <span style="font-size:11px;color:var(--text3);">사천·진주 지역 등</span>
-          </div>
-        </div>
+        <div class="fgrp fgf" id="af-once" style="display:none;"><div class="flab">배송 예정일 *</div><input type="date" class="inp" id="aod"></div>
         <div class="fdiv"></div>
         <div class="fsec">메모</div>
         <div class="fgrp fgf"><div class="flab">내부 메모</div><textarea class="inp" id="am" placeholder="알러지, 특이사항 등"></textarea></div>
       </div>
     </div>
     <div class="mf"><button class="btn btn-g" onclick="closeM('addM')">취소</button><button class="btn btn-p" onclick="saveNew()">등록 완료</button></div>
-  </div>
-</div>
-
-
-<!-- ══ 배송지 상세 모달 ══ -->
-<div class="mbg" id="addrM">
-  <div class="modal" style="width:480px;">
-    <div class="mh">
-      <div class="mt">📦 배송지 상세</div>
-      <div class="mx" onclick="closeM('addrM')">✕</div>
-    </div>
-    <div class="mb" style="display:flex;flex-direction:column;gap:14px;">
-
-      <div>
-        <div class="flab" style="margin-bottom:6px;">고객명</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <div id="am-name" style="flex:1;font-size:15px;font-weight:700;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);"></div>
-          <button class="btn btn-g sm" onclick="copyField('am-name')">📋 복사</button>
-        </div>
-      </div>
-
-      <div>
-        <div class="flab" style="margin-bottom:6px;">연락처</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <div id="am-phone" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);"></div>
-          <button class="btn btn-g sm" onclick="copyField('am-phone')">📋 복사</button>
-        </div>
-      </div>
-
-      <div>
-        <div class="flab" style="margin-bottom:6px;">배송지 주소</div>
-        <div style="display:flex;gap:8px;align-items:flex-start;">
-          <div id="am-addr" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);line-height:1.6;word-break:break-all;"></div>
-          <button class="btn btn-g sm" onclick="copyField('am-addr')">📋 복사</button>
-        </div>
-      </div>
-
-      <div id="am-door-wrap">
-        <div class="flab" style="margin-bottom:6px;">현관 비밀번호</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <div id="am-door" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);"></div>
-          <button class="btn btn-g sm" onclick="copyField('am-door')">📋 복사</button>
-        </div>
-      </div>
-
-      <div id="am-req-wrap">
-        <div class="flab" style="margin-bottom:6px;">요청사항</div>
-        <div style="display:flex;gap:8px;align-items:flex-start;">
-          <div id="am-req" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);line-height:1.6;word-break:break-all;"></div>
-          <button class="btn btn-g sm" onclick="copyField('am-req')">📋 복사</button>
-        </div>
-      </div>
-
-      <!-- 전체 복사 버튼 -->
-      <button class="btn btn-p" style="width:100%;" onclick="copyAllAddr()">📋 전체 복사 (이름·연락처·주소·현관번호)</button>
-
-    </div>
-    <div class="mf">
-      <button class="btn btn-g" onclick="closeM('addrM')">닫기</button>
-    </div>
   </div>
 </div>
 
@@ -1145,46 +657,11 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <div class="fgrp fgf"><div class="flab">배송지</div><input type="text" class="inp" id="ea"></div>
         <div class="fgrp"><div class="flab">현관 비밀번호</div><input type="text" class="inp" id="ed"></div>
         <div class="fgrp"><div class="flab">요청사항</div><input type="text" class="inp" id="er"></div>
-        <div class="fgrp"><div class="flab">상품</div>
-          <select class="inp" id="es">
-            <optgroup label="정기배송 세트">
-              <option value="A">A세트</option>
-              <option value="B">B세트</option>
-              <option value="C">C세트</option>
-            </optgroup>
-            <optgroup label="단품 상품">
-              <option value="pork_rib">🥩 수제 돼지양념갈비</option>
-              <option value="beef_la">🥩 양념 LA갈비</option>
-              <option value="beef_soup">🥣 소고기무국</option>
-            </optgroup>
-          </select>
-        </div>
+        <div class="fgrp"><div class="flab">세트</div><select class="inp" id="es"><option value="A">A세트</option><option value="B">B세트</option><option value="C">C세트</option></select></div>
         <div class="fgrp"><div class="flab">상태</div><select class="inp" id="est"><option value="active">구독 중</option><option value="pause">일시정지</option><option value="end">종료</option></select></div>
-        <div class="fgrp"><div class="flab">잔여 수량</div><input type="number" class="inp" id="erem" min="0"></div>
-        <div class="fgrp"><div class="flab">총 수량 / 횟수</div><input type="number" class="inp" id="etot" min="1"></div>
-        <!-- 정기배송 일정 (정기배송일 때만 표시) -->
-        <div class="fgrp" id="ef-sched-wrap">
-          <div class="flab">배송 주기</div>
-          <select class="inp" id="e-freq" onchange="editUpdSch()">
-            <option value="">선택</option>
-            <option value="1">주 1회</option>
-            <option value="2">주 2회</option>
-            <option value="3">주 3회</option>
-          </select>
-        </div>
-        <div class="fgrp" id="ef-sched-sel">
-          <div class="flab">배송 일정</div>
-          <select class="inp" id="e-sched">
-            <option value="">주기를 먼저 선택하세요</option>
-          </select>
-        </div>
-        <div class="fgrp"><div class="flab">배송 예정일 <span style="font-size:10px;color:var(--text3);">(선택주문 · 날짜 변경 시 수정)</span></div><input type="date" class="inp" id="eodate"></div>
-        <div class="fgrp"><div class="flab">주문번호</div><input type="text" class="inp" id="e-ordernum" placeholder="202603258223322"></div>
-        <div class="fgrp"><div class="flab">배송 방식</div>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400;color:var(--text);margin-top:6px;">
-            <input type="checkbox" id="e-direct" style="width:16px;height:16px;"> 직배송 (당일 배송)
-          </label>
-        </div>
+        <div class="fgrp"><div class="flab">잔여 횟수</div><input type="number" class="inp" id="erem" min="0"></div>
+        <div class="fgrp"><div class="flab">총 횟수</div><input type="number" class="inp" id="etot" min="1"></div>
+        <div class="fgrp"><div class="flab">배송 예정일 (선택주문)</div><input type="date" class="inp" id="eodate"></div>
         <div class="fgrp fgf"><div class="flab">메모</div><textarea class="inp" id="em"></textarea></div>
       </div>
     </div>
@@ -1192,119 +669,15 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
   </div>
 </div>
 
-
-<!-- ══ 파싱 확인 모달 ══ -->
-<div class="mbg" id="parseM">
-  <div class="modal" style="width:720px;">
-    <div class="mh">
-      <div class="mt" id="parseMTitle">주문 확인 및 수정</div>
-      <div class="mx" onclick="closeM('parseM')">✕</div>
-    </div>
-    <div class="mb">
-      <!-- 공통: 기본 정보 -->
-      <div class="fg" style="margin-bottom:16px;">
-        <div class="fsec">배송지 정보</div>
-        <div class="fgrp"><div class="flab">주문자명 *</div><input type="text" class="inp" id="pm-name" placeholder="홍길동"></div>
-        <div class="fgrp"><div class="flab">연락처 *</div><input type="text" class="inp" id="pm-phone" placeholder="010-0000-0000"></div>
-        <div class="fgrp fgf"><div class="flab">배송지 주소 *</div><input type="text" class="inp" id="pm-addr" placeholder="도로명 주소"></div>
-        <div class="fgrp"><div class="flab">현관 비밀번호</div><input type="text" class="inp" id="pm-door" placeholder="#1234*"></div>
-        <div class="fgrp"><div class="flab">요청사항</div><input type="text" class="inp" id="pm-req" placeholder="문 앞에 놓아주세요"></div>
-      </div>
-
-      <!-- 단일 주문 섹션 -->
-      <div id="pm-single">
-        <div class="fg">
-          <div class="fsec">주문 정보</div>
-          <div class="fgrp" id="pm-prod-wrap"><div class="flab">상품 *</div>
-            <select class="inp" id="pm-prod">
-              <option value="">선택하세요</option>
-              <optgroup label="반찬 세트">
-                <option value="A">A세트</option>
-                <option value="B">B세트</option>
-                <option value="C">C세트</option>
-              </optgroup>
-              <optgroup label="단품 상품">
-                <option value="pork_rib">🥩 수제 돼지양념갈비</option>
-                <option value="beef_la">🥩 양념 LA갈비</option>
-              </optgroup>
-            </select>
-          </div>
-          <!-- 선택주문 전용 -->
-          <div class="fgrp" id="pm-date-wrap"><div class="flab">배송 예정일 *</div><input type="date" class="inp" id="pm-date"></div>
-          <div class="fgrp" id="pm-qty-wrap">
-            <div class="flab">수량</div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <button type="button" onclick="pmChangeQty(-1)" style="width:32px;height:36px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
-              <input type="number" class="inp" id="pm-qty" value="1" min="1" max="99" style="text-align:center;font-weight:700;font-size:16px;width:64px;">
-              <button type="button" onclick="pmChangeQty(1)" style="width:32px;height:36px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">＋</button>
-              <span style="font-size:12px;color:var(--text3);">개</span>
-            </div>
-          </div>
-          <!-- 정기배송 전용 -->
-          <div class="fgrp" id="pm-set-wrap" style="display:none;"><div class="flab">세트 *</div>
-            <select class="inp" id="pm-set">
-              <option value="">선택</option>
-              <option value="A">A세트</option>
-              <option value="B">B세트</option>
-              <option value="C">C세트</option>
-            </select>
-          </div>
-          <div class="fgrp" id="pm-freq-wrap" style="display:none;"><div class="flab">배송 주기 *</div>
-            <select class="inp" id="pm-freq" onchange="pmUpdSch()">
-              <option value="">선택</option>
-              <option value="1">주 1회</option>
-              <option value="2">주 2회</option>
-              <option value="3">주 3회</option>
-            </select>
-          </div>
-          <div class="fgrp fgf" id="pm-sched-wrap" style="display:none;"><div class="flab">배송 일정 *</div>
-            <select class="inp" id="pm-sched"></select>
-          </div>
-          <div class="fgrp" id="pm-total-wrap" style="display:none;"><div class="flab">총 구독 횟수 *</div>
-            <input type="number" class="inp" id="pm-total" placeholder="12" min="1">
-          </div>
-          <div class="fgrp" id="pm-start-wrap"><div class="flab">시작일 *</div>
-            <input type="date" class="inp" id="pm-start">
-          </div>
-          <div class="fdiv"></div>
-          <div class="fsec">메모</div>
-          <div class="fgrp"><div class="flab">주문번호</div>
-            <input type="text" class="inp" id="pm-ordernum" placeholder="202603258223322">
-          </div>
-          <div class="fgrp"><div class="flab">배송 방식</div>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400;color:var(--text);margin-top:6px;">
-              <input type="checkbox" id="pm-direct" style="width:16px;height:16px;"> 직배송 (당일 배송)
-            </label>
-          </div>
-          <div class="fgrp fgf"><div class="flab">내부 메모</div>
-            <textarea class="inp" id="pm-memo" placeholder="알러지, 특이사항 등"></textarea>
-          </div>
-        </div>
-      </div>
-
-      <!-- 복수 주문 섹션 -->
-      <div id="pm-multi" style="display:none;">
-        <div class="fsec" style="margin-bottom:12px;">주문 목록 <span style="font-weight:400;color:var(--text3);font-size:11px;">각 주문을 수정할 수 있습니다</span></div>
-        <div id="pm-order-list"></div>
-        <button class="btn btn-g sm" onclick="pmAddOrder()" style="margin-top:8px;">＋ 주문 추가</button>
-      </div>
-    </div>
-    <div class="mf">
-      <button class="btn btn-g" onclick="closeM('parseM')">취소</button>
-      <button class="btn btn-p" onclick="saveParsed()">✓ 등록 완료</button>
-    </div>
-  </div>
-</div>
-
+<div id="tw"></div>
 
 <script>
 // ════════════════════════════════════════
 // ★ 비밀번호 설정 - 여기를 수정하세요 ★
 // ════════════════════════════════════════
-// ★★★ 반드시 아래 비밀번호를 변경하세요! ★★★
 const PASSWORDS = [
-  'tkdgns1q2w!',
-  'rndwndtnfkrks1q2w!',
+  'gjsrg2024',   // ← 비밀번호 1 (직접 바꿔주세요)
+  'admin1234',   // ← 비밀번호 2 (직접 바꿔주세요)
 ];
 const SESSION_KEY = 'gjsr_auth';
 const SESSION_HOURS = 8; // 몇 시간 동안 로그인 유지
@@ -1325,32 +698,23 @@ function checkSession(){
 }
 
 function doLogin(){
-  const errEl      = document.getElementById('loginErr');
-  const attemptsEl = document.getElementById('loginAttempts');
-
   if(loginAttempts >= MAX_ATTEMPTS){
-    errEl.textContent='5회 이상 실패하여 잠겼습니다. 페이지를 새로고침하세요.';
-    errEl.style.display='block';
+    toast('너무 많은 시도로 잠겼습니다. 페이지를 새로고침하세요.','er');
     return;
   }
-
   const pw = document.getElementById('pwInput').value;
-
   if(PASSWORDS.includes(pw)){
-    // ✅ 로그인 성공
     localStorage.setItem(SESSION_KEY, JSON.stringify({ts:Date.now()}));
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='block';
     document.getElementById('pwInput').value='';
     loginAttempts=0;
-    errEl.style.display='none';
   } else {
-    // ❌ 실패
     loginAttempts++;
     const left = MAX_ATTEMPTS - loginAttempts;
-    errEl.textContent = '비밀번호가 올바르지 않습니다.';
-    errEl.style.display='block';
-    attemptsEl.textContent = left > 0 ? `남은 시도: ${left}회` : '잠금됨';
+    document.getElementById('loginErr').style.display='block';
+    document.getElementById('loginAttempts').textContent =
+      left > 0 ? `남은 시도: ${left}회` : '잠금됨';
     document.getElementById('pwInput').value='';
     document.getElementById('pwInput').focus();
   }
@@ -1388,73 +752,13 @@ window.addEventListener('DOMContentLoaded',()=>{
 // ════════════════════════════════════════
 // 배송 일정 데이터
 // ════════════════════════════════════════
-// ════════════════════════════════════════
-// 판매 상품 목록
-// ════════════════════════════════════════
-const PRODUCTS = [
-  // 정기배송 세트
-  { id:'A', label:'A세트', type:'sub', category:'set' },
-  { id:'B', label:'B세트', type:'sub', category:'set' },
-  { id:'C', label:'C세트', type:'sub', category:'set' },
-  // 1회 배송 상품
-  { id:'pork_rib',  label:'수제 돼지양념갈비', type:'once', category:'meat' },
-  { id:'beef_la',   label:'양념 LA갈비',        type:'once', category:'meat' },
-  { id:'beef_soup', label:'소고기무국',          type:'once', category:'meat' },
-];
-
-// 상품ID → 라벨
-function productLabel(id){
-  const p = PRODUCTS.find(x=>x.id===id);
-  return p ? p.label : (id||'');
-}
-// 상품ID → 뱃지 CSS 클래스
-function productBadgeClass(id){
-  if(id==='A')         return 'ba';
-  if(id==='B')         return 'bb';
-  if(id==='C')         return 'bc';
-  if(id==='pork_rib')  return 'b-pork';
-  if(id==='beef_la')   return 'b-beef';
-  if(id==='beef_soup') return 'b-beef';
-  return 'b-pause';
-}
-
 const SCH={
-  '1':[
-    {l:'월 조리 → 화 도착', c:[1], a:[2]},
-    {l:'화 조리 → 수 도착', c:[2], a:[3]},
-    {l:'수 조리 → 목 도착', c:[3], a:[4]},
-    {l:'목 조리 → 금 도착', c:[4], a:[5]},
-    {l:'금 조리 → 토 도착', c:[5], a:[6]},
-  ],
-  '2':[
-    {l:'월·수 조리 → 화·목 도착', c:[1,3], a:[2,4]},
-    {l:'월·목 조리 → 화·금 도착', c:[1,4], a:[2,5]},
-    {l:'화·목 조리 → 수·금 도착', c:[2,4], a:[3,5]},
-    {l:'수·금 조리 → 목·토 도착', c:[3,5], a:[4,6]},
-    {l:'월·금 조리 → 화·토 도착', c:[1,5], a:[2,6]},
-  ],
-  '3':[
-    {l:'월·수·금 조리 → 화·목·토 도착', c:[1,3,5], a:[2,4,6]},
-    {l:'화·목·금 조리 → 수·금·토 도착', c:[2,4,5], a:[3,5,6]},
-  ]
+  '1':[{l:'월 조리 → 화 도착',a:[2]},{l:'화 조리 → 수 도착',a:[3]},{l:'수 조리 → 목 도착',a:[4]},{l:'목 조리 → 금 도착',a:[5]},{l:'금 조리 → 토 도착',a:[6]}],
+  '2':[{l:'월·수 조리 → 화·목 도착',a:[2,4]},{l:'월·목 조리 → 화·금 도착',a:[2,5]},{l:'화·목 조리 → 수·금 도착',a:[3,5]},{l:'수·금 조리 → 목·토 도착',a:[4,6]},{l:'월·금 조리 → 화·토 도착',a:[2,6]}],
+  '3':[{l:'월·수·금 조리 → 화·목·토 도착',a:[2,4,6]},{l:'화·목·금 조리 → 수·금·토 도착',a:[3,5,6]}]
 };
 const DAYS=['일','월','화','수','목','금','토'];
 const SL={active:'구독중',pause:'정지',end:'종료'};
-
-function mobileStatusMeta(c){
-  if(c.orderType==='once') return {label:'선택', cls:'b-choice'};
-  if(c.status==='pause') return {label:'일시정지', cls:'b-pause'};
-  if(c.status==='end') return {label:'종료', cls:'b-end'};
-  return {label:'구독중', cls:'b-active'};
-}
-
-function toggleCustFilters(){
-  const panel=document.getElementById('custFilters');
-  const text=document.getElementById('custFilterToggleText');
-  if(!panel||!text) return;
-  panel.classList.toggle('open');
-  text.textContent=panel.classList.contains('open') ? '필터 ▲' : '필터 ▼';
-}
 
 // ════════════════════════════════════════
 // 상태
@@ -1466,110 +770,49 @@ let reportOffset=0;   // 주 또는 월 오프셋
 // ════════════════════════════════════════
 // Firebase
 // ════════════════════════════════════════
-let _fbInitDone = false;
-function initFirestore(){
-  if(_fbInitDone) return;
-  if(!window.__DB){ setTimeout(initFirestore, 200); return; }
-  _fbInitDone = true;
+window.addEventListener('fbReady',()=>{
   document.getElementById('fbDot').classList.add('on');
   document.getElementById('fbTxt').textContent='연결됨';
-  window.__DB.collection('customers').onSnapshot(snap=>{
+  window.__snap(window.__col(window.__db,'customers'), snap=>{
     custs=snap.docs.map(d=>({id:d.id,...d.data()}));
     refreshAll();
     document.getElementById('loading').style.display='none';
   }, err=>{
     toast('Firestore 오류: '+err.message,'er');
-    document.getElementById('fbDot').classList.remove('on');
-    document.getElementById('fbTxt').textContent='연결 오류';
     document.getElementById('loading').style.display='none';
   });
-}
-setTimeout(initFirestore, 300);
-setTimeout(()=>{ document.getElementById('loading').style.display='none'; },5000);
+});
+setTimeout(()=>{ document.getElementById('loading').style.display='none'; },4000);
 
 // ════════════════════════════════════════
 // CRUD
 // ════════════════════════════════════════
 async function saveNew(){
-  const n=g('an'), ph=g('ap'), a=g('aa'), d=g('ad'), r=g('ar'), m=g('am');
-  // 공통 필수값 체크
-  if(!n){ toast('주문자명을 입력하세요','er'); return; }
-  if(!ph){ toast('연락처를 입력하세요','er'); return; }
-  if(!a){ toast('배송지 주소를 입력하세요','er'); return; }
-
-  const isDirect = document.getElementById('a-direct').checked;
-  const orderNum = document.getElementById('a-ordernum').value.trim();
-  let data={
-    name:n, phone:ph, addr:a, door:d, request:r, memo:m,
-    status:'active', deliveredDates:[], createdAt:new Date().toISOString(),
-    orderType, isDirect, orderNum
-  };
-
+  const n=g('an'),p=g('ap'),a=g('aa'),d=g('ad'),r=g('ar'),s=g('as'),m=g('am');
+  if(!n||!p||!a||!s){ toast('필수 항목(*)을 입력하세요','er'); return; }
+  let data={name:n,phone:p,addr:a,door:d,request:r,set:s,memo:m,
+    status:'active',deliveredDates:[],createdAt:new Date().toISOString(),orderType};
   if(orderType==='sub'){
-    // 정기배송
-    const s=g('as'), tp=g('at'), si=document.getElementById('ach').value;
-    const tot=parseInt(g('ato'))||0, sd=g('asd');
-    if(!s)  { toast('세트를 선택하세요','er'); return; }
-    if(!tp) { toast('배송 주기를 선택하세요','er'); return; }
-    if(si===''||si===null){ toast('배송 일정을 선택하세요','er'); return; }
-    if(!tot){ toast('총 구독 횟수를 입력하세요','er'); return; }
-    if(!sd) { toast('시작일을 선택하세요','er'); return; }
+    const tp=g('at'), si=document.getElementById('ach').value, tot=parseInt(g('ato'))||0, sd=g('asd');
+    if(!tp||si===''||!tot||!sd){ toast('정기배송 정보를 모두 입력하세요','er'); return; }
     const sch=SCH[tp][parseInt(si)];
-    Object.assign(data,{
-      set:s, type:parseInt(tp),
-      scheduleName:sch.l, cookDays:sch.c, arriveDays:sch.a,
-      total:tot, remain:tot, startDate:sd
-    });
+    Object.assign(data,{type:parseInt(tp),scheduleName:sch.l,arriveDays:sch.a,total:tot,remain:tot,startDate:sd});
   } else {
-    // 선택주문
     const od=g('aod');
-    const prod=g('aprod');
-    const qty=parseInt(document.getElementById('aqty').value)||1;
-    if(!od)  { toast('배송 예정일을 선택하세요','er'); return; }
-    if(!prod){ toast('상품을 선택하세요','er'); return; }
-    Object.assign(data,{
-      set:prod, productId:prod,
-      total:qty, remain:qty, qty,
-      onceDate:od, startDate:od,
-      scheduleName:productLabel(prod)+(qty>1?' x'+qty+'개':''),
-      arriveDays:[], cookDays:[]
-    });
+    if(!od){ toast('배송 예정일을 입력하세요','er'); return; }
+    Object.assign(data,{total:1,remain:1,onceDate:od,scheduleName:'선택주문 (1회)',arriveDays:[],startDate:od});
   }
-
   try{
-    await window.__DB.collection('customers').add(data);
+    await window.__add(window.__col(window.__db,'customers'),data);
     closeM('addM'); clearAdd(); toast(n+' 등록 완료!','ok');
   } catch(e){ toast('등록 오류: '+e.message,'er'); }
 }
 
 async function saveEdit(){
-  const esVal=g('es');
-  const upd={name:g('en'),phone:g('ep'),addr:g('ea'),door:g('ed'),request:g('er'),
-    set:['A','B','C'].includes(esVal)?esVal:(esVal||''),
-    productId:esVal,
-    status:g('est'),remain:parseInt(g('erem'))||0,total:parseInt(g('etot'))||1,memo:g('em'),
-    isDirect: document.getElementById('e-direct').checked,
-    orderNum: document.getElementById('e-ordernum').value.trim()};
+  const upd={name:g('en'),phone:g('ep'),addr:g('ea'),door:g('ed'),request:g('er'),set:g('es'),status:g('est'),remain:parseInt(g('erem'))||0,total:parseInt(g('etot'))||1,memo:g('em')};
   const od=g('eodate'); if(od) upd.onceDate=od;
-
-  // 정기배송 일정 저장
-  const freq  = document.getElementById('e-freq').value;
-  const schIdx= document.getElementById('e-sched').value;
-  if(freq && schIdx !== ''){
-    const sch = SCH[freq][parseInt(schIdx)];
-    if(sch){
-      upd.type         = parseInt(freq);
-      upd.scheduleName = sch.l;
-      upd.cookDays     = sch.c;
-      upd.arriveDays   = sch.a;
-    }
-  } else if(!freq) {
-    // 선택주문이면 scheduleName을 상품 라벨로
-    upd.scheduleName = productLabel(esVal) || esVal;
-  }
-
   try{
-    await window.__DB.collection('customers').doc(editId).update(upd);
+    await window.__upd(window.__doc(window.__db,'customers',editId),upd);
     closeM('editM'); toast(upd.name+' 수정 완료','ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
 }
@@ -1577,716 +820,20 @@ async function saveEdit(){
 async function delCust(){
   if(!confirm('삭제하시겠습니까? 복구 불가합니다.')) return;
   try{
-    await window.__DB.collection('customers').doc(editId).delete();
+    await window.__del(window.__doc(window.__db,'customers',editId));
     closeM('editM'); toast('삭제 완료','ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
 }
 
-// 잔여 횟수 충전 (정기 갱신)
-async function chargeRemain(id){
-  const c=custs.find(x=>x.id===id); if(!c) return;
-  const add=parseInt(prompt(`${c.name} 고객의 잔여 횟수를 추가합니다.
-현재 잔여: ${c.remain}회
-추가할 횟수를 입력하세요:`,'12'));
-  if(!add||isNaN(add)||add<=0){ toast('올바른 횟수를 입력하세요','er'); return; }
-  try{
-    await window.__DB.collection('customers').doc(id).update({
-      remain:c.remain+add, status:'active'
-    });
-    toast(`${c.name} +${add}회 충전 완료 (총 ${c.remain+add}회)`,'ok');
-  } catch(e){ toast('오류: '+e.message,'er'); }
-}
-
-// 일시정지 / 재개 토글
-async function togglePause(id){
-  const c=custs.find(x=>x.id===id); if(!c) return;
-  const isPaused=c.status==='pause';
-  const newStatus=isPaused?'active':'pause';
-  const label=isPaused?'재개':'일시정지';
-  if(!confirm(`${c.name} 구독을 ${label}하시겠습니까?`)) return;
-  try{
-    await window.__DB.collection('customers').doc(id).update({status:newStatus});
-    toast(`${c.name} 구독 ${label}됨`,'ok');
-  } catch(e){ toast('오류: '+e.message,'er'); }
-}
-
-// ════════════════════════════════════════
-// 아임웹 API 연동
-// ════════════════════════════════════════
-const IW_KEY_STORE = 'iw_keys';
-let iwOrders = []; // 불러온 주문 목록
-
-function imwebSaveKeys(){
-  const ak = document.getElementById('iw-apikey').value.trim();
-  const sk = document.getElementById('iw-secret').value.trim();
-  if(!ak || !sk){ toast('API Key와 Secret Key를 모두 입력하세요','er'); return; }
-  localStorage.setItem(IW_KEY_STORE, JSON.stringify({ak, sk}));
-  toast('저장 완료! 연결을 확인합니다...','info');
-  imwebTestConn();
-}
-
-function imwebLoadKeys(){
-  const s = localStorage.getItem(IW_KEY_STORE);
-  if(!s) return null;
-  try{ return JSON.parse(s); } catch(e){ return null; }
-}
-
-function imwebClearKeys(){
-  if(!confirm('저장된 API 키를 삭제하시겠습니까?')) return;
-  localStorage.removeItem(IW_KEY_STORE);
-  document.getElementById('iw-apikey').value = '';
-  document.getElementById('iw-secret').value = '';
-  document.getElementById('imweb-conn-status').textContent = '미연결';
-  document.getElementById('imweb-conn-status').style.color = 'var(--text3)';
-  toast('키 삭제 완료','ok');
-}
-
-function imwebToggleShow(el){
-  const t = el.checked ? 'text' : 'password';
-  document.getElementById('iw-apikey').type = t;
-  document.getElementById('iw-secret').type = t;
-}
-
-// 연결 테스트 (site_code 조회로 확인)
-async function imwebTestConn(){
-  const keys = imwebLoadKeys();
-  if(!keys){ setConnStatus(false); return; }
-  try{
-    const token = await imwebGetToken(keys.ak, keys.sk);
-    if(token){
-      setConnStatus(true);
-      toast('아임웹 연결 성공!','ok');
-    } else {
-      setConnStatus(false);
-    }
-  } catch(e){
-    setConnStatus(false);
-    toast('연결 실패: '+e.message,'er');
-  }
-}
-
-function setConnStatus(ok){
-  const el = document.getElementById('imweb-conn-status');
-  el.textContent = ok ? '🟢 연결됨' : '🔴 연결 실패';
-  el.style.color = ok ? 'var(--accent)' : 'var(--danger)';
-}
-
-// 아임웹 Access Token 발급
-async function imwebGetToken(apiKey, secret){
-  const res = await fetch('https://api.imweb.me/v2/auth', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({key: apiKey, secret: secret})
-  });
-  if(!res.ok) throw new Error('인증 실패 ('+res.status+')');
-  const data = await res.json();
-  if(data.code !== 200) throw new Error(data.msg || '인증 오류');
-  return data.data?.access_token;
-}
-
-// 주문 불러오기
-async function imwebFetch(){
-  const keys = imwebLoadKeys();
-  if(!keys){ toast('먼저 API 키를 저장해주세요','er'); goTab('imweb'); return; }
-
-  const from   = document.getElementById('iw-from').value;
-  const to     = document.getElementById('iw-to').value;
-  const status = document.getElementById('iw-status').value;
-
-  if(!from || !to){ toast('조회 기간을 선택해주세요','er'); return; }
-
-  document.getElementById('iw-loading').style.display = 'block';
-  document.getElementById('iw-result-wrap').style.display = 'none';
-  document.getElementById('iw-fetch-btn').disabled = true;
-
-  try{
-    const token = await imwebGetToken(keys.ak, keys.sk);
-
-    // 기존 주문번호 목록 (중복 방지)
-    const existingOrderNums = new Set(custs.map(c=>c.orderNum||'').filter(Boolean));
-
-    let params = `order_date_from=${from.replace(/-/g,'')}&order_date_to=${to.replace(/-/g,'')}`;
-    if(status) params += `&status=${status}`;
-    params += '&limit=100';
-
-    const res = await fetch(`https://api.imweb.me/v2/shop/orders?${params}`, {
-      headers:{'Content-Type':'application/json', 'access-token': token}
-    });
-    if(!res.ok) throw new Error('주문 조회 실패 ('+res.status+')');
-    const data = await res.json();
-    if(data.code !== 200) throw new Error(data.msg || '조회 오류');
-
-    const orders = data.data?.list || [];
-    // 이미 등록된 주문번호 제외
-    iwOrders = orders.filter(o => !existingOrderNums.has(String(o.order_no)));
-
-    document.getElementById('iw-cnt').textContent = `${iwOrders.length}건 (전체 ${orders.length}건 중 미등록)`;
-    renderImwebOrders();
-    document.getElementById('iw-result-wrap').style.display = 'block';
-    toast(`${iwOrders.length}건 불러옴 (기등록 ${orders.length - iwOrders.length}건 제외)`,'info');
-
-  } catch(e){
-    toast('오류: '+e.message,'er');
-    // CORS 오류 안내
-    if(e.message.includes('fetch') || e.message.includes('Failed')){
-      toast('CORS 오류 - 아래 안내를 확인하세요','er');
-    }
-  } finally{
-    document.getElementById('iw-loading').style.display = 'none';
-    document.getElementById('iw-fetch-btn').disabled = false;
-  }
-}
-
-// 상품명에서 세트/상품 자동 파싱
-function parseImwebProduct(prodName){
-  if(!prodName) return '';
-  const s = prodName.toUpperCase();
-  if(/A세트|A-|A_|A\s/.test(prodName)) return 'A';
-  if(/B세트|B-|B_|B\s/.test(prodName)) return 'B';
-  if(/C세트|C-|C_|C\s/.test(prodName)) return 'C';
-  if(/돼지.*갈비|양념.*갈비|돼지갈비/.test(prodName)) return 'pork_rib';
-  if(/LA.*갈비|라갈비/.test(prodName)) return 'beef_la';
-  // 옵션에서 다시 시도
-  const m = prodName.match(/([ABC])세트/i);
-  if(m) return m[1].toUpperCase();
-  return '';
-}
-
-function renderImwebOrders(){
-  const tbody = document.getElementById('iw-tbody');
-  if(!iwOrders.length){
-    tbody.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="ei">📭</div><div>불러온 주문 없음</div></div></td></tr>`;
-    return;
-  }
-  tbody.innerHTML = iwOrders.map((o,i)=>{
-    const recv   = o.order_info?.recv || {};
-    const items  = o.product_list || [];
-    const prod0  = items[0] || {};
-    const prodName = (prod0.prod_name||'')+(prod0.opt_name?' / '+prod0.opt_name:'');
-    const autoProd = parseImwebProduct(prodName);
-    const addr   = (recv.addr||'')+(recv.addr_detail?' '+recv.addr_detail:'');
-    const date   = String(o.order_date||'').slice(0,8);
-    const dateStr= date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : '';
-
-    return `<tr id="iw-row-${i}">
-      <td><input type="checkbox" class="iw-ck" data-idx="${i}" checked></td>
-      <td style="color:var(--text3);">${i+1}</td>
-      <td style="font-size:11px;font-family:monospace;">${o.order_no||''}</td>
-      <td><strong>${recv.name||o.member_id||''}</strong></td>
-      <td style="white-space:nowrap;">${recv.phone||''}</td>
-      <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${addr}">${addr}</td>
-      <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${prodName}">${prodName||'—'}</td>
-      <td>
-        <select class="inp inp-sm" id="iw-prod-${i}" style="width:130px;">
-          <option value="" ${!autoProd?'selected':''}>미선택</option>
-          <optgroup label="반찬 세트">
-            <option value="A" ${autoProd==='A'?'selected':''}>A세트</option>
-            <option value="B" ${autoProd==='B'?'selected':''}>B세트</option>
-            <option value="C" ${autoProd==='C'?'selected':''}>C세트</option>
-          </optgroup>
-          <optgroup label="단품">
-            <option value="pork_rib" ${autoProd==='pork_rib'?'selected':''}>🥩 돼지양념갈비</option>
-            <option value="beef_la"  ${autoProd==='beef_la' ?'selected':''}>🥩 양념LA갈비</option>
-          </optgroup>
-        </select>
-      </td>
-      <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${recv.memo||'—'}</td>
-      <td style="font-size:11px;white-space:nowrap;">${dateStr}</td>
-      <td><button class="btn btn-d sm" onclick="iwRemoveRow(${i})">✕</button></td>
-    </tr>`;
-  }).join('');
-}
-
-function iwRemoveRow(i){
-  const row = document.getElementById('iw-row-'+i);
-  if(row) row.remove();
-}
-
-function imwebToggleAll(el){
-  document.querySelectorAll('.iw-ck').forEach(c=>c.checked=el.checked);
-}
-
-async function imwebRegAll(){
-  const checked = [...document.querySelectorAll('.iw-ck:checked')];
-  if(!checked.length){ toast('등록할 주문을 선택하세요','er'); return; }
-
-  const noSet = checked.filter(ck=>{
-    const idx = ck.dataset.idx;
-    return !document.getElementById('iw-prod-'+idx)?.value;
-  });
-  if(noSet.length){ toast(`세트/상품 미선택 ${noSet.length}건이 있습니다`,'er'); return; }
-
-  if(!confirm(`선택한 ${checked.length}건을 등록하시겠습니까?`)) return;
-
-  const t = todayStr(); let ok=0;
-  for(const ck of checked){
-    const i   = parseInt(ck.dataset.idx);
-    const o   = iwOrders[i];
-    const row = document.getElementById('iw-row-'+i);
-    if(!o || !row) continue;
-
-    const recv     = o.order_info?.recv || {};
-    const items    = o.product_list || [];
-    const prod0    = items[0] || {};
-    const prod     = document.getElementById('iw-prod-'+i)?.value || '';
-    const qty      = parseInt(prod0.ea)||1;
-    const addr     = (recv.addr||'')+(recv.addr_detail?' '+recv.addr_detail:'');
-    const date     = String(o.order_date||'').slice(0,8);
-    const dateStr  = date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : t;
-
-    const data = {
-      name:     recv.name||'',
-      phone:    recv.phone||'',
-      addr:     addr,
-      door:     '',
-      request:  recv.memo||'',
-      memo:     `아임웹 주문번호: ${o.order_no}`,
-      set:      prod,
-      productId:prod,
-      orderNum: String(o.order_no||''),
-      orderType:'once',
-      status:   'active',
-      deliveredDates:[],
-      createdAt:new Date().toISOString(),
-      total:qty, remain:qty, qty,
-      onceDate: dateStr,
-      startDate:dateStr,
-      scheduleName: productLabel(prod)+(qty>1?' x'+qty+'개':''),
-      arriveDays:[], cookDays:[],
-      isDirect: false,
-    };
-    try{
-      await window.__DB.collection('customers').add(data);
-      row.style.opacity='0.4';
-      ok++;
-    } catch(e){ toast('등록 오류: '+e.message,'er'); }
-  }
-  if(ok>0) toast(`${ok}건 등록 완료!`,'ok');
-}
-
-function imwebReset(){
-  iwOrders=[];
-  document.getElementById('iw-result-wrap').style.display='none';
-  document.getElementById('iw-tbody').innerHTML='';
-}
-
-// 아임웹 초기화 (goTab 시 호출)
-function initImwebTab(){
-  const keys = imwebLoadKeys();
-  if(keys){
-    if(!document.getElementById('iw-apikey').value) document.getElementById('iw-apikey').value = keys.ak;
-    if(!document.getElementById('iw-secret').value) document.getElementById('iw-secret').value = keys.sk;
-    imwebTestConn();
-  }
-  const t = todayStr();
-  if(!document.getElementById('iw-from').value) document.getElementById('iw-from').value = addDays(t,-7);
-  if(!document.getElementById('iw-to').value)   document.getElementById('iw-to').value   = t;
-}
-
-// ════════════════════════════════════════
-// 아임웹 엑셀 업로드 전용 파싱
-// 컬럼(0-based): [01]주문번호 [02]주문상태 [16]구매수량
-//   [17]상품명 [18]옵션명 [24]수령자명 [25]전화 [28]주소 [29]상세주소
-//   [30]배송메모 [36]주문일
-// ════════════════════════════════════════
-let iwXlData = [];
-
-function iwDzOver(e){ e.preventDefault(); document.getElementById('iw-dz').classList.add('drag'); }
-function iwDzLeave(){ document.getElementById('iw-dz').classList.remove('drag'); }
-function iwDzDrop(e){ e.preventDefault(); iwDzLeave(); const f=e.dataTransfer.files[0]; if(f) iwProcXl(f); }
-function iwReadXl(inp){ if(inp.files[0]) iwProcXl(inp.files[0]); }
-
-function iwProcXl(file){
-  const reader = new FileReader();
-  reader.onload = e => {
-    try{
-      const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false});
-      const dataRows = rows.slice(1).filter(r => r.length > 5); // 헤더 제외
-      iwXlData = dataRows.map(iwParseRow).filter(r => r !== null);
-      document.getElementById('iw-xl-cnt').textContent =
-        `${iwXlData.length}건 (제외됨 ${dataRows.length - iwXlData.length}건)`;
-      iwRenderXl();
-      document.getElementById('iw-xl-wrap').style.display = 'block';
-      toast(`아임웹 엑셀 ${iwXlData.length}건 로드됨`, 'info');
-    } catch(err){ toast('엑셀 읽기 오류: '+err.message,'er'); }
-  };
-  reader.readAsBinaryString(file);
-}
-
-// 아임웹 날짜 파싱: "3월 27일 금요일..." → "2026-03-27"
-function iwParseDateKo(str, orderDateStr){
-  const m = str.match(/(\d{1,2})월[\s\.\-]*(\d{1,2})일/);
-  if(!m) return '';
-  // 연도: 주문일에서 추출, 없으면 현재 연도
-  let y = new Date().getFullYear();
-  if(orderDateStr){
-    const ym = String(orderDateStr).match(/^(\d{4})/);
-    if(ym) y = parseInt(ym[1]);
-  }
-  return `${y}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;
-}
-
-// 정기배송 옵션에서 스케줄 자동 매칭
-function iwMatchSch(optName){
-  if(!optName) return {freq:'', schIdx:''};
-  // 주기 파싱
-  const fm = optName.match(/주\s*(\d)회/);
-  const freq = fm ? fm[1] : '';
-  // 요일 매칭
-  const schMap = {
-    '월 조리': {freq:'1', idx:0},  '화 조리': {freq:'1', idx:1},
-    '수 조리': {freq:'1', idx:2},  '목 조리': {freq:'1', idx:3},
-    '금 조리': {freq:'1', idx:4},
-    '월.수 조리': {freq:'2', idx:0}, '월/수 조리': {freq:'2', idx:0},
-    '화.목 조리': {freq:'2', idx:1}, '화/목 조리': {freq:'2', idx:1},
-    '수.금 조리': {freq:'2', idx:2}, '수/금 조리': {freq:'2', idx:2},
-    '목.토 조리': {freq:'2', idx:3}, '목/토 조리': {freq:'2', idx:3},
-    '금.일 조리': {freq:'2', idx:4}, '금/일 조리': {freq:'2', idx:4},
-    '월.수.금 조리': {freq:'3', idx:0}, '월/수/금 조리': {freq:'3', idx:0},
-    '화.목.토 조리': {freq:'3', idx:1}, '화/목/토 조리': {freq:'3', idx:1},
-  };
-  for(const [key, val] of Object.entries(schMap)){
-    if(optName.includes(key.replace('.','/')) || optName.includes(key.replace('/','.'))
-       || optName.includes(key)){
-      return {freq: val.freq, schIdx: val.idx};
-    }
-  }
-  return {freq, schIdx:''};
-}
-
-function iwParseRow(r){
-  const status   = r[2] || '';
-  // 거래종료·취소·반품 제외
-  if(/거래종료|취소완료|반품완료|취소|반품/.test(status)) return null;
-
-  const orderNo  = String(r[1]  || '').trim();
-  const qty      = parseInt(r[16]) || 1;
-  const prodName = String(r[17] || '').trim();
-  const optName  = String(r[18] || '').trim();
-  const recv     = String(r[24] || '').trim();
-  const phone    = String(r[25] || '').trim();
-  const addr     = (String(r[28]||'')+' '+String(r[29]||'')).trim();
-  const memo     = String(r[30] || '').trim();
-  const orderDate= String(r[36] || '');
-
-  // 상품 파싱
-  const combined = prodName + ' ' + optName;
-  let prod = '', orderType = 'once', onceDate = '', schInfo = {};
-
-  if(/수제.*돼지.*갈비|돼지.*양념.*갈비|수제양념돼지갈비/.test(combined)){
-    prod = 'pork_rib';
-  } else if(/양념.*LA.*갈비|LA.*갈비|라갈비/.test(combined)){
-    prod = 'beef_la';
-  } else {
-    const sm = combined.match(/([ABC])세트/i);
-    if(sm) prod = sm[1].toUpperCase();
-  }
-
-  // 정기/선택 구분
-  if(/정기구독|정기배송/.test(combined)){
-    orderType = 'sub';
-    schInfo = iwMatchSch(optName);
-  } else {
-    orderType = 'once';
-    // 날짜 파싱 (상품명에서)
-    if(/\d{1,2}월\s*\d{1,2}일/.test(prodName)){
-      onceDate = iwParseDateKo(prodName, orderDate);
-    }
-  }
-
-  // 횟수 파싱 (정기)
-  const tm = optName.match(/총\s*(\d+)회/);
-  const total = tm ? parseInt(tm[1]) : 12;
-
-  return { orderNo, status, recv, phone, addr, memo, orderDate,
-           prod, qty, orderType, onceDate, total, schInfo, optName, prodName,
-           _excluded: false };
-}
-
-const IW_PROD_OPTIONS = `
-  <option value="">미선택</option>
-  <optgroup label="반찬 세트">
-    <option value="A">A세트</option>
-    <option value="B">B세트</option>
-    <option value="C">C세트</option>
-  </optgroup>
-  <optgroup label="단품">
-    <option value="pork_rib">🥩 수제 돼지양념갈비</option>
-    <option value="beef_la">🥩 양념 LA갈비</option>
-  </optgroup>`;
-
-function iwRenderXl(){
-  const tbody = document.getElementById('iw-xl-tbody');
-  if(!iwXlData.length){
-    tbody.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="ei">📭</div><div>데이터 없음</div></div></td></tr>`;
-    return;
-  }
-  tbody.innerHTML = iwXlData.map((row, i) => {
-    const typeBadge = row.orderType === 'sub'
-      ? '<span class="badge b-sub">정기</span>'
-      : '<span class="badge b-once">선택</span>';
-    // 배송일/일정 표시
-    let dateDisplay = '';
-    if(row.orderType === 'once'){
-      dateDisplay = `<input type="date" class="inp inp-sm" id="iw-xl-date-${i}" value="${row.onceDate}" style="width:130px;">`;
-    } else {
-      // 정기: 주기 + 일정 선택
-      const freq = row.schInfo.freq || '';
-      dateDisplay = `
-        <select class="inp inp-sm" id="iw-xl-freq-${i}" onchange="iwXlUpdSch(${i})" style="width:70px;margin-bottom:4px;">
-          <option value="">주기</option>
-          <option value="1" ${freq==='1'?'selected':''}>주1회</option>
-          <option value="2" ${freq==='2'?'selected':''}>주2회</option>
-          <option value="3" ${freq==='3'?'selected':''}>주3회</option>
-        </select>
-        <select class="inp inp-sm" id="iw-xl-sched-${i}" style="width:130px;"></select>`;
-    }
-    return `<tr id="iw-xl-row-${i}">
-      <td style="color:var(--text3);">${i+1}</td>
-      <td style="font-size:10px;font-family:monospace;">${row.orderNo}</td>
-      <td><strong>${row.recv}</strong></td>
-      <td style="white-space:nowrap;font-size:12px;">${row.phone}</td>
-      <td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${row.addr}">${row.addr}</td>
-      <td>${typeBadge}</td>
-      <td>
-        <select class="inp inp-sm" id="iw-xl-prod-${i}" style="width:130px;">
-          ${IW_PROD_OPTIONS}
-        </select>
-      </td>
-      <td style="min-width:140px;">${dateDisplay}</td>
-      <td style="text-align:center;">${row.qty}</td>
-      <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${row.memo||'—'}</td>
-      <td><button class="btn btn-d sm" onclick="iwXlRemove(${i})">✕</button></td>
-    </tr>`;
-  }).join('');
-
-  // 렌더 후 값 세팅
-  iwXlData.forEach((row, i) => {
-    const prodEl = document.getElementById('iw-xl-prod-'+i);
-    if(prodEl) prodEl.value = row.prod;
-    if(row.orderType === 'sub'){
-      iwXlUpdSch(i, row.schInfo.schIdx);
-    }
-  });
-}
-
-function iwXlUpdSch(i, presetIdx){
-  const freq = document.getElementById('iw-xl-freq-'+i)?.value;
-  const sel  = document.getElementById('iw-xl-sched-'+i);
-  if(!sel) return;
-  sel.innerHTML = '<option value="">일정 선택</option>';
-  if(!freq||!SCH[freq]) return;
-  SCH[freq].forEach((sc, idx) => {
-    const opt = document.createElement('option');
-    opt.value = idx;
-    opt.textContent = sc.l;
-    if(presetIdx !== undefined && presetIdx !== '' && parseInt(presetIdx) === idx) opt.selected = true;
-    sel.appendChild(opt);
-  });
-}
-
-function iwXlRemove(i){
-  const row = document.getElementById('iw-xl-row-'+i);
-  if(row) row.remove();
-}
-
-function iwResetXl(){
-  iwXlData = [];
-  document.getElementById('iw-xl-wrap').style.display = 'none';
-  document.getElementById('iw-xl-tbody').innerHTML = '';
-  document.getElementById('iw-xlf').value = '';
-}
-
-async function iwRegXl(){
-  const rows = document.querySelectorAll('[id^="iw-xl-row-"]');
-  if(!rows.length){ toast('등록할 데이터가 없습니다','er'); return; }
-
-  // 검증
-  let errs = [];
-  rows.forEach(row => {
-    const i = row.id.replace('iw-xl-row-','');
-    const prod = document.getElementById('iw-xl-prod-'+i)?.value;
-    if(!prod) errs.push(`행${parseInt(i)+1}: 세트/상품 미선택`);
-  });
-  if(errs.length){ toast(errs.slice(0,3).join(' / ')+(errs.length>3?` 외 ${errs.length-3}건`:''),'er'); return; }
-  if(!confirm(`${rows.length}건을 등록하시겠습니까?`)) return;
-
-  // 기존 주문번호 목록 (중복 방지)
-  const existNums = new Set(custs.map(c=>c.orderNum||'').filter(Boolean));
-
-  let ok=0, skip=0;
-  for(const row of rows){
-    const i    = row.id.replace('iw-xl-row-','');
-    const d    = iwXlData[parseInt(i)];
-    if(!d) continue;
-
-    const prod = document.getElementById('iw-xl-prod-'+i)?.value || '';
-    const orderNum = d.orderNo;
-
-    // 중복 체크
-    if(existNums.has(orderNum)){ skip++; continue; }
-
-    let data = {
-      name:     d.recv,
-      phone:    d.phone,
-      addr:     d.addr,
-      door:     '',
-      request:  d.memo,
-      memo:     `아임웹 주문번호: ${orderNum}`,
-      set:      prod,
-      productId:prod,
-      orderNum: orderNum,
-      status:   'active',
-      deliveredDates:[],
-      createdAt:new Date().toISOString(),
-      isDirect: false,
-    };
-
-    if(d.orderType === 'sub'){
-      const freq  = document.getElementById('iw-xl-freq-'+i)?.value;
-      const schIdx= document.getElementById('iw-xl-sched-'+i)?.value;
-      if(!freq||schIdx===''||schIdx===undefined){ toast(`행${parseInt(i)+1}: 배송 일정을 선택하세요`,'er'); continue; }
-      const sch = SCH[freq][parseInt(schIdx)];
-      Object.assign(data, {
-        orderType:'sub', type:parseInt(freq),
-        scheduleName:sch.l, cookDays:sch.c, arriveDays:sch.a,
-        total:d.total, remain:d.total,
-        startDate:todayStr(),
-      });
-    } else {
-      const onceDate = document.getElementById('iw-xl-date-'+i)?.value || todayStr();
-      Object.assign(data, {
-        orderType:'once',
-        total:d.qty, remain:d.qty, qty:d.qty,
-        onceDate, startDate:onceDate,
-        scheduleName:productLabel(prod)+(d.qty>1?' x'+d.qty+'개':''),
-        arriveDays:[], cookDays:[],
-      });
-    }
-
-    try{
-      await window.__DB.collection('customers').add(data);
-      row.style.opacity = '0.35';
-      row.style.pointerEvents = 'none';
-      ok++;
-    } catch(e){ toast('오류: '+e.message,'er'); }
-  }
-
-  let msg = `${ok}건 등록 완료!`;
-  if(skip) msg += ` (중복 ${skip}건 건너뜀)`;
-  toast(msg, 'ok');
-}
-
-// CSS용 드래그 스타일 (iw-dz)
-// (기존 .dz 스타일 공유)
-
-
-// ════════════════════════════
-// 배송지 상세 모달
-// ════════════════════════════
-function showAddrModal(id){
-  const c = custs.find(x=>x.id===id);
-  if(!c) return;
-  document.getElementById('am-name').textContent  = c.name  || '';
-  document.getElementById('am-phone').textContent = c.phone || '';
-  document.getElementById('am-addr').textContent  = c.addr  || '';
-  document.getElementById('am-door').textContent  = c.door  || '—';
-  document.getElementById('am-req').textContent   = c.request || '—';
-  // 현관번호/요청사항 없으면 흐리게
-  document.getElementById('am-door-wrap').style.opacity = c.door    ? '1' : '0.4';
-  document.getElementById('am-req-wrap').style.opacity  = c.request ? '1' : '0.4';
-  openM('addrM');
-}
-
-function copyField(id){
-  const text = document.getElementById(id)?.textContent?.trim() || '';
-  if(!text || text === '—') { toast('복사할 내용 없음','er'); return; }
-  navigator.clipboard.writeText(text).then(()=>toast('복사됨!','ok'));
-}
-
-function copyAllAddr(){
-  const name  = document.getElementById('am-name')?.textContent?.trim()  || '';
-  const phone = document.getElementById('am-phone')?.textContent?.trim() || '';
-  const addr  = document.getElementById('am-addr')?.textContent?.trim()  || '';
-  const door  = document.getElementById('am-door')?.textContent?.trim()  || '';
-  const parts = [name, phone, addr];
-  if(door && door !== '—') parts.push('현관: ' + door);
-  navigator.clipboard.writeText(parts.join('\n')).then(()=>toast('전체 복사됨!','ok'));
-}
-
-// CSV 전체 백업
-function exportCSV(){
-  if(!custs.length){ toast('내보낼 고객 데이터가 없습니다','er'); return; }
-  const header=['이름','연락처','주소','현관번호','요청사항','세트/상품','배송유형',
-    '배송방식','주문번호','배송일정','총횟수','잔여횟수','시작일','선택주문배송일',
-    '상태','등록일','메모'];
-  const rows=custs.map(c=>[
-    c.name||'', c.phone||'', c.addr||'', c.door||'', c.request||'',
-    productLabel(c.productId||c.set)||c.set||'',
-    c.orderType==='sub'?'정기배송':'선택주문',
-    c.isDirect?'직배송':'택배',
-    c.orderNum||'',
-    c.scheduleName||'',
-    c.total||'', c.remain||'',
-    c.startDate||'', c.onceDate||'',
-    {active:'구독중',pause:'일시정지',end:'종료'}[c.status]||c.status||'',
-    c.createdAt?c.createdAt.slice(0,10):'',
-    (c.memo||'').replace(/\r?\n/g,' ')
-  ]);
-  const BOM='\ufeff';
-  const lines=[header,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','));
-  const csv=BOM+lines.join('\r\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='궁중수라간_고객백업_'+todayStr()+'.csv';
-  a.click();
-  toast(custs.length+'명 CSV 백업 완료','ok');
-}
-
-// 고객 목록에서 바로 삭제
-async function quickDelete(id, name){
-  if(!confirm(`[${name}] 고객을 삭제하시겠습니까?\n삭제된 데이터는 복구되지 않습니다.`)) return;
-  try{
-    await window.__DB.collection('customers').doc(id).delete();
-    toast(name+' 삭제 완료','ok');
-  } catch(e){ toast('삭제 오류: '+e.message,'er'); }
-}
-
 async function markDone(id, dateStr){
   const c=custs.find(x=>x.id===id); if(!c) return;
-  if(c.remain<=0){ toast('이미 배송 완료된 건입니다','er'); return; }
+  if(c.remain<=0){ toast('잔여 횟수 없음','er'); return; }
   const t=dateStr||todayStr();
   if((c.deliveredDates||[]).includes(t)){ toast('해당 날짜 이미 처리됨','er'); return; }
-  const rem=c.remain-1;
-  const dates=[...(c.deliveredDates||[]),t];
-  // 선택주문: 무조건 1번이면 end / 정기배송: remain 0이면 end
-  const st = rem===0 ? 'end' : c.status;
-  const upd = {remain:rem, deliveredDates:dates, status:st};
+  const rem=c.remain-1, dates=[...(c.deliveredDates||[]),t], st=rem===0?'end':c.status;
   try{
-    await window.__DB.collection('customers').doc(id).update(upd);
-    if(c.orderType==='once'){
-      toast(c.name+' 배송 완료! (주문 종료)','ok');
-    } else {
-      toast(c.name+' 배송완료 (잔여 '+rem+'회)','ok');
-    }
-  } catch(e){ toast('오류: '+e.message,'er'); }
-}
-
-// 배송완료 취소 (실수 방지)
-async function undoMarkDone(id, dateStr){
-  const c=custs.find(x=>x.id===id); if(!c) return;
-  const dates=(c.deliveredDates||[]).filter(d=>d!==dateStr);
-  const newRemain=c.remain+1;
-  const newStatus=c.status==='end'?'active':c.status;
-  if(!confirm(`${c.name}의 [${dateStr}] 배송완료를 취소하시겠습니까?`)) return;
-  try{
-    await window.__DB.collection('customers').doc(id).update({
-      remain:newRemain, deliveredDates:dates, status:newStatus
-    });
-    toast(c.name+' 배송완료 취소됨','ok');
+    await window.__upd(window.__doc(window.__db,'customers',id),{remain:rem,deliveredDates:dates,status:st});
+    toast(c.name+' 배송완료 (잔여 '+rem+'회)','ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
 }
 
@@ -2299,7 +846,7 @@ async function markAll(){
     await Promise.all(list.map(c=>{
       if((c.deliveredDates||[]).includes(dateStr)) return;
       const rem=c.remain-1;
-      return window.__DB.collection('customers').doc(c.id).update({
+      return window.__upd(window.__doc(window.__db,'customers',c.id),{
         remain:rem,deliveredDates:[...(c.deliveredDates||[]),dateStr],status:rem===0?'end':c.status
       });
     }));
@@ -2310,100 +857,60 @@ async function markAll(){
 // ════════════════════════════════════════
 // 배송 로직
 // ════════════════════════════════════════
-function todayStr(){
-  const n=new Date();
-  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
-}
-function dow(ds){
-  const [y,m,d]=ds.split('-').map(Number);
-  return new Date(y,m-1,d).getDay();
-}
-function isDelivSub(c,ds){
-  if(c.status!=='active'||c.remain<=0||c.orderType!=='sub') return false;
-  if(c.startDate && ds < c.startDate) return false;  // 첫 배송일 이전 차단
-  const d=dow(ds);
-  // cookDays가 저장된 경우: 조리일 기준으로 표시 (오늘 조리=오늘 출고)
-  if(c.cookDays&&c.cookDays.length>0){
-    return c.cookDays.includes(d);
-  }
-  // cookDays가 없는 기존 데이터 폴백:
-  // arriveDays에서 하루 전날(조리일)을 역산 → 그게 오늘이면 표시
-  // arriveDays = 도착요일, 조리일 = 도착일 - 1 (일요일 이전이면 토=6)
-  const cookFromArrive=(c.arriveDays||[]).map(a=>a===0?6:a-1);
-  return cookFromArrive.includes(d);
-}
-function isDelivOnce(c,ds){
-  if(c.status!=='active'||c.remain<=0||c.orderType!=='once') return false;
-  if(c.startDate && ds < c.startDate) return false;  // 첫 배송일 이전 차단
-  if(c.isDirect){
-    // 직배송: onceDate 당일 배송
-    return c.onceDate===ds;
-  }
-  // 일반 택배: onceDate 당일 (기존 동일)
-  return c.onceDate===ds;
-}
+function todayStr(){ return new Date().toISOString().split('T')[0]; }
+function dow(ds){ return new Date(ds+'T00:00:00').getDay(); }
+function isDelivSub(c,ds){ return c.status==='active'&&c.remain>0&&c.orderType==='sub'&&(c.arriveDays||[]).includes(dow(ds)); }
+function isDelivOnce(c,ds){ return c.status==='active'&&c.remain>0&&c.orderType==='once'&&c.onceDate===ds; }
 function isDeliv(c,ds){ return isDelivSub(c,ds)||isDelivOnce(c,ds); }
 function listFor(ds){ return custs.filter(c=>isDeliv(c,ds)); }
 function todayList(){ return listFor(todayStr()); }
 
 // ════════════════════════════════════════
-// 날짜 유틸 - timezone 문제 없는 방식
-// ════════════════════════════════════════
-function addDays(dateStr, d){
-  // "2026-03-16" 형식에서 timezone 오류 없이 날짜 이동
-  const [y,m,day] = dateStr.split('-').map(Number);
-  const dt = new Date(y, m-1, day+d);
-  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-}
-function dateLabel(dateStr){
-  const [y,m,d] = dateStr.split('-').map(Number);
-  const dt = new Date(y, m-1, d);
-  return `${y}.${String(m).padStart(2,'0')}.${String(d).padStart(2,'0')} (${DAYS[dt.getDay()]})`;
-}
-
-// ════════════════════════════════════════
 // 대시보드 날짜 네비
 // ════════════════════════════════════════
 function moveDashDate(d){
-  const inp = document.getElementById('dashDate');
-  const cur = inp.value || todayStr();
-  inp.value = addDays(cur, d);
+  const inp=document.getElementById('dashDate');
+  const dt=new Date(inp.value+'T00:00:00');
+  dt.setDate(dt.getDate()+d);
+  inp.value=dt.toISOString().split('T')[0];
   updateDashDisp(); renderDash();
 }
 function resetDashDate(){
-  document.getElementById('dashDate').value = todayStr();
+  document.getElementById('dashDate').value=todayStr();
   updateDashDisp(); renderDash();
 }
 function updateDashDisp(){
-  const v = document.getElementById('dashDate').value;
+  const v=document.getElementById('dashDate').value;
   if(!v) return;
-  const isToday = v === todayStr();
-  document.getElementById('dashDateDisp').textContent =
-    dateLabel(v) + (isToday ? ' ← 오늘' : '');
-  const [,m,d] = v.split('-').map(Number);
-  document.getElementById('dash-date-lbl').textContent  = isToday ? '오늘 배송'  : `${m}/${d} 배송`;
-  document.getElementById('dash-list-title').textContent = isToday ? '오늘 배송'  : `${m}월 ${d}일 배송`;
+  const d=new Date(v+'T00:00:00');
+  const isToday=v===todayStr();
+  document.getElementById('dashDateDisp').textContent=
+    `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} (${DAYS[d.getDay()]})${isToday?' ← 오늘':''}`;
+  document.getElementById('dash-date-lbl').textContent=isToday?'오늘 배송':`${String(d.getMonth()+1)}/${String(d.getDate())} 배송`;
+  document.getElementById('dash-list-title').textContent=isToday?'오늘 배송':`${String(d.getMonth()+1)}월 ${String(d.getDate())}일 배송`;
 }
 
 // ════════════════════════════════════════
 // 배송관리 날짜 네비
 // ════════════════════════════════════════
 function moveTodayDate(d){
-  const inp = document.getElementById('todayDate');
-  const cur = inp.value || todayStr();
-  inp.value = addDays(cur, d);
+  const inp=document.getElementById('todayDate');
+  const dt=new Date(inp.value+'T00:00:00');
+  dt.setDate(dt.getDate()+d);
+  inp.value=dt.toISOString().split('T')[0];
   updateTodayDisp(); renderToday();
 }
 function resetTodayDate(){
-  document.getElementById('todayDate').value = todayStr();
+  document.getElementById('todayDate').value=todayStr();
   updateTodayDisp(); renderToday();
 }
 function updateTodayDisp(){
-  const v = document.getElementById('todayDate').value;
+  const v=document.getElementById('todayDate').value;
   if(!v) return;
-  const isToday = v === todayStr();
-  document.getElementById('todayDateDisp').textContent =
-    dateLabel(v) + (isToday ? ' ← 오늘' : '');
+  const d=new Date(v+'T00:00:00');
+  const isToday=v===todayStr();
+  document.getElementById('todayDateDisp').textContent=
+    `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} (${DAYS[d.getDay()]})${isToday?' ← 오늘':''}`;
 }
 
 // ════════════════════════════════════════
@@ -2554,7 +1061,7 @@ function renderReportList(days){
     return `<tr>
       <td style="white-space:nowrap;font-weight:600;color:var(--text2);">${ds} (${DAYS[d.getDay()]})</td>
       <td><strong>${c.name}</strong></td>
-      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
+      <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
       <td>${c.phone}</td>
       <td style="font-size:12px;color:var(--text2);">${c.addr}</td>
@@ -2574,409 +1081,93 @@ function jumpToDate(ds){
 // ════════════════════════════════════════
 function refreshAll(){ renderDash(); renderToday(); renderCust(); renderReport(); }
 
-// 화면 크기 변경 시 재렌더링 (모바일↔PC 전환)
-let _resizeTimer;
-window.addEventListener('resize', ()=>{
-  clearTimeout(_resizeTimer);
-  _resizeTimer = setTimeout(()=>{ renderToday(); renderCust(); }, 200);
-});
-
 function renderDash(){
   const ds=document.getElementById('dashDate').value||todayStr();
   updateDashDisp();
   const tl=listFor(ds);
-  let wk=0; for(let i=0;i<7;i++){const t=todayStr();wk+=listFor(addDays(t,i)).length;}
-  // 내일 배송 목록
-  const tmrStr = addDays(todayStr(), 1);
-  const tmrList = listFor(tmrStr);
+  let wk=0; for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()+i);wk+=listFor(d.toISOString().split('T')[0]).length;}
+  const low=custs.filter(c=>c.status==='active'&&c.remain<=3);
   s('s0',custs.length); s('s1',custs.filter(c=>c.status==='active').length);
-  s('s2',tl.length); s('s3',wk); s('s4',tmrList.length);
+  s('s2',tl.length); s('s3',wk); s('s4',low.length);
   s('sA',custs.filter(c=>c.set==='A'&&c.status==='active').length);
   s('sB',custs.filter(c=>c.set==='B'&&c.status==='active').length);
   s('sC',custs.filter(c=>c.set==='C'&&c.status==='active').length);
   s('nBadge',listFor(todayStr()).length);
-
-  // 직배송/택배 분리
-  const directList  = tl.filter(c=>c.isDirect);
-  const courierList = tl.filter(c=>!c.isDirect);
-
-  // 직배송 섹션
-  const dDirectWrap  = document.getElementById('dash-direct-wrap');
-  const dTodayDirect = document.getElementById('dTodayDirect');
-  if(dDirectWrap && dTodayDirect){
-    dDirectWrap.style.display = directList.length ? '' : 'none';
-    dTodayDirect.innerHTML = directList.slice(0,5).map(c=>`<tr>
-      <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-      <td style="font-size:11px;color:var(--text3);">${c.scheduleName||c.onceDate||''}</td>
-      <td>${c.phone}</td>
-    </tr>`).join('');
-  }
-
-  // 택배 섹션 라벨
-  const courierLabel = document.getElementById('dash-courier-label');
-  if(courierLabel) courierLabel.style.display = directList.length ? '' : 'none';
+  document.getElementById('warnBanner').style.display=low.length?'block':'none';
 
   const dt=document.getElementById('dToday');
-  dt.innerHTML=!courierList.length
-    ?`<tr><td colspan="6"><div class="empty"><div class="ei">📦</div><div>택배 없음</div></div></td></tr>`
-    :courierList.slice(0,8).map(c=>`<tr>
-      <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
+  dt.innerHTML=!tl.length?`<tr><td colspan="5"><div class="empty"><div class="ei">📭</div><div>해당 날짜 배송 없음</div></div></td></tr>`
+    :tl.slice(0,8).map(c=>`<tr>
+      <td><strong>${c.name}</strong></td>
+      <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
       <td>${c.phone}</td>
-      <td style="text-align:center;">${c.qty&&c.qty>1?`<strong style="color:var(--accent)">${c.qty}개</strong>`:'1개'}</td>
       <td>${gauge(c)}</td>
     </tr>`).join('');
 
   const dl=document.getElementById('dLow');
-  dl.innerHTML=!tmrList.length
-    ?`<tr><td colspan="4"><div class="empty"><div class="ei">📭</div><div>내일 배송 없음</div></div></td></tr>`
-    :tmrList.map(c=>`<tr>
-      <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-      <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
+  dl.innerHTML=!low.length?`<tr><td colspan="4"><div class="empty"><div class="ei">✅</div><div>모두 여유 있음</div></div></td></tr>`
+    :low.sort((a,b)=>a.remain-b.remain).map(c=>`<tr>
+      <td><strong>${c.name}</strong></td>
+      <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
+      <td style="font-weight:700;color:${c.remain===0?'var(--danger)':'var(--warn)'};">${c.remain}회</td>
       <td>${c.phone}</td>
     </tr>`).join('');
 }
 
 function renderToday(){
-  const ds = document.getElementById('todayDate').value || todayStr();
+  const ds=document.getElementById('todayDate').value||todayStr();
   updateTodayDisp();
-  const allList    = listFor(ds);
-  const directList = allList.filter(c => c.isDirect);
-  const courierList= allList.filter(c => !c.isDirect);
-
-  s('todayCnt', allList.length + '건');
-  s('courier-cnt', courierList.length + '건');
-
-  // 직배송 섹션 표시/숨김
-  const dirSec = document.getElementById('today-direct-section');
-  if(dirSec) dirSec.style.display = directList.length ? '' : 'none';
-
-  // ── 직배송 필터 적용 ──
-  const allDirectCks = document.querySelectorAll('.direct-filter-ck');
-  const checkedDirectVals = Array.from(allDirectCks).filter(el=>el.checked).map(el=>el.value);
-  const filteredDirect = checkedDirectVals.length === allDirectCks.length
-    ? directList
-    : directList.filter(c=>{
-        const prod = c.productId || c.set || '';
-        const isSingle = ['pork_rib','beef_la','beef_soup'].indexOf(prod) !== -1;
-        if(isSingle) return checkedDirectVals.indexOf('single') !== -1;
-        return checkedDirectVals.indexOf(prod) !== -1;
-      });
-
-  s('direct-cnt', filteredDirect.length + '건');
-
-  // ── 직배송 테이블/카드 ──
-  const dtb = document.getElementById('directList');
-  if(dtb){
-    if(!filteredDirect.length){
-      dtb.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="ei">🚗</div><div>직배송 없음</div></div></td></tr>`;
-    } else {
-      const isMobile = window.innerWidth <= 768;
-      if(isMobile){
-        dtb.closest('table').style.minWidth = '0';
-        dtb.innerHTML = filteredDirect.map(c => {
-          const done = (c.deliveredDates||[]).includes(ds);
-          return `<tr class="${done?'trd':''}">
-            <td colspan="11">
-              <div class="mobile-card delivery-card">
-                <div class="mobile-card-top">
-                  <div class="mobile-card-left">
-                    <div class="mobile-card-name-row">
-                      <input type="checkbox" class="ck-direct" data-id="${c.id}">
-                      <span class="mobile-card-name" onclick="openEdit('${c.id}')">${c.name}</span>
-                      <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
-                    </div>
-                  </div>
-                  <div class="mobile-card-actions">
-                    ${done
-                      ? '<span class="badge b-ok">완료</span>'
-                      : `<button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓ 완료</button>`
-                    }
-                  </div>
-                </div>
-                <div class="mobile-card-line">📞 ${c.phone}</div>
-                <div class="mobile-card-line" onclick="showAddrModal('${c.id}')">📍 ${c.addr}</div>
-                ${c.request ? `<div class="mobile-card-line">💬 ${c.request}</div>` : ''}
-                ${c.door ? `<div class="mobile-card-sub">🔑 현관 ${c.door}</div>` : ''}
-                ${(c.scheduleName||c.onceDate) ? `<div class="mobile-card-sub">🗓 ${c.scheduleName||c.onceDate}</div>` : ''}
-              </div>
-            </td>
-          </tr>`;
-        }).join('');
-      } else {
-        dtb.closest('table').style.minWidth = '';
-        dtb.innerHTML = filteredDirect.map(c => {
-          const done = (c.deliveredDates||[]).includes(ds);
-          return `<tr class="${done?'trd':''}">
-            <td><input type="checkbox" class="ck-direct" data-id="${c.id}"></td>
-            <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-            <td style="white-space:nowrap;">${c.phone}</td>
-            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#c020b0;cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
-            <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-            <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||c.onceDate||'—'}</td>
-            <td style="font-size:12px;">${c.door||'—'}</td>
-            <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
-            <td style="text-align:center;">${c.qty&&c.qty>1?`<strong style="color:var(--accent)">${c.qty}개</strong>`:'1개'}</td>
-            <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
-            <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓</button>`}</td>
-          </tr>`;
-        }).join('');
-      }
-    }
+  const list=listFor(ds);
+  s('todayCnt',list.length+'건');
+  const tb=document.getElementById('todayList');
+  if(!list.length){
+    tb.innerHTML=`<tr><td colspan="12"><div class="empty"><div class="ei">📭</div><div>해당 날짜 배송 없음</div></div></td></tr>`;
+    return;
   }
-
-  // ── 택배 필터 체크박스 적용 ──
-  const allFilterCks = document.querySelectorAll('.today-filter-ck');
-  const checkedVals = Array.from(allFilterCks).filter(el=>el.checked).map(el=>el.value);
-  const totalCks    = allFilterCks.length;
-  const SINGLE_PRODS = ['pork_rib','beef_la','beef_soup'];
-  const filteredCourier = checkedVals.length === totalCks
-    ? courierList  // 전체 체크 → 필터 없음
-    : courierList.filter(c=>{
-        const prod = c.productId || c.set || '';
-        const isSingle = SINGLE_PRODS.indexOf(prod) !== -1;
-        if(isSingle) return checkedVals.indexOf('single') !== -1;
-        // A,B,C 세트
-        return checkedVals.indexOf(prod) !== -1;
-      });
-
-  // ── 택배 테이블 ──
-  const ctb = document.getElementById('courierList');
-  if(ctb){
-    ctb.innerHTML = !filteredCourier.length
-      ? `<tr><td colspan="13"><div class="empty"><div class="ei">📦</div><div>택배 없음</div></div></td></tr>`
-      : (window.innerWidth <= 768
-          ? filteredCourier.map(c => {
-              const done = (c.deliveredDates||[]).includes(ds);
-              return `<tr class="${done?'trd':''}">
-                <td colspan="13">
-                  <div class="mobile-card delivery-card">
-                    <div class="mobile-card-top">
-                      <div class="mobile-card-left">
-                        <div class="mobile-card-name-row">
-                          <input type="checkbox" class="ck-courier" data-id="${c.id}">
-                          <span class="mobile-card-name" onclick="openEdit('${c.id}')">${c.name}</span>
-                          <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
-                        </div>
-                      </div>
-                      <div class="mobile-card-actions">
-                        ${done
-                          ? '<span class="badge b-ok">완료</span>'
-                          : `<button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓ 완료</button>`
-                        }
-                      </div>
-                    </div>
-                    <div class="mobile-card-line">📞 ${c.phone}</div>
-                    <div class="mobile-card-line" onclick="showAddrModal('${c.id}')">📍 ${c.addr}</div>
-                    ${c.request ? `<div class="mobile-card-line">💬 ${c.request}</div>` : ''}
-                    ${c.door ? `<div class="mobile-card-sub">🔑 현관 ${c.door}</div>` : ''}
-                    <div class="mobile-card-bottom">
-                      <div class="mobile-card-sub">${c.scheduleName||c.onceDate||''}</div>
-                      ${c.orderType==='sub' ? `<div>${gauge(c)}</div>` : ''}
-                    </div>
-                  </div>
-                </td>
-              </tr>`;
-            }).join('')
-          : filteredCourier.map(c => {
-              const done = (c.deliveredDates||[]).includes(ds);
-              return `<tr class="${done?'trd':''}">
-                <td><input type="checkbox" class="ck-courier" data-id="${c.id}"></td>
-                <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-                <td style="white-space:nowrap;">${c.phone}</td>
-                <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
-                <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-                <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-                <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||''}</td>
-                <td style="font-size:12px;">${c.door||'—'}</td>
-                <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
-                <td>${gauge(c)}</td>
-                <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
-                <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓</button>`}</td>
-              </tr>`;
-            }).join('')
-        );
-  }
-}
-
-// 택배 목록 인쇄
-function printCourierList(){
-  const ds = document.getElementById('todayDate').value || todayStr();
-  const list = listFor(ds).filter(c=>!c.isDirect);
-  const SINGLE_PRODS = ['pork_rib','beef_la','beef_soup'];
-  const checkedVals = Array.from(document.querySelectorAll('.today-filter-ck:checked')).map(el=>el.value);
-  const filtered = list.filter(c=>{
-    const prod = c.productId||c.set||'';
-    return SINGLE_PRODS.indexOf(prod)!==-1 ? checkedVals.indexOf('single')!==-1 : checkedVals.indexOf(prod)!==-1;
-  });
-  if(!filtered.length){ toast('출력할 내용 없음','er'); return; }
-
-  const rows = filtered.map((c,i)=>`
-    <tr>
-      <td>${i+1}</td>
+  tb.innerHTML=list.map(c=>{
+    const done=(c.deliveredDates||[]).includes(ds);
+    return `<tr class="${done?'trd':''}">
+      <td><input type="checkbox" class="ck" data-id="${c.id}"></td>
       <td><strong>${c.name}</strong></td>
-      <td>${c.phone}</td>
-      <td>${c.addr||''}</td>
-      <td>${c.door||''}</td>
-      <td>${productLabel(c.productId||c.set)}</td>
-      <td>${c.scheduleName||c.onceDate||''}</td>
-      <td>${c.request||''}</td>
-    </tr>`).join('');
-
-  const win = window.open('','_blank');
-  win.document.write(`
-    <html><head><title>배송목록 ${ds}</title>
-    <style>
-      body{font-family:sans-serif;font-size:12px;padding:20px;}
-      h2{margin-bottom:12px;}
-      table{border-collapse:collapse;width:100%;}
-      th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;}
-      th{background:#f0f0f0;font-weight:700;}
-      @media print{button{display:none;}}
-    </style></head>
-    <body>
-    <h2>📦 택배 배송목록 · ${ds}</h2>
-    <button onclick="window.print()" style="margin-bottom:12px;padding:6px 16px;background:#1a6b3c;color:#fff;border:none;border-radius:6px;cursor:pointer;">🖨 인쇄</button>
-    <table>
-      <thead><tr><th>#</th><th>이름</th><th>연락처</th><th>주소</th><th>현관번호</th><th>세트</th><th>배송일정</th><th>요청사항</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    </body></html>`);
-  win.document.close();
+      <td style="white-space:nowrap;">${c.phone}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.addr}">${c.addr}</td>
+      <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
+      <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
+      <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||''}</td>
+      <td style="font-size:12px;">${c.door||'—'}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
+      <td>${gauge(c)}</td>
+      <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
+      <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓</button>`}</td>
+    </tr>`;
+  }).join('');
 }
-
-// 직배송 전체 완료
-async function markAllDirect(){
-  const ds = document.getElementById('todayDate').value || todayStr();
-  const list = listFor(ds).filter(c=>c.isDirect);
-  if(!list.length){ toast('직배송 없음','er'); return; }
-  if(!confirm(list.length+'건 직배송 전체 완료?')) return;
-  await Promise.all(list.map(c=>{
-    if((c.deliveredDates||[]).includes(ds)) return;
-    const rem = c.remain-1;
-    return window.__DB.collection('customers').doc(c.id).update({
-      remain:rem, deliveredDates:[...(c.deliveredDates||[]),ds], status:rem===0?'end':c.status
-    });
-  }));
-  toast('직배송 전체 완료!','ok');
-}
-
-// 택배 전체 완료
-async function markAllCourier(){
-  const ds = document.getElementById('todayDate').value || todayStr();
-  const list = listFor(ds).filter(c=>!c.isDirect);
-  if(!list.length){ toast('택배 없음','er'); return; }
-  if(!confirm(list.length+'건 택배 전체 완료?')) return;
-  await Promise.all(list.map(c=>{
-    if((c.deliveredDates||[]).includes(ds)) return;
-    const rem = c.remain-1;
-    return window.__DB.collection('customers').doc(c.id).update({
-      remain:rem, deliveredDates:[...(c.deliveredDates||[]),ds], status:rem===0?'end':c.status
-    });
-  }));
-  toast('택배 전체 완료!','ok');
-}
-
-function toggleDirect(el){ document.querySelectorAll('.ck-direct').forEach(c=>c.checked=el.checked); }
-function toggleCourier(el){ document.querySelectorAll('.ck-courier').forEach(c=>c.checked=el.checked); }
 
 function renderCust(){
   const q=(document.getElementById('srchQ')?.value||'').toLowerCase();
   const fs=document.getElementById('srchSet')?.value||'';
   const ft=document.getElementById('srchType')?.value||'';
   const fst=document.getElementById('srchSt')?.value||'';
-  const fd=document.getElementById('srchDirect')?.value||'';
-  const fr=document.getElementById('srchRemain')?.value||'';
-  const list=custs.filter(c=>{
-    if(q&&!c.name.includes(q)&&!c.phone.includes(q)&&!(c.addr||'').includes(q)&&!(c.orderNum||'').includes(q)) return false;
-    if(fs&&(c.productId||c.set)!==fs) return false;
-    if(ft&&c.orderType!==ft) return false;
-    if(fst&&c.status!==fst) return false;
-    if(fd&&(fd==='1'?!c.isDirect:c.isDirect)) return false;
-    if(fr==='remain'&&!(c.remain>0)) return false;
-    if(fr==='done'&&c.remain>0) return false;
-    return true;
-  });
-
-  const sortBy = document.getElementById('srchSort')?.value || 'recent';
-  list.sort(function(a,b){
-    if(sortBy==='name')   return (a.name||'').localeCompare(b.name||'','ko');
-    if(sortBy==='remain') return (b.remain||0)-(a.remain||0);
-    return (b.createdAt||'').localeCompare(a.createdAt||'');
-  });
+  const list=custs.filter(c=>
+    (!q||c.name.includes(q)||c.phone.includes(q)||(c.addr||'').includes(q))
+    &&(!fs||c.set===fs)&&(!ft||c.orderType===ft)&&(!fst||c.status===fst)
+  );
   const tb=document.getElementById('custList');
   if(!list.length){
-    tb.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="ei">👤</div><div>검색 결과 없음</div></div></td></tr>`;
+    tb.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="ei">👤</div><div>검색 결과 없음</div></div></td></tr>`;
     return;
   }
-  if(window.innerWidth <= 768){
-    tb.closest('table').style.minWidth = '0';
-    tb.innerHTML = list.map(c=>{
-      const st = mobileStatusMeta(c);
-      const bottomText = c.orderType==='once'
-        ? `📅 ${c.onceDate||'-'} · ${c.qty||1}개`
-        : `📦 ${c.scheduleName||'-'} · 잔여 ${c.remain||0}/${c.total||0}회`;
-      return `<tr>
-        <td colspan="9">
-          <div class="mobile-card" onclick="openEdit('${c.id}')">
-            <div class="mobile-card-top">
-              <div class="mobile-card-left">
-                <div class="mobile-card-name-row">
-                  <span class="mobile-card-name">${c.name}</span>
-                  <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
-                  <span class="badge ${st.cls}">${st.label}</span>
-                </div>
-                <div class="mobile-card-line">📞 ${c.phone}</div>
-                <div class="mobile-card-sub">${bottomText}${c.isDirect?' · 직배송':' · 택배'}</div>
-              </div>
-              <div class="mobile-card-actions" onclick="event.stopPropagation()">
-                ${c.orderType==='sub'?`<button class="btn btn-g sm" onclick="chargeRemain('${c.id}')">충전</button>`:''}
-                <button class="btn btn-d sm" onclick="quickDelete('${c.id}','${c.name}')">삭제</button>
-              </div>
-            </div>
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
-  } else {
-    tb.closest('table').style.minWidth = '';
-    tb.innerHTML=list.map(c=>`<tr class="trc" onclick="showDet('${c.id}')">
-      <td>
-        <strong>${c.name}</strong>
-        ${c.orderNum?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">#${c.orderNum}</div>`:''}
-      </td>
-      <td style="white-space:nowrap;">${c.phone}</td>
-      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-      <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-      <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.scheduleName||c.onceDate||''}</td>
-      <td>${c.isDirect?'<span class="badge b-direct">직배송</span>':'<span style="font-size:11px;color:var(--text3);">택배</span>'}</td>
-      <td>${gauge(c)}</td>
-      <td><span class="badge b-${c.status}">${SL[c.status]}</span></td>
-      <td style="display:flex;gap:4px;flex-wrap:wrap;">
-        <button class="btn btn-g sm" onclick="event.stopPropagation();openEdit('${c.id}')">수정</button>
-        ${c.orderType==='sub'?`<button class="btn sm" style="background:rgba(3,102,214,.1);color:#0366d6;border:1px solid rgba(3,102,214,.3);" onclick="event.stopPropagation();chargeRemain('${c.id}')">충전</button>`:''}
-        <button class="btn btn-d sm" onclick="event.stopPropagation();quickDelete('${c.id}','${c.name}')">삭제</button>
-      </td>
-    </tr>`).join('');
-  }
-}
-
-// 선택주문 배송일 변경
-async function editOnceDate(id, currentDate){
-  const c=custs.find(x=>x.id===id); if(!c) return;
-  const newDate=prompt(`${c.name}의 배송 예정일을 변경합니다.
-현재: ${currentDate||'미설정'}
-
-새 날짜를 입력하세요 (YYYY-MM-DD):`, currentDate||todayStr());
-  if(!newDate) return;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(newDate)){ toast('날짜 형식이 올바르지 않습니다 (YYYY-MM-DD)','er'); return; }
-  try{
-    await window.__DB.collection('customers').doc(id).update({onceDate:newDate, startDate:newDate});
-    toast(`${c.name} 배송일 → ${newDate} 변경 완료`,'ok');
-  } catch(e){ toast('오류: '+e.message,'er'); }
+  tb.innerHTML=list.map(c=>`<tr class="trc" onclick="showDet('${c.id}')">
+    <td><strong>${c.name}</strong></td>
+    <td style="white-space:nowrap;">${c.phone}</td>
+    <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
+    <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
+    <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.scheduleName||''}</td>
+    <td>${gauge(c)}</td>
+    <td><span class="badge b-${c.status}">${SL[c.status]}</span></td>
+    <td><button class="btn btn-g sm" onclick="event.stopPropagation();openEdit('${c.id}')">수정</button></td>
+  </tr>`).join('');
 }
 
 function showDet(id){
@@ -2992,7 +1183,7 @@ function showDet(id){
           <span class="badge b-${c.status}">${SL[c.status]}</span>
         </div>
         <div style="display:flex;gap:6px;">
-          <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
+          <span class="badge b${c.set.toLowerCase()}">${c.set}세트</span>
           <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택주문':'정기배송'}</span>
         </div>
       </div>
@@ -3002,39 +1193,22 @@ function showDet(id){
         <div class="dpr"><div class="dpl">현관번호</div><div class="dpv">${c.door||'—'}</div></div>
         <div class="dpr"><div class="dpl">요청사항</div><div class="dpv" style="font-size:12px;">${c.request||'—'}</div></div>
         <div class="dpr"><div class="dpl">배송일정</div><div class="dpv" style="font-size:12px;">${c.scheduleName||'—'}</div></div>
-        <div class="dpr"><div class="dpl">배송 방식</div><div class="dpv">${c.isDirect?'<span class="badge b-direct">🚗 직배송</span>':'<span style="font-size:12px;">📦 택배</span>'}</div></div>
-        ${c.orderNum?`<div class="dpr"><div class="dpl">주문번호</div><div class="dpv" style="font-size:12px;font-family:monospace;">${c.orderNum}</div></div>`:''}
-        ${c.qty&&c.qty>1?`<div class="dpr"><div class="dpl">수량</div><div class="dpv" style="font-weight:700;color:var(--accent);">${c.qty}개</div></div>`:''}
         ${c.onceDate?`<div class="dpr"><div class="dpl">배송예정일</div><div class="dpv">${c.onceDate}</div></div>`:''}
-        ${c.orderType==='sub'?`
         <div class="dpr">
           <div class="dpl">잔여 횟수</div>
           <div style="margin-top:4px;">
             <div style="font-size:22px;font-weight:700;color:${isLow?'var(--danger)':'var(--accent)'};margin-bottom:6px;">${c.remain}<span style="font-size:13px;font-weight:400;color:var(--text3);"> / ${c.total}회</span></div>
             <div class="gt" style="height:6px;"><div class="gf ${isLow?'low':''}" style="width:${pct}%"></div></div>
           </div>
-        </div>`:''}
+        </div>
         ${c.memo?`<div class="dpr"><div class="dpl">메모</div><div class="dpv" style="font-size:12px;background:var(--bg3);padding:8px;border-radius:4px;">${c.memo}</div></div>`:''}
         <div class="dpr">
-          <div class="dpl">배송 이력 <span style="font-size:9px;color:var(--text3);">(클릭 → 취소)</span></div>
-          <div style="margin-top:4px;">
-            ${(c.deliveredDates||[]).slice(-5).reverse().map(d=>`
-              <div class="dhi" style="display:flex;align-items:center;justify-content:space-between;">
-                <span>✓ ${d}</span>
-                <button onclick="undoMarkDone('${c.id}','${d}')" style="border:none;background:none;color:var(--danger);cursor:pointer;font-size:11px;padding:0 2px;" title="취소">↩</button>
-              </div>`).join('')||'<div style="font-size:12px;color:var(--text3);">이력 없음</div>'}
-          </div>
+          <div class="dpl">배송 이력</div>
+          <div style="margin-top:4px;">${(c.deliveredDates||[]).slice(-5).reverse().map(d=>`<div class="dhi">✓ ${d}</div>`).join('')||'<div style="font-size:12px;color:var(--text3);">이력 없음</div>'}</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
-          <button class="btn btn-p" style="font-size:12px;" onclick="openEdit('${c.id}')">✏ 수정</button>
-          <button class="btn btn-s" style="font-size:12px;" onclick="markDone('${c.id}')">✓ 배송완료</button>
-          ${c.orderType==='sub'?`
-          <button class="btn btn-g" style="font-size:12px;" onclick="togglePause('${c.id}')">${c.status==='pause'?'▶ 재개':'⏸ 일시정지'}</button>
-          <button class="btn" style="font-size:12px;background:rgba(3,102,214,.1);color:#0366d6;border-color:rgba(3,102,214,.3);" onclick="chargeRemain('${c.id}')">＋ 횟수 충전</button>
-          `:`
-          <button class="btn btn-g" style="font-size:12px;grid-column:1/-1;" onclick="editOnceDate('${c.id}','${c.onceDate||''}')">📅 배송일 변경</button>
-          `}
-          <button class="btn btn-d" style="font-size:12px;grid-column:1/-1;" onclick="quickDelete('${c.id}','${c.name}')">🗑 삭제</button>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn btn-p" style="flex:1;font-size:12px;" onclick="openEdit('${c.id}')">수정</button>
+          <button class="btn btn-s" style="flex:1;font-size:12px;" onclick="markDone('${c.id}')">✓ 배송완료</button>
         </div>
       </div>
     </div>`;
@@ -3059,34 +1233,16 @@ function genExport(){
     <td style="color:var(--text3);">${i+1}</td><td><strong>${c.name}</strong></td>
     <td style="white-space:nowrap;">${c.phone}</td>
     <td style="font-size:11px;">${c.addr}</td>
-    <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
+    <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
     <td style="font-size:11px;color:var(--text2);">${c.request||''}</td>
   </tr>`).join('');
-  const directList  = list.filter(c=>c.isDirect);
-  const courierList = list.filter(c=>!c.isDirect);
-  let txt=`===== 궁중수라간 발송 목록 =====\n날짜  : ${date} (${DAYS[dow(date)]}요일)\n총 ${list.length}건 (직배송 ${directList.length}건 / 택배 ${courierList.length}건)\n생성  : ${new Date().toLocaleString('ko-KR')}\n`;
-
-  if(directList.length){
-    txt+=`\n${'━'.repeat(40)}\n🚗 직배송 (${directList.length}건)\n${'─'.repeat(40)}`;
-    directList.forEach((c,i)=>{
-      txt+=`\n[직${String(i+1).padStart(2,'0')}] ${c.name}\n     전화: ${c.phone}\n     주소: ${c.addr}\n     상품: ${productLabel(c.productId||c.set)}`;
-      if(c.qty&&c.qty>1) txt+=` x${c.qty}개`;
-      if(c.door)    txt+=`\n     현관: ${c.door}`;
-      if(c.request) txt+=`\n     요청: ${c.request}`;
-      txt+='\n';
-    });
-  }
-  if(courierList.length){
-    txt+=`\n${'━'.repeat(40)}\n📦 택배 (${courierList.length}건)\n${'─'.repeat(40)}`;
-    courierList.forEach((c,i)=>{
-      txt+=`\n[택${String(i+1).padStart(2,'0')}] ${c.name} (${c.orderType==='once'?'선택':'정기'})\n     전화: ${c.phone}\n     주소: ${c.addr}\n     상품: ${productLabel(c.productId||c.set)}`;
-      if(c.qty&&c.qty>1) txt+=` x${c.qty}개`;
-      if(c.door)    txt+=`\n     현관: ${c.door}`;
-      if(c.request) txt+=`\n     요청: ${c.request}`;
-      txt+='\n';
-    });
-  }
-  txt+=`\n${'━'.repeat(40)}\nEND`;
+  let txt=`===== 궁중수라간 택배 발송 목록 =====\n날짜  : ${date} (${DAYS[dow(date)]}요일)\n총건수: ${list.length}건\n생성  : ${new Date().toLocaleString('ko-KR')}\n${'─'.repeat(40)}\n`;
+  list.forEach((c,i)=>{
+    txt+=`\n[${String(i+1).padStart(2,'0')}] ${c.name} (${c.orderType==='once'?'선택':'정기'})\n     전화: ${c.phone}\n     주소: ${c.addr}\n     세트: ${c.set}세트\n`;
+    if(c.door)    txt+=`     현관: ${c.door}\n`;
+    if(c.request) txt+=`     요청: ${c.request}\n`;
+  });
+  txt+=`\n${'─'.repeat(40)}\nEND`;
   document.getElementById('expTxt').textContent=txt;
 }
 function copyExp(){navigator.clipboard.writeText(document.getElementById('expTxt').textContent).then(()=>toast('복사됨!','ok'));}
@@ -3104,393 +1260,49 @@ function parseText(){
   const raw=document.getElementById('pasteArea').value.trim();
   if(!raw){toast('텍스트를 붙여넣어 주세요','er');return;}
   const lines=raw.split('\n').map(l=>l.trim()).filter(Boolean);
-
+  const p={name:'',phone:'',addr:'',door:'',request:'',set:'',orderType:'once'};
   const phoneReg=/01[016789]-?\d{3,4}-?\d{4}/;
   const addrReg=/\(?\d{5}\)?\s+.+/;
-
-  // ── 전화번호: 마지막 등장 번호 (배송지 정보 기준) ──
-  const allPhones=[];
-  for(let i=0;i<lines.length;i++){
-    const m=lines[i].match(phoneReg);
-    if(m) allPhones.push({phone:m[0],idx:i});
-  }
-  const mainPhone = allPhones.length ? allPhones[allPhones.length-1].phone : '';
-  const lastPhoneIdx = allPhones.length ? allPhones[allPhones.length-1].idx : -1;
-
-  // ── 이름: 마지막 전화번호 바로 위 줄 ──
-  let mainName='';
-  if(lastPhoneIdx>0){
-    let cand=lines[lastPhoneIdx-1].replace(/\s*\(비회원\)\s*/g,'').trim();
-    if(!/[0-9]{6,}|오전|오후|취소|완료|주문|배송|결제|원$/.test(cand)&&cand.length>=1&&cand.length<=15)
-      mainName=cand;
-  }
-
-  // ── 주소 ──
-  let mainAddr='';
-  for(const l of lines){
-    if(addrReg.test(l)){ mainAddr=l.replace(/^\(?\d{5}\)?\s*/,'').trim(); break; }
-  }
-
-  // ── 현관번호 / 요청사항 ──
-  let door='', request='';
+  const setReg=/[ABC]세트/i;
   for(let i=0;i<lines.length;i++){
     const l=lines[i];
-    if(/현관|비밀번호/i.test(l)&&!door){
-      const combined=(l+' '+(lines[i+1]||'')).replace(/현관\s*비밀번호\s*[:：]?/i,'').trim();
-      door=combined.split('\n')[0].trim();
+    if(!p.phone&&phoneReg.test(l)) p.phone=l.match(phoneReg)[0];
+    if(!p.addr&&addrReg.test(l)) p.addr=l.replace(/^\(?\d{5}\)?\s*/,'').trim();
+    if(!p.set&&setReg.test(l)){const m=l.match(/([ABC]세트)/i);if(m)p.set=m[1][0].toUpperCase();}
+    if(/현관|비밀번호/i.test(l)){
+      const next=lines[i+1]||'';
+      const raw2=(l+' '+next).replace(/현관\s*비밀번호\s*[:：]?/i,'').trim();
+      p.door=raw2.split('\n')[0].trim();
     }
-    if(/배송\s*전|미리\s*연락|부재|문\s*앞|두고\s*가|놓아/i.test(l)) request=l;
-  }
-
-  // ── 복수 주문 감지: "-001", "-002" 등 섹션번호로 분리 ──
-  // 섹션번호 패턴: 주문번호-001, 주문번호-002 ...
-  const sectionPat=/^\d{10,}-\d{3}$/;
-  const sectionIdxs=[];
-  for(let i=0;i<lines.length;i++){
-    if(sectionPat.test(lines[i])) sectionIdxs.push(i);
-  }
-
-  // 날짜 파싱 헬퍼: "3월 27일 금요일" → "2026-03-27"
-  function parseDateKo(str){
-    const m=str.match(/(\d{1,2})월[\s\.\-]*(\d{1,2})일/);
-    if(!m) return '';
-    const y=new Date().getFullYear();
-    const mo=String(m[1]).padStart(2,'0');
-    const d=String(m[2]).padStart(2,'0');
-    return `${y}-${mo}-${d}`;
-  }
-
-  // 상품ID 파싱 헬퍼
-  function parseProduct(str){
-    if(/[ABC]세트/i.test(str)){
-      const m=str.match(/([ABC])세트/i); return m?m[1].toUpperCase():'';
-    }
-    if(/수제.*돼지.*갈비|돼지.*양념.*갈비|수제양념돼지갈비/i.test(str)) return 'pork_rib';
-    if(/양념.*LA.*갈비|LA.*갈비|라갈비/i.test(str)) return 'beef_la';
-    return '';
-  }
-
-  // ── 섹션이 2개 이상 → 복수 주문 ──
-  if(sectionIdxs.length>=2){
-    const orders=[];
-    for(let si=0;si<sectionIdxs.length;si++){
-      const from=sectionIdxs[si];
-      const to=si+1<sectionIdxs.length ? sectionIdxs[si+1] : lines.length;
-      const seg=lines.slice(from,to);
-      // 날짜: "3월 XX일" 패턴
-      let onceDate=''; let prodId=''; let qty=1;
-      for(const l of seg){
-        if(!onceDate&&/\d{1,2}월[\s\.\-]*\d{1,2}일/.test(l)) onceDate=parseDateKo(l);
-        if(!prodId) prodId=parseProduct(l);
-        const qm=l.match(/^(\d+)\s*개$/);
-        if(qm) qty=parseInt(qm[1])||1;
-      }
-      if(prodId||onceDate) orders.push({onceDate,prodId,qty});
-    }
-    // 복수주문 결과 표시
-    parsedData={
-      _multi: true,
-      orders,
-      name: mainName, phone: mainPhone,
-      addr: mainAddr, door, request,
-    };
-    // 미리보기
-    let rowsHtml=`
-      <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;">📦 ${orders.length}건의 주문이 감지되었습니다</div>
-      <div class="prr"><div class="prk">이름</div><div class="prv">${mainName||'(미인식)'}</div></div>
-      <div class="prr"><div class="prk">연락처</div><div class="prv">${mainPhone||'(미인식)'}</div></div>
-      <div class="prr"><div class="prk">주소</div><div class="prv">${mainAddr||'(미인식)'}</div></div>
-      <div class="prr"><div class="prk">현관번호</div><div class="prv">${door||'—'}</div></div>
-      <div class="prr"><div class="prk">요청사항</div><div class="prv">${request||'—'}</div></div>
-      <div style="height:1px;background:var(--border);margin:8px 0;"></div>`;
-    orders.forEach((o,i)=>{
-      rowsHtml+=`
-      <div style="background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px;">
-        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px;">주문 ${i+1}</div>
-        <div class="prr"><div class="prk">배송일</div><div class="prv">${o.onceDate||'(미인식)'}</div></div>
-        <div class="prr"><div class="prk">상품</div><div class="prv">${o.prodId?productLabel(o.prodId):'(미인식)'}</div></div>
-        <div class="prr"><div class="prk">수량</div><div class="prv">${o.qty}개</div></div>
-      </div>`;
-    });
-    document.getElementById('parseRows').innerHTML=rowsHtml;
-    document.getElementById('parseResult').classList.add('on');
-    toast(`${orders.length}건 복수 주문 감지! 확인 후 등록하세요`,'info');
-    return;
-  }
-
-  // ── 단일 주문 파싱 ──
-  // 주문번호 파싱: 숫자 15자리 이상 단독 줄
-  let parsedOrderNum='';
-  for(const l of lines){
-    if(/^\d{15,20}$/.test(l)){ parsedOrderNum=l; break; }
-  }
-  const p={name:mainName,phone:mainPhone,addr:mainAddr,door,request,set:'',productId:'',qty:1,orderType:'once',orderNum:parsedOrderNum};
-
-  for(let i=0;i<lines.length;i++){
-    const l=lines[i];
-    if(!p.set&&/[ABC]세트/i.test(l)){const m=l.match(/([ABC])세트/i);if(m)p.set=m[1].toUpperCase();}
-    if(!p.productId){
-      if(/수제.*돼지.*갈비|돼지.*양념.*갈비|수제양념돼지갈비|돼지갈비/i.test(l)) p.productId='pork_rib';
-      else if(/양념.*LA.*갈비|LA.*갈비|라갈비/i.test(l)) p.productId='beef_la';
-    }
-    if(!p.qty||p.qty===1){
-      const qm=l.match(/^(\d+)\s*개$/) || l.match(/수량\s*[:：]?\s*(\d+)/);
-      if(qm) p.qty=parseInt(qm[1])||1;
-    }
+    if(/배송\s*전|미리\s*연락|부재|문\s*앞/i.test(l)) p.request=l;
     if(/정기/.test(l)) p.orderType='sub';
   }
-  if(p.productId&&!p.set) p.set=p.productId;
-  else if(p.set&&!p.productId&&['A','B','C'].includes(p.set)) p.productId=p.set;
-
+  for(let i=0;i<lines.length;i++){
+    if(phoneReg.test(lines[i])&&i>0){
+      const cand=lines[i-1];
+      if(!/[0-9]{4}|오전|오후|취소|완료|주문|배송/.test(cand)&&cand.length<=10) p.name=cand;
+    }
+  }
   parsedData=p;
-  const prodDisplay=p.productId?productLabel(p.productId):(p.set?p.set+'세트':'(직접 선택)');
   document.getElementById('parseRows').innerHTML=[
     ['이름',p.name||'(미인식)'],['연락처',p.phone||'(미인식)'],
     ['주소',p.addr||'(미인식)'],['현관번호',p.door||'—'],
-    ['요청사항',p.request||'—'],['상품',prodDisplay],
-    ['수량',p.qty+'개'],['유형',p.orderType==='sub'?'정기배송':'선택주문'],
+    ['요청사항',p.request||'—'],['세트',p.set?p.set+'세트':'(직접 선택)'],
+    ['유형',p.orderType==='sub'?'정기배송':'선택주문']
   ].map(([k,v])=>`<div class="prr"><div class="prk">${k}</div><div class="prv">${v}</div></div>`).join('');
   document.getElementById('parseResult').classList.add('on');
   toast('인식 완료. 확인 후 등록하세요','info');
 }
 
-// 파싱 후 모달 열기
-function regParsed(){
-  if(!parsedData){ toast('먼저 분석을 실행하세요','er'); return; }
-  const p = parsedData;
-  const t = todayStr();
-
-  // 공통 기본 정보 채우기
-  document.getElementById('pm-name').value  = p.name  || '';
-  document.getElementById('pm-phone').value = p.phone || '';
-  document.getElementById('pm-addr').value  = p.addr  || '';
-  document.getElementById('pm-door').value  = p.door  || '';
-  document.getElementById('pm-req').value   = p.request || '';
-  document.getElementById('pm-memo').value  = '';
-
-  if(p._multi){
-    // ── 복수 주문 모드 ──
-    document.getElementById('parseMTitle').textContent = `주문 확인 및 수정 (${p.orders.length}건)`;
-    document.getElementById('pm-single').style.display = 'none';
-    document.getElementById('pm-multi').style.display  = 'block';
-    renderPmOrderList(p.orders);
-  } else {
-    // ── 단일 주문 모드 ──
-    document.getElementById('parseMTitle').textContent = '주문 확인 및 수정';
-    document.getElementById('pm-single').style.display = 'block';
-    document.getElementById('pm-multi').style.display  = 'none';
-    const ot = p.orderType || 'once';
-    pmSetOrderType(ot);
-    if(ot === 'once'){
-      document.getElementById('pm-prod').value  = p.productId || p.set || '';
-      document.getElementById('pm-date').value  = p.onceDate  || t;
-      document.getElementById('pm-qty').value   = p.qty || 1;
-    } else {
-      document.getElementById('pm-set').value   = p.set || '';
-      document.getElementById('pm-total').value = p.total || 12;
-      document.getElementById('pm-start').value = p.startDate || t;
-    }
-  }
-  // 주문번호·직배송 채우기
-  const pmOn = document.getElementById('pm-ordernum');
-  const pmDr = document.getElementById('pm-direct');
-  if(pmOn) pmOn.value = p.orderNum||'';
-  if(pmDr) pmDr.checked = !!(p.isDirect);
-  openM('parseM');
-}
-
-// 복수주문 목록 렌더링
-function renderPmOrderList(orders){
-  const wrap = document.getElementById('pm-order-list');
-  wrap.innerHTML = orders.map((o,i) => `
-    <div class="pm-order-item" id="pm-ord-${i}" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <span style="font-size:12px;font-weight:700;color:var(--accent);">주문 ${i+1}</span>
-        <button class="btn btn-d sm" onclick="pmRemoveOrder(${i})">✕ 제외</button>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:10px;">
-        <div class="fgrp">
-          <div class="flab">상품 *</div>
-          <select class="inp" id="pm-ord-prod-${i}">
-            <option value="">선택</option>
-            <optgroup label="반찬 세트">
-              <option value="A" ${o.prodId==='A'?'selected':''}>A세트</option>
-              <option value="B" ${o.prodId==='B'?'selected':''}>B세트</option>
-              <option value="C" ${o.prodId==='C'?'selected':''}>C세트</option>
-            </optgroup>
-            <optgroup label="단품 상품">
-              <option value="pork_rib" ${o.prodId==='pork_rib'?'selected':''}>🥩 수제 돼지양념갈비</option>
-              <option value="beef_la"  ${o.prodId==='beef_la' ?'selected':''}>🥩 양념 LA갈비</option>
-            </optgroup>
-          </select>
-        </div>
-        <div class="fgrp">
-          <div class="flab">배송 예정일 *</div>
-          <input type="date" class="inp" id="pm-ord-date-${i}" value="${o.onceDate||''}">
-        </div>
-        <div class="fgrp">
-          <div class="flab">수량</div>
-          <input type="number" class="inp" id="pm-ord-qty-${i}" value="${o.qty||1}" min="1" max="99" style="text-align:center;font-weight:700;">
-        </div>
-      </div>
-    </div>`).join('');
-  // 인덱스 저장
-  wrap.dataset.count = orders.length;
-}
-
-function pmRemoveOrder(i){
-  const item = document.getElementById('pm-ord-'+i);
-  if(item) item.remove();
-  // 남은 건수 표시 업데이트
-  const remaining = document.querySelectorAll('[id^="pm-ord-"][id$="-0"], [id^="pm-ord-prod-"]').length;
-}
-
-function pmAddOrder(){
-  const wrap = document.getElementById('pm-order-list');
-  const i = parseInt(wrap.dataset.count || 0);
-  wrap.dataset.count = i+1;
-  const div = document.createElement('div');
-  div.innerHTML = `
-    <div class="pm-order-item" id="pm-ord-${i}" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <span style="font-size:12px;font-weight:700;color:var(--accent);">주문 추가</span>
-        <button class="btn btn-d sm" onclick="pmRemoveOrder(${i})">✕ 제외</button>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:10px;">
-        <div class="fgrp"><div class="flab">상품 *</div>
-          <select class="inp" id="pm-ord-prod-${i}">
-            <option value="">선택</option>
-            <optgroup label="반찬 세트">
-              <option value="A">A세트</option><option value="B">B세트</option><option value="C">C세트</option>
-            </optgroup>
-            <optgroup label="단품 상품">
-              <option value="pork_rib">🥩 수제 돼지양념갈비</option>
-              <option value="beef_la">🥩 양념 LA갈비</option>
-            </optgroup>
-          </select>
-        </div>
-        <div class="fgrp"><div class="flab">배송 예정일 *</div>
-          <input type="date" class="inp" id="pm-ord-date-${i}" value="${todayStr()}">
-        </div>
-        <div class="fgrp"><div class="flab">수량</div>
-          <input type="number" class="inp" id="pm-ord-qty-${i}" value="1" min="1" max="99" style="text-align:center;font-weight:700;">
-        </div>
-      </div>
-    </div>`;
-  wrap.appendChild(div.firstElementChild);
-}
-
-// 단일주문 유형 전환
-function pmSetOrderType(ot){
-  const isOnce = ot==='once';
-  document.getElementById('pm-prod-wrap').style.display  = isOnce?'':'none';
-  document.getElementById('pm-date-wrap').style.display  = isOnce?'':'none';
-  document.getElementById('pm-qty-wrap').style.display   = isOnce?'':'none';
-  document.getElementById('pm-set-wrap').style.display   = isOnce?'none':'';
-  document.getElementById('pm-freq-wrap').style.display  = isOnce?'none':'';
-  document.getElementById('pm-sched-wrap').style.display = isOnce?'none':'';
-  document.getElementById('pm-total-wrap').style.display = isOnce?'none':'';
-  document.getElementById('pm-start-wrap').style.display = isOnce?'none':'';
-}
-
-function pmChangeQty(d){
-  const el=document.getElementById('pm-qty');
-  el.value=Math.max(1,Math.min(99,(parseInt(el.value)||1)+d));
-}
-
-function pmUpdSch(){
-  const tp=document.getElementById('pm-freq').value;
-  const sel=document.getElementById('pm-sched');
-  sel.innerHTML='';
-  if(!tp){sel.innerHTML='<option>주기를 먼저 선택하세요</option>';return;}
-  SCH[tp].forEach((sc,i)=>{const o=document.createElement('option');o.value=i;o.textContent=sc.l;sel.appendChild(o);});
-}
-
-// 최종 저장
-async function saveParsed(){
-  const name  = document.getElementById('pm-name').value.trim();
-  const phone = document.getElementById('pm-phone').value.trim();
-  const addr  = document.getElementById('pm-addr').value.trim();
-  const door  = document.getElementById('pm-door').value.trim();
-  const req   = document.getElementById('pm-req').value.trim();
-  const memo  = document.getElementById('pm-memo').value.trim();
-
-  if(!name) { toast('주문자명을 입력하세요','er'); return; }
-  if(!phone){ toast('연락처를 입력하세요','er'); return; }
-  if(!addr) { toast('주소를 입력하세요','er'); return; }
-
-  const isDirect = document.getElementById('pm-direct')?.checked||false;
-  const orderNum = document.getElementById('pm-ordernum')?.value.trim()||'';
-  const base = {
-    name, phone, addr, door, request:req, memo:memo||'자동 등록 (텍스트 파싱)',
-    status:'active', deliveredDates:[], createdAt:new Date().toISOString(),
-    isDirect, orderNum,
-  };
-
-  const isMulti = document.getElementById('pm-multi').style.display !== 'none';
-
-  if(isMulti){
-    // 복수 주문 수집
-    const items = document.querySelectorAll('#pm-order-list .pm-order-item');
-    if(!items.length){ toast('등록할 주문이 없습니다','er'); return; }
-    let ok=0, errs=[];
-    for(const item of items){
-      const id = item.id.replace('pm-ord-','');
-      const prod  = document.getElementById('pm-ord-prod-'+id)?.value||'';
-      const date  = document.getElementById('pm-ord-date-'+id)?.value||'';
-      const qty   = parseInt(document.getElementById('pm-ord-qty-'+id)?.value)||1;
-      if(!prod){ errs.push(`주문${parseInt(id)+1}: 상품 미선택`); continue; }
-      if(!date){ errs.push(`주문${parseInt(id)+1}: 날짜 미입력`); continue; }
-      const data={
-        ...base, orderType:'once', set:prod, productId:prod,
-        total:qty, remain:qty, qty,
-        onceDate:date, startDate:date,
-        scheduleName:productLabel(prod)+(qty>1?' x'+qty+'개':''),
-        arriveDays:[], cookDays:[],
-      };
-      try{ await window.__DB.collection('customers').add(data); ok++; }
-      catch(e){ errs.push('저장 오류: '+e.message); }
-    }
-    if(errs.length) toast(errs.join(' / '),'er');
-    if(ok>0){ closeM('parseM'); clearParse(); toast(name+' '+ok+'건 등록 완료!','ok'); }
-
-  } else {
-    // 단일 주문
-    const isSub = document.getElementById('pm-set-wrap').style.display !== 'none';
-    let data = {...base, orderType: isSub?'sub':'once'};
-
-    if(isSub){
-      const s   = document.getElementById('pm-set').value;
-      const tp  = document.getElementById('pm-freq').value;
-      const si  = document.getElementById('pm-sched').value;
-      const tot = parseInt(document.getElementById('pm-total').value)||0;
-      const sd  = document.getElementById('pm-start').value;
-      if(!s)  { toast('세트를 선택하세요','er'); return; }
-      if(!tp) { toast('배송 주기를 선택하세요','er'); return; }
-      if(si===''){ toast('배송 일정을 선택하세요','er'); return; }
-      if(!tot){ toast('총 구독 횟수를 입력하세요','er'); return; }
-      if(!sd) { toast('시작일을 선택하세요','er'); return; }
-      const sch=SCH[tp][parseInt(si)];
-      Object.assign(data,{set:s,productId:s,type:parseInt(tp),
-        scheduleName:sch.l, cookDays:sch.c, arriveDays:sch.a,
-        total:tot, remain:tot, startDate:sd});
-    } else {
-      const prod = document.getElementById('pm-prod').value;
-      const date = document.getElementById('pm-date').value;
-      const qty  = parseInt(document.getElementById('pm-qty').value)||1;
-      if(!prod){ toast('상품을 선택하세요','er'); return; }
-      if(!date){ toast('배송 예정일을 입력하세요','er'); return; }
-      Object.assign(data,{set:prod, productId:prod,
-        total:qty, remain:qty, qty,
-        onceDate:date, startDate:date,
-        scheduleName:productLabel(prod)+(qty>1?' x'+qty+'개':''),
-        arriveDays:[], cookDays:[]});
-    }
-    try{
-      await window.__DB.collection('customers').add(data);
-      closeM('parseM'); clearParse(); toast(name+' 등록 완료!','ok');
-    } catch(e){ toast('등록 오류: '+e.message,'er'); }
-  }
+async function regParsed(){
+  if(!parsedData){toast('먼저 분석을 실행하세요','er');return;}
+  const p=parsedData;
+  // 모달에 값 채워서 열기
+  g2('an',p.name); g2('ap',p.phone); g2('aa',p.addr);
+  g2('ad',p.door); g2('ar',p.request);
+  if(p.set) document.getElementById('as').value=p.set;
+  setTypeTab(p.orderType||'once');
+  openM('addM');
 }
 
 function clearParse(){
@@ -3500,60 +1312,12 @@ function clearParse(){
 }
 
 // ════════════════════════════════════════
-// 엑셀 (스마트스토어 양식 기준)
-// 컬럼 인덱스 (0-based):
-//  0:판매채널  1:주문번호  2:주문상태  3:총품목합계  4:총할인  5:총배송비
-//  6:총포인트  7:최종주문금액  8:주문자이름  9:이메일  10:주문자번호
-//  11:배송방식  12:배송비결제  13:송장번호  14:주문섹션번호  15:주문섹션품목번호
-//  16:구매수량  17:상품명  18:옵션명  19:판매가  ...
-//  24:수령자명  25:수령자전화  26:국가코드  27:우편번호  28:주소  29:상세주소
-//  30:배송메모  31:택배사명  32:취소사유  33:반품사유  34:취소상세  35:반품상세
-//  36:주문일  37:상품고유번호
+// 엑셀
 // ════════════════════════════════════════
-
-function parseXlRow(r){
-  // 세트 파싱 (상품명·옵션명에서 A/B/C세트 추출)
-  const productName = String(r[17]||r[18]||'');
-  const optionName  = String(r[18]||'');
-  let set = '';
-  const setMatch = (productName+' '+optionName).match(/([ABC])세트/i);
-  if(setMatch) set = setMatch[1].toUpperCase();
-
-  // 주문유형 (상품명 or 옵션명에서 정기/선택 판별)
-  const isRegular = /정기/.test(productName+optionName);
-
-  // 주소 합치기 (주소 + 상세주소)
-  const addr = [String(r[28]||''), String(r[29]||'')].filter(Boolean).join(' ').trim();
-
-  // 수령자명: 24번. 없으면 주문자(8번)
-  const name = String(r[24]||r[8]||'').trim();
-
-  // 전화: 25번(수령자). 없으면 주문자(10번)
-  const phone = String(r[25]||r[10]||'').trim();
-
-  // 배송메모: 30번
-  const request = String(r[30]||'').trim();
-
-  // 주문번호: 1번 (섹션품목번호 15번)
-  const orderNum = String(r[15]||r[1]||'').trim();
-
-  // 주문상태
-  const status = String(r[2]||'').trim();
-
-  // 현관비밀번호: 배송메모에서 추출 시도
-  let door = '';
-  const doorMatch = request.match(/현관\s*비밀번호\s*[:：]?\s*(\S+)/i)
-    || request.match(/공동\s*현관\s*[:：]?\s*(\S+)/i);
-  if(doorMatch) door = doorMatch[1];
-
-  return { name, phone, addr, door, request, set, orderType: isRegular?'sub':'once', orderNum, orderStatus: status };
-}
-
 function dzOver(e){e.preventDefault();document.getElementById('dz').classList.add('drag');}
 function dzLeave(){document.getElementById('dz').classList.remove('drag');}
 function dzDrop(e){e.preventDefault();dzLeave();const f=e.dataTransfer.files[0];if(f)procXl(f);}
 function readXl(inp){if(inp.files[0])procXl(inp.files[0]);}
-
 function procXl(file){
   const r=new FileReader();
   r.onload=e=>{
@@ -3561,95 +1325,44 @@ function procXl(file){
       const wb=XLSX.read(e.target.result,{type:'binary'});
       const ws=wb.Sheets[wb.SheetNames[0]];
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-
-      // 1행 = 헤더, 2행부터 데이터. 이름(수령자) 있는 행만
-      const dataRows = rows.slice(1).filter(r => String(r[24]||r[8]||'').trim());
-      xlData = dataRows.map(parseXlRow);
-
-      // 중복제거: 같은 이름+연락처 조합
-      const seen = new Set();
-      xlData = xlData.filter(c => {
-        const key = c.name+'|'+c.phone;
-        if(seen.has(key)) return false;
-        seen.add(key); return true;
-      });
-
-      document.getElementById('xlCnt').textContent = xlData.length+'건';
-      renderXlPreview();
+      xlData=rows.slice(1).filter(r=>r[0]).map(r=>({
+        name:String(r[0]||'').trim(), phone:String(r[1]||'').trim(),
+        addr:String(r[2]||'').trim(), set:String(r[3]||'').trim().toUpperCase().replace('세트',''),
+        orderType:/정기/.test(String(r[4]))?'sub':'once',
+        total:parseInt(r[5])||1, door:String(r[6]||'').trim(),
+        request:String(r[7]||'').trim(), memo:String(r[8]||'').trim(),
+      }));
+      document.getElementById('xlCnt').textContent=xlData.length+'건';
+      document.getElementById('xlPrev').innerHTML=xlData.slice(0,20).map((c,i)=>`<tr>
+        <td>${i+1}</td><td><strong>${c.name}</strong></td><td>${c.phone}</td>
+        <td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.addr}</td>
+        <td><span class="badge b${c.set.toLowerCase()}">${c.set}세트</span></td>
+        <td><span class="badge ${c.orderType==='sub'?'b-sub':'b-once'}">${c.orderType==='sub'?'정기':'선택'}</span></td>
+        <td>${c.total}</td></tr>`).join('');
       document.getElementById('xlWrap').style.display='block';
-      toast(xlData.length+'건 인식됨 (중복 제거 완료)','info');
-    }catch(err){ toast('엑셀 오류: '+err.message,'er'); }
+      toast(xlData.length+'건 인식됨','info');
+    }catch(err){toast('엑셀 오류: '+err.message,'er');}
   };
   r.readAsBinaryString(file);
 }
-
-function renderXlPreview(){
-  document.getElementById('xlPrev').innerHTML = xlData.map((c,i)=>`
-    <tr id="xlrow-${i}">
-      <td>${i+1}</td>
-      <td><strong>${c.name}</strong></td>
-      <td style="white-space:nowrap;">${c.phone}</td>
-      <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.addr}">${c.addr}</td>
-      <td>
-        <select class="inp inp-sm" onchange="xlData[${i}].set=this.value" style="width:80px;">
-          <option value="" ${!c.set?'selected':''}>미정</option>
-          <option value="A" ${c.set==='A'?'selected':''}>A세트</option>
-          <option value="B" ${c.set==='B'?'selected':''}>B세트</option>
-          <option value="C" ${c.set==='C'?'selected':''}>C세트</option>
-        </select>
-      </td>
-      <td><span class="badge ${c.orderType==='sub'?'b-sub':'b-once'}">${c.orderType==='sub'?'정기':'선택'}</span></td>
-      <td style="font-size:11px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.request}">${c.request||'—'}</td>
-      <td>
-        <button class="btn btn-d sm" onclick="xlData.splice(${i},1);renderXlPreview();document.getElementById('xlCnt').textContent=xlData.length+'건';">✕</button>
-      </td>
-    </tr>`).join('');
-}
-
 async function regXl(){
-  if(!xlData.length){ toast('데이터 없음','er'); return; }
-  const noSet = xlData.filter(c=>!c.set);
-  if(noSet.length){
-    toast(`세트 미선택 ${noSet.length}건이 있습니다. 모두 선택 후 등록하세요.`,'er'); return;
-  }
+  if(!xlData.length){toast('데이터 없음','er');return;}
   if(!confirm(xlData.length+'건을 모두 등록하시겠습니까?')) return;
   const t=todayStr(); let ok=0;
   try{
     for(const c of xlData){
-      const data={
-        name:c.name, phone:c.phone, addr:c.addr, door:c.door||'',
-        request:c.request||'', set:c.set, memo:`주문번호: ${c.orderNum||''}`,
-        status:'active', deliveredDates:[], createdAt:new Date().toISOString(),
-        orderType:c.orderType, total:1, remain:1,
-        scheduleName:c.orderType==='sub'?'정기배송':'선택주문 (1회)',
-        arriveDays:[], startDate:t, onceDate:c.orderType==='once'?t:''
-      };
-      await window.__DB.collection('customers').add(data); ok++;
+      const data={name:c.name,phone:c.phone,addr:c.addr,door:c.door,request:c.request,set:c.set,memo:c.memo,status:'active',deliveredDates:[],createdAt:new Date().toISOString(),orderType:c.orderType,total:c.total,remain:c.total,scheduleName:c.orderType==='sub'?'정기배송':'선택주문',arriveDays:[],startDate:t,onceDate:c.orderType==='once'?t:''};
+      await window.__add(window.__col(window.__db,'customers'),data); ok++;
     }
     toast(ok+'건 등록 완료!','ok');
-    resetXl();
-  }catch(e){ toast(`오류 (${ok}건 완료 후 중단): `+e.message,'er'); }
-}
-
-function resetXl(){
-  xlData=[];
-  document.getElementById('xlWrap').style.display='none';
-  document.getElementById('xlf').value='';
-  document.getElementById('xlPrev').innerHTML='';
-  document.getElementById('xlCnt').textContent='';
-  toast('초기화 완료','ok');
+    document.getElementById('xlWrap').style.display='none'; xlData=[];
+  }catch(e){toast(`오류 (${ok}건 완료 후 중단): `+e.message,'er');}
 }
 
 // ════════════════════════════════════════
 // UI 헬퍼
 // ════════════════════════════════════════
 function gauge(c){
-  // 선택주문(1회): 수량만 표시, 게이지 없음
-  if(c.orderType==='once'){
-    const q=c.qty||c.total||1;
-    return `<span style="font-size:12px;color:var(--text2);font-weight:600;">${q > 1 ? q+'개' : '—'}</span>`;
-  }
-  // 정기배송: 잔여 게이지
   const pct=c.total>0?Math.min(100,c.remain/c.total*100):0, lo=c.remain<=3;
   return `<div class="gw"><div class="gt"><div class="gf ${lo?'low':''}" style="width:${pct}%"></div></div><span class="gn ${lo?'g-low':'g-ok'}">${c.remain}회</span></div>`;
 }
@@ -3671,14 +1384,10 @@ function toggleTheme(){
 
 function setTypeTab(type){
   orderType=type;
-  const $e = id => document.getElementById(id);
-  if($e('tTab-sub'))  $e('tTab-sub').classList.toggle('on',type==='sub');
-  if($e('tTab-once')) $e('tTab-once').classList.toggle('on',type==='once');
-  ['af-freq','af-sched','af-total'].forEach(id=>{const el=$e(id);if(el)el.style.display=type==='sub'?'':'none';});
-  if($e('af-set'))       $e('af-set').style.display=type==='sub'?'':'none';
-  if($e('af-prod'))      $e('af-prod').style.display=type==='once'?'':'none';
-  if($e('af-once-date')) $e('af-once-date').style.display=type==='once'?'':'none';
-  if($e('af-qty'))       $e('af-qty').style.display=type==='once'?'':'none';
+  document.getElementById('tTab-sub').classList.toggle('on',type==='sub');
+  document.getElementById('tTab-once').classList.toggle('on',type==='once');
+  ['af-freq','af-sched','af-total'].forEach(id=>document.getElementById(id).style.display=type==='sub'?'':'none');
+  document.getElementById('af-once').style.display=type==='once'?'':'none';
 }
 
 function updSch(){
@@ -3692,74 +1401,15 @@ function openEdit(id){
   const c=custs.find(x=>x.id===id);if(!c)return;
   editId=id;
   g2('en',c.name);g2('ep',c.phone);g2('ea',c.addr);g2('ed',c.door);g2('er',c.request);
-  document.getElementById('es').value=c.productId||c.set||'A';
+  document.getElementById('es').value=c.set||'A';
   document.getElementById('est').value=c.status;
   g2('erem',c.remain);g2('etot',c.total);g2('em',c.memo);g2('eodate',c.onceDate||'');
-  g2('e-ordernum',c.orderNum||'');
-  document.getElementById('e-direct').checked=!!(c.isDirect);
-
-  // 정기/선택 구분에 따라 일정 필드 표시
-  const isSub = c.orderType === 'sub';
-  document.getElementById('ef-sched-wrap').style.display = isSub ? '' : 'none';
-  document.getElementById('ef-sched-sel').style.display  = isSub ? '' : 'none';
-
-  // 선택주문이면 반드시 초기화 (이전 정기배송 값 잔류 방지)
-  if(!isSub){
-    document.getElementById('e-freq').value = '';
-    document.getElementById('e-sched').innerHTML = '<option value="">선택하세요</option>';
-  }
-
-  if(isSub){
-    // 현재 저장된 cookDays로 주기·일정 역산
-    const freq = String(c.type || (c.cookDays && c.cookDays.length) || '');
-    document.getElementById('e-freq').value = freq;
-    editUpdSch(); // 드롭다운 옵션 생성
-
-    // 현재 cookDays와 일치하는 인덱스 선택
-    if(freq && c.cookDays && c.cookDays.length){
-      const cookKey = c.cookDays.slice().sort((a,b)=>a-b).join(',');
-      const schIndexMap = {
-        '1':{1:0,2:1,3:2,4:3,5:4},
-        '2':{'1,3':0,'1,4':1,'2,4':2,'3,5':3,'1,5':4},
-        '3':{'1,3,5':0,'2,4,5':1},
-      };
-      const idx = freq === '1'
-        ? (schIndexMap['1'][c.cookDays[0]] ?? '')
-        : (schIndexMap[freq]?.[cookKey] ?? '');
-      document.getElementById('e-sched').value = String(idx);
-    }
-  }
-
   openM('editM');
 }
 
-// 수정 모달 배송 일정 드롭다운 업데이트
-function editUpdSch(){
-  const freq = document.getElementById('e-freq').value;
-  const sel  = document.getElementById('e-sched');
-  sel.innerHTML = '<option value="">선택하세요</option>';
-  if(!freq || !SCH[freq]) return;
-  SCH[freq].forEach((sc,i)=>{
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = sc.l;
-    sel.appendChild(opt);
-  });
-}
-
-function changeQty(d){
-  const el=document.getElementById('aqty');
-  const v=parseInt(el.value)||1;
-  el.value=Math.max(1,Math.min(99,v+d));
-}
-
 function clearAdd(){
-  ['an','ap','aa','ad','ar','am','ato','a-ordernum'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('as').value='';
-  document.getElementById('aprod').value='';
-  document.getElementById('aqty').value='1';
-  document.getElementById('a-direct').checked=false;
-  document.getElementById('at').value='';
+  ['an','ap','aa','ad','ar','am','ato'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('as').value='';document.getElementById('at').value='';
   document.getElementById('ach').innerHTML='<option>주기를 먼저 선택하세요</option>';
   document.getElementById('asd').value=todayStr();document.getElementById('aod').value=todayStr();
   setTypeTab('sub');
@@ -3781,13 +1431,10 @@ document.querySelectorAll('.mbg').forEach(m=>m.addEventListener('click',e=>{if(e
 function toggleAll(el){document.querySelectorAll('.ck').forEach(c=>c.checked=el.checked);}
 
 function toast(msg,type=''){
-  const w=document.getElementById('tw');
-  if(!w){ console.warn('toast:',msg); return; }
-  const t=document.createElement('div');
+  const w=document.getElementById('tw'),t=document.createElement('div');
   t.className='toast '+type; t.appendChild(document.createTextNode(msg));
   w.appendChild(t); setTimeout(()=>t.remove(),3500);
 }
 </script>
-<div id="tw"></div>
 </body>
 </html>
