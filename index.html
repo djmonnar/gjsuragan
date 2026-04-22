@@ -485,109 +485,6 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
   .g4 { grid-template-columns: 1fr 1fr; }
   #page-export .exptxt { font-size: 10px; }
 }
-
-
-/* ─────────────────────────────────
-   모바일 최종 최적화 오버라이드
-   ───────────────────────────────── */
-:root{
-  --tag-a:#bde0fe;
-  --tag-b:#b7e4c7;
-  --tag-c:#d8b4fe;
-  --status-active:#dff6e4;
-  --status-choice:#ffe8cc;
-  --status-pause:#fff3bf;
-  --status-end:#e9ecef;
-  --card-gap:8px;
-  --card-pad:16px;
-}
-
-.btn,.date-nav-btn,.date-today-btn,.tbtn,.login-btn,.login-inp,.inp,select.inp,textarea.inp{min-height:44px;}
-
-.ba{background:var(--tag-a);color:#215a8a;border-color:transparent;}
-.bb{background:var(--tag-b);color:#25624b;border-color:transparent;}
-.bc{background:var(--tag-c);color:#5b3b7a;border-color:transparent;}
-
-.b-active{background:var(--status-active);color:#1f7a3d;border-color:transparent;}
-.b-choice{background:var(--status-choice);color:#b85c00;border-color:transparent;}
-.b-pause{background:var(--status-pause);color:#8a6d00;border-color:transparent;}
-.b-end{background:var(--status-end);color:#6c757d;border-color:transparent;}
-
-.stat-grid{gap:8px;}
-.sc{padding:16px;}
-.stat-line{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-bottom:4px;}
-.sc .sl{margin:0;font-size:12px;letter-spacing:0;text-transform:none;color:var(--text2);}
-.stat-number{display:flex;align-items:flex-end;gap:2px;white-space:nowrap;}
-.sc .sv{font-size:2rem;line-height:1;}
-.stat-unit{font-size:12px;color:var(--text2);padding-bottom:3px;}
-.sc .ss{margin:0;font-size:11px;color:var(--text3);}
-
-.customer-head{flex-direction:column;align-items:stretch;gap:8px;}
-.customer-search{width:100%;}
-.customer-head-actions{display:flex;gap:8px;flex-wrap:wrap;}
-.filters-panel{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-.filter-toggle-wrap{display:none;}
-
-.mobile-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:var(--card-pad);display:flex;flex-direction:column;gap:8px;}
-.mobile-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
-.mobile-card-left{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1;}
-.mobile-card-name-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.mobile-card-name{font-size:15px;font-weight:700;color:var(--text);min-width:0;}
-.mobile-card-line{font-size:13px;color:var(--text2);line-height:1.5;word-break:break-word;}
-.mobile-card-sub{font-size:12px;color:var(--text3);line-height:1.5;word-break:break-word;}
-.mobile-card-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
-.mobile-card-actions .btn{min-width:72px;justify-content:center;}
-.mobile-card-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
-.delivery-card .mobile-card-top{align-items:center;}
-.delivery-card .mobile-card-actions .btn{min-width:84px;}
-.delivery-card .mobile-card-name{cursor:pointer;}
-.customer-list-wrap thead{display:none;}
-
-@media (max-width:768px){
-  .header{padding:0 12px;}
-  .header-right .btn.sm{padding:0 10px;font-size:11px;}
-
-  .nav{padding:6px 8px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px;overflow:visible;}
-  .ni{min-width:0;height:56px;padding:6px 4px;border:1px solid var(--border);border-bottom:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;font-size:11px;line-height:1.1;white-space:normal;background:var(--surface);position:relative;}
-  .ni.on{border-color:var(--accent);background:var(--accent-xl);}
-  .nav-emoji{font-size:16px;line-height:1;}
-  .nav-label{font-size:10px;}
-  .ni.import-tab{grid-column:1 / -1;height:42px;flex-direction:row;gap:6px;}
-  .ni .nb{position:absolute;top:4px;right:6px;}
-
-  .page{padding:12px;gap:12px;max-height:calc(100vh - 118px);}
-  .stat-grid{grid-template-columns:1fr 1fr;gap:8px;}
-  .stat-grid .sc:nth-child(5){grid-column:1 / -1;}
-
-  #page-customers thead,
-  #page-today thead{display:none;}
-  #page-customers .card,
-  #page-today .card{border:none;background:transparent;box-shadow:none;}
-  #page-customers tbody tr td,
-  #page-today tbody tr td{padding:0;border:none;}
-
-  .filter-toggle-wrap{display:flex;flex:1;justify-content:center;}
-  .filters-panel{display:none;grid-template-columns:1fr 1fr;gap:8px;}
-  .filters-panel.open{display:grid;}
-  .filters-panel .inp-sm{width:100%!important;min-width:0;}
-  .customer-head-actions .btn{flex:1;justify-content:center;}
-  .cust-grid{grid-template-columns:1fr !important;}
-  #custDetail{display:none;}
-
-  #page-today > div:first-child{flex-direction:column;align-items:stretch;gap:8px;}
-  #page-today > div:first-child .date-nav{flex:none;}
-  #page-today > div:first-child > div:last-child{display:flex;gap:8px;align-items:center;justify-content:space-between;}
-
-  #today-direct-section > div:first-child,
-  #today-courier-section > div:first-child{flex-wrap:wrap;gap:8px;}
-
-  #today-courier-section .today-filter-ck,
-  #today-direct-section .today-filter-ck,
-  #today-direct-section .direct-filter-ck{width:13px;height:13px;}
-
-  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-}
-
 </style>
 </head>
 <body>
@@ -631,31 +528,12 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 
 <!-- 탭 -->
 <nav class="nav">
-  <div class="ni on" onclick="goTab('dash')">
-    <span class="nav-emoji">🏠</span>
-    <span class="nav-label">홈</span>
-  </div>
-  <div class="ni" onclick="goTab('today')">
-    <span class="nav-emoji">🚚</span>
-    <span class="nav-label">배송</span>
-    <span class="nb" id="nBadge">0</span>
-  </div>
-  <div class="ni" onclick="goTab('report')">
-    <span class="nav-emoji">📈</span>
-    <span class="nav-label">리포트</span>
-  </div>
-  <div class="ni" onclick="goTab('customers')">
-    <span class="nav-emoji">👥</span>
-    <span class="nav-label">고객</span>
-  </div>
-  <div class="ni" onclick="goTab('export')">
-    <span class="nav-emoji">📦</span>
-    <span class="nav-label">출고</span>
-  </div>
-  <div class="ni import-tab" onclick="goTab('import')">
-    <span class="nav-emoji">📥</span>
-    <span class="nav-label">일괄 등록</span>
-  </div>
+  <div class="ni on"  onclick="goTab('dash')">📊 대시보드</div>
+  <div class="ni"     onclick="goTab('today')">🚚 배송 관리 <span class="nb" id="nBadge">0</span></div>
+  <div class="ni"     onclick="goTab('report')">📈 주간 · 월간</div>
+  <div class="ni"     onclick="goTab('customers')">👥 고객 관리</div>
+  <div class="ni"     onclick="goTab('export')">📦 택배 전달</div>
+  <div class="ni"     onclick="goTab('import')">📥 일괄 등록</div>
 </nav>
 
 <!-- ══════════ 대시보드 ══════════ -->
@@ -672,26 +550,11 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 
   <!-- 통계 카드 -->
   <div class="stat-grid">
-    <div class="sc">
-      <div class="stat-line"><div class="sl">전체 고객</div><div class="stat-number"><span class="sv" id="s0">0</span><span class="stat-unit">명</span></div></div>
-      <div class="ss">등록 고객 수</div>
-    </div>
-    <div class="sc ca">
-      <div class="stat-line"><div class="sl">활성 구독</div><div class="stat-number"><span class="sv" id="s1">0</span><span class="stat-unit">명</span></div></div>
-      <div class="ss">정기배송 고객</div>
-    </div>
-    <div class="sc cd">
-      <div class="stat-line"><div class="sl" id="dash-date-lbl">오늘 배송</div><div class="stat-number"><span class="sv" id="s2">0</span><span class="stat-unit">건</span></div></div>
-      <div class="ss">출고 예정</div>
-    </div>
-    <div class="sc ci">
-      <div class="stat-line"><div class="sl">이번 주</div><div class="stat-number"><span class="sv" id="s3">0</span><span class="stat-unit">건</span></div></div>
-      <div class="ss">배송 예정</div>
-    </div>
-    <div class="sc cw">
-      <div class="stat-line"><div class="sl">내일 배송</div><div class="stat-number"><span class="sv" id="s4">0</span><span class="stat-unit">건</span></div></div>
-      <div class="ss">출고 예정</div>
-    </div>
+    <div class="sc"><div class="sl">전체 고객</div><div class="sv" id="s0">0</div><div class="ss">명 등록</div></div>
+    <div class="sc ca"><div class="sl">활성 구독</div><div class="sv" id="s1">0</div><div class="ss">명 정기배송</div></div>
+    <div class="sc cd"><div class="sl" id="dash-date-lbl">오늘 배송</div><div class="sv" id="s2">0</div><div class="ss">건 출고</div></div>
+    <div class="sc ci"><div class="sl">이번 주</div><div class="sv" id="s3">0</div><div class="ss">건 예정</div></div>
+    <div class="sc cw"><div class="sl">내일 배송</div><div class="sv" id="s4">0</div><div class="ss">건 예정</div></div>
   </div>
 
   <!-- warnBanner 제거됨 -->
@@ -709,7 +572,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
           🚗 직배송
         </div>
         <div class="card">
-          <table><thead><tr><th>고객명</th><th>세트</th><th>연락처</th><th>잔여</th></tr></thead>
+          <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
           <tbody id="dTodayDirect"></tbody>
         </table></div>
       </div>
@@ -782,7 +645,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <thead><tr>
           <th><input type="checkbox" id="chkDirect" onchange="toggleDirect(this)"></th>
           <th>고객명</th><th>연락처</th><th>배송지</th>
-          <th>세트</th><th>배송일정</th><th>현관번호</th><th>요청사항</th><th>수량</th><th>잔여</th><th>상태</th><th>처리</th>
+          <th>세트</th><th>배송일정</th><th>현관번호</th><th>요청사항</th><th>잔여</th><th>상태</th><th>처리</th>
         </tr></thead>
         <tbody id="directList"></tbody>
       </table>
@@ -859,20 +722,10 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 
 <!-- ══════════ 고객 관리 ══════════ -->
 <div class="page" id="page-customers">
-  <div class="sh customer-head">
+  <div class="sh">
     <div class="st"><div class="std"></div>고객 목록</div>
-
-    <input type="text" class="inp inp-sm customer-search" placeholder="🔍 이름 · 연락처 · 주소 · 주문번호" id="srchQ" oninput="renderCust()">
-
-    <div class="customer-head-actions">
-      <button class="btn btn-g sm filter-toggle-wrap" onclick="toggleCustFilters()">
-        <span id="custFilterToggleText">필터 ▼</span>
-      </button>
-      <button class="btn btn-p sm" onclick="openM('addM')">＋ 신규 등록</button>
-      <button class="btn btn-g sm" onclick="exportCSV()" title="전체 고객 CSV 백업">⬇ CSV 백업</button>
-    </div>
-
-    <div id="custFilters" class="filters-panel">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input type="text" class="inp inp-sm" placeholder="🔍  이름 · 연락처 · 주소 · 주문번호" id="srchQ" oninput="renderCust()" style="width:220px;">
       <select class="inp inp-sm" id="srchSet" onchange="renderCust()" style="width:110px;">
         <option value="">전체 세트</option>
         <option value="A">A세트</option>
@@ -895,11 +748,14 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
         <option value="name">가나다순</option>
         <option value="remain">잔여순</option>
       </select>
+      <button class="btn btn-p sm" onclick="openM('addM')">＋ 신규 등록</button>
+      <button class="btn btn-g sm" onclick="exportCSV()" title="전체 고객 CSV 백업">⬇ CSV 백업</button>
     </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;" class="cust-grid">
-    <div class="card customer-list-wrap" style="overflow:auto;max-height:calc(100vh - 220px);">
+    <div class="card" style="overflow:auto;max-height:calc(100vh - 220px);">
       <table>
+        <thead><tr><th>고객명</th><th>연락처</th><th>세트</th><th>유형</th><th>배송일정</th><th>배송</th><th>잔여</th><th>상태</th><th></th></tr></thead>
         <tbody id="custList"></tbody>
       </table>
     </div>
@@ -1440,21 +1296,6 @@ const SCH={
 };
 const DAYS=['일','월','화','수','목','금','토'];
 const SL={active:'구독중',pause:'정지',end:'종료'};
-
-function mobileStatusMeta(c){
-  if(c.orderType==='once') return {label:'선택', cls:'b-choice'};
-  if(c.status==='pause') return {label:'일시정지', cls:'b-pause'};
-  if(c.status==='end') return {label:'종료', cls:'b-end'};
-  return {label:'구독중', cls:'b-active'};
-}
-
-function toggleCustFilters(){
-  const panel=document.getElementById('custFilters');
-  const text=document.getElementById('custFilterToggleText');
-  if(!panel||!text) return;
-  panel.classList.toggle('open');
-  text.textContent=panel.classList.contains('open') ? '필터 ▲' : '필터 ▼';
-}
 
 // ════════════════════════════════════════
 // 상태
@@ -2608,8 +2449,9 @@ function renderDash(){
     dTodayDirect.innerHTML = directList.slice(0,5).map(c=>`<tr>
       <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
       <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-      <td style="font-size:11px;color:var(--text3);">${c.scheduleName||c.onceDate||''}</td>
-      <td>${c.phone}</td>
+      <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
+      <td>${c.phone||'—'}</td>
+      <td>${gauge(c)}</td>
     </tr>`).join('');
   }
 
@@ -2676,32 +2518,30 @@ function renderToday(){
     } else {
       const isMobile = window.innerWidth <= 768;
       if(isMobile){
+        // 모바일: 테이블 대신 카드 뷰
         dtb.closest('table').style.minWidth = '0';
         dtb.innerHTML = filteredDirect.map(c => {
           const done = (c.deliveredDates||[]).includes(ds);
           return `<tr class="${done?'trd':''}">
-            <td colspan="11">
-              <div class="mobile-card delivery-card">
-                <div class="mobile-card-top">
-                  <div class="mobile-card-left">
-                    <div class="mobile-card-name-row">
-                      <input type="checkbox" class="ck-direct" data-id="${c.id}">
-                      <span class="mobile-card-name" onclick="openEdit('${c.id}')">${c.name}</span>
-                      <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
-                    </div>
+            <td colspan="11" style="padding:0;border:none;">
+              <div style="background:var(--surface);border:1px solid rgba(192,32,176,.2);border-radius:10px;margin:4px 0;padding:12px 14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" class="ck-direct" data-id="${c.id}">
+                    <strong style="font-size:15px;cursor:pointer;color:var(--accent);" onclick="openEdit('${c.id}')">${c.name}</strong>
+                    <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
                   </div>
-                  <div class="mobile-card-actions">
-                    ${done
-                      ? '<span class="badge b-ok">완료</span>'
-                      : `<button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓ 완료</button>`
-                    }
-                  </div>
+                  ${done
+                    ? '<span class="badge b-ok">완료</span>'
+                    : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${c.id}','${ds}')">✓ 완료</button>`
+                  }
                 </div>
-                <div class="mobile-card-line">📞 ${c.phone}</div>
-                <div class="mobile-card-line" onclick="showAddrModal('${c.id}')">📍 ${c.addr}</div>
-                ${c.request ? `<div class="mobile-card-line">💬 ${c.request}</div>` : ''}
-                ${c.door ? `<div class="mobile-card-sub">🔑 현관 ${c.door}</div>` : ''}
-                ${(c.scheduleName||c.onceDate) ? `<div class="mobile-card-sub">🗓 ${c.scheduleName||c.onceDate}</div>` : ''}
+                <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">📞 ${c.phone}</div>
+                <div style="font-size:12px;color:#c020b0;cursor:pointer;margin-bottom:4px;" onclick="showAddrModal('${c.id}')">📍 ${c.addr}</div>
+                ${c.door ? `<div style="font-size:12px;color:var(--text3);">🔑 현관: ${c.door}</div>` : ''}
+                ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">💬 ${c.request}</div>` : ''}
+                <div style="font-size:11px;color:var(--text3);margin-top:4px;">${c.scheduleName||c.onceDate||''}</div>
+                <div style="margin-top:6px;">${gauge(c)}</div>
               </div>
             </td>
           </tr>`;
@@ -2719,7 +2559,6 @@ function renderToday(){
             <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||c.onceDate||'—'}</td>
             <td style="font-size:12px;">${c.door||'—'}</td>
             <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
-            <td style="text-align:center;">${c.qty&&c.qty>1?`<strong style="color:var(--accent)">${c.qty}개</strong>`:'1개'}</td>
             <td>${gauge(c)}</td>
             <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
             <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓</button>`}</td>
@@ -2753,30 +2592,27 @@ function renderToday(){
           ? filteredCourier.map(c => {
               const done = (c.deliveredDates||[]).includes(ds);
               return `<tr class="${done?'trd':''}">
-                <td colspan="13">
-                  <div class="mobile-card delivery-card">
-                    <div class="mobile-card-top">
-                      <div class="mobile-card-left">
-                        <div class="mobile-card-name-row">
-                          <input type="checkbox" class="ck-courier" data-id="${c.id}">
-                          <span class="mobile-card-name" onclick="openEdit('${c.id}')">${c.name}</span>
-                          <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
-                        </div>
+                <td colspan="13" style="padding:0;border:none;">
+                  <div style="background:var(--surface);border:1px solid rgba(3,102,214,.15);border-radius:10px;margin:4px 0;padding:12px 14px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <input type="checkbox" class="ck-courier" data-id="${c.id}">
+                        <strong style="font-size:15px;cursor:pointer;color:var(--accent);" onclick="openEdit('${c.id}')">${c.name}</strong>
+                        <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
+                        <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span>
                       </div>
-                      <div class="mobile-card-actions">
-                        ${done
-                          ? '<span class="badge b-ok">완료</span>'
-                          : `<button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓ 완료</button>`
-                        }
-                      </div>
+                      ${done
+                        ? '<span class="badge b-ok">완료</span>'
+                        : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${c.id}','${ds}')">✓ 완료</button>`
+                      }
                     </div>
-                    <div class="mobile-card-line">📞 ${c.phone}</div>
-                    <div class="mobile-card-line" onclick="showAddrModal('${c.id}')">📍 ${c.addr}</div>
-                    ${c.request ? `<div class="mobile-card-line">💬 ${c.request}</div>` : ''}
-                    ${c.door ? `<div class="mobile-card-sub">🔑 현관 ${c.door}</div>` : ''}
-                    <div class="mobile-card-bottom">
-                      <div class="mobile-card-sub">${c.scheduleName||c.onceDate||''}</div>
-                      ${c.orderType==='sub' ? `<div>${gauge(c)}</div>` : ''}
+                    <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">📞 ${c.phone}</div>
+                    <div style="font-size:12px;color:var(--accent);cursor:pointer;margin-bottom:4px;" onclick="showAddrModal('${c.id}')">📍 ${c.addr}</div>
+                    ${c.door ? `<div style="font-size:12px;color:var(--text3);">🔑 현관: ${c.door}</div>` : ''}
+                    ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">💬 ${c.request}</div>` : ''}
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+                      <div style="font-size:11px;color:var(--text3);">${c.scheduleName||''}</div>
+                      <div>${gauge(c)}</div>
                     </div>
                   </div>
                 </td>
@@ -2902,46 +2738,47 @@ function renderCust(){
     return true;
   });
 
+  // 정렬
   const sortBy = document.getElementById('srchSort')?.value || 'recent';
   list.sort(function(a,b){
     if(sortBy==='name')   return (a.name||'').localeCompare(b.name||'','ko');
     if(sortBy==='remain') return (b.remain||0)-(a.remain||0);
+    // recent: createdAt 내림차순
     return (b.createdAt||'').localeCompare(a.createdAt||'');
   });
   const tb=document.getElementById('custList');
   if(!list.length){
-    tb.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="ei">👤</div><div>검색 결과 없음</div></div></td></tr>`;
+    tb.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="ei">👤</div><div>검색 결과 없음</div></div></td></tr>`;
     return;
   }
   if(window.innerWidth <= 768){
+    // 모바일: 카드형 리스트
     tb.closest('table').style.minWidth = '0';
-    tb.innerHTML = list.map(c=>{
-      const st = mobileStatusMeta(c);
-      const bottomText = c.orderType==='once'
-        ? `📅 ${c.onceDate||'-'} · ${c.qty||1}개`
-        : `📦 ${c.scheduleName||'-'} · 잔여 ${c.remain||0}/${c.total||0}회`;
-      return `<tr>
-        <td colspan="9">
-          <div class="mobile-card" onclick="openEdit('${c.id}')">
-            <div class="mobile-card-top">
-              <div class="mobile-card-left">
-                <div class="mobile-card-name-row">
-                  <span class="mobile-card-name">${c.name}</span>
-                  <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
-                  <span class="badge ${st.cls}">${st.label}</span>
-                </div>
-                <div class="mobile-card-line">📞 ${c.phone}</div>
-                <div class="mobile-card-sub">${bottomText}${c.isDirect?' · 직배송':' · 택배'}</div>
-              </div>
-              <div class="mobile-card-actions" onclick="event.stopPropagation()">
-                ${c.orderType==='sub'?`<button class="btn btn-g sm" onclick="chargeRemain('${c.id}')">충전</button>`:''}
-                <button class="btn btn-d sm" onclick="quickDelete('${c.id}','${c.name}')">삭제</button>
-              </div>
+    tb.innerHTML = list.map(c=>`<tr>
+      <td colspan="9" style="padding:0;border:none;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;margin:4px 0;padding:12px 14px;cursor:pointer;"
+             onclick="openEdit('${c.id}')">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <strong style="font-size:14px;">${c.name}</strong>
+              <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
+              <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span>
+              ${c.isDirect?'<span class="badge b-direct">직배</span>':''}
+            </div>
+            <span class="badge b-${c.status}">${SL[c.status]}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:3px;">📞 ${c.phone}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">${c.scheduleName||c.onceDate||''}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>${gauge(c)}</div>
+            <div style="display:flex;gap:6px;" onclick="event.stopPropagation()">
+              ${c.orderType==='sub'?`<button class="btn sm" style="background:rgba(3,102,214,.1);color:#0366d6;border:1px solid rgba(3,102,214,.3);font-size:11px;" onclick="chargeRemain('${c.id}')">충전</button>`:''}
+              <button class="btn btn-d sm" style="font-size:11px;" onclick="quickDelete('${c.id}','${c.name}')">삭제</button>
             </div>
           </div>
-        </td>
-      </tr>`;
-    }).join('');
+        </div>
+      </td>
+    </tr>`).join('');
   } else {
     tb.closest('table').style.minWidth = '';
     tb.innerHTML=list.map(c=>`<tr class="trc" onclick="showDet('${c.id}')">
@@ -2952,7 +2789,7 @@ function renderCust(){
       <td style="white-space:nowrap;">${c.phone}</td>
       <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-      <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.scheduleName||c.onceDate||''}</td>
+      <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.scheduleName||''}</td>
       <td>${c.isDirect?'<span class="badge b-direct">직배송</span>':'<span style="font-size:11px;color:var(--text3);">택배</span>'}</td>
       <td>${gauge(c)}</td>
       <td><span class="badge b-${c.status}">${SL[c.status]}</span></td>
@@ -3791,4 +3628,4 @@ function toast(msg,type=''){
 </script>
 <div id="tw"></div>
 </body>
-              </html>
+  </html>
