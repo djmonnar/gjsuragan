@@ -55,7 +55,6 @@ function renderDash(){
       <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
       <td>${c.phone}</td>
-      <td style="text-align:center;">${c.qty&&c.qty>1?`<strong style="color:var(--accent)">${c.qty}개</strong>`:'1개'}</td>
       <td>${gauge(c)}</td>
     </tr>`).join('');
 
@@ -128,7 +127,7 @@ function renderToday(){
                 <div style="font-size:12px;color:#c020b0;cursor:pointer;margin-bottom:4px;" onclick="showAddrModal('${c.id}')">📍 ${c.addr}</div>
                 ${c.door ? `<div style="font-size:12px;color:var(--text3);">🔑 현관: ${c.door}</div>` : ''}
                 ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">💬 ${c.request}</div>` : ''}
-                <div style="font-size:11px;color:var(--text3);margin-top:4px;">${c.scheduleName||c.onceDate||''}</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:4px;">${scheduleDisp(c)}</div>
                 <div style="margin-top:6px;">${gauge(c)}</div>
               </div>
             </td>
@@ -144,7 +143,7 @@ function renderToday(){
             <td style="white-space:nowrap;">${c.phone}</td>
             <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#c020b0;cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
             <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-            <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||c.onceDate||'—'}</td>
+            <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${scheduleDisp(c)||'—'}</td>
             <td style="font-size:12px;">${c.door||'—'}</td>
             <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
             <td>${gauge(c)}</td>
@@ -247,7 +246,7 @@ function printCourierList(){
       <td>${c.addr||''}</td>
       <td>${c.door||''}</td>
       <td>${productLabel(c.productId||c.set)}</td>
-      <td>${c.scheduleName||c.onceDate||''}</td>
+      <td>${scheduleDisp(c)}</td>
       <td>${c.request||''}</td>
     </tr>`).join('');
 
@@ -265,6 +264,52 @@ function printCourierList(){
     <body>
     <h2>📦 택배 배송목록 · ${ds}</h2>
     <button onclick="window.print()" style="margin-bottom:12px;padding:6px 16px;background:#1a6b3c;color:#fff;border:none;border-radius:6px;cursor:pointer;">🖨 인쇄</button>
+    <table>
+      <thead><tr><th>#</th><th>이름</th><th>연락처</th><th>주소</th><th>현관번호</th><th>세트</th><th>배송일정</th><th>요청사항</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </body></html>`);
+  win.document.close();
+}
+
+// 직배송 목록 인쇄
+function printDirectList(){
+  const ds = document.getElementById('todayDate').value || todayStr();
+  const list = listFor(ds).filter(c=>c.isDirect);
+  const checkedVals = Array.from(document.querySelectorAll('.direct-filter-ck:checked')).map(el=>el.value);
+  const SINGLE_PRODS = ['pork_rib','beef_la','beef_soup'];
+  const filtered = list.filter(c=>{
+    const prod = c.productId||c.set||'';
+    return SINGLE_PRODS.indexOf(prod)!==-1 ? checkedVals.indexOf('single')!==-1 : checkedVals.indexOf(prod)!==-1;
+  });
+  if(!filtered.length){ toast('출력할 내용 없음','er'); return; }
+
+  const rows = filtered.map((c,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td><strong>${c.name}</strong></td>
+      <td>${c.phone}</td>
+      <td>${c.addr||''}</td>
+      <td>${c.door||''}</td>
+      <td>${productLabel(c.productId||c.set)}</td>
+      <td>${scheduleDisp(c)}</td>
+      <td>${c.request||''}</td>
+    </tr>`).join('');
+
+  const win = window.open('','_blank');
+  win.document.write(`
+    <html><head><title>직배송목록 ${ds}</title>
+    <style>
+      body{font-family:sans-serif;font-size:12px;padding:20px;}
+      h2{margin-bottom:12px;}
+      table{border-collapse:collapse;width:100%;}
+      th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;}
+      th{background:#f0f0f0;font-weight:700;}
+      @media print{button{display:none;}}
+    </style></head>
+    <body>
+    <h2>🚗 직배송 목록 · ${ds}</h2>
+    <button onclick="window.print()" style="margin-bottom:12px;padding:6px 16px;background:#c020b0;color:#fff;border:none;border-radius:6px;cursor:pointer;">🖨 인쇄</button>
     <table>
       <thead><tr><th>#</th><th>이름</th><th>연락처</th><th>주소</th><th>현관번호</th><th>세트</th><th>배송일정</th><th>요청사항</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -356,7 +401,7 @@ function renderCust(){
             <span class="badge b-${c.status}">${SL[c.status]}</span>
           </div>
           <div style="font-size:12px;color:var(--text2);margin-bottom:3px;">📞 ${c.phone}</div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">${c.scheduleName||c.onceDate||''}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">${scheduleDisp(c)}</div>
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div>${gauge(c)}</div>
             <div style="display:flex;gap:6px;" onclick="event.stopPropagation()">
@@ -377,7 +422,7 @@ function renderCust(){
       <td style="white-space:nowrap;">${c.phone}</td>
       <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-      <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.scheduleName||''}</td>
+      <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${scheduleDisp(c)}</td>
       <td>${c.isDirect?'<span class="badge b-direct">직배송</span>':'<span style="font-size:11px;color:var(--text3);">택배</span>'}</td>
       <td>${gauge(c)}</td>
       <td><span class="badge b-${c.status}">${SL[c.status]}</span></td>
@@ -454,6 +499,7 @@ function showDet(id){
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
           <button class="btn btn-p" style="font-size:12px;" onclick="openEdit('${c.id}')">✏ 수정</button>
           <button class="btn btn-s" style="font-size:12px;" onclick="markDone('${c.id}')">✓ 배송완료</button>
+          <button class="btn btn-g" style="font-size:12px;grid-column:1/-1;" onclick="copyLozen('${c.id}')">🚚 로젠택배 복사</button>
           ${c.orderType==='sub'?`
           <button class="btn btn-g" style="font-size:12px;" onclick="togglePause('${c.id}')">${c.status==='pause'?'▶ 재개':'⏸ 일시정지'}</button>
           <button class="btn" style="font-size:12px;background:rgba(3,102,214,.1);color:#0366d6;border-color:rgba(3,102,214,.3);" onclick="chargeRemain('${c.id}')">＋ 횟수 충전</button>

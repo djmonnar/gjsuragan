@@ -585,6 +585,9 @@ function showAddrModal(id){
   // 현관번호/요청사항 없으면 흐리게
   document.getElementById('am-door-wrap').style.opacity = c.door    ? '1' : '0.4';
   document.getElementById('am-req-wrap').style.opacity  = c.request ? '1' : '0.4';
+  // 로젠택배 복사 버튼에 현재 고객 id 연결
+  const lozenBtn = document.getElementById('lozenCopyBtn');
+  if(lozenBtn) lozenBtn.onclick = ()=>copyLozen(id);
   openM('addrM');
 }
 

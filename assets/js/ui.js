@@ -11,6 +11,19 @@ function gauge(c){
   const pct=c.total>0?Math.min(100,c.remain/c.total*100):0, lo=c.remain<=3;
   return `<div class="gw"><div class="gt"><div class="gf ${lo?'low':''}" style="width:${pct}%"></div></div><span class="gn ${lo?'g-low':'g-ok'}">${c.remain}회</span></div>`;
 }
+
+// 배송일정 표시: 정기는 스케줄명, 선택주문은 배송예정일만
+function scheduleDisp(c){
+  if(c.orderType==='sub') return c.scheduleName||'';
+  return c.onceDate||'';
+}
+
+// 로젠택배 복사: 이름·연락처·주소·현관번호 탭 구분
+function copyLozen(id){
+  const c=custs.find(x=>x.id===id); if(!c) return;
+  const parts=[c.name||'', c.phone||'', c.addr||'', c.door||''];
+  navigator.clipboard.writeText(parts.join('\t')).then(()=>toast('로젠택배 형식으로 복사됨!','ok'));
+}
 function s(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 function g(id){return document.getElementById(id)?.value.trim()||'';}
 function g2(id,v){const el=document.getElementById(id);if(el)el.value=v||'';}
