@@ -12,7 +12,7 @@
 const firebaseConfig={apiKey:"AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A",authDomain:"gjsuragan-60505.firebaseapp.com",projectId:"gjsuragan-60505",storageBucket:"gjsuragan-60505.firebasestorage.app",messagingSenderId:"1009198450175",appId:"1:1009198450175:web:4a55da7c2092dba42613ca"};
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth();const db=firebase.firestore();
-const ADMIN_EMAILS=['sun1562@naver.com'];const ADMIN_PASSWORD='tkdgns1q2w!';
+const ADMIN_EMAILS=['sun1562@naver.com'];
 </script>
 <style>
 :root{--bg:#f7f3ec;--card:#fff;--primary:#7b3f1a;--gold:#f0d090;--gold2:#f7ead0;--text:#1f2328;--sub:#6b5b4a;--border:#e5d7c5;--success:#1e6e40;--err:#c0392b;--shadow:0 2px 12px rgba(0,0,0,.08);--radius:14px}
@@ -39,6 +39,9 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .top-right{display:flex;align-items:center;gap:10px}
 .admin-badge{background:rgba(240,208,144,.18);color:var(--gold);padding:4px 10px;border-radius:20px;font-size:12px}
 .btn-logout{background:none;border:1px solid rgba(240,208,144,.4);color:var(--gold);padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer}
+.admin-tabs{background:#fff;padding:10px 24px 0;display:flex;gap:8px;border-bottom:1px solid var(--border)}
+.tab-btn{border:0;background:transparent;color:var(--sub);font-size:14px;font-weight:700;font-family:inherit;padding:11px 14px;border-bottom:3px solid transparent;cursor:pointer}
+.tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
 .controls-bar{background:#fff;border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .date-nav{display:flex;align-items:center;gap:8px}
 .nav-btn{width:36px;height:36px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:16px}
@@ -52,8 +55,26 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .summary-label{font-size:12px;color:var(--sub);margin-bottom:6px;font-weight:600}
 .summary-value{font-size:28px;font-weight:800;color:var(--primary)}
 .summary-unit{font-size:13px;color:var(--sub);margin-left:2px}
-.table-section,.not-submitted-section,.member-section{padding:0 24px 36px}
+.table-section,.not-submitted-section,.member-section,.event-section,.receipt-section{padding:0 24px 36px}
 .section-title{font-size:14px;font-weight:700;color:var(--sub);margin-bottom:12px;padding-top:4px}
+.panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+.form-grid{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:12px}
+.form-grid .full{grid-column:1/-1}
+.form-textarea{width:100%;min-height:78px;resize:vertical;padding:13px 15px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;outline:none;background:#fafafa}
+.form-textarea:focus{border-color:var(--primary);background:#fff}
+.inline-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.secondary-btn,.danger-btn,.print-btn{border:0;border-radius:8px;padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.secondary-btn{background:var(--gold2);color:var(--primary)}
+.danger-btn{background:#fdecea;color:var(--err)}
+.print-btn{background:var(--primary);color:#fff}
+.receipt-layout{display:grid;grid-template-columns:minmax(260px,380px) 1fr;gap:16px}
+.receipt-preview{background:#fff;border:1px solid #d8d8d8;border-radius:8px;padding:24px;min-height:420px;color:#111}
+.receipt-title{text-align:center;font-size:28px;font-weight:800;letter-spacing:6px;margin-bottom:22px}
+.receipt-meta{display:grid;grid-template-columns:90px 1fr;gap:8px 10px;font-size:14px;margin-bottom:18px}
+.receipt-table{width:100%;border-collapse:collapse;margin:18px 0}
+.receipt-table th,.receipt-table td{border:1px solid #333;padding:10px;font-size:14px;text-align:left}
+.receipt-total{text-align:right;font-size:20px;font-weight:800;margin-top:12px}
+.stamp-area{text-align:right;margin-top:42px;font-weight:700}
 .order-table{width:100%;background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border);border-collapse:separate;border-spacing:0}
 .order-table thead tr{background:var(--primary);color:var(--gold)}
 .order-table th{padding:13px 16px;font-size:13px;text-align:left}
@@ -90,8 +111,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 @media(max-width:600px){
   .top-bar{padding:14px 16px}
+  .admin-tabs{padding-left:16px;padding-right:16px;overflow-x:auto}
   .controls-bar,.summary-row{padding:12px 16px}
-  .table-section,.not-submitted-section,.member-section{padding-left:16px;padding-right:16px}
+  .table-section,.not-submitted-section,.member-section,.event-section,.receipt-section{padding-left:16px;padding-right:16px}
+  .form-grid,.receipt-layout{grid-template-columns:1fr}
   .summary-value{font-size:22px}
   .current-date{min-width:130px;font-size:14px}
   .order-table th,.order-table td{padding:11px 10px}
@@ -132,7 +155,13 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     </div>
   </div>
 
-  <div class="controls-bar">
+  <div class="admin-tabs">
+    <button class="tab-btn active" id="tab-orders" onclick="switchAdminTab('orders')">주문 현황</button>
+    <button class="tab-btn" id="tab-events" onclick="switchAdminTab('events')">행사도시락</button>
+    <button class="tab-btn" id="tab-receipts" onclick="switchAdminTab('receipts')">간이영수증</button>
+  </div>
+
+  <div class="controls-bar admin-tab-panel" data-tab="orders">
     <div class="date-nav">
       <button class="nav-btn" onclick="changeDate(-1)">◀</button>
       <div class="current-date" id="current-date-label">날짜</div>
@@ -143,7 +172,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <button class="members-btn" onclick="toggleMemberSection()">👥 회원 관리</button>
   </div>
 
-  <div class="summary-row">
+  <div class="summary-row admin-tab-panel" data-tab="orders">
     <div class="summary-card">
       <div class="summary-label">📋 제출 업체</div>
       <div class="summary-value" id="sum-count">0<span class="summary-unit">곳</span></div>
@@ -158,7 +187,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     </div>
   </div>
 
-  <div class="table-section">
+  <div class="table-section admin-tab-panel" data-tab="orders">
     <div class="section-title">업체별 주문 내역</div>
     <table class="order-table">
       <thead>
@@ -177,7 +206,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     </table>
   </div>
 
-  <div class="not-submitted-section">
+  <div class="not-submitted-section admin-tab-panel" data-tab="orders">
     <div class="section-title" id="not-sub-title">아직 미제출 업체</div>
     <div class="not-submitted-list" id="not-submitted-list"></div>
   </div>
@@ -186,6 +215,89 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="member-section" id="member-section" style="display:none">
     <div class="section-title">👥 등록 회원 목록 <span style="font-size:12px;font-weight:400">(클릭하여 수정)</span></div>
     <div class="member-grid" id="member-grid">불러오는 중...</div>
+  </div>
+
+  <div class="event-section admin-tab-panel" data-tab="events" style="display:none">
+    <div class="section-title">🎪 행사도시락 등록</div>
+    <div class="panel">
+      <input type="hidden" id="event-id">
+      <div class="form-grid">
+        <div>
+          <label class="form-label">도시락 이름</label>
+          <input class="form-input" type="text" id="event-name" placeholder="예) 기업 행사 도시락">
+        </div>
+        <div>
+          <label class="form-label">날짜</label>
+          <input class="form-input" type="date" id="event-date">
+        </div>
+        <div>
+          <label class="form-label">시간</label>
+          <input class="form-input" type="time" id="event-time">
+        </div>
+        <div>
+          <label class="form-label">갯수</label>
+          <input class="form-input" type="number" id="event-count" min="1" placeholder="0">
+        </div>
+        <div class="full">
+          <label class="form-label">배송장소</label>
+          <input class="form-input" type="text" id="event-place" placeholder="주소 또는 장소명">
+        </div>
+        <div class="full">
+          <label class="form-label">특이사항</label>
+          <textarea class="form-textarea" id="event-note" placeholder="포장 방식, 담당자, 요청사항 등"></textarea>
+        </div>
+      </div>
+      <div class="inline-actions">
+        <button class="save-btn" style="width:auto" onclick="saveEventLunch()">저장하기</button>
+        <button class="secondary-btn" onclick="resetEventForm()">새로 입력</button>
+      </div>
+      <div class="error-msg" id="event-error"></div>
+    </div>
+    <div class="section-title">행사도시락 목록</div>
+    <table class="order-table">
+      <thead>
+        <tr>
+          <th>날짜</th><th>시간</th><th>도시락</th><th style="text-align:center">갯수</th><th>배송장소</th><th>특이사항</th><th>관리</th>
+        </tr>
+      </thead>
+      <tbody id="event-tbody">
+        <tr class="no-order-row"><td colspan="7">불러오는 중...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="receipt-section admin-tab-panel" data-tab="receipts" style="display:none">
+    <div class="section-title">🧾 간이영수증 생성</div>
+    <div class="receipt-layout">
+      <div class="panel">
+        <label class="form-label">업체</label>
+        <select class="form-input" id="receipt-user"></select>
+        <label class="form-label">영수일자</label>
+        <input class="form-input" type="date" id="receipt-date">
+        <div class="inline-actions" style="margin-bottom:12px">
+          <button class="secondary-btn" onclick="loadReceiptOrder()">선택 날짜 주문 불러오기</button>
+        </div>
+        <label class="form-label">품목</label>
+        <input class="form-input" type="text" id="receipt-item" value="월식 도시락">
+        <div style="display:flex;gap:10px">
+          <div style="flex:1">
+            <label class="form-label">수량</label>
+            <input class="form-input" type="number" id="receipt-count" min="1" value="1">
+          </div>
+          <div style="flex:1">
+            <label class="form-label">단가</label>
+            <input class="form-input" type="number" id="receipt-price" min="0" value="0">
+          </div>
+        </div>
+        <label class="form-label">비고</label>
+        <textarea class="form-textarea" id="receipt-note" placeholder="특이사항 또는 메모"></textarea>
+        <div class="inline-actions">
+          <button class="save-btn" style="width:auto" onclick="renderReceipt()">미리보기</button>
+          <button class="print-btn" onclick="printReceipt()">인쇄하기</button>
+        </div>
+      </div>
+      <div class="receipt-preview" id="receipt-preview"></div>
+    </div>
   </div>
 </div>
 
@@ -221,9 +333,16 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 <script>
 let currentDateStr = '';
 let allUsers = {};
+let eventLunches = [];
+let activeAdminTab = 'orders';
 
 function getKST() { return new Date(new Date().getTime() + 9 * 60 * 60 * 1000); }
 function dateStr(d) { return d.toISOString().split('T')[0]; }
+function addDays(dStr, delta) {
+  const d = new Date(`${dStr}T00:00:00+09:00`);
+  d.setDate(d.getDate() + delta);
+  return dateStr(new Date(d.getTime() + 9 * 60 * 60 * 1000));
+}
 function formatDateKR(dStr) {
   const [y,m,d] = dStr.split('-');
   const days = ['일','월','화','수','목','금','토'];
@@ -233,6 +352,14 @@ function formatDateKR(dStr) {
 function isWeekendDate(dStr) {
   const dt = new Date(`${dStr}T00:00:00+09:00`);
   return dt.getDay() === 0 || dt.getDay() === 6;
+}
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+}
+function formatMoney(value) {
+  return `${Number(value || 0).toLocaleString('ko-KR')}원`;
 }
 function formatTime(ts) {
   if (!ts) return '-';
@@ -251,6 +378,7 @@ auth.onAuthStateChanged(async (user) => {
     mainScreen.classList.add('active');
     currentDateStr = dateStr(getKST());
     await loadAllUsers();
+    initReceiptForm();
     updateDateLabel();
     loadOrders();
   } else if (user) {
@@ -269,7 +397,7 @@ async function doAdminLogin() {
   const pw = document.getElementById('admin-pw').value;
   const errorEl = document.getElementById('login-error');
   errorEl.classList.remove('show');
-  if (!ADMIN_EMAILS.includes(email) || pw !== ADMIN_PASSWORD) {
+  if (!ADMIN_EMAILS.includes(email)) {
     errorEl.classList.add('show'); return;
   }
   try {
@@ -294,9 +422,7 @@ async function loadAllUsers() {
 
 // ── 날짜 이동 ──
 function changeDate(delta) {
-  const d = new Date(currentDateStr + 'T00:00:00');
-  d.setDate(d.getDate() + delta);
-  currentDateStr = dateStr(d);
+  currentDateStr = addDays(currentDateStr, delta);
   updateDateLabel();
   loadOrders();
 }
@@ -338,11 +464,11 @@ async function loadOrders() {
         totalSalad += o.saladCount || 0;
         const tr = document.createElement('tr');
         const noteHtml = o.note
-          ? `<span class="note-badge" title="${o.note.replace(/"/g,'&quot;')}">${o.note}</span>`
+          ? `<span class="note-badge" title="${escapeHtml(o.note)}">${escapeHtml(o.note)}</span>`
           : '<span style="color:#ccc">-</span>';
         tr.innerHTML = `
           <td style="color:var(--sub);font-size:13px">${i + 1}</td>
-          <td class="biz-name"><span class="dot"></span>${o.businessName || '-'}</td>
+          <td class="biz-name"><span class="dot"></span>${escapeHtml(o.businessName || '-')}</td>
           <td class="qty-cell">${o.lunchCount ?? '-'}</td>
           <td class="qty-cell">${o.saladCount ?? '-'}</td>
           <td class="time-cell">${formatTime(o.submittedAt)}</td>
@@ -374,7 +500,7 @@ function renderNotSubmitted(submitted) {
     container.innerHTML = '<div class="no-not">전체 업체가 주문을 완료했습니다 🎉</div>';
   } else {
     title.textContent = `⏳ 미제출 업체 (${notSub.length}곳)`;
-    container.innerHTML = notSub.map(name => `<span class="not-chip">${name}</span>`).join('');
+    container.innerHTML = notSub.map(name => `<span class="not-chip">${escapeHtml(name)}</span>`).join('');
   }
 }
 
@@ -397,8 +523,8 @@ function renderMembers() {
     .sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'))
     .map(([uid, u]) => `
       <div class="member-card" onclick="openMemberEdit('${uid}')">
-        <div class="m-name">${u.businessName || '-'}</div>
-        <div class="m-info">${u.phone || u.email || '-'}</div>
+        <div class="m-name">${escapeHtml(u.businessName || '-')}</div>
+        <div class="m-info">${escapeHtml(u.phone || u.email || '-')}</div>
         <div class="m-info">도시락 ${u.defaultLunch ?? 2}개 · 샐러드 ${u.defaultSalad ?? 0}개</div>
         <div class="m-edit-hint">✏️ 수정하기</div>
       </div>
@@ -446,6 +572,236 @@ async function saveMember() {
     errEl.textContent = '저장 실패: ' + e.message;
     errEl.classList.add('show');
   }
+}
+
+function switchAdminTab(tab) {
+  activeAdminTab = tab;
+  ['orders','events','receipts'].forEach(name => {
+    document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
+  });
+  document.querySelectorAll('.admin-tab-panel').forEach(el => {
+    el.style.display = el.dataset.tab === tab ? '' : 'none';
+  });
+  document.getElementById('member-section').style.display = 'none';
+  if (tab === 'events') loadEventLunches();
+  if (tab === 'receipts') {
+    initReceiptForm();
+    renderReceipt();
+  }
+}
+
+function resetEventForm() {
+  ['event-id','event-name','event-date','event-time','event-place','event-count','event-note'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('event-error').classList.remove('show');
+  document.getElementById('event-name').focus();
+}
+
+async function loadEventLunches() {
+  const tbody = document.getElementById('event-tbody');
+  tbody.innerHTML = '<tr class="no-order-row"><td colspan="7">불러오는 중...</td></tr>';
+  try {
+    const snap = await db.collection('eventLunches').orderBy('eventDate', 'asc').get();
+    eventLunches = [];
+    snap.forEach(doc => eventLunches.push({ id: doc.id, ...doc.data() }));
+    eventLunches.sort((a, b) => `${a.eventDate || ''} ${a.eventTime || ''}`.localeCompare(`${b.eventDate || ''} ${b.eventTime || ''}`));
+    renderEventLunches();
+  } catch(e) {
+    tbody.innerHTML = `<tr class="no-order-row"><td colspan="7">불러오기 실패: ${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+function renderEventLunches() {
+  const tbody = document.getElementById('event-tbody');
+  if (eventLunches.length === 0) {
+    tbody.innerHTML = '<tr class="no-order-row"><td colspan="7">등록된 행사도시락이 없습니다</td></tr>';
+    return;
+  }
+  tbody.innerHTML = eventLunches.map(item => `
+    <tr>
+      <td>${escapeHtml(item.eventDate || '-')}</td>
+      <td>${escapeHtml(item.eventTime || '-')}</td>
+      <td class="biz-name">${escapeHtml(item.name || '-')}</td>
+      <td class="qty-cell">${item.count ?? 0}</td>
+      <td>${escapeHtml(item.place || '-')}</td>
+      <td class="note-cell">${item.note ? `<span class="note-badge" title="${escapeHtml(item.note)}">${escapeHtml(item.note)}</span>` : '<span style="color:#ccc">-</span>'}</td>
+      <td>
+        <div class="inline-actions">
+          <button class="secondary-btn" onclick="editEventLunch('${item.id}')">수정</button>
+          <button class="danger-btn" onclick="deleteEventLunch('${item.id}')">삭제</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function saveEventLunch() {
+  const id = document.getElementById('event-id').value;
+  const name = document.getElementById('event-name').value.trim();
+  const eventDate = document.getElementById('event-date').value;
+  const eventTime = document.getElementById('event-time').value;
+  const place = document.getElementById('event-place').value.trim();
+  const count = parseInt(document.getElementById('event-count').value, 10) || 0;
+  const note = document.getElementById('event-note').value.trim();
+  const errEl = document.getElementById('event-error');
+  errEl.classList.remove('show');
+  if (!name || !eventDate || !eventTime || !place || count <= 0) {
+    errEl.textContent = '도시락 이름, 날짜, 시간, 배송장소, 갯수를 입력해주세요.';
+    errEl.classList.add('show');
+    return;
+  }
+  const payload = {
+    name, eventDate, eventTime, place, count, note,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try {
+    if (id) {
+      await db.collection('eventLunches').doc(id).update(payload);
+      showToast('✅ 행사도시락이 수정되었습니다.');
+    } else {
+      await db.collection('eventLunches').add({
+        ...payload,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      showToast('✅ 행사도시락이 등록되었습니다.');
+    }
+    resetEventForm();
+    loadEventLunches();
+  } catch(e) {
+    errEl.textContent = '저장 실패: ' + e.message;
+    errEl.classList.add('show');
+  }
+}
+
+function editEventLunch(id) {
+  const item = eventLunches.find(e => e.id === id);
+  if (!item) return;
+  document.getElementById('event-id').value = item.id;
+  document.getElementById('event-name').value = item.name || '';
+  document.getElementById('event-date').value = item.eventDate || '';
+  document.getElementById('event-time').value = item.eventTime || '';
+  document.getElementById('event-count').value = item.count || '';
+  document.getElementById('event-place').value = item.place || '';
+  document.getElementById('event-note').value = item.note || '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function deleteEventLunch(id) {
+  if (!confirm('이 행사도시락을 삭제할까요?')) return;
+  try {
+    await db.collection('eventLunches').doc(id).delete();
+    showToast('삭제되었습니다.');
+    loadEventLunches();
+  } catch(e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
+
+function initReceiptForm() {
+  const select = document.getElementById('receipt-user');
+  if (!select) return;
+  const prev = select.value;
+  const users = Object.entries(allUsers).sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'));
+  select.innerHTML = '<option value="">업체 선택</option>' + users.map(([uid, u]) =>
+    `<option value="${uid}">${escapeHtml(u.businessName || u.email || uid)}</option>`
+  ).join('');
+  if (prev && allUsers[prev]) select.value = prev;
+  const dateEl = document.getElementById('receipt-date');
+  if (!dateEl.value) dateEl.value = currentDateStr || dateStr(getKST());
+}
+
+async function loadReceiptOrder() {
+  const uid = document.getElementById('receipt-user').value;
+  const targetDate = document.getElementById('receipt-date').value;
+  if (!uid || !targetDate) {
+    showToast('업체와 날짜를 선택해주세요.');
+    return;
+  }
+  try {
+    const doc = await db.collection('orders').doc(targetDate).collection('items').doc(uid).get();
+    if (!doc.exists) {
+      showToast('선택한 날짜의 주문이 없습니다.');
+      return;
+    }
+    const order = doc.data();
+    const lunch = order.lunchCount || 0;
+    const salad = order.saladCount || 0;
+    document.getElementById('receipt-item').value = `도시락 ${lunch}개 / 샐러드 ${salad}개`;
+    document.getElementById('receipt-count').value = lunch + salad || 1;
+    document.getElementById('receipt-note').value = order.note || '';
+    renderReceipt();
+  } catch(e) {
+    showToast('주문 불러오기 실패: ' + e.message);
+  }
+}
+
+function getReceiptData() {
+  const uid = document.getElementById('receipt-user').value;
+  const user = allUsers[uid] || {};
+  const count = parseInt(document.getElementById('receipt-count').value, 10) || 0;
+  const price = parseInt(document.getElementById('receipt-price').value, 10) || 0;
+  return {
+    businessName: user.businessName || '',
+    phone: user.phone || user.email || '',
+    date: document.getElementById('receipt-date').value || dateStr(getKST()),
+    item: document.getElementById('receipt-item').value.trim() || '월식 도시락',
+    count,
+    price,
+    note: document.getElementById('receipt-note').value.trim(),
+    total: count * price
+  };
+}
+
+function receiptHtml(data) {
+  return `
+    <div class="receipt-title">간이영수증</div>
+    <div class="receipt-meta">
+      <div>상호</div><div>${escapeHtml(data.businessName || '-')}</div>
+      <div>연락처</div><div>${escapeHtml(data.phone || '-')}</div>
+      <div>영수일자</div><div>${escapeHtml(data.date)}</div>
+    </div>
+    <table class="receipt-table">
+      <thead><tr><th>품목</th><th>수량</th><th>단가</th><th>금액</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>${escapeHtml(data.item)}</td>
+          <td>${data.count}</td>
+          <td>${formatMoney(data.price)}</td>
+          <td>${formatMoney(data.total)}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="min-height:60px;font-size:14px;line-height:1.7">비고: ${escapeHtml(data.note || '-')}</div>
+    <div class="receipt-total">합계 ${formatMoney(data.total)}</div>
+    <div class="stamp-area">궁중수라간 귀하</div>
+  `;
+}
+
+function renderReceipt() {
+  const preview = document.getElementById('receipt-preview');
+  if (!preview) return;
+  preview.innerHTML = receiptHtml(getReceiptData());
+}
+
+function printReceipt() {
+  const data = getReceiptData();
+  const win = window.open('', 'receipt-print', 'width=720,height=900');
+  if (!win) {
+    showToast('팝업 차단을 해제한 뒤 다시 인쇄해주세요.');
+    return;
+  }
+  win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>간이영수증</title>
+    <style>
+      body{font-family:'Noto Sans KR',Arial,sans-serif;padding:32px;color:#111}
+      .receipt-title{text-align:center;font-size:30px;font-weight:800;letter-spacing:6px;margin-bottom:28px}
+      .receipt-meta{display:grid;grid-template-columns:90px 1fr;gap:8px 10px;font-size:15px;margin-bottom:18px}
+      .receipt-table{width:100%;border-collapse:collapse;margin:20px 0}
+      .receipt-table th,.receipt-table td{border:1px solid #333;padding:11px;text-align:left;font-size:15px}
+      .receipt-total{text-align:right;font-size:22px;font-weight:800;margin-top:14px}
+      .stamp-area{text-align:right;margin-top:48px;font-weight:700}
+    </style></head><body>${receiptHtml(data)}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}<\/script></body></html>`);
+  win.document.close();
 }
 
 function showToast(msg) {
