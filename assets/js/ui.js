@@ -14,7 +14,14 @@ function gauge(c){
 
 // 배송일정 표시: 정기는 스케줄명, 선택주문은 배송예정일만
 function scheduleDisp(c){
-  if(c.orderType==='sub') return c.scheduleName||'';
+  if(c.orderType==='sub'){
+    const name = c.scheduleName||'';
+    if(c.isDirect){
+      // 직배송은 당일 조리·배송 → "X 조리 → Y 도착" → "X 조리·배송"
+      return name.replace(/\s*→.+도착$/, '').replace('조리', '조리·배송');
+    }
+    return name;
+  }
   return c.onceDate||'';
 }
 
