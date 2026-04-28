@@ -90,6 +90,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .order-table tbody tr:last-child td{border-bottom:0}
 .biz-name{font-weight:700}
 .qty-cell{text-align:center;font-size:18px;font-weight:800;color:var(--primary)}
+.qty-edit{width:70px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;text-align:center;font-size:16px;font-weight:800;color:var(--primary);font-family:inherit;background:#fff}
+.order-check,.select-all-check{width:18px;height:18px;cursor:pointer}
+.delivery-status{display:inline-block;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;background:#fff3e0;color:#e65100}
+.delivery-status.done{background:#e8f5e9;color:#2e7d32}
 .time-cell{font-size:12px;color:var(--sub)}
 .note-cell{font-size:12px;color:var(--sub);max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .note-badge{display:inline-block;background:#fff3e0;color:#e65100;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:600;cursor:help;white-space:normal;max-width:130px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
@@ -113,7 +117,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 /* 모달 */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:center;justify-content:center;padding:24px}
 .modal-overlay.open{display:flex}
-.modal-box{background:#fff;border-radius:var(--radius);padding:24px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-box{background:#fff;border-radius:var(--radius);padding:24px;width:100%;max-width:520px;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-actions{display:flex;gap:8px;align-items:center;margin-top:8px}
+.modal-actions .save-btn{flex:1;margin-top:0}
+.modal-actions .danger-btn{align-self:stretch}
 .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
 .modal-title{font-size:17px;font-weight:700;color:var(--primary)}
 .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--sub);line-height:1}
@@ -186,6 +193,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <button class="today-btn" onclick="goToday()">오늘</button>
     <button class="refresh-btn" onclick="loadOrders()">🔄 새로고침</button>
     <button class="refresh-btn" onclick="exportKakaoSummary()">💬 카톡용 복사</button>
+    <button class="today-btn" onclick="completeSelectedDeliveries()">배송 완료</button>
     <button class="members-btn" onclick="toggleMemberSection()">👥 회원 관리</button>
   </div>
 
@@ -209,16 +217,18 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <table class="order-table">
       <thead>
         <tr>
+          <th style="text-align:center"><input class="select-all-check" type="checkbox" id="order-check-all" onchange="toggleAllOrders(this.checked)"></th>
           <th>#</th>
           <th>업체명</th>
           <th style="text-align:center">🍱 도시락</th>
           <th style="text-align:center">🥗 샐러드</th>
+          <th>배송</th>
           <th>전송 시간</th>
           <th>메모</th>
         </tr>
       </thead>
       <tbody id="order-tbody">
-        <tr class="no-order-row"><td colspan="6">불러오는 중...</td></tr>
+        <tr class="no-order-row"><td colspan="8">불러오는 중...</td></tr>
       </tbody>
     </table>
   </div>
@@ -332,7 +342,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
         </div>
         <button class="save-btn" onclick="loadSettlements()">정산 불러오기</button>
       </div>
-      <div style="font-size:12px;color:var(--sub);margin-top:8px">업체별 도시락/샐러드 단가는 회원 관리에서 저장한 값을 우선 적용합니다. 비어 있으면 위 기본 단가를 사용합니다.</div>
+      <div style="font-size:12px;color:var(--sub);margin-top:8px">배송 완료 처리된 건만 정산에 반영됩니다. 업체별 단가는 회원 관리 값을 우선 적용하고, 비어 있으면 위 기본 단가를 사용합니다.</div>
     </div>
     <div class="settlement-summary">
       <div class="summary-card">
@@ -443,7 +453,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       </div>
     </div>
     <div class="error-msg" id="edit-error"></div>
-    <button class="save-btn" onclick="saveMember()">저장하기</button>
+    <div class="modal-actions">
+      <button class="save-btn" onclick="saveMember()">저장하기</button>
+      <button class="danger-btn" onclick="deleteMember()">업체삭제</button>
+    </div>
   </div>
 </div>
 
@@ -455,6 +468,7 @@ let allUsers = {};
 let eventLunches = [];
 let settlementRows = [];
 let settlementEvents = [];
+let currentOrderRows = [];
 let activeAdminTab = 'orders';
 let adminUid = '';
 
@@ -567,6 +581,10 @@ function userSaladPrice(user) {
 function parseCount(value, fallback = 0) {
   const parsed = parseInt(value, 10);
   return Number.isFinite(parsed) ? Math.max(0, Math.min(50, parsed)) : fallback;
+}
+function parseDeliveryCount(value, fallback = 0) {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(999, parsed)) : fallback;
 }
 function weekdayKeyForDate(dStr) {
   const day = new Date(`${dStr}T00:00:00+09:00`).getDay();
@@ -718,25 +736,31 @@ function updateDateLabel() {
   document.getElementById('current-date-label').textContent = formatDateKR(currentDateStr);
 }
 
-function mergeOrdersWithDefaults(dStr, snap) {
+function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}) {
   const rowsByUid = {};
   Object.entries(allUsers).forEach(([uid, user]) => {
     const defaults = defaultMealsForDate(user, dStr);
+    const delivered = deliveredRecords[uid];
     if ((defaults.lunch + defaults.salad) <= 0) return;
     rowsByUid[uid] = {
       uid,
       businessName: user.businessName || '-',
-      lunchCount: defaults.lunch,
-      saladCount: defaults.salad,
+      lunchCount: delivered ? (delivered.lunchCount || 0) : defaults.lunch,
+      saladCount: delivered ? (delivered.saladCount || 0) : defaults.salad,
       note: '요일 기본값',
       submittedAt: null,
+      delivered: Boolean(delivered),
+      deliveredAt: delivered?.deliveredAt || null,
+      deliveryPlace: user.deliveryPlace || user.address || '',
       source: 'default'
     };
   });
   snap.forEach(doc => {
     const order = { uid: doc.id, ...doc.data() };
     if (isEventOrder(order)) return;
+    if (!allUsers[order.uid]) return;
     const user = allUsers[order.uid] || {};
+    const delivered = deliveredRecords[order.uid];
     const lunch = order.lunchCount || 0;
     const salad = order.saladCount || 0;
     if ((lunch + salad) <= 0) {
@@ -746,8 +770,11 @@ function mergeOrdersWithDefaults(dStr, snap) {
     rowsByUid[order.uid] = {
       ...order,
       businessName: order.businessName || user.businessName || '-',
-      lunchCount: lunch,
-      saladCount: salad,
+      lunchCount: delivered ? (delivered.lunchCount || 0) : lunch,
+      saladCount: delivered ? (delivered.saladCount || 0) : salad,
+      delivered: Boolean(delivered),
+      deliveredAt: delivered?.deliveredAt || null,
+      deliveryPlace: order.deliveryPlace || user.deliveryPlace || user.address || '',
       source: 'order'
     };
   });
@@ -757,12 +784,15 @@ function mergeOrdersWithDefaults(dStr, snap) {
 
 // ── 주문 로드 ──
 async function loadOrders() {
-  document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="6">불러오는 중...</td></tr>';
+  document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="8">불러오는 중...</td></tr>';
   document.getElementById('not-submitted-list').innerHTML = '';
+  currentOrderRows = [];
+  const checkAll = document.getElementById('order-check-all');
+  if (checkAll) checkAll.checked = false;
 
   if (isNoDeliveryDate(currentDateStr)) {
     const message = holidayName(currentDateStr) ? `${holidayName(currentDateStr)}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다';
-    document.getElementById('order-tbody').innerHTML = `<tr class="no-order-row"><td colspan="6">${escapeHtml(message)}</td></tr>`;
+    document.getElementById('order-tbody').innerHTML = `<tr class="no-order-row"><td colspan="8">${escapeHtml(message)}</td></tr>`;
     ['sum-count','sum-lunch','sum-salad'].forEach((id,i) => {
       document.getElementById(id).innerHTML = '0<span class="summary-unit">' + ['곳','개','개'][i] + '</span>';
     });
@@ -772,14 +802,19 @@ async function loadOrders() {
   }
 
   try {
-    const snap = await db.collection('orders').doc(currentDateStr).collection('items').get();
-    const orders = mergeOrdersWithDefaults(currentDateStr, snap);
+    const [snap, adminDoc] = await Promise.all([
+      db.collection('orders').doc(currentDateStr).collection('items').get(),
+      db.collection('users').doc(adminUid).get()
+    ]);
+    const deliveredRecords = adminDoc.exists ? (adminDoc.data().deliveryRecords?.[currentDateStr] || {}) : {};
+    const orders = mergeOrdersWithDefaults(currentDateStr, snap, deliveredRecords);
+    currentOrderRows = orders;
 
     let totalLunch = 0, totalSalad = 0;
     const tbody = document.getElementById('order-tbody');
 
     if (orders.length === 0) {
-      tbody.innerHTML = '<tr class="no-order-row"><td colspan="6">아직 주문이 없습니다</td></tr>';
+      tbody.innerHTML = '<tr class="no-order-row"><td colspan="8">아직 주문이 없습니다</td></tr>';
     } else {
       tbody.innerHTML = '';
       orders.forEach((o, i) => {
@@ -791,16 +826,22 @@ async function loadOrders() {
           : o.note
           ? `<span class="note-badge" title="${escapeHtml(o.note)}">${escapeHtml(o.note)}</span>`
           : '<span style="color:#ccc">-</span>';
+        const statusHtml = o.delivered
+          ? '<span class="delivery-status done">완료</span>'
+          : '<span class="delivery-status">대기</span>';
         tr.innerHTML = `
+          <td style="text-align:center"><input class="order-check" type="checkbox" value="${escapeHtml(o.uid)}" ${o.delivered ? '' : 'checked'}></td>
           <td style="color:var(--sub);font-size:13px">${i + 1}</td>
           <td class="biz-name"><span class="dot"></span>${escapeHtml(o.businessName || '-')}</td>
-          <td class="qty-cell">${o.lunchCount ?? '-'}</td>
-          <td class="qty-cell">${o.saladCount ?? '-'}</td>
+          <td class="qty-cell"><input class="qty-edit deliver-lunch" type="number" min="0" max="999" value="${o.lunchCount ?? 0}"></td>
+          <td class="qty-cell"><input class="qty-edit deliver-salad" type="number" min="0" max="999" value="${o.saladCount ?? 0}"></td>
+          <td>${statusHtml}</td>
           <td class="time-cell">${o.source === 'default' ? '기본수량' : formatTime(o.submittedAt)}</td>
           <td class="note-cell">${noteHtml}</td>
         `;
         tbody.appendChild(tr);
       });
+      if (checkAll) checkAll.checked = orders.some(o => !o.delivered);
     }
 
     document.getElementById('sum-count').innerHTML = `${orders.length}<span class="summary-unit">곳</span>`;
@@ -808,7 +849,7 @@ async function loadOrders() {
     document.getElementById('sum-salad').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
     renderNotSubmitted(orders);
   } catch(e) {
-    document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="6">불러오기 실패: ' + e.message + '</td></tr>';
+    document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="8">불러오기 실패: ' + e.message + '</td></tr>';
   }
 }
 
@@ -823,6 +864,54 @@ function renderNotSubmitted(rows) {
   } else {
     title.textContent = `📌 요일 기본 수량 적용 (${defaults.length}곳)`;
     container.innerHTML = defaults.map(name => `<span class="not-chip">${escapeHtml(name)}</span>`).join('');
+  }
+}
+
+function toggleAllOrders(checked) {
+  document.querySelectorAll('.order-check').forEach(el => {
+    el.checked = checked;
+  });
+}
+
+async function completeSelectedDeliveries() {
+  if (isNoDeliveryDate(currentDateStr)) {
+    showToast('배송 없는 날은 완료 처리할 수 없습니다.');
+    return;
+  }
+  const checked = Array.from(document.querySelectorAll('.order-check:checked'));
+  if (checked.length === 0) {
+    showToast('배송 완료할 업체를 체크해주세요.');
+    return;
+  }
+  const updates = {};
+  checked.forEach(cb => {
+    const uid = cb.value;
+    const rowEl = cb.closest('tr');
+    const row = currentOrderRows.find(item => item.uid === uid) || {};
+    const user = allUsers[uid] || {};
+    const lunch = parseDeliveryCount(rowEl.querySelector('.deliver-lunch')?.value, 0);
+    const salad = parseDeliveryCount(rowEl.querySelector('.deliver-salad')?.value, 0);
+    updates[`deliveryRecords.${currentDateStr}.${uid}`] = {
+      uid,
+      businessName: row.businessName || user.businessName || '-',
+      lunchCount: lunch,
+      saladCount: salad,
+      note: row.note === '요일 기본값' ? '요일 기본값 배송확정' : (row.note || ''),
+      deliveryPlace: row.deliveryPlace || user.deliveryPlace || user.address || '',
+      delivered: true,
+      deliveredAt: firebase.firestore.FieldValue.serverTimestamp(),
+      deliveredBy: adminUid,
+      adminAdjusted: true,
+      source: row.source === 'default' ? 'adminDefault' : 'order',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+  });
+  try {
+    await db.collection('users').doc(adminUid).set(updates, { merge: true });
+    showToast(`✅ ${checked.length}곳 배송 완료 처리되었습니다.`);
+    loadOrders();
+  } catch(e) {
+    showToast('배송 완료 처리 실패: ' + e.message);
   }
 }
 
@@ -908,6 +997,27 @@ async function saveMember() {
   } catch(e) {
     const errEl = document.getElementById('edit-error');
     errEl.textContent = '저장 실패: ' + e.message;
+    errEl.classList.add('show');
+  }
+}
+
+async function deleteMember() {
+  const uid = document.getElementById('edit-uid').value;
+  const user = allUsers[uid] || {};
+  const name = user.businessName || document.getElementById('edit-bizname').value.trim() || '이 업체';
+  if (!uid) return;
+  if (!confirm(`${name} 업체를 삭제할까요?\n회원 목록과 기본 배송 수량, 정산 기준에서 제외됩니다.`)) return;
+  try {
+    await db.collection('users').doc(uid).delete();
+    delete allUsers[uid];
+    closeMemberModal();
+    renderMembers();
+    loadOrders();
+    initReceiptForm();
+    showToast('업체가 삭제되었습니다.');
+  } catch(e) {
+    const errEl = document.getElementById('edit-error');
+    errEl.textContent = '삭제 실패: ' + e.message;
     errEl.classList.add('show');
   }
 }
@@ -1077,13 +1187,11 @@ async function loadSettlements() {
     });
 
     const dates = monthDates(month);
-    const orderSnaps = await Promise.all(
-      dates.map(ds => db.collection('orders').doc(ds).collection('items').get())
-    );
-    orderSnaps.forEach((snap, index) => {
-      const dayRows = mergeOrdersWithDefaults(dates[index], snap);
-      dayRows.forEach(data => {
-        const uid = data.uid;
+    const adminDoc = await db.collection('users').doc(adminUid).get();
+    const deliveryRecords = adminDoc.exists ? (adminDoc.data().deliveryRecords || {}) : {};
+    dates.forEach(ds => {
+      Object.entries(deliveryRecords[ds] || {}).forEach(([uid, data]) => {
+        if (!allUsers[uid]) return;
         if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, lunchPrice: defaultLunchPrice, saladPrice: defaultSaladPrice, amount: 0, status: '미정산', note: '' };
         byUser[uid].lunch += data.lunchCount || 0;
         byUser[uid].salad += data.saladCount || 0;
@@ -1095,7 +1203,6 @@ async function loadSettlements() {
       .filter(row => row.lunch > 0 || row.salad > 0)
       .sort((a, b) => (a.user.businessName || '').localeCompare(b.user.businessName || '', 'ko'));
 
-    const adminDoc = await db.collection('users').doc(adminUid).get();
     const adminEvents = adminDoc.exists ? (adminDoc.data().adminEvents || {}) : {};
     settlementEvents = Object.entries(adminEvents)
       .map(([id, item]) => ({ id, ...item }))
@@ -1347,8 +1454,12 @@ async function exportKakaoSummary() {
       showToast('배송 없음 안내를 복사했습니다.');
       return;
     }
-    const snap = await db.collection('orders').doc(currentDateStr).collection('items').get();
-    const rows = mergeOrdersWithDefaults(currentDateStr, snap);
+    const [snap, adminDoc] = await Promise.all([
+      db.collection('orders').doc(currentDateStr).collection('items').get(),
+      db.collection('users').doc(adminUid).get()
+    ]);
+    const deliveredRecords = adminDoc.exists ? (adminDoc.data().deliveryRecords?.[currentDateStr] || {}) : {};
+    const rows = mergeOrdersWithDefaults(currentDateStr, snap, deliveredRecords);
     const groups = {};
     let totalLunch = 0;
     let totalSalad = 0;
