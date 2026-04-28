@@ -191,7 +191,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <button class="nav-btn" onclick="changeDate(1)">▶</button>
     </div>
     <button class="today-btn" onclick="goToday()">오늘</button>
-    <button class="refresh-btn" onclick="loadOrders()">🔄 새로고침</button>
+    <button class="refresh-btn" onclick="loadAllUsers().then(loadOrders)">🔄 새로고침</button>
     <button class="refresh-btn" onclick="exportKakaoSummary()">💬 카톡용 복사</button>
     <button class="today-btn" onclick="completeSelectedDeliveries()">배송 완료</button>
     <button class="members-btn" onclick="toggleMemberSection()">👥 회원 관리</button>
