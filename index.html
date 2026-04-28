@@ -7,6 +7,7 @@
 
 <!-- Firebase compat (v9 compat = 전통 방식, window 전역 사용 가능) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
   const _fbCfg = {
@@ -18,7 +19,10 @@
     appId:"1:1009198450175:web:4a55da7c2092dba42613ca"
   };
   firebase.initializeApp(_fbCfg);
-  window.__DB = firebase.firestore();
+window.__AUTH = firebase.auth();
+window.__DB = firebase.firestore();
+
+const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -38,12 +42,16 @@
     <div class="login-title">궁중수라간</div>
     <div class="login-sub">배송 관리 시스템 · 직원 전용</div>
     <div class="login-form">
-      <input type="password" class="login-inp" id="pwInput" placeholder="비밀번호 입력"
-        onkeydown="if(event.key==='Enter')doLogin()">
-      <button class="login-btn" onclick="doLogin()">로그인</button>
-      <div class="login-err" id="loginErr">비밀번호가 올바르지 않습니다.</div>
-      <div class="login-attempts" id="loginAttempts"></div>
-    </div>
+  <input type="email" class="login-inp" id="emailInput" placeholder="이메일 입력" value="sun1562@naver.com">
+
+  <input type="password" class="login-inp" id="pwInput" placeholder="비밀번호 입력"
+    onkeydown="if(event.key==='Enter')doLogin()">
+
+  <button class="login-btn" onclick="doLogin()">로그인</button>
+
+  <div class="login-err" id="loginErr">이메일 또는 비밀번호가 올바르지 않습니다.</div>
+  <div class="login-attempts" id="loginAttempts"></div>
+</div>
   </div>
 </div>
 
