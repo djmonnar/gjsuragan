@@ -1222,7 +1222,13 @@ auth.onAuthStateChanged(async (user) => {
   hideLoading();
   if (user) {
     currentUser = user;
-    await loadUserProfile();
+    try {
+      await loadUserProfile();
+    } catch(e) {
+      showToast('프로필 로딩 실패. 다시 시도해주세요.', 'error');
+      auth.signOut();
+      return;
+    }
     showMain();
   } else {
     showAuth();
@@ -1266,8 +1272,9 @@ async function doRegister() {
   if (pw.length < 6) {
     showError('reg-error', '비밀번호는 6자리 이상이어야 합니다.'); return;
   }
+  let cred = null;
   try {
-    const cred = await auth.createUserWithEmailAndPassword(email, pw);
+    cred = await auth.createUserWithEmailAndPassword(email, pw);
     await db.collection('users').doc(cred.user.uid).set({
       businessName: bizname, email, phone,
       defaultLunch: lunch, defaultSalad: salad,
@@ -1275,6 +1282,7 @@ async function doRegister() {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch(e) {
+    if (cred) await cred.user.delete();
     showError('reg-error', '가입 중 오류: ' + e.message);
   }
 }
