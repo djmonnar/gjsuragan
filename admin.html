@@ -10,41 +10,450 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script>
 const firebaseConfig={apiKey:"AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A",authDomain:"gjsuragan-60505.firebaseapp.com",projectId:"gjsuragan-60505",storageBucket:"gjsuragan-60505.firebasestorage.app",messagingSenderId:"1009198450175",appId:"1:1009198450175:web:4a55da7c2092dba42613ca"};
-firebase.initializeApp(firebaseConfig);const auth=firebase.auth();const db=firebase.firestore();const ADMIN_EMAILS=['sun1562@naver.com'];const ADMIN_PASSWORD='tkdgns1q2w!';
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();const db=firebase.firestore();
+const ADMIN_EMAILS=['sun1562@naver.com'];const ADMIN_PASSWORD='tkdgns1q2w!';
 </script>
 <style>
-:root{--bg:#f7f3ec;--card:#fff;--primary:#7b3f1a;--gold:#f0d090;--gold2:#f7ead0;--text:#1f2328;--sub:#6b5b4a;--border:#e5d7c5;--success:#1e6e40;--err:#c0392b;--shadow:0 2px 12px rgba(0,0,0,.08);--radius:14px}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}#loading-screen{position:fixed;inset:0;background:var(--primary);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:var(--gold)}.spinner{width:36px;height:36px;border:3px solid rgba(240,208,144,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin-top:24px}@keyframes spin{to{transform:rotate(360deg)}}#auth-screen{min-height:100vh;background:var(--primary);display:none;align-items:center;justify-content:center;padding:24px}#auth-screen.active{display:flex}.auth-card{background:#fff;border-radius:20px;padding:32px 28px;width:100%;max-width:380px}.auth-logo{font-family:'Noto Serif KR',serif;color:var(--primary);font-size:22px;font-weight:700;margin-bottom:4px}.auth-sub{color:var(--sub);font-size:13px;margin-bottom:24px}.form-label{display:block;font-size:13px;font-weight:600;color:var(--sub);margin-bottom:6px}.form-input{width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;outline:none;margin-bottom:14px;background:#fafafa}.form-input:focus{border-color:var(--primary);background:#fff}.auth-btn{width:100%;background:var(--primary);color:#fff;border:0;border-radius:10px;padding:14px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer}.error-msg{color:var(--err);font-size:13px;margin-top:10px;display:none}.error-msg.show{display:block}#main-screen{display:none}#main-screen.active{display:block}.top-bar{background:var(--primary);padding:16px 24px;display:flex;align-items:center;justify-content:space-between}.top-title{font-family:'Noto Serif KR',serif;font-size:20px;color:var(--gold);letter-spacing:2px}.top-right{display:flex;align-items:center;gap:10px}.admin-badge{background:rgba(240,208,144,.18);color:var(--gold);padding:4px 10px;border-radius:20px;font-size:12px}.btn-logout{background:none;border:1px solid rgba(240,208,144,.4);color:var(--gold);padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer}.controls-bar{background:#fff;border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.date-nav{display:flex;align-items:center;gap:8px}.nav-btn{width:36px;height:36px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:16px}.current-date{font-size:16px;font-weight:700;color:var(--primary);min-width:150px;text-align:center}.today-btn,.refresh-btn{border:0;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}.today-btn{background:var(--primary);color:#fff}.refresh-btn{background:var(--gold2);color:var(--primary);margin-left:auto}.summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px 24px}.summary-card{background:#fff;border-radius:var(--radius);padding:16px;text-align:center;box-shadow:var(--shadow);border:1px solid var(--border)}.summary-label{font-size:12px;color:var(--sub);margin-bottom:6px;font-weight:600}.summary-value{font-size:28px;font-weight:800;color:var(--primary)}.summary-unit{font-size:13px;color:var(--sub);margin-left:2px}.table-section,.not-submitted-section{padding:0 24px 36px}.section-title{font-size:14px;font-weight:700;color:var(--sub);margin-bottom:12px;padding-top:4px}.order-table{width:100%;background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border);border-collapse:separate;border-spacing:0}.order-table thead tr{background:var(--primary);color:var(--gold)}.order-table th{padding:13px 16px;font-size:13px;text-align:left}.order-table td{padding:14px 16px;font-size:14px;vertical-align:middle;border-bottom:1px solid #f0e7dc}.order-table tbody tr:last-child td{border-bottom:0}.biz-name{font-weight:700}.qty-cell{text-align:center;font-size:18px;font-weight:800;color:var(--primary)}.time-cell{font-size:12px;color:var(--sub)}.no-order-row td{text-align:center;padding:48px 16px;color:var(--sub);font-size:15px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--success)}.not-submitted-list{display:flex;flex-wrap:wrap;gap:8px}.not-chip{background:#fff3e0;border:1px solid #ffb74d;color:#e65100;padding:6px 12px;border-radius:20px;font-size:13px;font-weight:600}.no-not{color:var(--success);font-size:14px;font-weight:700;padding:8px 0}.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#333;color:#fff;padding:11px 20px;border-radius:20px;font-size:13px;opacity:0;transition:all .3s;z-index:2000;white-space:nowrap}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}@media(max-width:600px){.top-bar{padding:14px 16px}.controls-bar,.summary-row{padding:12px 16px}.table-section,.not-submitted-section{padding-left:16px;padding-right:16px}.summary-value{font-size:22px}.current-date{min-width:130px;font-size:14px}.order-table th,.order-table td{padding:11px 10px}}
+:root{--bg:#f7f3ec;--card:#fff;--primary:#7b3f1a;--gold:#f0d090;--gold2:#f7ead0;--text:#1f2328;--sub:#6b5b4a;--border:#e5d7c5;--success:#1e6e40;--err:#c0392b;--shadow:0 2px 12px rgba(0,0,0,.08);--radius:14px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+#loading-screen{position:fixed;inset:0;background:var(--primary);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:var(--gold)}
+.spinner{width:36px;height:36px;border:3px solid rgba(240,208,144,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin-top:24px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#auth-screen{min-height:100vh;background:var(--primary);display:none;align-items:center;justify-content:center;padding:24px}
+#auth-screen.active{display:flex}
+.auth-card{background:#fff;border-radius:20px;padding:32px 28px;width:100%;max-width:380px}
+.auth-logo{font-family:'Noto Serif KR',serif;color:var(--primary);font-size:22px;font-weight:700;margin-bottom:4px}
+.auth-sub{color:var(--sub);font-size:13px;margin-bottom:24px}
+.form-label{display:block;font-size:13px;font-weight:600;color:var(--sub);margin-bottom:6px}
+.form-input{width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;outline:none;margin-bottom:14px;background:#fafafa}
+.form-input:focus{border-color:var(--primary);background:#fff}
+.auth-btn{width:100%;background:var(--primary);color:#fff;border:0;border-radius:10px;padding:14px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer}
+.error-msg{color:var(--err);font-size:13px;margin-top:10px;display:none}
+.error-msg.show{display:block}
+#main-screen{display:none}
+#main-screen.active{display:block}
+.top-bar{background:var(--primary);padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.top-title{font-family:'Noto Serif KR',serif;font-size:20px;color:var(--gold);letter-spacing:2px}
+.top-right{display:flex;align-items:center;gap:10px}
+.admin-badge{background:rgba(240,208,144,.18);color:var(--gold);padding:4px 10px;border-radius:20px;font-size:12px}
+.btn-logout{background:none;border:1px solid rgba(240,208,144,.4);color:var(--gold);padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer}
+.controls-bar{background:#fff;border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.date-nav{display:flex;align-items:center;gap:8px}
+.nav-btn{width:36px;height:36px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:16px}
+.current-date{font-size:16px;font-weight:700;color:var(--primary);min-width:150px;text-align:center}
+.today-btn,.refresh-btn,.members-btn{border:0;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.today-btn{background:var(--primary);color:#fff}
+.refresh-btn{background:var(--gold2);color:var(--primary)}
+.members-btn{background:#e8f0fe;color:#1a56db;margin-left:auto}
+.summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px 24px}
+.summary-card{background:#fff;border-radius:var(--radius);padding:16px;text-align:center;box-shadow:var(--shadow);border:1px solid var(--border)}
+.summary-label{font-size:12px;color:var(--sub);margin-bottom:6px;font-weight:600}
+.summary-value{font-size:28px;font-weight:800;color:var(--primary)}
+.summary-unit{font-size:13px;color:var(--sub);margin-left:2px}
+.table-section,.not-submitted-section,.member-section{padding:0 24px 36px}
+.section-title{font-size:14px;font-weight:700;color:var(--sub);margin-bottom:12px;padding-top:4px}
+.order-table{width:100%;background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border);border-collapse:separate;border-spacing:0}
+.order-table thead tr{background:var(--primary);color:var(--gold)}
+.order-table th{padding:13px 16px;font-size:13px;text-align:left}
+.order-table td{padding:12px 16px;font-size:14px;vertical-align:middle;border-bottom:1px solid #f0e7dc}
+.order-table tbody tr:last-child td{border-bottom:0}
+.biz-name{font-weight:700}
+.qty-cell{text-align:center;font-size:18px;font-weight:800;color:var(--primary)}
+.time-cell{font-size:12px;color:var(--sub)}
+.note-cell{font-size:12px;color:var(--sub);max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.note-badge{display:inline-block;background:#fff3e0;color:#e65100;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:600;cursor:help;white-space:normal;max-width:130px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.no-order-row td{text-align:center;padding:48px 16px;color:var(--sub);font-size:15px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--success)}
+.not-submitted-list{display:flex;flex-wrap:wrap;gap:8px}
+.not-chip{background:#fff3e0;border:1px solid #ffb74d;color:#e65100;padding:6px 12px;border-radius:20px;font-size:13px;font-weight:600}
+.no-not{color:var(--success);font-size:14px;font-weight:700;padding:8px 0}
+/* 회원 관리 */
+.member-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.member-card{background:#fff;border-radius:var(--radius);padding:14px;border:1px solid var(--border);cursor:pointer;transition:box-shadow .15s;box-shadow:var(--shadow)}
+.member-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.m-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.m-info{font-size:12px;color:var(--sub);margin-top:2px}
+.m-edit-hint{font-size:11px;color:var(--primary);margin-top:6px;font-weight:600}
+/* 모달 */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:center;justify-content:center;padding:24px}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:var(--radius);padding:24px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.modal-title{font-size:17px;font-weight:700;color:var(--primary)}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--sub);line-height:1}
+.save-btn{width:100%;background:var(--primary);color:#fff;border:0;border-radius:10px;padding:13px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:6px}
+.save-btn:hover{opacity:.9}
+/* 토스트 */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#333;color:#fff;padding:11px 20px;border-radius:20px;font-size:13px;opacity:0;transition:all .3s;z-index:3000;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:600px){
+  .top-bar{padding:14px 16px}
+  .controls-bar,.summary-row{padding:12px 16px}
+  .table-section,.not-submitted-section,.member-section{padding-left:16px;padding-right:16px}
+  .summary-value{font-size:22px}
+  .current-date{min-width:130px;font-size:14px}
+  .order-table th,.order-table td{padding:11px 10px}
+  .members-btn{margin-left:0}
+}
 </style>
 </head>
 <body>
-<div id="loading-screen"><div style="font-family:'Noto Serif KR',serif;font-size:24px;letter-spacing:3px">궁중수라간</div><div style="font-size:12px;letter-spacing:2px;margin-top:6px;opacity:.7">관리자 시스템</div><div class="spinner"></div></div>
-<div id="auth-screen"><div class="auth-card"><div class="auth-logo">🍱 궁중수라간</div><div class="auth-sub">관리자 로그인</div><label class="form-label">이메일</label><input class="form-input" type="email" id="admin-email" placeholder="관리자 이메일"><label class="form-label">비밀번호</label><input class="form-input" type="password" id="admin-pw" placeholder="비밀번호" onkeydown="if(event.key==='Enter') doAdminLogin()"><button class="auth-btn" onclick="doAdminLogin()">로그인</button><div class="error-msg" id="login-error">이메일 또는 비밀번호가 올바르지 않습니다.</div></div></div>
-<div id="main-screen"><div class="top-bar"><div class="top-title">🍱 주문 현황</div><div class="top-right"><span class="admin-badge">관리자</span><button class="btn-logout" onclick="doAdminLogout()">로그아웃</button></div></div><div class="controls-bar"><div class="date-nav"><button class="nav-btn" onclick="changeDate(-1)">◀</button><div class="current-date" id="current-date-label">날짜</div><button class="nav-btn" onclick="changeDate(1)">▶</button></div><button class="today-btn" onclick="goToday()">오늘</button><button class="refresh-btn" onclick="loadOrders()">🔄 새로고침</button></div><div class="summary-row"><div class="summary-card"><div class="summary-label">📋 제출 업체</div><div class="summary-value" id="sum-count">0<span class="summary-unit">곳</span></div></div><div class="summary-card"><div class="summary-label">🍱 총 도시락</div><div class="summary-value" id="sum-lunch">0<span class="summary-unit">개</span></div></div><div class="summary-card"><div class="summary-label">🥗 총 샐러드</div><div class="summary-value" id="sum-salad">0<span class="summary-unit">개</span></div></div></div><div class="table-section"><div class="section-title">업체별 주문 내역</div><table class="order-table"><thead><tr><th>#</th><th>업체명</th><th style="text-align:center">🍱 도시락</th><th style="text-align:center">🥗 샐러드</th><th>전송 시간</th></tr></thead><tbody id="order-tbody"><tr class="no-order-row"><td colspan="5">불러오는 중...</td></tr></tbody></table></div><div class="not-submitted-section"><div class="section-title" id="not-sub-title">아직 미제출 업체</div><div class="not-submitted-list" id="not-submitted-list"></div></div></div><div class="toast" id="toast"></div>
+
+<!-- 로딩 -->
+<div id="loading-screen">
+  <div style="font-family:'Noto Serif KR',serif;font-size:24px;letter-spacing:3px">궁중수라간</div>
+  <div style="font-size:12px;letter-spacing:2px;margin-top:6px;opacity:.7">관리자 시스템</div>
+  <div class="spinner"></div>
+</div>
+
+<!-- 로그인 -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">🍱 궁중수라간</div>
+    <div class="auth-sub">관리자 로그인</div>
+    <label class="form-label">이메일</label>
+    <input class="form-input" type="email" id="admin-email" placeholder="관리자 이메일">
+    <label class="form-label">비밀번호</label>
+    <input class="form-input" type="password" id="admin-pw" placeholder="비밀번호" onkeydown="if(event.key==='Enter') doAdminLogin()">
+    <button class="auth-btn" onclick="doAdminLogin()">로그인</button>
+    <div class="error-msg" id="login-error">이메일 또는 비밀번호가 올바르지 않습니다.</div>
+  </div>
+</div>
+
+<!-- 메인 -->
+<div id="main-screen">
+  <div class="top-bar">
+    <div class="top-title">🍱 주문 현황</div>
+    <div class="top-right">
+      <span class="admin-badge">관리자</span>
+      <button class="btn-logout" onclick="doAdminLogout()">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="controls-bar">
+    <div class="date-nav">
+      <button class="nav-btn" onclick="changeDate(-1)">◀</button>
+      <div class="current-date" id="current-date-label">날짜</div>
+      <button class="nav-btn" onclick="changeDate(1)">▶</button>
+    </div>
+    <button class="today-btn" onclick="goToday()">오늘</button>
+    <button class="refresh-btn" onclick="loadOrders()">🔄 새로고침</button>
+    <button class="members-btn" onclick="toggleMemberSection()">👥 회원 관리</button>
+  </div>
+
+  <div class="summary-row">
+    <div class="summary-card">
+      <div class="summary-label">📋 제출 업체</div>
+      <div class="summary-value" id="sum-count">0<span class="summary-unit">곳</span></div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">🍱 총 도시락</div>
+      <div class="summary-value" id="sum-lunch">0<span class="summary-unit">개</span></div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">🥗 총 샐러드</div>
+      <div class="summary-value" id="sum-salad">0<span class="summary-unit">개</span></div>
+    </div>
+  </div>
+
+  <div class="table-section">
+    <div class="section-title">업체별 주문 내역</div>
+    <table class="order-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>업체명</th>
+          <th style="text-align:center">🍱 도시락</th>
+          <th style="text-align:center">🥗 샐러드</th>
+          <th>전송 시간</th>
+          <th>메모</th>
+        </tr>
+      </thead>
+      <tbody id="order-tbody">
+        <tr class="no-order-row"><td colspan="6">불러오는 중...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="not-submitted-section">
+    <div class="section-title" id="not-sub-title">아직 미제출 업체</div>
+    <div class="not-submitted-list" id="not-submitted-list"></div>
+  </div>
+
+  <!-- 회원 관리 섹션 (기본 숨김) -->
+  <div class="member-section" id="member-section" style="display:none">
+    <div class="section-title">👥 등록 회원 목록 <span style="font-size:12px;font-weight:400">(클릭하여 수정)</span></div>
+    <div class="member-grid" id="member-grid">불러오는 중...</div>
+  </div>
+</div>
+
+<!-- 회원 수정 모달 -->
+<div class="modal-overlay" id="member-modal" onclick="closeMemberModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">회원정보 수정</div>
+      <button class="modal-close" onclick="closeMemberModal()">✕</button>
+    </div>
+    <input type="hidden" id="edit-uid">
+    <label class="form-label">업체명</label>
+    <input class="form-input" type="text" id="edit-bizname" placeholder="업체명">
+    <label class="form-label">휴대폰 번호</label>
+    <input class="form-input" type="tel" id="edit-phone" placeholder="010-0000-0000">
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label class="form-label">기본 도시락 수</label>
+        <input class="form-input" type="number" id="edit-lunch" min="0" max="50">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">기본 샐러드 수</label>
+        <input class="form-input" type="number" id="edit-salad" min="0" max="50">
+      </div>
+    </div>
+    <div class="error-msg" id="edit-error"></div>
+    <button class="save-btn" onclick="saveMember()">저장하기</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
-let currentDateStr='';let allUsers={};function getKST(){const now=new Date();return new Date(now.getTime()+9*60*60*1000)
-}
-function dateStr(d) {
-  return d.toISOString().split('T')[0];
-}
+let currentDateStr = '';
+let allUsers = {};
+
+function getKST() { return new Date(new Date().getTime() + 9 * 60 * 60 * 1000); }
+function dateStr(d) { return d.toISOString().split('T')[0]; }
 function formatDateKR(dStr) {
-  const [y, m, d] = dStr.split('-');
+  const [y,m,d] = dStr.split('-');
   const days = ['일','월','화','수','목','금','토'];
   const dt = new Date(`${dStr}T00:00:00+09:00`);
   return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일 (${days[dt.getDay()]})`;
+}
+function isWeekendDate(dStr) {
+  const dt = new Date(`${dStr}T00:00:00+09:00`);
+  return dt.getDay() === 0 || dt.getDay() === 6;
 }
 function formatTime(ts) {
   if (!ts) return '-';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
-  const h = String(kst.getUTCHours()).padStart(2, '0');
-  const m = String(kst.getUTCMinutes()).padStart(2, '0');
-  return `${h}:${m}`;
+  return `${String(kst.getUTCHours()).padStart(2,'0')}:${String(kst.getUTCMinutes()).padStart(2,'0')}`;
 }
 
-let currentDateStr='';let allUsers={};function getKST(){const now=new Date();return new Date(now.getTime()+9*60*60*1000)}function dateStr(d){return d.toISOString().split('T')[0]}function formatDateKR(dStr){const[y,m,d]=dStr.split('-');const days=['일','월','화','수','목','금','토'];const dt=new Date(`${dStr}T00:00:00+09:00`);return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일 (${days[dt.getDay()]})`}function isWeekendDate(dStr){const dt=new Date(`${dStr}T00:00:00+09:00`);const day=dt.getDay();return day===0||day===6}function formatTime(ts){if(!ts)return'-';const d=ts.toDate?ts.toDate():new Date(ts);const kst=new Date(d.getTime()+9*60*60*1000);return `${String(kst.getUTCHours()).padStart(2,'0')}:${String(kst.getUTCMinutes()).padStart(2,'0')}`}
-auth.onAuthStateChanged(async(user)=>{document.getElementById('loading-screen').style.display='none';const authScreen=document.getElementById('auth-screen');const mainScreen=document.getElementById('main-screen');if(user&&ADMIN_EMAILS.includes(user.email)){authScreen.classList.remove('active');mainScreen.classList.add('active');currentDateStr=dateStr(getKST());await loadAllUsers();updateDateLabel();loadOrders()}else if(user){mainScreen.classList.remove('active');authScreen.classList.add('active');await auth.signOut();showToast('관리자 계정이 아닙니다.')}else{mainScreen.classList.remove('active');authScreen.classList.add('active')}});
-async function doAdminLogin(){const email=document.getElementById('admin-email').value.trim();const pw=document.getElementById('admin-pw').value;const errorEl=document.getElementById('login-error');errorEl.classList.remove('show');if(!ADMIN_EMAILS.includes(email)||pw!==ADMIN_PASSWORD){errorEl.classList.add('show');return}try{await auth.signInWithEmailAndPassword(email,pw)}catch(e){errorEl.classList.add('show')}}function doAdminLogout(){auth.signOut();document.getElementById('main-screen').classList.remove('active');document.getElementById('auth-screen').classList.add('active')}
-async function loadAllUsers(){allUsers={};try{const snap=await db.collection('users').get();snap.forEach(doc=>{allUsers[doc.id]=doc.data()})}catch(e){console.log('유저 로드 오류:',e)}}function changeDate(delta){const d=new Date(currentDateStr+'T00:00:00');d.setDate(d.getDate()+delta);currentDateStr=dateStr(d);updateDateLabel();loadOrders()}function goToday(){currentDateStr=dateStr(getKST());updateDateLabel();loadOrders()}function updateDateLabel(){document.getElementById('current-date-label').textContent=formatDateKR(currentDateStr)}
-async function loadOrders(){document.getElementById('order-tbody').innerHTML='<tr class="no-order-row"><td colspan="5">불러오는 중...</td></tr>';document.getElementById('not-submitted-list').innerHTML='';if(isWeekendDate(currentDateStr)){document.getElementById('order-tbody').innerHTML='<tr class="no-order-row"><td colspan="5">토·일은 월식 배송이 없습니다</td></tr>';document.getElementById('sum-count').innerHTML='0<span class="summary-unit">곳</span>';document.getElementById('sum-lunch').innerHTML='0<span class="summary-unit">개</span>';document.getElementById('sum-salad').innerHTML='0<span class="summary-unit">개</span>';document.getElementById('not-sub-title').textContent='🚚 토·일 배송 없음';document.getElementById('not-submitted-list').innerHTML='<div class="no-not">토요일·일요일은 주문 확인 대상에서 제외됩니다.</div>';return}try{const snap=await db.collection('orders').doc(currentDateStr).collection('items').get();const orders=[];snap.forEach(doc=>orders.push({uid:doc.id,...doc.data()}));orders.sort((a,b)=>(a.businessName||'').localeCompare(b.businessName||'','ko'));let totalLunch=0,totalSalad=0;const tbody=document.getElementById('order-tbody');if(orders.length===0){tbody.innerHTML='<tr class="no-order-row"><td colspan="5">아직 주문이 없습니다</td></tr>'}else{tbody.innerHTML='';orders.forEach((o,i)=>{totalLunch+=o.lunchCount||0;totalSalad+=o.saladCount||0;const tr=document.createElement('tr');tr.innerHTML=`<td style="color:var(--sub);font-size:13px">${i+1}</td><td class="biz-name"><span class="dot"></span>${o.businessName||'-'}</td><td class="qty-cell">${o.lunchCount??'-'}</td><td class="qty-cell">${o.saladCount??'-'}</td><td class="time-cell">${formatTime(o.submittedAt)}</td>`;tbody.appendChild(tr)})}document.getElementById('sum-count').innerHTML=`${orders.length}<span class="summary-unit">곳</span>`;document.getElementById('sum-lunch').innerHTML=`${totalLunch}<span class="summary-unit">개</span>`;document.getElementById('sum-salad').innerHTML=`${totalSalad}<span class="summary-unit">개</span>`;renderNotSubmitted(orders)}catch(e){document.getElementById('order-tbody').innerHTML='<tr class="no-order-row"><td colspan="5">불러오기 실패: '+e.message+'</td></tr>'}}
-function renderNotSubmitted(submitted){const submittedUids=new Set(submitted.map(o=>o.uid));const notSub=Object.entries(allUsers).filter(([uid])=>!submittedUids.has(uid)).map(([,u])=>u.businessName).filter(Boolean);const container=document.getElementById('not-submitted-list');const title=document.getElementById('not-sub-title');if(notSub.length===0){title.textContent='✅ 모든 업체 제출 완료';container.innerHTML='<div class="no-not">전체 업체가 주문을 완료했습니다 🎉</div>'}else{title.textContent=`⏳ 미제출 업체 (${notSub.length}곳)`;container.innerHTML=notSub.map(name=>`<span class="not-chip">${name}</span>`).join('')}}function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
-</script></body></html>
+// ── 인증 ──
+auth.onAuthStateChanged(async (user) => {
+  document.getElementById('loading-screen').style.display = 'none';
+  const authScreen = document.getElementById('auth-screen');
+  const mainScreen = document.getElementById('main-screen');
+  if (user && ADMIN_EMAILS.includes(user.email)) {
+    authScreen.classList.remove('active');
+    mainScreen.classList.add('active');
+    currentDateStr = dateStr(getKST());
+    await loadAllUsers();
+    updateDateLabel();
+    loadOrders();
+  } else if (user) {
+    mainScreen.classList.remove('active');
+    authScreen.classList.add('active');
+    await auth.signOut();
+    showToast('관리자 계정이 아닙니다.');
+  } else {
+    mainScreen.classList.remove('active');
+    authScreen.classList.add('active');
+  }
+});
+
+async function doAdminLogin() {
+  const email = document.getElementById('admin-email').value.trim();
+  const pw = document.getElementById('admin-pw').value;
+  const errorEl = document.getElementById('login-error');
+  errorEl.classList.remove('show');
+  if (!ADMIN_EMAILS.includes(email) || pw !== ADMIN_PASSWORD) {
+    errorEl.classList.add('show'); return;
+  }
+  try {
+    await auth.signInWithEmailAndPassword(email, pw);
+  } catch(e) { errorEl.classList.add('show'); }
+}
+
+function doAdminLogout() {
+  auth.signOut();
+  document.getElementById('main-screen').classList.remove('active');
+  document.getElementById('auth-screen').classList.add('active');
+}
+
+// ── 유저 로드 ──
+async function loadAllUsers() {
+  allUsers = {};
+  try {
+    const snap = await db.collection('users').get();
+    snap.forEach(doc => { allUsers[doc.id] = doc.data(); });
+  } catch(e) { console.log('유저 로드 오류:', e); }
+}
+
+// ── 날짜 이동 ──
+function changeDate(delta) {
+  const d = new Date(currentDateStr + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  currentDateStr = dateStr(d);
+  updateDateLabel();
+  loadOrders();
+}
+function goToday() { currentDateStr = dateStr(getKST()); updateDateLabel(); loadOrders(); }
+function updateDateLabel() {
+  document.getElementById('current-date-label').textContent = formatDateKR(currentDateStr);
+}
+
+// ── 주문 로드 ──
+async function loadOrders() {
+  document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="6">불러오는 중...</td></tr>';
+  document.getElementById('not-submitted-list').innerHTML = '';
+
+  if (isWeekendDate(currentDateStr)) {
+    document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="6">토·일은 월식 배송이 없습니다</td></tr>';
+    ['sum-count','sum-lunch','sum-salad'].forEach((id,i) => {
+      document.getElementById(id).innerHTML = '0<span class="summary-unit">' + ['곳','개','개'][i] + '</span>';
+    });
+    document.getElementById('not-sub-title').textContent = '🚚 토·일 배송 없음';
+    document.getElementById('not-submitted-list').innerHTML = '<div class="no-not">토요일·일요일은 주문 확인 대상에서 제외됩니다.</div>';
+    return;
+  }
+
+  try {
+    const snap = await db.collection('orders').doc(currentDateStr).collection('items').get();
+    const orders = [];
+    snap.forEach(doc => orders.push({ uid: doc.id, ...doc.data() }));
+    orders.sort((a, b) => (a.businessName || '').localeCompare(b.businessName || '', 'ko'));
+
+    let totalLunch = 0, totalSalad = 0;
+    const tbody = document.getElementById('order-tbody');
+
+    if (orders.length === 0) {
+      tbody.innerHTML = '<tr class="no-order-row"><td colspan="6">아직 주문이 없습니다</td></tr>';
+    } else {
+      tbody.innerHTML = '';
+      orders.forEach((o, i) => {
+        totalLunch += o.lunchCount || 0;
+        totalSalad += o.saladCount || 0;
+        const tr = document.createElement('tr');
+        const noteHtml = o.note
+          ? `<span class="note-badge" title="${o.note.replace(/"/g,'&quot;')}">${o.note}</span>`
+          : '<span style="color:#ccc">-</span>';
+        tr.innerHTML = `
+          <td style="color:var(--sub);font-size:13px">${i + 1}</td>
+          <td class="biz-name"><span class="dot"></span>${o.businessName || '-'}</td>
+          <td class="qty-cell">${o.lunchCount ?? '-'}</td>
+          <td class="qty-cell">${o.saladCount ?? '-'}</td>
+          <td class="time-cell">${formatTime(o.submittedAt)}</td>
+          <td class="note-cell">${noteHtml}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('sum-count').innerHTML = `${orders.length}<span class="summary-unit">곳</span>`;
+    document.getElementById('sum-lunch').innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
+    document.getElementById('sum-salad').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
+    renderNotSubmitted(orders);
+  } catch(e) {
+    document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="6">불러오기 실패: ' + e.message + '</td></tr>';
+  }
+}
+
+// ── 미제출 업체 ──
+function renderNotSubmitted(submitted) {
+  const submittedUids = new Set(submitted.map(o => o.uid));
+  const notSub = Object.entries(allUsers)
+    .filter(([uid]) => !submittedUids.has(uid))
+    .map(([, u]) => u.businessName).filter(Boolean);
+  const container = document.getElementById('not-submitted-list');
+  const title = document.getElementById('not-sub-title');
+  if (notSub.length === 0) {
+    title.textContent = '✅ 모든 업체 제출 완료';
+    container.innerHTML = '<div class="no-not">전체 업체가 주문을 완료했습니다 🎉</div>';
+  } else {
+    title.textContent = `⏳ 미제출 업체 (${notSub.length}곳)`;
+    container.innerHTML = notSub.map(name => `<span class="not-chip">${name}</span>`).join('');
+  }
+}
+
+// ── 회원 관리 ──
+function toggleMemberSection() {
+  const sec = document.getElementById('member-section');
+  const isHidden = sec.style.display === 'none';
+  sec.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) renderMembers();
+}
+
+function renderMembers() {
+  const grid = document.getElementById('member-grid');
+  const users = Object.entries(allUsers);
+  if (users.length === 0) {
+    grid.innerHTML = '<div style="color:var(--sub);font-size:14px;grid-column:1/-1">등록된 회원이 없습니다.</div>';
+    return;
+  }
+  grid.innerHTML = users
+    .sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'))
+    .map(([uid, u]) => `
+      <div class="member-card" onclick="openMemberEdit('${uid}')">
+        <div class="m-name">${u.businessName || '-'}</div>
+        <div class="m-info">${u.phone || u.email || '-'}</div>
+        <div class="m-info">도시락 ${u.defaultLunch ?? 2}개 · 샐러드 ${u.defaultSalad ?? 0}개</div>
+        <div class="m-edit-hint">✏️ 수정하기</div>
+      </div>
+    `).join('');
+}
+
+function openMemberEdit(uid) {
+  const u = allUsers[uid];
+  if (!u) return;
+  document.getElementById('edit-uid').value = uid;
+  document.getElementById('edit-bizname').value = u.businessName || '';
+  document.getElementById('edit-phone').value = u.phone || '';
+  document.getElementById('edit-lunch').value = u.defaultLunch ?? 2;
+  document.getElementById('edit-salad').value = u.defaultSalad ?? 0;
+  document.getElementById('edit-error').classList.remove('show');
+  document.getElementById('member-modal').classList.add('open');
+}
+
+function closeMemberModal(e) {
+  if (!e || e.target === document.getElementById('member-modal')) {
+    document.getElementById('member-modal').classList.remove('open');
+  }
+}
+
+async function saveMember() {
+  const uid = document.getElementById('edit-uid').value;
+  const bizname = document.getElementById('edit-bizname').value.trim();
+  const phone = document.getElementById('edit-phone').value.trim();
+  const lunch = parseInt(document.getElementById('edit-lunch').value) || 0;
+  const salad = parseInt(document.getElementById('edit-salad').value) || 0;
+  if (!bizname) {
+    const errEl = document.getElementById('edit-error');
+    errEl.textContent = '업체명을 입력해주세요.';
+    errEl.classList.add('show');
+    return;
+  }
+  try {
+    await db.collection('users').doc(uid).update({ businessName: bizname, phone, defaultLunch: lunch, defaultSalad: salad });
+    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, defaultLunch: lunch, defaultSalad: salad };
+    closeMemberModal();
+    renderMembers();
+    showToast('✅ 회원정보가 저장되었습니다.');
+  } catch(e) {
+    const errEl = document.getElementById('edit-error');
+    errEl.textContent = '저장 실패: ' + e.message;
+    errEl.classList.add('show');
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>

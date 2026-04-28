@@ -597,6 +597,61 @@
   }
 
 
+  /* ── 특이사항 ── */
+  .note-label {
+    font-size: 12px; font-weight: 600; color: var(--text-sub);
+    margin-top: 10px; margin-bottom: 4px;
+  }
+  .note-area {
+    width: 100%; padding: 9px 11px;
+    border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: 13px; font-family: 'Noto Sans KR', sans-serif;
+    color: var(--text); background: var(--bg);
+    resize: none; outline: none; min-height: 54px;
+    transition: border-color 0.2s;
+  }
+  .note-area:focus { border-color: var(--primary); background: white; }
+  .note-area:disabled { opacity: 0.45; }
+
+  /* ── 통계 / 내 정보 탭 ── */
+  .stat-toggle {
+    display: flex; background: var(--border);
+    border-radius: 8px; padding: 3px; margin-bottom: 14px;
+  }
+  .stat-toggle button {
+    flex: 1; padding: 7px; font-size: 13px; font-weight: 600;
+    border: none; background: none; border-radius: 6px;
+    cursor: pointer; color: var(--text-sub);
+    font-family: 'Noto Sans KR', sans-serif; transition: all 0.15s;
+  }
+  .stat-toggle button.active {
+    background: white; color: var(--primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat-card {
+    background: white; border-radius: var(--radius);
+    padding: 14px; border: 1px solid var(--border);
+    text-align: center; box-shadow: var(--shadow);
+  }
+  .stat-card .s-label { font-size: 12px; color: var(--text-sub); margin-bottom: 6px; font-weight: 500; }
+  .stat-card .s-value { font-size: 28px; font-weight: 700; color: var(--primary); }
+  .stat-card .s-unit { font-size: 12px; color: var(--text-sub); }
+
+  .profile-block {
+    background: white; border-radius: var(--radius);
+    border: 1px solid var(--border); padding: 14px;
+    margin-bottom: 12px; box-shadow: var(--shadow);
+  }
+  .save-btn {
+    width: 100%; background: var(--primary); color: white;
+    border: none; border-radius: 10px; padding: 13px;
+    font-size: 15px; font-weight: 600;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer; margin-top: 6px; transition: background 0.2s;
+  }
+  .save-btn:hover { background: var(--primary-light); }
+
   @media (max-width: 420px) {
     body { max-width: 100%; }
     .header-biz { max-width: 105px; }
@@ -697,6 +752,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" id="tab-today" onclick="switchTab('today')">오늘 주문</button>
     <button class="tab-btn" id="tab-week" onclick="switchTab('week')">평일 일정</button>
+    <button class="tab-btn" id="tab-profile" onclick="switchTab('profile')">내 정보</button>
   </div>
 
   <!-- 오늘 주문 탭 -->
@@ -742,6 +798,9 @@
         </div>
       </div>
 
+      <div class="note-label">💬 특이사항 <span style="font-weight:400;color:var(--text-sub)">(선택)</span></div>
+      <textarea class="note-area" id="today-note" placeholder="요청사항이나 특이사항을 입력하세요..."></textarea>
+
       <button class="submit-btn" id="submit-btn" onclick="submitOrder('today')">
         주문 전송하기
       </button>
@@ -755,6 +814,68 @@
   <div id="pane-week" class="content-area" style="display:none">
     <div class="section-title">이번 주 평일 주문 현황</div>
     <div id="week-list"></div>
+  </div>
+
+  <!-- 내 정보 탭 -->
+  <div id="pane-profile" class="content-area" style="display:none">
+
+    <!-- 주문 통계 -->
+    <div class="section-title">📊 나의 주문 통계</div>
+    <div class="stat-toggle">
+      <button id="stat-week-btn" class="active" onclick="switchStat('week')">이번 주</button>
+      <button id="stat-month-btn" onclick="switchStat('month')">이번 달</button>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="s-label">🍱 도시락</div>
+        <div class="s-value" id="stat-lunch">-</div>
+        <div class="s-unit">개</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label">🥗 샐러드</div>
+        <div class="s-value" id="stat-salad">-</div>
+        <div class="s-unit">개</div>
+      </div>
+    </div>
+
+    <!-- 회원정보 수정 -->
+    <div class="section-title">👤 회원정보 수정</div>
+    <div class="profile-block">
+      <div class="form-group">
+        <label class="form-label">업체명</label>
+        <input class="form-input" type="text" id="prof-bizname" placeholder="업체명">
+      </div>
+      <div class="form-group">
+        <label class="form-label">휴대폰 번호</label>
+        <input class="form-input" type="tel" id="prof-phone" placeholder="010-0000-0000">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">기본 도시락 수</label>
+          <input class="form-input" type="number" id="prof-lunch" min="0" max="50">
+        </div>
+        <div class="form-group">
+          <label class="form-label">기본 샐러드 수</label>
+          <input class="form-input" type="number" id="prof-salad" min="0" max="50">
+        </div>
+      </div>
+      <button class="save-btn" onclick="saveProfile()">저장하기</button>
+    </div>
+
+    <!-- 비밀번호 변경 -->
+    <div class="section-title">🔒 비밀번호 변경</div>
+    <div class="profile-block">
+      <div class="form-group">
+        <label class="form-label">새 비밀번호</label>
+        <input class="form-input" type="password" id="new-pw" placeholder="6자리 이상">
+      </div>
+      <div class="form-group">
+        <label class="form-label">새 비밀번호 확인</label>
+        <input class="form-input" type="password" id="new-pw-confirm" placeholder="비밀번호 재입력">
+      </div>
+      <div class="error-msg" id="pw-error"></div>
+      <button class="save-btn" onclick="changePassword()">비밀번호 변경</button>
+    </div>
   </div>
 </div>
 
@@ -1003,10 +1124,13 @@ function showRegister() {
 }
 
 function switchTab(tab) {
-  document.getElementById('tab-today').classList.toggle('active', tab === 'today');
-  document.getElementById('tab-week').classList.toggle('active', tab === 'week');
+  ['today','week','profile'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
+  });
   document.getElementById('pane-today').style.display = tab === 'today' ? 'block' : 'none';
   document.getElementById('pane-week').style.display = tab === 'week' ? 'block' : 'none';
+  document.getElementById('pane-profile').style.display = tab === 'profile' ? 'block' : 'none';
+  if (tab === 'profile') renderProfile();
 }
 
 // ───────── 오늘 주문 렌더링 ─────────
@@ -1051,6 +1175,7 @@ async function renderToday() {
     const data = snap.data();
     todayLunch = data.lunchCount;
     todaySalad = data.saladCount;
+    document.getElementById('today-note').value = data.note || '';
     setCardSubmitted(true, data.submittedAt);
     if (closed || noDelivery) setQtyDisabled(true);
   } else {
@@ -1093,6 +1218,8 @@ function setQtyDisabled(disabled) {
   ['lunch-minus','lunch-plus','salad-minus','salad-plus'].forEach(id => {
     document.getElementById(id).disabled = disabled;
   });
+  const noteEl = document.getElementById('today-note');
+  if (noteEl) noteEl.disabled = disabled;
 }
 
 // ───────── 수량 변경 ─────────
@@ -1128,6 +1255,9 @@ async function submitOrder(source) {
     lunch = modalLunch;
     salad = modalSalad;
   }
+  const note = source === 'today'
+    ? (document.getElementById('today-note')?.value?.trim() || '')
+    : (document.getElementById('modal-note')?.value?.trim() || '');
 
   if (isWeekendDate(targetDate)) {
     showToast('토·일은 월식 배송이 없습니다.', 'error');
@@ -1146,6 +1276,7 @@ async function submitOrder(source) {
         businessName: userProfile.businessName,
         lunchCount: lunch,
         saladCount: salad,
+        note: note,
         submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
         uid: currentUser.uid
       });
@@ -1255,6 +1386,8 @@ function openDayModal(ds, existing) {
         <button class="qty-btn" onclick="changeModalQty('salad',1)">+</button>
       </div>
     </div>
+    <div class="note-label">💬 특이사항 <span style="font-weight:400;color:var(--text-sub)">(선택)</span></div>
+    <textarea class="note-area" id="modal-note" placeholder="요청사항을 입력하세요...">${existing?.note || ''}</textarea>
   `;
 
   const submitBtn = document.getElementById('modal-submit-btn');
@@ -1285,6 +1418,98 @@ function showToast(msg, type='') {
   t.textContent = msg;
   t.className = `toast show ${type === 'success' ? 'success' : type === 'error' ? 'error-toast' : ''}`;
   setTimeout(() => t.className = 'toast', 2500);
+}
+
+// ───────── 내 정보 탭 ─────────
+function renderProfile() {
+  if (!userProfile) return;
+  document.getElementById('prof-bizname').value = userProfile.businessName || '';
+  document.getElementById('prof-phone').value = userProfile.phone || '';
+  document.getElementById('prof-lunch').value = userProfile.defaultLunch ?? 2;
+  document.getElementById('prof-salad').value = userProfile.defaultSalad ?? 0;
+  loadStats('week');
+}
+
+async function saveProfile() {
+  const bizname = document.getElementById('prof-bizname').value.trim();
+  const phone = document.getElementById('prof-phone').value.trim();
+  const lunch = parseInt(document.getElementById('prof-lunch').value) || 0;
+  const salad = parseInt(document.getElementById('prof-salad').value) || 0;
+  if (!bizname) { showToast('업체명을 입력해주세요.', 'error'); return; }
+  try {
+    await db.collection('users').doc(currentUser.uid).update({
+      businessName: bizname, phone, defaultLunch: lunch, defaultSalad: salad
+    });
+    userProfile = { ...userProfile, businessName: bizname, phone, defaultLunch: lunch, defaultSalad: salad };
+    document.getElementById('header-bizname').textContent = bizname;
+    showToast('✅ 정보가 저장되었습니다.', 'success');
+  } catch(e) {
+    showToast('저장 실패: ' + e.message, 'error');
+  }
+}
+
+async function changePassword() {
+  const newPw = document.getElementById('new-pw').value;
+  const confirm = document.getElementById('new-pw-confirm').value;
+  const errEl = document.getElementById('pw-error');
+  errEl.classList.remove('show');
+  if (newPw.length < 6) { showError('pw-error', '비밀번호는 6자리 이상이어야 합니다.'); return; }
+  if (newPw !== confirm) { showError('pw-error', '비밀번호가 일치하지 않습니다.'); return; }
+  try {
+    await currentUser.updatePassword(newPw);
+    document.getElementById('new-pw').value = '';
+    document.getElementById('new-pw-confirm').value = '';
+    showToast('✅ 비밀번호가 변경되었습니다.', 'success');
+  } catch(e) {
+    if (e.code === 'auth/requires-recent-login') {
+      showError('pw-error', '보안을 위해 재로그인 후 변경해주세요.');
+    } else {
+      showError('pw-error', '변경 실패: ' + e.message);
+    }
+  }
+}
+
+// ───────── 주문 통계 ─────────
+let statPeriod = 'week';
+
+function switchStat(period) {
+  statPeriod = period;
+  document.getElementById('stat-week-btn').classList.toggle('active', period === 'week');
+  document.getElementById('stat-month-btn').classList.toggle('active', period === 'month');
+  loadStats(period);
+}
+
+async function loadStats(period) {
+  statPeriod = period;
+  const kst = getKST();
+  const dates = [];
+  if (period === 'week') {
+    const dow = kst.getUTCDay();
+    const monday = new Date(kst);
+    monday.setUTCDate(kst.getUTCDate() - (dow === 0 ? 6 : dow - 1));
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(monday);
+      d.setUTCDate(monday.getUTCDate() + i);
+      dates.push(dateStr(d));
+    }
+  } else {
+    const year = kst.getUTCFullYear();
+    const month = kst.getUTCMonth();
+    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(Date.UTC(year, month, day));
+      if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) dates.push(dateStr(d));
+    }
+  }
+  document.getElementById('stat-lunch').textContent = '…';
+  document.getElementById('stat-salad').textContent = '…';
+  const snaps = await Promise.all(
+    dates.map(d => db.collection('orders').doc(d).collection('items').doc(currentUser.uid).get())
+  );
+  let tLunch = 0, tSalad = 0;
+  snaps.forEach(s => { if (s.exists) { tLunch += s.data().lunchCount || 0; tSalad += s.data().saladCount || 0; } });
+  document.getElementById('stat-lunch').textContent = tLunch;
+  document.getElementById('stat-salad').textContent = tSalad;
 }
 </script>
 </body>
