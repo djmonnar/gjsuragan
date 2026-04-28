@@ -24,15 +24,13 @@
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
-
-  // 관리자 이메일
   const ADMIN_EMAILS = ['sun1562@naver.com'];
 </script>
 <!-- ===================================================== -->
 
 <style>
   :root {
-    --bg: #F5F0E8;
+    --bg: #F7F7F5;
     --card: #FFFFFF;
     --primary: #7B3F1A;
     --primary-light: #A05A2C;
@@ -40,547 +38,96 @@
     --gold-light: #F5E6C0;
     --text: #1A1A1A;
     --text-sub: #6B5B4A;
-    --border: #DDD0BB;
+    --border: #E7DED2;
     --success: #1E6E40;
-    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --shadow: 0 2px 12px rgba(0,0,0,0.06);
     --radius: 12px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Noto Sans KR', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-  }
-
-  /* ── 로딩 ── */
-  #loading-screen {
-    position: fixed; inset: 0;
-    background: var(--primary);
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    z-index: 9999;
-  }
-  .spinner {
-    width: 36px; height: 36px;
-    border: 3px solid rgba(240,208,144,0.3);
-    border-top-color: #F0D090;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin-top: 24px;
-  }
+  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  #loading-screen { position: fixed; inset: 0; background: var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
+  .spinner { width: 36px; height: 36px; border: 3px solid rgba(240,208,144,0.3); border-top-color: #F0D090; border-radius: 50%; animation: spin 0.8s linear infinite; margin-top: 24px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ── 로그인 ── */
-  #auth-screen {
-    min-height: 100vh;
-    background: var(--primary);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-  }
+  #auth-screen { min-height: 100vh; background: var(--primary); display: none; align-items: center; justify-content: center; padding: 24px; }
   #auth-screen.active { display: flex; }
-
-  .auth-card {
-    background: white;
-    border-radius: 20px;
-    padding: 32px 28px;
-    width: 100%;
-    max-width: 380px;
-  }
-  .auth-logo {
-    font-family: 'Noto Serif KR', serif;
-    color: var(--primary);
-    font-size: 22px;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
+  .auth-card { background: white; border-radius: 20px; padding: 32px 28px; width: 100%; max-width: 380px; }
+  .auth-logo { font-family: 'Noto Serif KR', serif; color: var(--primary); font-size: 22px; font-weight: 700; margin-bottom: 4px; }
   .auth-sub { color: var(--text-sub); font-size: 13px; margin-bottom: 24px; }
   .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-sub); margin-bottom: 6px; }
-  .form-input {
-    width: 100%; padding: 13px 15px;
-    border: 1.5px solid var(--border); border-radius: 10px;
-    font-size: 15px; font-family: inherit; outline: none;
-    margin-bottom: 14px; transition: border-color 0.2s;
-    background: #FAFAFA;
-  }
+  .form-input { width: 100%; padding: 13px 15px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 15px; font-family: inherit; outline: none; margin-bottom: 14px; transition: border-color 0.2s; background: #FAFAFA; }
   .form-input:focus { border-color: var(--primary); background: white; }
-  .auth-btn {
-    width: 100%; background: var(--primary); color: white;
-    border: none; border-radius: 10px; padding: 14px;
-    font-size: 16px; font-weight: 600; font-family: inherit;
-    cursor: pointer; transition: background 0.2s;
-  }
+  .auth-btn { width: 100%; background: var(--primary); color: white; border: none; border-radius: 10px; padding: 14px; font-size: 16px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background 0.2s; }
   .auth-btn:hover { background: var(--primary-light); }
   .error-msg { color: #C0392B; font-size: 13px; margin-top: 8px; display: none; }
   .error-msg.show { display: block; }
-
-  /* ── 메인 레이아웃 ── */
   #main-screen { display: none; }
   #main-screen.active { display: block; }
-
-  .top-bar {
-    background: var(--primary);
-    padding: 16px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .top-title {
-    font-family: 'Noto Serif KR', serif;
-    font-size: 20px;
-    color: #F0D090;
-    letter-spacing: 2px;
-  }
-  .top-right {
-    display: flex; align-items: center; gap: 12px;
-  }
-  .admin-badge {
-    background: rgba(240,208,144,0.2);
-    color: #F0D090;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-  }
-  .btn-logout {
-    background: none; border: 1px solid rgba(240,208,144,0.4);
-    color: rgba(240,208,144,0.8); padding: 5px 12px;
-    border-radius: 20px; font-size: 12px; cursor: pointer;
-    font-family: inherit;
-  }
-
-  .controls-bar {
-    background: white;
-    border-bottom: 1px solid var(--border);
-    padding: 14px 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .date-nav {
-    display: flex; align-items: center; gap: 8px;
-  }
-  .nav-btn {
-    width: 36px; height: 36px;
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: 8px; cursor: pointer;
-    font-size: 16px; display: flex; align-items: center; justify-content: center;
-    transition: background 0.15s;
-  }
+  .top-bar { background: var(--primary); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .top-title { font-family: 'Noto Serif KR', serif; font-size: 20px; color: #F0D090; letter-spacing: 2px; }
+  .top-right { display: flex; align-items: center; gap: 12px; }
+  .admin-badge { background: rgba(240,208,144,0.2); color: #F0D090; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+  .btn-logout { background: none; border: 1px solid rgba(240,208,144,0.4); color: rgba(240,208,144,0.8); padding: 5px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .controls-bar { background: white; border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .date-nav { display: flex; align-items: center; gap: 8px; }
+  .nav-btn { width: 36px; height: 36px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
   .nav-btn:hover { background: var(--gold-light); }
-  .current-date {
-    font-size: 16px; font-weight: 700; color: var(--primary);
-    min-width: 130px; text-align: center;
-  }
-  .today-btn {
-    background: var(--primary); color: white;
-    border: none; border-radius: 8px;
-    padding: 8px 14px; font-size: 13px; font-weight: 600;
-    cursor: pointer; font-family: inherit;
-  }
-  .refresh-btn {
-    background: var(--gold-light); color: var(--primary);
-    border: none; border-radius: 8px;
-    padding: 8px 14px; font-size: 13px; font-weight: 600;
-    cursor: pointer; font-family: inherit;
-    margin-left: auto;
-  }
-
-  /* ── 요약 카드 ── */
-  .summary-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    padding: 16px 24px;
-  }
-  .summary-card {
-    background: var(--card);
-    border-radius: var(--radius);
-    padding: 16px;
-    text-align: center;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--border);
-  }
-  .summary-label {
-    font-size: 12px;
-    color: var(--text-sub);
-    margin-bottom: 6px;
-    font-weight: 500;
-  }
-  .summary-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--primary);
-  }
+  .current-date { font-size: 16px; font-weight: 700; color: var(--primary); min-width: 130px; text-align: center; }
+  .today-btn { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .refresh-btn { background: var(--gold-light); color: var(--primary); border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; margin-left: auto; }
+  .summary-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px 24px; }
+  .summary-card { background: var(--card); border-radius: var(--radius); padding: 16px; text-align: center; box-shadow: var(--shadow); border: 1px solid var(--border); }
+  .summary-label { font-size: 12px; color: var(--text-sub); margin-bottom: 6px; font-weight: 500; }
+  .summary-value { font-size: 28px; font-weight: 700; color: var(--primary); }
   .summary-unit { font-size: 13px; color: var(--text-sub); margin-left: 2px; }
-
-  /* ── 테이블 ── */
-  .table-section {
-    padding: 0 24px 40px;
-  }
-  .section-title {
-    font-size: 14px; font-weight: 600; color: var(--text-sub);
-    margin-bottom: 12px; padding-top: 4px;
-  }
-  .order-table {
-    width: 100%;
-    background: white;
-    border-radius: var(--radius);
-    overflow: hidden;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--border);
-    border-collapse: separate;
-    border-spacing: 0;
-  }
-  .order-table thead tr {
-    background: var(--primary);
-    color: #F0D090;
-  }
-  .order-table th {
-    padding: 13px 16px;
-    font-size: 13px;
-    font-weight: 600;
-    text-align: left;
-    letter-spacing: 0.5px;
-  }
+  .table-section { padding: 0 24px 40px; }
+  .section-title { font-size: 14px; font-weight: 600; color: var(--text-sub); margin-bottom: 12px; padding-top: 4px; }
+  .order-table { width: 100%; background: white; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--border); border-collapse: separate; border-spacing: 0; }
+  .order-table thead tr { background: var(--primary); color: #F0D090; }
+  .order-table th { padding: 13px 16px; font-size: 13px; font-weight: 600; text-align: left; letter-spacing: 0.5px; }
   .order-table th:last-child { text-align: center; }
-  .order-table tbody tr {
-    border-bottom: 1px solid var(--border);
-    transition: background 0.1s;
-  }
+  .order-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
   .order-table tbody tr:last-child { border-bottom: none; }
   .order-table tbody tr:hover { background: #FFFBF5; }
-  .order-table td {
-    padding: 14px 16px;
-    font-size: 14px;
-    vertical-align: middle;
-  }
+  .order-table td { padding: 14px 16px; font-size: 14px; vertical-align: middle; }
   .biz-name { font-weight: 600; color: var(--text); }
-  .qty-cell {
-    text-align: center;
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--primary);
-  }
-  .time-cell {
-    font-size: 12px;
-    color: var(--text-sub);
-  }
-
-  .no-order-row td {
-    text-align: center;
-    padding: 48px 16px;
-    color: var(--text-sub);
-    font-size: 15px;
-  }
-
-  /* ── 상태 점 ── */
-  .dot {
-    display: inline-block;
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    margin-right: 6px;
-    vertical-align: middle;
-  }
+  .qty-cell { text-align: center; font-size: 18px; font-weight: 700; color: var(--primary); }
+  .time-cell { font-size: 12px; color: var(--text-sub); }
+  .no-order-row td { text-align: center; padding: 48px 16px; color: var(--text-sub); font-size: 15px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
   .dot-green { background: var(--success); }
-
-  /* ── 미제출 업체 섹션 ── */
-  .not-submitted-section {
-    padding: 0 24px 40px;
-  }
-  .not-submitted-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .not-chip {
-    background: #FFF3E0;
-    border: 1px solid #FFB74D;
-    color: #E65100;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 500;
-  }
-  .no-not {
-    color: var(--success);
-    font-size: 14px;
-    font-weight: 600;
-    padding: 8px 0;
-  }
-
-  /* ── 토스트 ── */
-  .toast {
-    position: fixed; bottom: 24px; left: 50%;
-    transform: translateX(-50%) translateY(20px);
-    background: #333; color: white;
-    padding: 11px 20px; border-radius: 20px;
-    font-size: 13px; opacity: 0; transition: all 0.3s;
-    z-index: 2000; white-space: nowrap;
-  }
+  .not-submitted-section { padding: 0 24px 40px; }
+  .not-submitted-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .not-chip { background: #FFF3E0; border: 1px solid #FFB74D; color: #E65100; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 500; }
+  .no-not { color: var(--success); font-size: 14px; font-weight: 600; padding: 8px 0; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #333; color: white; padding: 11px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: all 0.3s; z-index: 2000; white-space: nowrap; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  @media (max-width: 600px) {
-    .controls-bar { padding: 12px 16px; }
-    .summary-row { padding: 12px 16px; }
-    .table-section { padding: 0 16px 40px; }
-    .not-submitted-section { padding: 0 16px 40px; }
-    .summary-value { font-size: 22px; }
-  }
+  @media (max-width: 600px) { .controls-bar { padding: 12px 16px; } .summary-row { padding: 12px 16px; } .table-section { padding: 0 16px 40px; overflow-x: auto; } .not-submitted-section { padding: 0 16px 40px; } .summary-value { font-size: 22px; } .order-table { min-width: 540px; } }
 </style>
 </head>
 <body>
-
-<!-- 로딩 -->
-<div id="loading-screen">
-  <div style="font-family:'Noto Serif KR',serif;color:#F0D090;font-size:24px;letter-spacing:3px">궁중수라간</div>
-  <div style="color:rgba(240,208,144,0.6);font-size:12px;letter-spacing:2px;margin-top:6px">관리자 시스템</div>
-  <div class="spinner"></div>
-</div>
-
-<!-- 로그인 -->
-<div id="auth-screen">
-  <div class="auth-card">
-    <div class="auth-logo">🍱 궁중수라간</div>
-    <div class="auth-sub">관리자 로그인</div>
-    <label class="form-label">이메일</label>
-    <input class="form-input" type="email" id="admin-email" placeholder="관리자 이메일">
-    <label class="form-label">비밀번호</label>
-    <input class="form-input" type="password" id="admin-pw" placeholder="비밀번호"
-      onkeydown="if(event.key==='Enter') doAdminLogin()">
-    <div class="error-msg" id="login-error">이메일 또는 비밀번호가 올바르지 않습니다.</div>
-    <button class="auth-btn" onclick="doAdminLogin()">로그인</button>
-  </div>
-</div>
-
-<!-- 메인 -->
-<div id="main-screen">
-  <div class="top-bar">
-    <div class="top-title">🍱 주문 현황</div>
-    <div class="top-right">
-      <span class="admin-badge">관리자</span>
-      <button class="btn-logout" onclick="auth.signOut()">로그아웃</button>
-    </div>
-  </div>
-
-  <div class="controls-bar">
-    <div class="date-nav">
-      <button class="nav-btn" onclick="changeDate(-1)">◀</button>
-      <div class="current-date" id="current-date-label">날짜</div>
-      <button class="nav-btn" onclick="changeDate(1)">▶</button>
-    </div>
-    <button class="today-btn" onclick="goToday()">오늘</button>
-    <button class="refresh-btn" onclick="loadOrders()">🔄 새로고침</button>
-  </div>
-
-  <div class="summary-row">
-    <div class="summary-card">
-      <div class="summary-label">📋 제출 업체</div>
-      <div class="summary-value" id="sum-count">0<span class="summary-unit">곳</span></div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-label">🍱 총 도시락</div>
-      <div class="summary-value" id="sum-lunch">0<span class="summary-unit">개</span></div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-label">🥗 총 샐러드</div>
-      <div class="summary-value" id="sum-salad">0<span class="summary-unit">개</span></div>
-    </div>
-  </div>
-
-  <div class="table-section">
-    <div class="section-title">업체별 주문 내역</div>
-    <table class="order-table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>업체명</th>
-          <th style="text-align:center">🍱 도시락</th>
-          <th style="text-align:center">🥗 샐러드</th>
-          <th>전송 시간</th>
-        </tr>
-      </thead>
-      <tbody id="order-tbody">
-        <tr class="no-order-row"><td colspan="5">불러오는 중...</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="not-submitted-section">
-    <div class="section-title" id="not-sub-title">아직 미제출 업체</div>
-    <div class="not-submitted-list" id="not-submitted-list"></div>
-  </div>
-</div>
-
+<div id="loading-screen"><div style="font-family:'Noto Serif KR',serif;color:#F0D090;font-size:24px;letter-spacing:3px">궁중수라간</div><div style="color:rgba(240,208,144,0.6);font-size:12px;letter-spacing:2px;margin-top:6px">관리자 시스템</div><div class="spinner"></div></div>
+<div id="auth-screen"><div class="auth-card"><div class="auth-logo">🍱 궁중수라간</div><div class="auth-sub">관리자 로그인</div><label class="form-label">이메일</label><input class="form-input" type="email" id="admin-email" placeholder="관리자 이메일"><label class="form-label">비밀번호</label><input class="form-input" type="password" id="admin-pw" placeholder="Firebase Auth 비밀번호" onkeydown="if(event.key==='Enter') doAdminLogin()"><div class="error-msg" id="login-error">이메일 또는 비밀번호가 올바르지 않습니다.</div><button class="auth-btn" onclick="doAdminLogin()">로그인</button></div></div>
+<div id="main-screen"><div class="top-bar"><div class="top-title">🍱 주문 현황</div><div class="top-right"><span class="admin-badge">관리자</span><button class="btn-logout" onclick="auth.signOut()">로그아웃</button></div></div><div class="controls-bar"><div class="date-nav"><button class="nav-btn" onclick="changeDate(-1)">◀</button><div class="current-date" id="current-date-label">날짜</div><button class="nav-btn" onclick="changeDate(1)">▶</button></div><button class="today-btn" onclick="goToday()">오늘</button><button class="refresh-btn" onclick="loadOrders()">🔄 새로고침</button></div><div class="summary-row"><div class="summary-card"><div class="summary-label">📋 제출 업체</div><div class="summary-value" id="sum-count">0<span class="summary-unit">곳</span></div></div><div class="summary-card"><div class="summary-label">🍱 총 도시락</div><div class="summary-value" id="sum-lunch">0<span class="summary-unit">개</span></div></div><div class="summary-card"><div class="summary-label">🥗 총 샐러드</div><div class="summary-value" id="sum-salad">0<span class="summary-unit">개</span></div></div></div><div class="table-section"><div class="section-title">업체별 주문 내역</div><table class="order-table"><thead><tr><th>#</th><th>업체명</th><th style="text-align:center">🍱 도시락</th><th style="text-align:center">🥗 샐러드</th><th>전송 시간</th></tr></thead><tbody id="order-tbody"><tr class="no-order-row"><td colspan="5">불러오는 중...</td></tr></tbody></table></div><div class="not-submitted-section"><div class="section-title" id="not-sub-title">아직 미제출 업체</div><div class="not-submitted-list" id="not-submitted-list"></div></div></div>
 <div class="toast" id="toast"></div>
-
 <script>
-// ───────── 상태 ─────────
 let currentDateStr = '';
 let allUsers = {};
-
-// ───────── KST 유틸 ─────────
-function getKST() {
-  const now = new Date();
-  return new Date(now.getTime() + 9 * 60 * 60 * 1000);
-}
-function dateStr(d) {
-  return d.toISOString().split('T')[0];
-}
-function formatDateKR(dStr) {
-  const [y, m, d] = dStr.split('-');
-  const days = ['일','월','화','수','목','금','토'];
-  const dt = new Date(`${dStr}T00:00:00+09:00`);
-  return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일 (${days[dt.getDay()]})`;
-}
-function formatTime(ts) {
-  if (!ts) return '-';
-  const d = ts.toDate ? ts.toDate() : new Date(ts);
-  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
-  const h = String(kst.getUTCHours()).padStart(2, '0');
-  const m = String(kst.getUTCMinutes()).padStart(2, '0');
-  return `${h}:${m}`;
-}
-
-// ───────── 인증 ─────────
-auth.onAuthStateChanged(async (user) => {
-  document.getElementById('loading-screen').style.display = 'none';
-  if (user && ADMIN_EMAILS.includes(user.email)) {
-    document.getElementById('main-screen').classList.add('active');
-    currentDateStr = dateStr(getKST());
-    await loadAllUsers();
-    updateDateLabel();
-    loadOrders();
-  } else if (user) {
-    auth.signOut();
-    document.getElementById('auth-screen').classList.add('active');
-    showToast('관리자 계정이 아닙니다.');
-  } else {
-    document.getElementById('auth-screen').classList.add('active');
-  }
-});
-
-async function doAdminLogin() {
-  const email = document.getElementById('admin-email').value.trim();
-  const pw = document.getElementById('admin-pw').value;
-  try {
-    await auth.signInWithEmailAndPassword(email, pw);
-  } catch(e) {
-    document.getElementById('login-error').classList.add('show');
-  }
-}
-
-// ───────── 전체 유저 로드 (미제출 표시용) ─────────
-async function loadAllUsers() {
-  try {
-    const snap = await db.collection('users').get();
-    snap.forEach(doc => { allUsers[doc.id] = doc.data(); });
-  } catch(e) {
-    console.log('유저 로드 오류:', e);
-  }
-}
-
-// ───────── 날짜 이동 ─────────
-function changeDate(delta) {
-  const d = new Date(currentDateStr + 'T00:00:00');
-  d.setDate(d.getDate() + delta);
-  currentDateStr = dateStr(d);
-  updateDateLabel();
-  loadOrders();
-}
-function goToday() {
-  currentDateStr = dateStr(getKST());
-  updateDateLabel();
-  loadOrders();
-}
-function updateDateLabel() {
-  document.getElementById('current-date-label').textContent = formatDateKR(currentDateStr);
-}
-
-// ───────── 주문 로드 ─────────
-async function loadOrders() {
-  document.getElementById('order-tbody').innerHTML =
-    '<tr class="no-order-row"><td colspan="5">불러오는 중...</td></tr>';
-  document.getElementById('not-submitted-list').innerHTML = '';
-
-  try {
-    const snap = await db.collection('orders').doc(currentDateStr).collection('items').get();
-
-    const orders = [];
-    snap.forEach(doc => {
-      orders.push({ uid: doc.id, ...doc.data() });
-    });
-
-    // 업체명 기준 정렬
-    orders.sort((a, b) => (a.businessName || '').localeCompare(b.businessName || '', 'ko'));
-
-    let totalLunch = 0, totalSalad = 0;
-    const tbody = document.getElementById('order-tbody');
-
-    if (orders.length === 0) {
-      tbody.innerHTML = '<tr class="no-order-row"><td colspan="5">아직 주문이 없습니다</td></tr>';
-    } else {
-      tbody.innerHTML = '';
-      orders.forEach((o, i) => {
-        totalLunch += o.lunchCount || 0;
-        totalSalad += o.saladCount || 0;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="color:var(--text-sub);font-size:13px">${i + 1}</td>
-          <td class="biz-name">
-            <span class="dot dot-green"></span>${o.businessName || '-'}
-          </td>
-          <td class="qty-cell">${o.lunchCount ?? '-'}</td>
-          <td class="qty-cell">${o.saladCount ?? '-'}</td>
-          <td class="time-cell">${formatTime(o.submittedAt)}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    // 요약 업데이트
-    document.getElementById('sum-count').innerHTML = `${orders.length}<span class="summary-unit">곳</span>`;
-    document.getElementById('sum-lunch').innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
-    document.getElementById('sum-salad').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
-
-    // 미제출 업체 표시
-    renderNotSubmitted(orders);
-
-  } catch(e) {
-    document.getElementById('order-tbody').innerHTML =
-      '<tr class="no-order-row"><td colspan="5">불러오기 실패: ' + e.message + '</td></tr>';
-  }
-}
-
-// ───────── 미제출 업체 ─────────
-function renderNotSubmitted(submitted) {
-  const submittedUids = new Set(submitted.map(o => o.uid));
-  const notSub = Object.entries(allUsers)
-    .filter(([uid]) => !submittedUids.has(uid))
-    .map(([, u]) => u.businessName);
-
-  const container = document.getElementById('not-submitted-list');
-  const title = document.getElementById('not-sub-title');
-
-  if (notSub.length === 0) {
-    title.textContent = '✅ 모든 업체 제출 완료';
-    container.innerHTML = '<div class="no-not">전체 업체가 주문을 완료했습니다 🎉</div>';
-  } else {
-    title.textContent = `⏳ 미제출 업체 (${notSub.length}곳)`;
-    container.innerHTML = notSub.map(name =>
-      `<span class="not-chip">${name}</span>`
-    ).join('');
-  }
-}
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
+function getKST(){const now=new Date();return new Date(now.getTime()+9*60*60*1000)}
+function dateStr(d){return d.toISOString().split('T')[0]}
+function getDayOfWeek(dStr){return new Date(`${dStr}T00:00:00+09:00`).getDay()}
+function isWeekend(dStr){const day=getDayOfWeek(dStr);return day===0||day===6}
+function formatDateKR(dStr){const [y,m,d]=dStr.split('-');const days=['일','월','화','수','목','금','토'];const dt=new Date(`${dStr}T00:00:00+09:00`);return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일 (${days[dt.getDay()]})`}
+function formatTime(ts){if(!ts)return '-';const d=ts.toDate?ts.toDate():new Date(ts);const kst=new Date(d.getTime()+9*60*60*1000);const h=String(kst.getUTCHours()).padStart(2,'0');const m=String(kst.getUTCMinutes()).padStart(2,'0');return `${h}:${m}`}
+auth.onAuthStateChanged(async(user)=>{document.getElementById('loading-screen').style.display='none';if(user&&ADMIN_EMAILS.includes(user.email)){document.getElementById('auth-screen').classList.remove('active');document.getElementById('main-screen').classList.add('active');currentDateStr=dateStr(getKST());await loadAllUsers();updateDateLabel();loadOrders()}else if(user){auth.signOut();document.getElementById('auth-screen').classList.add('active');showToast('관리자 계정이 아닙니다.')}else{document.getElementById('auth-screen').classList.add('active')}});
+async function doAdminLogin(){const email=document.getElementById('admin-email').value.trim();const pw=document.getElementById('admin-pw').value;document.getElementById('login-error').classList.remove('show');try{await auth.signInWithEmailAndPassword(email,pw)}catch(e){document.getElementById('login-error').classList.add('show')}}
+async function loadAllUsers(){try{allUsers={};const snap=await db.collection('users').get();snap.forEach(doc=>{allUsers[doc.id]=doc.data()})}catch(e){console.log('유저 로드 오류:',e)}}
+function changeDate(delta){const d=new Date(currentDateStr+'T00:00:00');d.setDate(d.getDate()+delta);currentDateStr=dateStr(d);updateDateLabel();loadOrders()}
+function goToday(){currentDateStr=dateStr(getKST());updateDateLabel();loadOrders()}
+function updateDateLabel(){document.getElementById('current-date-label').textContent=formatDateKR(currentDateStr)}
+function renderClosedDay(){document.getElementById('order-tbody').innerHTML='<tr class="no-order-row"><td colspan="5">토·일은 월식 배송이 없습니다</td></tr>';document.getElementById('sum-count').innerHTML='0<span class="summary-unit">곳</span>';document.getElementById('sum-lunch').innerHTML='0<span class="summary-unit">개</span>';document.getElementById('sum-salad').innerHTML='0<span class="summary-unit">개</span>';document.getElementById('not-sub-title').textContent='배송 없는 날';document.getElementById('not-submitted-list').innerHTML='<div class="no-not">토요일·일요일은 월식 배송 및 주문 확인 대상에서 제외됩니다.</div>'}
+async function loadOrders(){document.getElementById('order-tbody').innerHTML='<tr class="no-order-row"><td colspan="5">불러오는 중...</td></tr>';document.getElementById('not-submitted-list').innerHTML='';if(isWeekend(currentDateStr)){renderClosedDay();return}try{const snap=await db.collection('orders').doc(currentDateStr).collection('items').get();const orders=[];snap.forEach(doc=>{orders.push({uid:doc.id,...doc.data()})});orders.sort((a,b)=>(a.businessName||'').localeCompare(b.businessName||'','ko'));let totalLunch=0,totalSalad=0;const tbody=document.getElementById('order-tbody');if(orders.length===0){tbody.innerHTML='<tr class="no-order-row"><td colspan="5">아직 주문이 없습니다</td></tr>'}else{tbody.innerHTML='';orders.forEach((o,i)=>{totalLunch+=o.lunchCount||0;totalSalad+=o.saladCount||0;const tr=document.createElement('tr');tr.innerHTML=`<td style="color:var(--text-sub);font-size:13px">${i+1}</td><td class="biz-name"><span class="dot dot-green"></span>${o.businessName||'-'}</td><td class="qty-cell">${o.lunchCount??'-'}</td><td class="qty-cell">${o.saladCount??'-'}</td><td class="time-cell">${formatTime(o.submittedAt)}</td>`;tbody.appendChild(tr)})}document.getElementById('sum-count').innerHTML=`${orders.length}<span class="summary-unit">곳</span>`;document.getElementById('sum-lunch').innerHTML=`${totalLunch}<span class="summary-unit">개</span>`;document.getElementById('sum-salad').innerHTML=`${totalSalad}<span class="summary-unit">개</span>`;renderNotSubmitted(orders)}catch(e){document.getElementById('order-tbody').innerHTML='<tr class="no-order-row"><td colspan="5">불러오기 실패: '+e.message+'</td></tr>'}}
+function renderNotSubmitted(submitted){const submittedUids=new Set(submitted.map(o=>o.uid));const notSub=Object.entries(allUsers).filter(([uid])=>!submittedUids.has(uid)).map(([,u])=>u.businessName).filter(Boolean);const container=document.getElementById('not-submitted-list');const title=document.getElementById('not-sub-title');if(notSub.length===0){title.textContent='✅ 모든 업체 제출 완료';container.innerHTML='<div class="no-not">전체 업체가 주문을 완료했습니다 🎉</div>'}else{title.textContent=`⏳ 미제출 업체 (${notSub.length}곳)`;container.innerHTML=notSub.map(name=>`<span class="not-chip">${name}</span>`).join('')}}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
 </script>
 </body>
 </html>
