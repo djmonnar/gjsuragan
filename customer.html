@@ -7,7 +7,7 @@
 
 <!-- PWA 설정 -->
 <link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#7B3F1A">
+<meta name="theme-color" content="#FFFFFF">
 
 <!-- iOS 홈 화면 추가 지원 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
 <!-- 안드로이드 스플래시 배경색 -->
-<meta name="msapplication-TileColor" content="#7B3F1A">
+<meta name="msapplication-TileColor" content="#FFFFFF">
 
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
 
@@ -44,20 +44,20 @@
 
 <style>
   :root {
-    --bg: #FDF6EC;
+    --bg: #F7F8FA;
     --card: #FFFFFF;
     --primary: #7B3F1A;
     --primary-light: #A05A2C;
     --gold: #C8922A;
-    --gold-light: #F0D090;
-    --text: #2A2A2A;
-    --text-sub: #7A6A5A;
-    --border: #E8D8C0;
+    --gold-light: #F8EFE2;
+    --text: #1F2328;
+    --text-sub: #6B7280;
+    --border: #E5E7EB;
     --success: #2E7D52;
     --error: #C0392B;
     --closed: #9E9E9E;
-    --shadow: 0 4px 20px rgba(123,63,26,0.10);
-    --radius: 16px;
+    --shadow: 0 2px 10px rgba(15,23,42,0.06);
+    --radius: 14px;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -110,23 +110,25 @@
 
   /* ── 헤더 ── */
   .app-header {
-    background: var(--primary);
-    color: white;
-    padding: 16px 20px;
+    background: white;
+    color: var(--text);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;
     position: sticky; top: 0; z-index: 100;
+    min-height: 48px;
   }
   .header-title {
     font-family: 'Noto Serif KR', serif;
-    font-size: 18px;
-    color: #F0D090;
+    font-size: 16px;
+    color: var(--primary);
     letter-spacing: 1px;
   }
   .header-biz {
-    font-size: 12px;
-    color: rgba(255,255,255,0.7);
+    font-size: 11px;
+    color: var(--text-sub);
     text-align: right;
     max-width: 150px;
     overflow: hidden;
@@ -135,9 +137,9 @@
   }
   .btn-logout {
     background: none;
-    border: 1px solid rgba(240,208,144,0.4);
-    color: rgba(240,208,144,0.8);
-    padding: 4px 10px;
+    border: 1px solid var(--border);
+    color: var(--text-sub);
+    padding: 4px 9px;
     border-radius: 20px;
     font-size: 12px;
     cursor: pointer;
@@ -149,13 +151,13 @@
     background: white;
     border-bottom: 2px solid var(--border);
     position: sticky;
-    top: 56px;
+    top: 48px;
     z-index: 99;
   }
   .tab-btn {
     flex: 1;
-    padding: 14px;
-    font-size: 15px;
+    padding: 10px 8px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--text-sub);
     background: none;
@@ -173,7 +175,7 @@
 
   /* ── 콘텐츠 ── */
   .content-area {
-    padding: 20px 16px 100px;
+    padding: 12px 12px 88px;
   }
 
   /* ── 날짜 배지 ── */
@@ -183,11 +185,11 @@
     gap: 6px;
     background: var(--gold-light);
     color: var(--primary);
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 14px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
     font-weight: 600;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
   }
 
   /* ── 마감 안내 배너 ── */
@@ -195,23 +197,23 @@
     background: #FFF3CD;
     border: 1px solid #FFCC80;
     border-radius: var(--radius);
-    padding: 14px 16px;
+    padding: 10px 12px;
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 16px;
-    font-size: 14px;
+    margin-bottom: 10px;
+    font-size: 13px;
     color: #7D5500;
   }
-  .closed-banner .icon { font-size: 20px; }
+  .closed-banner .icon { font-size: 18px; }
 
   /* ── 주문 카드 ── */
   .order-card {
     background: var(--card);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    padding: 24px 20px;
-    margin-bottom: 16px;
+    padding: 14px 14px;
+    margin-bottom: 10px;
     border: 1px solid var(--border);
   }
   .order-card.submitted {
@@ -238,7 +240,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 0;
+    padding: 10px 0;
     border-bottom: 1px solid var(--border);
   }
   .qty-row:last-of-type { border-bottom: none; }
@@ -249,16 +251,16 @@
     gap: 10px;
   }
   .qty-icon {
-    width: 44px; height: 44px;
+    width: 34px; height: 34px;
     background: var(--gold-light);
-    border-radius: 12px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: 18px;
   }
   .qty-name {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text);
   }
@@ -277,8 +279,8 @@
     border: 1px solid var(--border);
   }
   .qty-btn {
-    width: 48px; height: 48px;
-    font-size: 24px;
+    width: 40px; height: 40px;
+    font-size: 21px;
     font-weight: 300;
     color: var(--primary);
     background: none;
@@ -293,9 +295,9 @@
   .qty-btn:active { background: var(--gold-light); }
   .qty-btn:disabled { color: var(--closed); cursor: default; }
   .qty-value {
-    width: 52px;
+    width: 42px;
     text-align: center;
-    font-size: 24px;
+    font-size: 21px;
     font-weight: 700;
     color: var(--primary);
     background: none;
@@ -309,13 +311,13 @@
     background: var(--primary);
     color: white;
     border: none;
-    border-radius: 14px;
-    padding: 18px;
-    font-size: 18px;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 15px;
     font-weight: 600;
     font-family: 'Noto Sans KR', sans-serif;
     cursor: pointer;
-    margin-top: 20px;
+    margin-top: 14px;
     transition: all 0.2s;
     letter-spacing: 1px;
   }
@@ -345,8 +347,8 @@
   .week-item {
     background: var(--card);
     border-radius: var(--radius);
-    padding: 18px 20px;
-    margin-bottom: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     display: flex;
@@ -362,7 +364,7 @@
 
   .week-date-area { flex: 1; }
   .week-day {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 700;
     color: var(--text);
   }
@@ -374,9 +376,9 @@
   }
 
   .week-status {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
-    padding: 6px 12px;
+    padding: 5px 9px;
     border-radius: 20px;
   }
   .status-pending {
@@ -411,7 +413,7 @@
     width: 100%;
     max-width: 480px;
     border-radius: 24px 24px 0 0;
-    padding: 24px 20px 40px;
+    padding: 18px 14px 28px;
     animation: slideUp 0.3s ease;
   }
   @keyframes slideUp {
@@ -425,10 +427,10 @@
     margin: 0 auto 20px;
   }
   .modal-date {
-    font-size: 20px;
+    font-size: 17px;
     font-weight: 700;
     color: var(--primary);
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     text-align: center;
   }
 
@@ -470,14 +472,14 @@
   }
 
   .auth-title {
-    font-size: 20px;
+    font-size: 17px;
     font-weight: 700;
     color: var(--text);
     margin-bottom: 24px;
   }
 
   .form-group {
-    margin-bottom: 16px;
+    margin-bottom: 10px;
   }
   .form-label {
     display: block;
@@ -488,7 +490,7 @@
   }
   .form-input {
     width: 100%;
-    padding: 14px 16px;
+    padding: 10px 12px;
     border: 1.5px solid var(--border);
     border-radius: 12px;
     font-size: 16px;
@@ -593,6 +595,21 @@
     color: var(--text-sub);
     font-size: 15px;
   }
+
+
+  @media (max-width: 420px) {
+    body { max-width: 100%; }
+    .header-biz { max-width: 105px; }
+    .auth-logo { margin-bottom: 24px; }
+    .auth-logo .kr { font-size: 24px; }
+    .auth-card { padding: 20px 18px; border-radius: 16px; }
+    .auth-title { font-size: 18px; margin-bottom: 18px; }
+    .form-group { margin-bottom: 12px; }
+    .form-input { padding: 12px 13px; font-size: 15px; }
+    .form-row { gap: 8px; }
+    .section-title { font-size: 13px; margin-bottom: 8px; }
+    .toast { bottom: 64px; font-size: 13px; padding: 10px 16px; }
+  }
 </style>
 </head>
 <body>
@@ -678,8 +695,8 @@
   </div>
 
   <div class="tab-bar">
-    <button class="tab-btn active" id="tab-today" onclick="switchTab('today')">📋 오늘 주문</button>
-    <button class="tab-btn" id="tab-week" onclick="switchTab('week')">📅 주간 일정</button>
+    <button class="tab-btn active" id="tab-today" onclick="switchTab('today')">오늘 주문</button>
+    <button class="tab-btn" id="tab-week" onclick="switchTab('week')">평일 일정</button>
   </div>
 
   <!-- 오늘 주문 탭 -->
@@ -736,7 +753,7 @@
 
   <!-- 주간 일정 탭 -->
   <div id="pane-week" class="content-area" style="display:none">
-    <div class="section-title">이번 주 주문 현황</div>
+    <div class="section-title">이번 주 평일 주문 현황</div>
     <div id="week-list"></div>
   </div>
 </div>
@@ -873,6 +890,11 @@ function isClosed() {
   const kst = getKST();
   return kst.getUTCHours() > 9 || (kst.getUTCHours() === 9 && kst.getUTCMinutes() >= 20);
 }
+function isWeekendDate(dStr) {
+  const dt = new Date(`${dStr}T00:00:00+09:00`);
+  const day = dt.getDay();
+  return day === 0 || day === 6;
+}
 function isPastDate(dStr) {
   return dStr < dateStr(getKST());
 }
@@ -992,36 +1014,59 @@ async function renderToday() {
   const kst = getKST();
   const today = dateStr(kst);
   const closed = isClosed();
+  const noDelivery = isWeekendDate(today);
 
   document.getElementById('today-badge').textContent = '📅 ' + formatDateKR(today);
 
-  if (closed) {
-    document.getElementById('closed-banner').style.display = 'flex';
+  const closedBanner = document.getElementById('closed-banner');
+  if (noDelivery) {
+    closedBanner.style.display = 'flex';
+    closedBanner.innerHTML = `
+      <span class="icon">🚚</span>
+      <div>
+        <strong>토·일은 월식 배송이 없습니다</strong><br>
+        <span style="font-size:12px">평일 배송일에만 주문을 입력할 수 있습니다</span>
+      </div>
+    `;
+  } else if (closed) {
+    closedBanner.style.display = 'flex';
+    closedBanner.innerHTML = `
+      <span class="icon">⏰</span>
+      <div>
+        <strong>오늘 주문이 마감되었습니다</strong><br>
+        <span style="font-size:12px">주문 마감: 오전 9시 20분</span>
+      </div>
+    `;
+  } else {
+    closedBanner.style.display = 'none';
   }
 
   // 기존 주문 로드
   const snap = await db.collection('orders').doc(today)
     .collection('items').doc(currentUser.uid).get();
 
-  const card = document.getElementById('today-card');
   const submitBtn = document.getElementById('submit-btn');
-  const submittedBadge = document.getElementById('submitted-badge');
 
   if (snap.exists) {
     const data = snap.data();
     todayLunch = data.lunchCount;
     todaySalad = data.saladCount;
     setCardSubmitted(true, data.submittedAt);
-    if (closed) setQtyDisabled(true);
+    if (closed || noDelivery) setQtyDisabled(true);
   } else {
     todayLunch = userProfile?.defaultLunch || 2;
     todaySalad = userProfile?.defaultSalad || 0;
-    if (closed) {
-      setCardSubmitted(false, null);
+    setCardSubmitted(false, null);
+    if (closed || noDelivery) {
       submitBtn.disabled = true;
-      submitBtn.textContent = '주문 마감됨';
+      submitBtn.textContent = noDelivery ? '토·일 배송 없음' : '주문 마감됨';
       setQtyDisabled(true);
     }
+  }
+
+  if (noDelivery) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = '토·일 배송 없음';
   }
 
   document.getElementById('lunch-value').textContent = todayLunch;
@@ -1084,6 +1129,11 @@ async function submitOrder(source) {
     salad = modalSalad;
   }
 
+  if (isWeekendDate(targetDate)) {
+    showToast('토·일은 월식 배송이 없습니다.', 'error');
+    return;
+  }
+
   const btn = source === 'today'
     ? document.getElementById('submit-btn')
     : document.getElementById('modal-submit-btn');
@@ -1123,16 +1173,14 @@ async function renderWeek() {
   const dow = kst.getUTCDay(); // 0=일
   const days = [];
 
-  // 이번주 월~토 (오늘 포함 앞뒤)
+  // 이번주 월~금만 표시
   const monday = new Date(kst);
   monday.setUTCDate(kst.getUTCDate() - (dow === 0 ? 6 : dow - 1));
 
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 5; i++) {
     const d = new Date(monday);
     d.setUTCDate(monday.getUTCDate() + i);
-    const ds = dateStr(d);
-    // 주말(토,일) 제외 원하면 조건 추가
-    days.push(ds);
+    days.push(dateStr(d));
   }
 
   // 주문 현황 일괄 조회
@@ -1175,6 +1223,10 @@ async function renderWeek() {
 
 // ───────── 날짜 모달 ─────────
 function openDayModal(ds, existing) {
+  if (isWeekendDate(ds)) {
+    showToast('토·일은 월식 배송이 없습니다.', 'error');
+    return;
+  }
   modalDateStr = ds;
   modalLunch = existing ? existing.lunchCount : (userProfile?.defaultLunch || 2);
   modalSalad = existing ? existing.saladCount : (userProfile?.defaultSalad || 0);
