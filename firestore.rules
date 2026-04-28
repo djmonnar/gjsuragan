@@ -10,7 +10,12 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    // 회원 정보
+    // index.html 배송 관리 (Firebase Auth 미사용, 비밀번호 자체 인증)
+    match /customers/{document=**} {
+      allow read, write: if true;
+    }
+
+    // 월식 앱 — 회원 정보
     match /users/{userId} {
       allow read, write: if isOwner(userId) || isAdmin();
     }
