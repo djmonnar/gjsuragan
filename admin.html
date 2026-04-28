@@ -25,8 +25,9 @@
   const auth = firebase.auth();
   const db = firebase.firestore();
 
-  // 관리자 이메일
+  // 관리자 이메일 / 비밀번호
   const ADMIN_EMAILS = ['sun1562@naver.com'];
+  const ADMIN_PASSWORD = 'tkdgns1q2w!';
 </script>
 <!-- ===================================================== -->
 
@@ -465,6 +466,10 @@ auth.onAuthStateChanged(async (user) => {
 async function doAdminLogin() {
   const email = document.getElementById('admin-email').value.trim();
   const pw = document.getElementById('admin-pw').value;
+  if (!ADMIN_EMAILS.includes(email) || pw !== ADMIN_PASSWORD) {
+    document.getElementById('login-error').classList.add('show');
+    return;
+  }
   try {
     await auth.signInWithEmailAndPassword(email, pw);
   } catch(e) {
