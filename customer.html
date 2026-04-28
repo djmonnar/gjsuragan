@@ -555,6 +555,31 @@
     color: var(--text-sub);
     margin-top: 4px;
   }
+  .same-daily-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 6px 0 12px;
+  }
+  .weekday-meals {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .weekday-meal-row {
+    display: grid;
+    grid-template-columns: 42px 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+  }
+  .weekday-label {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--primary);
+  }
 
   /* ── 알림 토스트 ── */
   .toast {
@@ -722,13 +747,44 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">기본 도시락 수</label>
+        <label class="form-label">매일 도시락 수</label>
         <input class="form-input" type="number" id="reg-lunch" value="2" min="0" max="50">
-        <div class="default-hint">매일 기본으로 채워집니다</div>
+        <div class="default-hint">매일 같으면 아래 체크를 켜두세요</div>
       </div>
       <div class="form-group">
-        <label class="form-label">기본 샐러드 수</label>
+        <label class="form-label">매일 샐러드 수</label>
         <input class="form-input" type="number" id="reg-salad" value="0" min="0" max="50">
+      </div>
+    </div>
+    <label class="same-daily-toggle">
+      <input type="checkbox" id="reg-same-daily" checked onchange="toggleWeekdayFields('reg')">
+      매일 같은 수량 사용
+    </label>
+    <div class="weekday-meals" id="reg-weekday-fields" style="display:none">
+      <div class="weekday-meal-row">
+        <div class="weekday-label">월</div>
+        <input class="form-input" type="number" id="reg-mon-lunch" min="0" max="50" placeholder="도시락">
+        <input class="form-input" type="number" id="reg-mon-salad" min="0" max="50" placeholder="샐러드">
+      </div>
+      <div class="weekday-meal-row">
+        <div class="weekday-label">화</div>
+        <input class="form-input" type="number" id="reg-tue-lunch" min="0" max="50" placeholder="도시락">
+        <input class="form-input" type="number" id="reg-tue-salad" min="0" max="50" placeholder="샐러드">
+      </div>
+      <div class="weekday-meal-row">
+        <div class="weekday-label">수</div>
+        <input class="form-input" type="number" id="reg-wed-lunch" min="0" max="50" placeholder="도시락">
+        <input class="form-input" type="number" id="reg-wed-salad" min="0" max="50" placeholder="샐러드">
+      </div>
+      <div class="weekday-meal-row">
+        <div class="weekday-label">목</div>
+        <input class="form-input" type="number" id="reg-thu-lunch" min="0" max="50" placeholder="도시락">
+        <input class="form-input" type="number" id="reg-thu-salad" min="0" max="50" placeholder="샐러드">
+      </div>
+      <div class="weekday-meal-row">
+        <div class="weekday-label">금</div>
+        <input class="form-input" type="number" id="reg-fri-lunch" min="0" max="50" placeholder="도시락">
+        <input class="form-input" type="number" id="reg-fri-salad" min="0" max="50" placeholder="샐러드">
       </div>
     </div>
     <div class="error-msg" id="reg-error"></div>
@@ -851,12 +907,43 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">기본 도시락 수</label>
+          <label class="form-label">매일 도시락 수</label>
           <input class="form-input" type="number" id="prof-lunch" min="0" max="50">
         </div>
         <div class="form-group">
-          <label class="form-label">기본 샐러드 수</label>
+          <label class="form-label">매일 샐러드 수</label>
           <input class="form-input" type="number" id="prof-salad" min="0" max="50">
+        </div>
+      </div>
+      <label class="same-daily-toggle">
+        <input type="checkbox" id="prof-same-daily" checked onchange="toggleWeekdayFields('prof')">
+        매일 같은 수량 사용
+      </label>
+      <div class="weekday-meals" id="prof-weekday-fields" style="display:none">
+        <div class="weekday-meal-row">
+          <div class="weekday-label">월</div>
+          <input class="form-input" type="number" id="prof-mon-lunch" min="0" max="50" placeholder="도시락">
+          <input class="form-input" type="number" id="prof-mon-salad" min="0" max="50" placeholder="샐러드">
+        </div>
+        <div class="weekday-meal-row">
+          <div class="weekday-label">화</div>
+          <input class="form-input" type="number" id="prof-tue-lunch" min="0" max="50" placeholder="도시락">
+          <input class="form-input" type="number" id="prof-tue-salad" min="0" max="50" placeholder="샐러드">
+        </div>
+        <div class="weekday-meal-row">
+          <div class="weekday-label">수</div>
+          <input class="form-input" type="number" id="prof-wed-lunch" min="0" max="50" placeholder="도시락">
+          <input class="form-input" type="number" id="prof-wed-salad" min="0" max="50" placeholder="샐러드">
+        </div>
+        <div class="weekday-meal-row">
+          <div class="weekday-label">목</div>
+          <input class="form-input" type="number" id="prof-thu-lunch" min="0" max="50" placeholder="도시락">
+          <input class="form-input" type="number" id="prof-thu-salad" min="0" max="50" placeholder="샐러드">
+        </div>
+        <div class="weekday-meal-row">
+          <div class="weekday-label">금</div>
+          <input class="form-input" type="number" id="prof-fri-lunch" min="0" max="50" placeholder="도시락">
+          <input class="form-input" type="number" id="prof-fri-salad" min="0" max="50" placeholder="샐러드">
         </div>
       </div>
       <button class="save-btn" onclick="saveProfile()">저장하기</button>
@@ -999,6 +1086,45 @@ let modalDateStr = '';
 let modalLunch = 0;
 let modalSalad = 0;
 
+const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
+const WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
+const KOREA_HOLIDAYS = {
+  '2026-01-01': '신정',
+  '2026-02-16': '설 연휴',
+  '2026-02-17': '설날',
+  '2026-02-18': '설 연휴',
+  '2026-03-01': '삼일절',
+  '2026-03-02': '삼일절 대체공휴일',
+  '2026-05-01': '노동절',
+  '2026-05-05': '어린이날',
+  '2026-05-24': '부처님오신날',
+  '2026-05-25': '부처님오신날 대체공휴일',
+  '2026-06-03': '전국동시지방선거일',
+  '2026-06-06': '현충일',
+  '2026-07-17': '제헌절',
+  '2026-08-15': '광복절',
+  '2026-08-17': '광복절 대체공휴일',
+  '2026-09-24': '추석 연휴',
+  '2026-09-25': '추석',
+  '2026-09-26': '추석 연휴',
+  '2026-10-03': '개천절',
+  '2026-10-05': '개천절 대체공휴일',
+  '2026-10-09': '한글날',
+  '2026-12-25': '성탄절'
+};
+const FIXED_KOREA_HOLIDAYS = {
+  '01-01': '신정',
+  '03-01': '삼일절',
+  '05-01': '노동절',
+  '05-05': '어린이날',
+  '06-06': '현충일',
+  '07-17': '제헌절',
+  '08-15': '광복절',
+  '10-03': '개천절',
+  '10-09': '한글날',
+  '12-25': '성탄절'
+};
+
 // ───────── KST 날짜 유틸 ─────────
 function getKST() {
   const now = new Date();
@@ -1016,6 +1142,12 @@ function isWeekendDate(dStr) {
   const day = dt.getDay();
   return day === 0 || day === 6;
 }
+function holidayName(dStr) {
+  return KOREA_HOLIDAYS[dStr] || FIXED_KOREA_HOLIDAYS[dStr.slice(5)] || '';
+}
+function isNoDeliveryDate(dStr) {
+  return isWeekendDate(dStr) || Boolean(holidayName(dStr));
+}
 function isPastDate(dStr) {
   return dStr < dateStr(getKST());
 }
@@ -1024,6 +1156,65 @@ function formatDateKR(dStr) {
   const days = ['일','월','화','수','목','금','토'];
   const dt = new Date(`${dStr}T00:00:00+09:00`);
   return `${parseInt(m)}월 ${parseInt(d)}일 (${days[dt.getDay()]})`;
+}
+function weekdayKeyForDate(dStr) {
+  const day = new Date(`${dStr}T00:00:00+09:00`).getDay();
+  return WEEKDAY_KEYS[day - 1] || 'mon';
+}
+function parseCount(value, fallback = 0) {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(50, parsed)) : fallback;
+}
+function normalizeWeekdayMeals(profile = {}, fallbackLunch = 2, fallbackSalad = 0) {
+  const saved = profile.weekdayMeals || profile.weekdayMealCounts || {};
+  return WEEKDAY_KEYS.reduce((acc, key) => {
+    const item = saved[key] || {};
+    acc[key] = {
+      lunch: parseCount(item.lunch ?? item.lunchCount, fallbackLunch),
+      salad: parseCount(item.salad ?? item.saladCount, fallbackSalad)
+    };
+    return acc;
+  }, {});
+}
+function defaultMealsForDate(dStr, profile = userProfile) {
+  const fallbackLunch = parseCount(profile?.defaultLunch, 2);
+  const fallbackSalad = parseCount(profile?.defaultSalad, 0);
+  const weekdayMeals = normalizeWeekdayMeals(profile || {}, fallbackLunch, fallbackSalad);
+  return weekdayMeals[weekdayKeyForDate(dStr)] || { lunch: fallbackLunch, salad: fallbackSalad };
+}
+function fillWeekdayInputs(scope, meals) {
+  WEEKDAY_KEYS.forEach(key => {
+    const item = meals[key] || { lunch: 0, salad: 0 };
+    const lunchEl = document.getElementById(`${scope}-${key}-lunch`);
+    const saladEl = document.getElementById(`${scope}-${key}-salad`);
+    if (lunchEl) lunchEl.value = item.lunch;
+    if (saladEl) saladEl.value = item.salad;
+  });
+}
+function toggleWeekdayFields(scope) {
+  const same = document.getElementById(`${scope}-same-daily`)?.checked;
+  const wrap = document.getElementById(`${scope}-weekday-fields`);
+  if (!wrap) return;
+  if (!same) {
+    const lunch = parseCount(document.getElementById(`${scope}-lunch`)?.value, 0);
+    const salad = parseCount(document.getElementById(`${scope}-salad`)?.value, 0);
+    fillWeekdayInputs(scope, normalizeWeekdayMeals({}, lunch, salad));
+  }
+  wrap.style.display = same ? 'none' : 'grid';
+}
+function readWeekdayMeals(scope, fallbackLunch, fallbackSalad) {
+  const same = document.getElementById(`${scope}-same-daily`)?.checked;
+  if (same) return normalizeWeekdayMeals({}, fallbackLunch, fallbackSalad);
+  return WEEKDAY_KEYS.reduce((acc, key) => {
+    acc[key] = {
+      lunch: parseCount(document.getElementById(`${scope}-${key}-lunch`)?.value, fallbackLunch),
+      salad: parseCount(document.getElementById(`${scope}-${key}-salad`)?.value, fallbackSalad)
+    };
+    return acc;
+  }, {});
+}
+function hasDifferentWeekdayMeals(meals, lunch, salad) {
+  return WEEKDAY_KEYS.some(key => (meals[key]?.lunch ?? lunch) !== lunch || (meals[key]?.salad ?? salad) !== salad);
 }
 
 // ───────── 인증 ─────────
@@ -1043,8 +1234,9 @@ async function loadUserProfile() {
   if (doc.exists) {
     userProfile = doc.data();
     document.getElementById('header-bizname').textContent = userProfile.businessName;
-    todayLunch = userProfile.defaultLunch || 2;
-    todaySalad = userProfile.defaultSalad || 0;
+    const todayDefault = defaultMealsForDate(dateStr(getKST()), userProfile);
+    todayLunch = todayDefault.lunch;
+    todaySalad = todayDefault.salad;
   }
 }
 
@@ -1065,6 +1257,8 @@ async function doRegister() {
   const pw = document.getElementById('reg-pw').value;
   const lunch = parseInt(document.getElementById('reg-lunch').value) || 2;
   const salad = parseInt(document.getElementById('reg-salad').value) || 0;
+  const sameDailyMeal = document.getElementById('reg-same-daily').checked;
+  const weekdayMeals = readWeekdayMeals('reg', lunch, salad);
 
   if (!bizname || !email || !pw) {
     showError('reg-error', '업체명, 이메일, 비밀번호는 필수입니다.'); return;
@@ -1077,6 +1271,7 @@ async function doRegister() {
     await db.collection('users').doc(cred.user.uid).set({
       businessName: bizname, email, phone,
       defaultLunch: lunch, defaultSalad: salad,
+      sameDailyMeal, weekdayMeals,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch(e) {
@@ -1138,7 +1333,8 @@ async function renderToday() {
   const kst = getKST();
   const today = dateStr(kst);
   const closed = isClosed();
-  const noDelivery = isWeekendDate(today);
+  const holiday = holidayName(today);
+  const noDelivery = isNoDeliveryDate(today);
 
   document.getElementById('today-badge').textContent = '📅 ' + formatDateKR(today);
 
@@ -1148,8 +1344,8 @@ async function renderToday() {
     closedBanner.innerHTML = `
       <span class="icon">🚚</span>
       <div>
-        <strong>토·일은 월식 배송이 없습니다</strong><br>
-        <span style="font-size:12px">평일 배송일에만 주문을 입력할 수 있습니다</span>
+        <strong>${holiday ? `${holiday}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다'}</strong><br>
+        <span style="font-size:12px">배송일에만 주문을 입력할 수 있습니다</span>
       </div>
     `;
   } else if (closed) {
@@ -1179,19 +1375,20 @@ async function renderToday() {
     setCardSubmitted(true, data.submittedAt);
     if (closed || noDelivery) setQtyDisabled(true);
   } else {
-    todayLunch = userProfile?.defaultLunch || 2;
-    todaySalad = userProfile?.defaultSalad || 0;
+    const todayDefault = defaultMealsForDate(today);
+    todayLunch = todayDefault.lunch;
+    todaySalad = todayDefault.salad;
     setCardSubmitted(false, null);
     if (closed || noDelivery) {
       submitBtn.disabled = true;
-      submitBtn.textContent = noDelivery ? '토·일 배송 없음' : '주문 마감됨';
+      submitBtn.textContent = noDelivery ? '배송 없음' : '주문 마감됨';
       setQtyDisabled(true);
     }
   }
 
   if (noDelivery) {
     submitBtn.disabled = true;
-    submitBtn.textContent = '토·일 배송 없음';
+    submitBtn.textContent = '배송 없음';
   }
 
   document.getElementById('lunch-value').textContent = todayLunch;
@@ -1259,8 +1456,8 @@ async function submitOrder(source) {
     ? (document.getElementById('today-note')?.value?.trim() || '')
     : (document.getElementById('modal-note')?.value?.trim() || '');
 
-  if (isWeekendDate(targetDate)) {
-    showToast('토·일은 월식 배송이 없습니다.', 'error');
+  if (isNoDeliveryDate(targetDate)) {
+    showToast(holidayName(targetDate) ? `${holidayName(targetDate)}은 배송이 없습니다.` : '토·일은 월식 배송이 없습니다.', 'error');
     return;
   }
 
@@ -1328,14 +1525,19 @@ async function renderWeek() {
     const isPast = isPastDate(ds);
     const submitted = snap.exists;
     const todayClosed = isToday && isClosed();
+    const holiday = holidayName(ds);
+    const noDelivery = isNoDeliveryDate(ds);
+    const defaults = defaultMealsForDate(ds);
 
     let statusClass = 'status-pending';
     let statusText = '미입력';
     if (submitted) { statusClass = 'status-submitted'; statusText = `도시락 ${snap.data().lunchCount} / 샐러드 ${snap.data().saladCount}`; }
+    else if (noDelivery) { statusClass = 'status-closed'; statusText = holiday ? `${holiday} 배송없음` : '배송없음'; }
+    else if ((defaults.lunch + defaults.salad) > 0) { statusClass = 'status-pending'; statusText = `기본 도시락 ${defaults.lunch} / 샐러드 ${defaults.salad}`; }
     else if (isPast) { statusClass = 'status-past'; statusText = '입력없음'; }
     else if (todayClosed) { statusClass = 'status-closed'; statusText = '마감'; }
 
-    const clickable = !isPast && !(todayClosed && !submitted);
+    const clickable = !noDelivery && !isPast && !(todayClosed && !submitted);
 
     const el = document.createElement('div');
     el.className = `week-item${isToday ? ' is-today' : ''}${isPast ? ' is-past' : ''}${submitted ? ' is-submitted' : ''}`;
@@ -1354,13 +1556,14 @@ async function renderWeek() {
 
 // ───────── 날짜 모달 ─────────
 function openDayModal(ds, existing) {
-  if (isWeekendDate(ds)) {
-    showToast('토·일은 월식 배송이 없습니다.', 'error');
+  if (isNoDeliveryDate(ds)) {
+    showToast(holidayName(ds) ? `${holidayName(ds)}은 배송이 없습니다.` : '토·일은 월식 배송이 없습니다.', 'error');
     return;
   }
   modalDateStr = ds;
-  modalLunch = existing ? existing.lunchCount : (userProfile?.defaultLunch || 2);
-  modalSalad = existing ? existing.saladCount : (userProfile?.defaultSalad || 0);
+  const defaults = defaultMealsForDate(ds);
+  modalLunch = existing ? existing.lunchCount : defaults.lunch;
+  modalSalad = existing ? existing.saladCount : defaults.salad;
 
   document.getElementById('modal-date-text').textContent = formatDateKR(ds);
   document.getElementById('modal-content').innerHTML = `
@@ -1427,6 +1630,11 @@ function renderProfile() {
   document.getElementById('prof-phone').value = userProfile.phone || '';
   document.getElementById('prof-lunch').value = userProfile.defaultLunch ?? 2;
   document.getElementById('prof-salad').value = userProfile.defaultSalad ?? 0;
+  const meals = normalizeWeekdayMeals(userProfile, userProfile.defaultLunch ?? 2, userProfile.defaultSalad ?? 0);
+  const sameDailyMeal = userProfile.sameDailyMeal ?? !hasDifferentWeekdayMeals(meals, userProfile.defaultLunch ?? 2, userProfile.defaultSalad ?? 0);
+  document.getElementById('prof-same-daily').checked = sameDailyMeal;
+  fillWeekdayInputs('prof', meals);
+  document.getElementById('prof-weekday-fields').style.display = sameDailyMeal ? 'none' : 'grid';
   loadStats('week');
 }
 
@@ -1435,13 +1643,17 @@ async function saveProfile() {
   const phone = document.getElementById('prof-phone').value.trim();
   const lunch = parseInt(document.getElementById('prof-lunch').value) || 0;
   const salad = parseInt(document.getElementById('prof-salad').value) || 0;
+  const sameDailyMeal = document.getElementById('prof-same-daily').checked;
+  const weekdayMeals = readWeekdayMeals('prof', lunch, salad);
   if (!bizname) { showToast('업체명을 입력해주세요.', 'error'); return; }
   try {
     await db.collection('users').doc(currentUser.uid).update({
-      businessName: bizname, phone, defaultLunch: lunch, defaultSalad: salad
+      businessName: bizname, phone, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals
     });
-    userProfile = { ...userProfile, businessName: bizname, phone, defaultLunch: lunch, defaultSalad: salad };
+    userProfile = { ...userProfile, businessName: bizname, phone, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals };
     document.getElementById('header-bizname').textContent = bizname;
+    renderToday();
+    renderWeek();
     showToast('✅ 정보가 저장되었습니다.', 'success');
   } catch(e) {
     showToast('저장 실패: ' + e.message, 'error');
@@ -1490,7 +1702,8 @@ async function loadStats(period) {
     for (let i = 0; i < 5; i++) {
       const d = new Date(monday);
       d.setUTCDate(monday.getUTCDate() + i);
-      dates.push(dateStr(d));
+      const ds = dateStr(d);
+      if (!isNoDeliveryDate(ds)) dates.push(ds);
     }
   } else {
     const year = kst.getUTCFullYear();
@@ -1498,7 +1711,8 @@ async function loadStats(period) {
     const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
     for (let day = 1; day <= daysInMonth; day++) {
       const d = new Date(Date.UTC(year, month, day));
-      if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) dates.push(dateStr(d));
+      const ds = dateStr(d);
+      if (!isNoDeliveryDate(ds)) dates.push(ds);
     }
   }
   document.getElementById('stat-lunch').textContent = '…';

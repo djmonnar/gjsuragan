@@ -105,6 +105,11 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .m-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
 .m-info{font-size:12px;color:var(--sub);margin-top:2px}
 .m-edit-hint{font-size:11px;color:var(--primary);margin-top:6px;font-weight:600}
+.default-chip{display:inline-block;background:#eef6ff;color:#1565c0;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700}
+.same-daily-toggle{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text);margin:8px 0 12px}
+.weekday-meals{display:grid;gap:8px;margin-bottom:12px}
+.weekday-meal-row{display:grid;grid-template-columns:40px 1fr 1fr;gap:8px;align-items:center}
+.weekday-label{font-size:13px;font-weight:800;color:var(--primary)}
 /* 모달 */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:center;justify-content:center;padding:24px}
 .modal-overlay.open{display:flex}
@@ -388,12 +393,43 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <input class="form-input" type="text" id="edit-place" placeholder="배송지 또는 주소">
     <div style="display:flex;gap:10px">
       <div style="flex:1">
-        <label class="form-label">기본 도시락 수</label>
+        <label class="form-label">매일 도시락 수</label>
         <input class="form-input" type="number" id="edit-lunch" min="0" max="50">
       </div>
       <div style="flex:1">
-        <label class="form-label">기본 샐러드 수</label>
+        <label class="form-label">매일 샐러드 수</label>
         <input class="form-input" type="number" id="edit-salad" min="0" max="50">
+      </div>
+    </div>
+    <label class="same-daily-toggle">
+      <input type="checkbox" id="edit-same-daily" checked onchange="toggleWeekdayFields('edit')">
+      매일 같은 수량 사용
+    </label>
+    <div class="weekday-meals" id="edit-weekday-fields" style="display:none">
+      <div class="weekday-meal-row">
+        <div class="weekday-label">월</div>
+        <input class="form-input" type="number" id="edit-mon-lunch" min="0" max="50" placeholder="도시락">
+        <input class="form-input" type="number" id="edit-mon-salad" min="0" max="50" placeholder="샐러드">
+      </div>
+      <div class="weekday-meal-row">
+        <div class="weekday-label">화</div>
+        <input class="form-input" type="number" id="edit-tue-lunch" min="0" max="50" placeholder="도시락">
+        <input class="form-input" type="number" id="edit-tue-salad" min="0" max="50" placeholder="샐러드">
+      </div>
+      <div class="weekday-meal-row">
+        <div class="weekday-label">수</div>
+        <input class="form-input" type="number" id="edit-wed-lunch" min="0" max="50" placeholder="도시락">
+        <input class="form-input" type="number" id="edit-wed-salad" min="0" max="50" placeholder="샐러드">
+      </div>
+      <div class="weekday-meal-row">
+        <div class="weekday-label">목</div>
+        <input class="form-input" type="number" id="edit-thu-lunch" min="0" max="50" placeholder="도시락">
+        <input class="form-input" type="number" id="edit-thu-salad" min="0" max="50" placeholder="샐러드">
+      </div>
+      <div class="weekday-meal-row">
+        <div class="weekday-label">금</div>
+        <input class="form-input" type="number" id="edit-fri-lunch" min="0" max="50" placeholder="도시락">
+        <input class="form-input" type="number" id="edit-fri-salad" min="0" max="50" placeholder="샐러드">
       </div>
     </div>
     <div style="display:flex;gap:10px">
@@ -422,6 +458,44 @@ let settlementEvents = [];
 let activeAdminTab = 'orders';
 let adminUid = '';
 
+const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
+const KOREA_HOLIDAYS = {
+  '2026-01-01': '신정',
+  '2026-02-16': '설 연휴',
+  '2026-02-17': '설날',
+  '2026-02-18': '설 연휴',
+  '2026-03-01': '삼일절',
+  '2026-03-02': '삼일절 대체공휴일',
+  '2026-05-01': '노동절',
+  '2026-05-05': '어린이날',
+  '2026-05-24': '부처님오신날',
+  '2026-05-25': '부처님오신날 대체공휴일',
+  '2026-06-03': '전국동시지방선거일',
+  '2026-06-06': '현충일',
+  '2026-07-17': '제헌절',
+  '2026-08-15': '광복절',
+  '2026-08-17': '광복절 대체공휴일',
+  '2026-09-24': '추석 연휴',
+  '2026-09-25': '추석',
+  '2026-09-26': '추석 연휴',
+  '2026-10-03': '개천절',
+  '2026-10-05': '개천절 대체공휴일',
+  '2026-10-09': '한글날',
+  '2026-12-25': '성탄절'
+};
+const FIXED_KOREA_HOLIDAYS = {
+  '01-01': '신정',
+  '03-01': '삼일절',
+  '05-01': '노동절',
+  '05-05': '어린이날',
+  '06-06': '현충일',
+  '07-17': '제헌절',
+  '08-15': '광복절',
+  '10-03': '개천절',
+  '10-09': '한글날',
+  '12-25': '성탄절'
+};
+
 function getKST() { return new Date(new Date().getTime() + 9 * 60 * 60 * 1000); }
 function dateStr(d) { return d.toISOString().split('T')[0]; }
 function addDays(dStr, delta) {
@@ -438,6 +512,12 @@ function formatDateKR(dStr) {
 function isWeekendDate(dStr) {
   const dt = new Date(`${dStr}T00:00:00+09:00`);
   return dt.getDay() === 0 || dt.getDay() === 6;
+}
+function holidayName(dStr) {
+  return KOREA_HOLIDAYS[dStr] || FIXED_KOREA_HOLIDAYS[dStr.slice(5)] || '';
+}
+function isNoDeliveryDate(dStr) {
+  return isWeekendDate(dStr) || Boolean(holidayName(dStr));
 }
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
@@ -456,7 +536,7 @@ function monthDates(monthStr) {
   const dates = [];
   for (let day = 1; day <= last; day++) {
     const ds = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    if (!isWeekendDate(ds)) dates.push(ds);
+    if (!isNoDeliveryDate(ds)) dates.push(ds);
   }
   return dates;
 }
@@ -483,6 +563,64 @@ function userLunchPrice(user) {
 }
 function userSaladPrice(user) {
   return Number(user?.saladPrice ?? user?.priceSalad ?? 0) || 0;
+}
+function parseCount(value, fallback = 0) {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(50, parsed)) : fallback;
+}
+function weekdayKeyForDate(dStr) {
+  const day = new Date(`${dStr}T00:00:00+09:00`).getDay();
+  return WEEKDAY_KEYS[day - 1] || 'mon';
+}
+function normalizeWeekdayMeals(user = {}, fallbackLunch = 2, fallbackSalad = 0) {
+  const saved = user.weekdayMeals || user.weekdayMealCounts || {};
+  return WEEKDAY_KEYS.reduce((acc, key) => {
+    const item = saved[key] || {};
+    acc[key] = {
+      lunch: parseCount(item.lunch ?? item.lunchCount, fallbackLunch),
+      salad: parseCount(item.salad ?? item.saladCount, fallbackSalad)
+    };
+    return acc;
+  }, {});
+}
+function defaultMealsForDate(user, dStr) {
+  const fallbackLunch = parseCount(user?.defaultLunch, 2);
+  const fallbackSalad = parseCount(user?.defaultSalad, 0);
+  const meals = normalizeWeekdayMeals(user || {}, fallbackLunch, fallbackSalad);
+  return meals[weekdayKeyForDate(dStr)] || { lunch: fallbackLunch, salad: fallbackSalad };
+}
+function hasDifferentWeekdayMeals(meals, lunch, salad) {
+  return WEEKDAY_KEYS.some(key => (meals[key]?.lunch ?? lunch) !== lunch || (meals[key]?.salad ?? salad) !== salad);
+}
+function fillWeekdayInputs(scope, meals) {
+  WEEKDAY_KEYS.forEach(key => {
+    const lunchEl = document.getElementById(`${scope}-${key}-lunch`);
+    const saladEl = document.getElementById(`${scope}-${key}-salad`);
+    if (lunchEl) lunchEl.value = meals[key]?.lunch ?? 0;
+    if (saladEl) saladEl.value = meals[key]?.salad ?? 0;
+  });
+}
+function toggleWeekdayFields(scope) {
+  const same = document.getElementById(`${scope}-same-daily`)?.checked;
+  const wrap = document.getElementById(`${scope}-weekday-fields`);
+  if (!wrap) return;
+  if (!same) {
+    const lunch = parseCount(document.getElementById(`${scope}-lunch`)?.value, 0);
+    const salad = parseCount(document.getElementById(`${scope}-salad`)?.value, 0);
+    fillWeekdayInputs(scope, normalizeWeekdayMeals({}, lunch, salad));
+  }
+  wrap.style.display = same ? 'none' : 'grid';
+}
+function readWeekdayMeals(scope, fallbackLunch, fallbackSalad) {
+  const same = document.getElementById(`${scope}-same-daily`)?.checked;
+  if (same) return normalizeWeekdayMeals({}, fallbackLunch, fallbackSalad);
+  return WEEKDAY_KEYS.reduce((acc, key) => {
+    acc[key] = {
+      lunch: parseCount(document.getElementById(`${scope}-${key}-lunch`)?.value, fallbackLunch),
+      salad: parseCount(document.getElementById(`${scope}-${key}-salad`)?.value, fallbackSalad)
+    };
+    return acc;
+  }, {});
 }
 function receiptItemRow(item = {}, removable = true) {
   const id = `receipt_item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -580,29 +718,62 @@ function updateDateLabel() {
   document.getElementById('current-date-label').textContent = formatDateKR(currentDateStr);
 }
 
+function mergeOrdersWithDefaults(dStr, snap) {
+  const rowsByUid = {};
+  Object.entries(allUsers).forEach(([uid, user]) => {
+    const defaults = defaultMealsForDate(user, dStr);
+    if ((defaults.lunch + defaults.salad) <= 0) return;
+    rowsByUid[uid] = {
+      uid,
+      businessName: user.businessName || '-',
+      lunchCount: defaults.lunch,
+      saladCount: defaults.salad,
+      note: '요일 기본값',
+      submittedAt: null,
+      source: 'default'
+    };
+  });
+  snap.forEach(doc => {
+    const order = { uid: doc.id, ...doc.data() };
+    if (isEventOrder(order)) return;
+    const user = allUsers[order.uid] || {};
+    const lunch = order.lunchCount || 0;
+    const salad = order.saladCount || 0;
+    if ((lunch + salad) <= 0) {
+      delete rowsByUid[order.uid];
+      return;
+    }
+    rowsByUid[order.uid] = {
+      ...order,
+      businessName: order.businessName || user.businessName || '-',
+      lunchCount: lunch,
+      saladCount: salad,
+      source: 'order'
+    };
+  });
+  return Object.values(rowsByUid)
+    .sort((a, b) => (a.businessName || '').localeCompare(b.businessName || '', 'ko'));
+}
+
 // ── 주문 로드 ──
 async function loadOrders() {
   document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="6">불러오는 중...</td></tr>';
   document.getElementById('not-submitted-list').innerHTML = '';
 
-  if (isWeekendDate(currentDateStr)) {
-    document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="6">토·일은 월식 배송이 없습니다</td></tr>';
+  if (isNoDeliveryDate(currentDateStr)) {
+    const message = holidayName(currentDateStr) ? `${holidayName(currentDateStr)}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다';
+    document.getElementById('order-tbody').innerHTML = `<tr class="no-order-row"><td colspan="6">${escapeHtml(message)}</td></tr>`;
     ['sum-count','sum-lunch','sum-salad'].forEach((id,i) => {
       document.getElementById(id).innerHTML = '0<span class="summary-unit">' + ['곳','개','개'][i] + '</span>';
     });
-    document.getElementById('not-sub-title').textContent = '🚚 토·일 배송 없음';
-    document.getElementById('not-submitted-list').innerHTML = '<div class="no-not">토요일·일요일은 주문 확인 대상에서 제외됩니다.</div>';
+    document.getElementById('not-sub-title').textContent = '🚚 배송 없음';
+    document.getElementById('not-submitted-list').innerHTML = '<div class="no-not">공휴일과 주말은 주문 확인 대상에서 제외됩니다.</div>';
     return;
   }
 
   try {
     const snap = await db.collection('orders').doc(currentDateStr).collection('items').get();
-    const orders = [];
-    snap.forEach(doc => {
-      const order = { uid: doc.id, ...doc.data() };
-      if (!isEventOrder(order)) orders.push(order);
-    });
-    orders.sort((a, b) => (a.businessName || '').localeCompare(b.businessName || '', 'ko'));
+    const orders = mergeOrdersWithDefaults(currentDateStr, snap);
 
     let totalLunch = 0, totalSalad = 0;
     const tbody = document.getElementById('order-tbody');
@@ -615,7 +786,9 @@ async function loadOrders() {
         totalLunch += o.lunchCount || 0;
         totalSalad += o.saladCount || 0;
         const tr = document.createElement('tr');
-        const noteHtml = o.note
+        const noteHtml = o.source === 'default'
+          ? '<span class="default-chip">요일 기본값</span>'
+          : o.note
           ? `<span class="note-badge" title="${escapeHtml(o.note)}">${escapeHtml(o.note)}</span>`
           : '<span style="color:#ccc">-</span>';
         tr.innerHTML = `
@@ -623,7 +796,7 @@ async function loadOrders() {
           <td class="biz-name"><span class="dot"></span>${escapeHtml(o.businessName || '-')}</td>
           <td class="qty-cell">${o.lunchCount ?? '-'}</td>
           <td class="qty-cell">${o.saladCount ?? '-'}</td>
-          <td class="time-cell">${formatTime(o.submittedAt)}</td>
+          <td class="time-cell">${o.source === 'default' ? '기본수량' : formatTime(o.submittedAt)}</td>
           <td class="note-cell">${noteHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -640,19 +813,16 @@ async function loadOrders() {
 }
 
 // ── 미제출 업체 ──
-function renderNotSubmitted(submitted) {
-  const submittedUids = new Set(submitted.map(o => o.uid));
-  const notSub = Object.entries(allUsers)
-    .filter(([uid]) => !submittedUids.has(uid))
-    .map(([, u]) => u.businessName).filter(Boolean);
+function renderNotSubmitted(rows) {
+  const defaults = rows.filter(o => o.source === 'default').map(o => o.businessName).filter(Boolean);
   const container = document.getElementById('not-submitted-list');
   const title = document.getElementById('not-sub-title');
-  if (notSub.length === 0) {
-    title.textContent = '✅ 모든 업체 제출 완료';
-    container.innerHTML = '<div class="no-not">전체 업체가 주문을 완료했습니다 🎉</div>';
+  if (defaults.length === 0) {
+    title.textContent = '✅ 모든 업체 확인 완료';
+    container.innerHTML = '<div class="no-not">오늘 배송 수량이 모두 직접 입력되었습니다.</div>';
   } else {
-    title.textContent = `⏳ 미제출 업체 (${notSub.length}곳)`;
-    container.innerHTML = notSub.map(name => `<span class="not-chip">${escapeHtml(name)}</span>`).join('');
+    title.textContent = `📌 요일 기본 수량 적용 (${defaults.length}곳)`;
+    container.innerHTML = defaults.map(name => `<span class="not-chip">${escapeHtml(name)}</span>`).join('');
   }
 }
 
@@ -678,7 +848,7 @@ function renderMembers() {
         <div class="m-name">${escapeHtml(u.businessName || '-')}</div>
         <div class="m-info">${escapeHtml(u.phone || u.email || '-')}</div>
         <div class="m-info">${escapeHtml(u.deliveryPlace || '배송지 미입력')}</div>
-        <div class="m-info">도시락 ${u.defaultLunch ?? 2}개 · 샐러드 ${u.defaultSalad ?? 0}개</div>
+        <div class="m-info">${u.sameDailyMeal === false ? '요일별 식수 설정됨' : `매일 도시락 ${u.defaultLunch ?? 2}개 · 샐러드 ${u.defaultSalad ?? 0}개`}</div>
         <div class="m-info">단가 ${formatMoney(userLunchPrice(u))} / ${formatMoney(userSaladPrice(u))}</div>
         <div class="m-edit-hint">✏️ 수정하기</div>
       </div>
@@ -694,6 +864,11 @@ function openMemberEdit(uid) {
   document.getElementById('edit-place').value = u.deliveryPlace || u.address || '';
   document.getElementById('edit-lunch').value = u.defaultLunch ?? 2;
   document.getElementById('edit-salad').value = u.defaultSalad ?? 0;
+  const meals = normalizeWeekdayMeals(u, u.defaultLunch ?? 2, u.defaultSalad ?? 0);
+  const sameDailyMeal = u.sameDailyMeal ?? !hasDifferentWeekdayMeals(meals, u.defaultLunch ?? 2, u.defaultSalad ?? 0);
+  document.getElementById('edit-same-daily').checked = sameDailyMeal;
+  fillWeekdayInputs('edit', meals);
+  document.getElementById('edit-weekday-fields').style.display = sameDailyMeal ? 'none' : 'grid';
   document.getElementById('edit-lunch-price').value = userLunchPrice(u) || '';
   document.getElementById('edit-salad-price').value = userSaladPrice(u) || '';
   document.getElementById('edit-error').classList.remove('show');
@@ -713,6 +888,8 @@ async function saveMember() {
   const deliveryPlace = document.getElementById('edit-place').value.trim();
   const lunch = parseInt(document.getElementById('edit-lunch').value) || 0;
   const salad = parseInt(document.getElementById('edit-salad').value) || 0;
+  const sameDailyMeal = document.getElementById('edit-same-daily').checked;
+  const weekdayMeals = readWeekdayMeals('edit', lunch, salad);
   const lunchPrice = parseInt(document.getElementById('edit-lunch-price').value, 10) || 0;
   const saladPrice = parseInt(document.getElementById('edit-salad-price').value, 10) || 0;
   if (!bizname) {
@@ -722,10 +899,11 @@ async function saveMember() {
     return;
   }
   try {
-    await db.collection('users').doc(uid).update({ businessName: bizname, phone, deliveryPlace, defaultLunch: lunch, defaultSalad: salad, lunchPrice, saladPrice });
-    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, defaultLunch: lunch, defaultSalad: salad, lunchPrice, saladPrice };
+    await db.collection('users').doc(uid).update({ businessName: bizname, phone, deliveryPlace, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice });
+    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice };
     closeMemberModal();
     renderMembers();
+    loadOrders();
     showToast('✅ 회원정보가 저장되었습니다.');
   } catch(e) {
     const errEl = document.getElementById('edit-error');
@@ -902,11 +1080,10 @@ async function loadSettlements() {
     const orderSnaps = await Promise.all(
       dates.map(ds => db.collection('orders').doc(ds).collection('items').get())
     );
-    orderSnaps.forEach(snap => {
-      snap.forEach(doc => {
-        const uid = doc.id;
-        const data = doc.data();
-        if (isEventOrder({ uid, ...data })) return;
+    orderSnaps.forEach((snap, index) => {
+      const dayRows = mergeOrdersWithDefaults(dates[index], snap);
+      dayRows.forEach(data => {
+        const uid = data.uid;
         if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, lunchPrice: defaultLunchPrice, saladPrice: defaultSaladPrice, amount: 0, status: '미정산', note: '' };
         byUser[uid].lunch += data.lunchCount || 0;
         byUser[uid].salad += data.saladCount || 0;
@@ -1164,13 +1341,18 @@ function printReceipt() {
 
 async function exportKakaoSummary() {
   try {
+    if (isNoDeliveryDate(currentDateStr)) {
+      const message = holidayName(currentDateStr) ? `${formatDateKR(currentDateStr)} ${holidayName(currentDateStr)} 배송 없음` : `${formatDateKR(currentDateStr)} 주말 배송 없음`;
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(message);
+      showToast('배송 없음 안내를 복사했습니다.');
+      return;
+    }
     const snap = await db.collection('orders').doc(currentDateStr).collection('items').get();
+    const rows = mergeOrdersWithDefaults(currentDateStr, snap);
     const groups = {};
     let totalLunch = 0;
     let totalSalad = 0;
-    snap.forEach(doc => {
-      const order = { uid: doc.id, ...doc.data() };
-      if (isEventOrder(order)) return;
+    rows.forEach(order => {
       const user = allUsers[order.uid] || {};
       const place = user.deliveryPlace || user.address || order.deliveryPlace || order.place || order.businessName || '배송지 미입력';
       if (!groups[place]) groups[place] = { lunch: 0, salad: 0, rows: [] };
@@ -1178,7 +1360,8 @@ async function exportKakaoSummary() {
       const salad = order.saladCount || 0;
       groups[place].lunch += lunch;
       groups[place].salad += salad;
-      groups[place].rows.push(`${order.businessName || user.businessName || '-'}: 도시락 ${lunch} / 샐러드 ${salad} / 총 ${lunch + salad}`);
+      const suffix = order.source === 'default' ? ' (기본)' : '';
+      groups[place].rows.push(`${order.businessName || user.businessName || '-'}: 도시락 ${lunch} / 샐러드 ${salad} / 총 ${lunch + salad}${suffix}`);
       totalLunch += lunch;
       totalSalad += salad;
     });
