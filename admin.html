@@ -533,16 +533,6 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
         <input class="form-input" type="number" id="manual-salad" min="0" max="999" value="0">
       </div>
     </div>
-    <div style="display:flex;gap:10px">
-      <div style="flex:1">
-        <label class="form-label">도시락 단가</label>
-        <input class="form-input" type="number" id="manual-lunch-price" min="0" value="0">
-      </div>
-      <div style="flex:1">
-        <label class="form-label">샐러드 단가</label>
-        <input class="form-input" type="number" id="manual-salad-price" min="0" value="0">
-      </div>
-    </div>
     <label class="form-label">배송장소</label>
     <input class="form-input" type="text" id="manual-place" placeholder="배송장소(선택)">
     <label class="form-label">메모</label>
@@ -1182,6 +1172,7 @@ function openMemberEdit(uid) {
 }
 
 function openManualOrderModal() {
+  ensureManualPriceFields();
   const userSel = document.getElementById('manual-user');
   const opts = ['<option value="">회원 선택 안함 (직접 입력)</option>']
     .concat(Object.entries(allUsers)
@@ -1194,10 +1185,30 @@ function openManualOrderModal() {
   document.getElementById('manual-salad').value = 0;
   document.getElementById('manual-place').value = '';
   document.getElementById('manual-note').value = '';
-  document.getElementById('manual-lunch-price').value = 0;
-  document.getElementById('manual-salad-price').value = 0;
+  const manualLunchPriceEl = document.getElementById('manual-lunch-price');
+  const manualSaladPriceEl = document.getElementById('manual-salad-price');
+  if (manualLunchPriceEl) manualLunchPriceEl.value = 0;
+  if (manualSaladPriceEl) manualSaladPriceEl.value = 0;
   document.getElementById('manual-error').classList.remove('show');
   document.getElementById('manual-order-modal').classList.add('open');
+}
+
+function ensureManualPriceFields() {
+  if (document.getElementById('manual-lunch-price') && document.getElementById('manual-salad-price')) return;
+  const lunchWrap = document.getElementById('manual-lunch')?.closest('div')?.parentElement;
+  if (!lunchWrap) return;
+  lunchWrap.insertAdjacentHTML('afterend', `
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label class="form-label">도시락 단가</label>
+        <input class="form-input" type="number" id="manual-lunch-price" min="0" value="0">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">샐러드 단가</label>
+        <input class="form-input" type="number" id="manual-salad-price" min="0" value="0">
+      </div>
+    </div>
+  `);
 }
 
 function syncManualBiznameByUser() {
@@ -1223,8 +1234,8 @@ async function saveManualOrder() {
   const salad = parseDeliveryCount(document.getElementById('manual-salad').value, 0);
   const place = document.getElementById('manual-place').value.trim();
   const note = document.getElementById('manual-note').value.trim();
-  const lunchPrice = parseInt(document.getElementById('manual-lunch-price').value, 10) || 0;
-  const saladPrice = parseInt(document.getElementById('manual-salad-price').value, 10) || 0;
+  const lunchPrice = parseInt(document.getElementById('manual-lunch-price')?.value || '0', 10) || 0;
+  const saladPrice = parseInt(document.getElementById('manual-salad-price')?.value || '0', 10) || 0;
   const errEl = document.getElementById('manual-error');
   if (!bizname) {
     errEl.textContent = '업체명을 입력해주세요.';
