@@ -1171,6 +1171,20 @@ function openMemberEdit(uid) {
   document.getElementById('member-modal').classList.add('open');
 }
 
+function resetManualPriceInputs() {
+  const manualLunchPriceEl = document.getElementById('manual-lunch-price');
+  const manualSaladPriceEl = document.getElementById('manual-salad-price');
+  if (manualLunchPriceEl) manualLunchPriceEl.value = 0;
+  if (manualSaladPriceEl) manualSaladPriceEl.value = 0;
+}
+
+function readManualPriceInputs() {
+  return {
+    lunchPrice: parseInt(document.getElementById('manual-lunch-price')?.value || '0', 10) || 0,
+    saladPrice: parseInt(document.getElementById('manual-salad-price')?.value || '0', 10) || 0
+  };
+}
+
 function openManualOrderModal() {
   ensureManualPriceFields();
   const userSel = document.getElementById('manual-user');
@@ -1185,10 +1199,7 @@ function openManualOrderModal() {
   document.getElementById('manual-salad').value = 0;
   document.getElementById('manual-place').value = '';
   document.getElementById('manual-note').value = '';
-  const manualLunchPriceEl = document.getElementById('manual-lunch-price');
-  const manualSaladPriceEl = document.getElementById('manual-salad-price');
-  if (manualLunchPriceEl) manualLunchPriceEl.value = 0;
-  if (manualSaladPriceEl) manualSaladPriceEl.value = 0;
+  resetManualPriceInputs();
   document.getElementById('manual-error').classList.remove('show');
   document.getElementById('manual-order-modal').classList.add('open');
 }
@@ -1234,8 +1245,7 @@ async function saveManualOrder() {
   const salad = parseDeliveryCount(document.getElementById('manual-salad').value, 0);
   const place = document.getElementById('manual-place').value.trim();
   const note = document.getElementById('manual-note').value.trim();
-  const lunchPrice = parseInt(document.getElementById('manual-lunch-price')?.value || '0', 10) || 0;
-  const saladPrice = parseInt(document.getElementById('manual-salad-price')?.value || '0', 10) || 0;
+  const { lunchPrice, saladPrice } = readManualPriceInputs();
   const errEl = document.getElementById('manual-error');
   if (!bizname) {
     errEl.textContent = '업체명을 입력해주세요.';
