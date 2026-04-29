@@ -78,8 +78,16 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .settlement-tools{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:12px;align-items:end}
 .settlement-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
 .status-select{min-width:100px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;background:#fff}
-.settle-note{width:160px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit}
+.settle-note{width:140px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit}
 .mini-btn{border:0;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--gold2);color:var(--primary)}
+.batch-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--gold2);border-radius:10px;padding:10px 14px;margin-bottom:14px}
+.batch-toolbar label{font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer}
+.batch-status-select{padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff}
+.batch-apply-btn{background:var(--primary);color:#fff;border:0;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.export-btn{background:#1e6e40;color:#fff;border:0;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.kakao-btn{background:#fae100;color:#3c1e1e;border:0;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.kakao-mini-btn{background:#fae100;color:#3c1e1e;border:0;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.settle-check{width:16px;height:16px;cursor:pointer}
 .receipt-item-row{display:grid;grid-template-columns:1.8fr .8fr 1fr 42px;gap:8px;align-items:end;margin-bottom:8px}
 .receipt-item-row .form-input{margin-bottom:0}
 .copy-box{width:100%;min-height:180px;padding:12px;border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:13px;line-height:1.6;resize:vertical;background:#fafafa}
@@ -135,6 +143,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   .controls-bar,.summary-row{padding:12px 16px}
   .table-section,.not-submitted-section,.member-section,.event-section,.receipt-section,.settlement-section{padding-left:16px;padding-right:16px}
   .form-grid,.receipt-layout,.settlement-tools{grid-template-columns:1fr}
+  .batch-toolbar{gap:8px}
   .receipt-item-row{grid-template-columns:1fr 1fr}
   .settlement-summary{grid-template-columns:repeat(2,1fr)}
   .summary-value{font-size:22px}
@@ -362,15 +371,29 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
         <div class="summary-value" id="settle-event-total">0<span class="summary-unit">개</span></div>
       </div>
     </div>
+    <div class="batch-toolbar" id="settle-batch-toolbar" style="display:none">
+      <label><input type="checkbox" id="settle-check-all" onchange="toggleAllSettlements(this.checked)"> 전체 선택</label>
+      <select class="batch-status-select" id="batch-status-select">
+        <option value="">상태 일괄변경</option>
+        <option>미정산</option>
+        <option>청구완료</option>
+        <option>입금완료</option>
+        <option>보류</option>
+      </select>
+      <button class="batch-apply-btn" onclick="bulkUpdateSettlement()">✅ 일괄 적용</button>
+      <button class="export-btn" onclick="exportSettlementCSV()">📊 엑셀 내보내기</button>
+      <button class="kakao-btn" onclick="copyAllSettlementKakao()">💬 전체 카톡 복사</button>
+    </div>
     <div class="section-title">업체별 정산 내역</div>
     <table class="order-table">
       <thead>
         <tr>
+          <th style="width:36px;text-align:center">선택</th>
           <th>업체명</th><th style="text-align:center">도시락</th><th style="text-align:center">샐러드</th><th>단가</th><th>청구액</th><th>상태</th><th>메모</th><th>관리</th>
         </tr>
       </thead>
       <tbody id="settlement-tbody">
-        <tr class="no-order-row"><td colspan="8">정산월을 선택하고 불러오기를 눌러주세요.</td></tr>
+        <tr class="no-order-row"><td colspan="9">정산월을 선택하고 불러오기를 눌러주세요.</td></tr>
       </tbody>
     </table>
     <div class="section-title" style="margin-top:18px">행사도시락 별도 합계</div>
@@ -1230,11 +1253,16 @@ function renderSettlements() {
   document.getElementById('settle-salad-total').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
   document.getElementById('settle-event-total').innerHTML = `${totalEventCount}<span class="summary-unit">개</span>`;
 
+  const hasBatch = settlementRows.length > 0;
+  document.getElementById('settle-batch-toolbar').style.display = hasBatch ? 'flex' : 'none';
+  document.getElementById('settle-check-all').checked = false;
+
   if (settlementRows.length === 0) {
-    tbody.innerHTML = '<tr class="no-order-row"><td colspan="8">선택한 월의 업체 주문이 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr class="no-order-row"><td colspan="9">선택한 월의 업체 주문이 없습니다.</td></tr>';
   } else {
     tbody.innerHTML = settlementRows.map(row => `
       <tr>
+        <td style="text-align:center"><input class="settle-check" type="checkbox" value="${escapeHtml(row.uid)}"></td>
         <td class="biz-name">${escapeHtml(row.user.businessName || '-')}</td>
         <td class="qty-cell">${row.lunch}</td>
         <td class="qty-cell">${row.salad}</td>
@@ -1242,13 +1270,14 @@ function renderSettlements() {
         <td>${formatMoney(row.amount)}</td>
         <td>
           <select class="status-select" id="settle-status-${row.uid}">
-            ${['미정산','청구완료','입금완료','보류'].map(status => `<option value="${status}"${row.status === status ? ' selected' : ''}>${status}</option>`).join('')}
+            ${['미정산','청구완료','입금완료','보류'].map(s => `<option value="${s}"${row.status === s ? ' selected' : ''}>${s}</option>`).join('')}
           </select>
         </td>
         <td><input class="settle-note" id="settle-note-${row.uid}" value="${escapeHtml(row.note)}" placeholder="메모"></td>
         <td>
           <div class="inline-actions">
             <button class="mini-btn" onclick="saveSettlement('${row.uid}')">저장</button>
+            <button class="kakao-mini-btn" onclick="copySettlementKakao('${row.uid}')">💬</button>
             <button class="mini-btn" onclick="makeSettlementReceipt('${row.uid}')">영수증</button>
           </div>
         </td>
@@ -1496,6 +1525,113 @@ async function exportKakaoSummary() {
     }
   } catch(e) {
     showToast('카톡용 집계 생성 실패: ' + e.message);
+  }
+}
+
+// ── 정산 일괄 처리 ──
+function toggleAllSettlements(checked) {
+  document.querySelectorAll('.settle-check').forEach(el => el.checked = checked);
+}
+
+async function bulkUpdateSettlement() {
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  const newStatus = document.getElementById('batch-status-select').value;
+  if (!newStatus) { showToast('변경할 상태를 선택해주세요.'); return; }
+  const checked = Array.from(document.querySelectorAll('.settle-check:checked'));
+  if (checked.length === 0) { showToast('업체를 선택해주세요.'); return; }
+  const uids = checked.map(el => el.value);
+  try {
+    const batch = db.batch();
+    uids.forEach(uid => {
+      const row = settlementRows.find(r => r.uid === uid);
+      if (!row) return;
+      batch.update(db.collection('users').doc(uid), {
+        [`settlements.${month}`]: { status: newStatus, note: row.note, amount: row.amount, updatedAt: new Date().toISOString() }
+      });
+    });
+    await batch.commit();
+    uids.forEach(uid => {
+      const row = settlementRows.find(r => r.uid === uid);
+      if (!row) return;
+      row.status = newStatus;
+      allUsers[uid] = { ...allUsers[uid], settlements: { ...(allUsers[uid].settlements || {}), [month]: { status: newStatus, note: row.note, amount: row.amount } } };
+    });
+    renderSettlements();
+    showToast(`✅ ${uids.length}곳을 "${newStatus}"으로 변경했습니다.`);
+  } catch(e) {
+    showToast('일괄 저장 실패: ' + e.message);
+  }
+}
+
+function exportSettlementCSV() {
+  if (settlementRows.length === 0) { showToast('정산 데이터가 없습니다.'); return; }
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  const headers = ['업체명', '도시락(개)', '샐러드(개)', '도시락 단가', '샐러드 단가', '청구액(원)', '상태', '메모'];
+  const dataRows = settlementRows.map(row => [
+    row.user.businessName || '-',
+    row.lunch,
+    row.salad,
+    row.lunchPrice,
+    row.saladPrice,
+    row.amount,
+    row.status,
+    row.note
+  ]);
+  const totalLunch = settlementRows.reduce((s, r) => s + r.lunch, 0);
+  const totalSalad = settlementRows.reduce((s, r) => s + r.salad, 0);
+  const totalAmount = settlementRows.reduce((s, r) => s + r.amount, 0);
+  dataRows.push(['합계', totalLunch, totalSalad, '', '', totalAmount, '', '']);
+  const csv = [headers, ...dataRows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `궁중수라간_정산_${month}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ 엑셀 파일을 다운로드했습니다.');
+}
+
+function copySettlementKakao(uid) {
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  const row = settlementRows.find(r => r.uid === uid);
+  if (!row) return;
+  const name = row.user.businessName || '-';
+  const lines = [`[궁중수라간 ${month} 정산 안내]`, `업체: ${name}`, ''];
+  if (row.lunch > 0) lines.push(`도시락 ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원 = ${(row.lunch * row.lunchPrice).toLocaleString()}원`);
+  if (row.salad > 0) lines.push(`샐러드 ${row.salad}개 × ${row.saladPrice.toLocaleString()}원 = ${(row.salad * row.saladPrice).toLocaleString()}원`);
+  lines.push('', `청구액: ${row.amount.toLocaleString()}원`);
+  if (row.note) lines.push(`메모: ${row.note}`);
+  const text = lines.join('\n');
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(() => showToast(`✅ ${name} 청구 메시지 복사됨`));
+  } else {
+    window.prompt('복사하세요:', text);
+  }
+}
+
+async function copyAllSettlementKakao() {
+  if (settlementRows.length === 0) { showToast('정산 데이터가 없습니다.'); return; }
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  const lines = [`[궁중수라간 ${month} 정산 안내]`, ''];
+  settlementRows.forEach(row => {
+    const name = row.user.businessName || '-';
+    lines.push(`▶ ${name}`);
+    if (row.lunch > 0) lines.push(`  도시락 ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원`);
+    if (row.salad > 0) lines.push(`  샐러드 ${row.salad}개 × ${row.saladPrice.toLocaleString()}원`);
+    lines.push(`  청구액: ${row.amount.toLocaleString()}원`);
+    lines.push('');
+  });
+  const totalAmount = settlementRows.reduce((s, r) => s + r.amount, 0);
+  lines.push(`전체 청구 합계: ${totalAmount.toLocaleString()}원`);
+  const text = lines.join('\n');
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    showToast('✅ 전체 청구 메시지 복사됨');
+  } else {
+    window.prompt('복사하세요:', text);
   }
 }
 
