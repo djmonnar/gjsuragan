@@ -50,6 +50,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .today-btn{background:var(--primary);color:#fff}
 .refresh-btn{background:var(--gold2);color:var(--primary)}
 .members-btn{background:#e8f0fe;color:#1a56db;margin-left:auto}
+.manual-btn{background:#fff3e0;color:#8a4100;border:1px solid #ffd7a8;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px 24px}
 .summary-card{background:#fff;border-radius:var(--radius);padding:16px;text-align:center;box-shadow:var(--shadow);border:1px solid var(--border)}
 .summary-label{font-size:12px;color:var(--sub);margin-bottom:6px;font-weight:600}
@@ -119,7 +120,10 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .order-table tbody tr:last-child td{border-bottom:0}
 .biz-name{font-weight:700}
 .qty-cell{text-align:center;font-size:18px;font-weight:800;color:var(--primary)}
-.qty-edit{width:70px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;text-align:center;font-size:16px;font-weight:800;color:var(--primary);font-family:inherit;background:#fff}
+.qty-edit{width:56px;padding:6px 6px;border:1px solid var(--border);border-radius:8px;text-align:center;font-size:16px;font-weight:800;color:var(--primary);font-family:inherit;background:#fff}
+.qty-stepper{display:inline-flex;align-items:center;gap:6px}
+.qty-step-btn{width:26px;height:26px;border:1px solid var(--border);border-radius:7px;background:#f9f5ee;color:var(--primary);font-size:15px;font-weight:800;line-height:1;cursor:pointer}
+.qty-step-btn:active{transform:translateY(1px)}
 .order-check,.select-all-check{width:18px;height:18px;cursor:pointer}
 .delivery-status{display:inline-block;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;background:#fff3e0;color:#e65100}
 .delivery-status.done{background:#e8f5e9;color:#2e7d32}
@@ -224,6 +228,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
     <button class="refresh-btn" onclick="loadAllUsers().then(loadOrders)">🔄 새로고침</button>
     <button class="refresh-btn" onclick="exportKakaoSummary()">💬 카톡용 복사</button>
     <button class="today-btn" onclick="completeSelectedDeliveries()">배송 완료</button>
+    <button class="manual-btn" onclick="openManualOrderModal()">수동 배송 입력</button>
     <button class="members-btn" onclick="toggleMemberSection()">👥 회원 관리</button>
   </div>
 
@@ -362,17 +367,9 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
           <label class="form-label">정산월</label>
           <input class="form-input" type="month" id="settle-month">
         </div>
-        <div>
-          <label class="form-label">도시락 단가</label>
-          <input class="form-input" type="number" id="settle-lunch-price" min="0" value="0">
-        </div>
-        <div>
-          <label class="form-label">샐러드 단가</label>
-          <input class="form-input" type="number" id="settle-salad-price" min="0" value="0">
-        </div>
         <button class="save-btn" onclick="loadSettlements()">정산 불러오기</button>
       </div>
-      <div style="font-size:12px;color:var(--sub);margin-top:8px">배송 완료 처리된 건만 정산에 반영됩니다. 업체별 단가는 회원 관리 값을 우선 적용하고, 비어 있으면 위 기본 단가를 사용합니다.</div>
+      <div style="font-size:12px;color:var(--sub);margin-top:8px">배송 완료 처리된 건만 정산에 반영됩니다. 단가는 회원 관리의 업체별 단가를 사용합니다.</div>
     </div>
     <div class="settlement-summary">
       <div class="summary-card">
@@ -511,6 +508,47 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
       <button class="save-btn" onclick="saveMember()">저장하기</button>
       <button class="danger-btn" onclick="deleteMember()">업체삭제</button>
     </div>
+  </div>
+</div>
+
+<!-- 수동 배송 입력 모달 -->
+<div class="modal-overlay" id="manual-order-modal" onclick="closeManualOrderModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">수동 배송 입력</div>
+      <button class="modal-close" onclick="closeManualOrderModal()">✕</button>
+    </div>
+    <label class="form-label">업체명 *</label>
+    <select class="form-input" id="manual-user" onchange="syncManualBiznameByUser()">
+      <option value="">회원 선택 안함 (직접 입력)</option>
+    </select>
+    <input class="form-input" type="text" id="manual-bizname" placeholder="예: ○○어린이집">
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label class="form-label">도시락</label>
+        <input class="form-input" type="number" id="manual-lunch" min="0" max="999" value="0">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">샐러드</label>
+        <input class="form-input" type="number" id="manual-salad" min="0" max="999" value="0">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label class="form-label">도시락 단가</label>
+        <input class="form-input" type="number" id="manual-lunch-price" min="0" value="0">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">샐러드 단가</label>
+        <input class="form-input" type="number" id="manual-salad-price" min="0" value="0">
+      </div>
+    </div>
+    <label class="form-label">배송장소</label>
+    <input class="form-input" type="text" id="manual-place" placeholder="배송장소(선택)">
+    <label class="form-label">메모</label>
+    <input class="form-input" type="text" id="manual-note" placeholder="메모(선택)">
+    <div class="error-msg" id="manual-error"></div>
+    <button class="save-btn" onclick="saveManualOrder()">저장하기</button>
   </div>
 </div>
 
@@ -883,7 +921,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}) {
       saladCount: delivered ? (delivered.saladCount || 0) : defaults.salad,
       note: '요일 기본값',
       submittedAt: null,
-      delivered: Boolean(delivered),
+      delivered: Boolean(delivered?.delivered),
       deliveredAt: delivered?.deliveredAt || null,
       deliveryPlace: user.deliveryPlace || user.address || '',
       source: 'default'
@@ -906,10 +944,28 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}) {
       businessName: order.businessName || user.businessName || '-',
       lunchCount: delivered ? (delivered.lunchCount || 0) : lunch,
       saladCount: delivered ? (delivered.saladCount || 0) : salad,
-      delivered: Boolean(delivered),
+      delivered: Boolean(delivered?.delivered),
       deliveredAt: delivered?.deliveredAt || null,
       deliveryPlace: order.deliveryPlace || user.deliveryPlace || user.address || '',
       source: 'order'
+    };
+  });
+  Object.entries(deliveredRecords).forEach(([uid, data]) => {
+    if (!data || !data.adminManual) return;
+    rowsByUid[uid] = {
+      uid,
+      businessName: data.businessName || '수동입력',
+      lunchCount: data.lunchCount || 0,
+      saladCount: data.saladCount || 0,
+      note: data.note || '수동 입력',
+      lunchPrice: data.lunchPrice || 0,
+      saladPrice: data.saladPrice || 0,
+      submittedAt: data.updatedAt || data.deliveredAt || null,
+      delivered: Boolean(data.delivered),
+      deliveredAt: data.deliveredAt || null,
+      deliveryPlace: data.deliveryPlace || '',
+      adminManual: true,
+      source: 'manual'
     };
   });
   return Object.values(rowsByUid)
@@ -964,11 +1020,23 @@ async function loadOrders() {
           ? '<span class="delivery-status done">완료</span>'
           : '<span class="delivery-status">대기</span>';
         tr.innerHTML = `
-          <td style="text-align:center"><input class="order-check" type="checkbox" value="${escapeHtml(o.uid)}" ${o.delivered ? '' : 'checked'}></td>
+          <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${o.delivered ? '' : 'checked'}></td>
           <td style="color:var(--sub);font-size:13px">${i + 1}</td>
           <td class="biz-name"><span class="dot"></span>${escapeHtml(o.businessName || '-')}</td>
-          <td class="qty-cell"><input class="qty-edit deliver-lunch" type="number" min="0" max="999" value="${o.lunchCount ?? 0}"></td>
-          <td class="qty-cell"><input class="qty-edit deliver-salad" type="number" min="0" max="999" value="${o.saladCount ?? 0}"></td>
+          <td class="qty-cell">
+            <div class="qty-stepper">
+              <button type="button" class="qty-step-btn" onclick="adjustQty(this,-1)">−</button>
+              <input class="qty-edit deliver-lunch" type="number" min="0" max="999" value="${o.lunchCount ?? 0}">
+              <button type="button" class="qty-step-btn" onclick="adjustQty(this,1)">+</button>
+            </div>
+          </td>
+          <td class="qty-cell">
+            <div class="qty-stepper">
+              <button type="button" class="qty-step-btn" onclick="adjustQty(this,-1)">−</button>
+              <input class="qty-edit deliver-salad" type="number" min="0" max="999" value="${o.saladCount ?? 0}">
+              <button type="button" class="qty-step-btn" onclick="adjustQty(this,1)">+</button>
+            </div>
+          </td>
           <td>${statusHtml}</td>
           <td class="time-cell">${o.source === 'default' ? '기본수량' : formatTime(o.submittedAt)}</td>
           <td class="note-cell">${noteHtml}</td>
@@ -1001,6 +1069,18 @@ function renderNotSubmitted(rows) {
   }
 }
 
+
+function adjustQty(btn, delta) {
+  const wrap = btn.closest('.qty-stepper');
+  const input = wrap ? wrap.querySelector('.qty-edit') : null;
+  if (!input) return;
+  const min = parseInt(input.min || '0', 10);
+  const max = parseInt(input.max || '999', 10);
+  const now = parseInt(input.value, 10) || 0;
+  const next = Math.max(min, Math.min(max, now + delta));
+  input.value = next;
+}
+
 function toggleAllOrders(checked) {
   document.querySelectorAll('.order-check').forEach(el => {
     el.checked = checked;
@@ -1031,12 +1111,15 @@ async function completeSelectedDeliveries() {
       lunchCount: lunch,
       saladCount: salad,
       note: row.note === '요일 기본값' ? '요일 기본값 배송확정' : (row.note || ''),
+      lunchPrice: row.lunchPrice || userLunchPrice(user) || 0,
+      saladPrice: row.saladPrice || userSaladPrice(user) || 0,
       deliveryPlace: row.deliveryPlace || user.deliveryPlace || user.address || '',
       delivered: true,
       deliveredAt: firebase.firestore.FieldValue.serverTimestamp(),
       deliveredBy: adminUid,
       adminAdjusted: true,
-      source: row.source === 'default' ? 'adminDefault' : 'order',
+      adminManual: row.source === 'manual' || Boolean(row.adminManual),
+      source: row.source === 'manual' ? 'adminManual' : (row.source === 'default' ? 'adminDefault' : 'order'),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
   });
@@ -1096,6 +1179,98 @@ function openMemberEdit(uid) {
   document.getElementById('edit-salad-price').value = userSaladPrice(u) || '';
   document.getElementById('edit-error').classList.remove('show');
   document.getElementById('member-modal').classList.add('open');
+}
+
+function openManualOrderModal() {
+  const userSel = document.getElementById('manual-user');
+  const opts = ['<option value="">회원 선택 안함 (직접 입력)</option>']
+    .concat(Object.entries(allUsers)
+      .sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'))
+      .map(([uid, u]) => `<option value="${escapeHtml(uid)}">${escapeHtml(u.businessName || uid)}</option>`));
+  userSel.innerHTML = opts.join('');
+  userSel.value = '';
+  document.getElementById('manual-bizname').value = '';
+  document.getElementById('manual-lunch').value = 0;
+  document.getElementById('manual-salad').value = 0;
+  document.getElementById('manual-place').value = '';
+  document.getElementById('manual-note').value = '';
+  document.getElementById('manual-lunch-price').value = 0;
+  document.getElementById('manual-salad-price').value = 0;
+  document.getElementById('manual-error').classList.remove('show');
+  document.getElementById('manual-order-modal').classList.add('open');
+}
+
+function syncManualBiznameByUser() {
+  const uid = document.getElementById('manual-user').value;
+  if (!uid || !allUsers[uid]) return;
+  document.getElementById('manual-bizname').value = allUsers[uid].businessName || '';
+  const place = allUsers[uid].deliveryPlace || allUsers[uid].address || '';
+  if (place && !document.getElementById('manual-place').value.trim()) {
+    document.getElementById('manual-place').value = place;
+  }
+}
+
+function closeManualOrderModal(e) {
+  if (!e || e.target === document.getElementById('manual-order-modal')) {
+    document.getElementById('manual-order-modal').classList.remove('open');
+  }
+}
+
+async function saveManualOrder() {
+  const selectedUid = document.getElementById('manual-user').value;
+  const bizname = document.getElementById('manual-bizname').value.trim();
+  const lunch = parseDeliveryCount(document.getElementById('manual-lunch').value, 0);
+  const salad = parseDeliveryCount(document.getElementById('manual-salad').value, 0);
+  const place = document.getElementById('manual-place').value.trim();
+  const note = document.getElementById('manual-note').value.trim();
+  const lunchPrice = parseInt(document.getElementById('manual-lunch-price').value, 10) || 0;
+  const saladPrice = parseInt(document.getElementById('manual-salad-price').value, 10) || 0;
+  const errEl = document.getElementById('manual-error');
+  if (!bizname) {
+    errEl.textContent = '업체명을 입력해주세요.';
+    errEl.classList.add('show');
+    return;
+  }
+  if ((lunch + salad) <= 0) {
+    errEl.textContent = '도시락 또는 샐러드 수량을 1개 이상 입력해주세요.';
+    errEl.classList.add('show');
+    return;
+  }
+  errEl.classList.remove('show');
+  try {
+    const manualUid = selectedUid || `manual_${Date.now()}`;
+    let prev = null;
+    if (selectedUid) {
+      const adminDoc = await db.collection('users').doc(adminUid).get();
+      prev = adminDoc.exists ? (adminDoc.data().deliveryRecords?.[currentDateStr]?.[selectedUid] || null) : null;
+    }
+    const nextLunch = (prev?.lunchCount || 0) + lunch;
+    const nextSalad = (prev?.saladCount || 0) + salad;
+    const payload = {
+      uid: manualUid,
+      businessName: bizname || (allUsers[selectedUid]?.businessName || '수동입력'),
+      lunchCount: nextLunch,
+      saladCount: nextSalad,
+      deliveryPlace: place || (allUsers[selectedUid]?.deliveryPlace || allUsers[selectedUid]?.address || ''),
+      note: note || prev?.note || '수동 입력',
+      lunchPrice: selectedUid ? (userLunchPrice(allUsers[selectedUid]) || 0) : lunchPrice,
+      saladPrice: selectedUid ? (userSaladPrice(allUsers[selectedUid]) || 0) : saladPrice,
+      delivered: Boolean(prev?.delivered),
+      adminManual: !selectedUid || Boolean(prev?.adminManual),
+      deliveredBy: adminUid,
+      source: selectedUid ? 'adminMemberInput' : 'adminManual',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    await db.collection('users').doc(adminUid).set({
+      [`deliveryRecords.${currentDateStr}.${manualUid}`]: payload
+    }, { merge: true });
+    closeManualOrderModal();
+    showToast('✅ 수동 배송 항목이 추가되었습니다.');
+    loadOrders();
+  } catch (e) {
+    errEl.textContent = '저장 실패: ' + e.message;
+    errEl.classList.add('show');
+  }
 }
 
 function closeMemberModal(e) {
@@ -1304,8 +1479,6 @@ function settlementDocId(month, uid) {
 
 async function loadSettlements() {
   const month = document.getElementById('settle-month').value || currentMonthStr();
-  const defaultLunchPrice = parseInt(document.getElementById('settle-lunch-price').value, 10) || 0;
-  const defaultSaladPrice = parseInt(document.getElementById('settle-salad-price').value, 10) || 0;
   const tbody = document.getElementById('settlement-tbody');
   const eventTbody = document.getElementById('settlement-event-tbody');
   tbody.innerHTML = '<tr class="no-order-row"><td colspan="8">정산 내역을 계산하는 중...</td></tr>';
@@ -1315,8 +1488,8 @@ async function loadSettlements() {
     const byUser = {};
     Object.entries(allUsers).forEach(([uid, user]) => {
       const saved = user.settlements?.[month] || {};
-      const lunchPrice = userLunchPrice(user) || defaultLunchPrice;
-      const saladPrice = userSaladPrice(user) || defaultSaladPrice;
+      const lunchPrice = userLunchPrice(user) || 0;
+      const saladPrice = userSaladPrice(user) || 0;
       byUser[uid] = { uid, user, lunch: 0, salad: 0, lunchPrice, saladPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, paidDate: saved.paidDate || '', paidAmount: saved.paidAmount || 0 };
     });
 
@@ -1326,8 +1499,20 @@ async function loadSettlements() {
     const deliveryRecords = cachedDeliveryRecords;
     dates.forEach(ds => {
       Object.entries(deliveryRecords[ds] || {}).forEach(([uid, data]) => {
-        if (!allUsers[uid]) return;
-        if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, lunchPrice: defaultLunchPrice, saladPrice: defaultSaladPrice, amount: 0, status: '미정산', note: '' };
+        if (!data?.delivered) return;
+        const user = allUsers[uid] || null;
+        if (!user && !data?.adminManual) return;
+        if (!byUser[uid]) byUser[uid] = {
+          uid,
+          user: user || { businessName: data.businessName || uid },
+          lunch: 0,
+          salad: 0,
+          lunchPrice: user ? (userLunchPrice(user) || 0) : (data.lunchPrice || 0),
+          saladPrice: user ? (userSaladPrice(user) || 0) : (data.saladPrice || 0),
+          amount: 0,
+          status: '미정산',
+          note: ''
+        };
         byUser[uid].lunch += data.lunchCount || 0;
         byUser[uid].salad += data.saladCount || 0;
       });
