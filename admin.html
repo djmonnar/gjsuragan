@@ -802,6 +802,44 @@ function readWeekdayMeals(scope, fallbackLunch, fallbackSalad) {
     return acc;
   }, {});
 }
+function adminEventsFromData(data = {}) {
+  const events = {};
+  Object.entries(data).forEach(([key, value]) => {
+    if (key.startsWith('adminEvents.')) {
+      events[key.slice('adminEvents.'.length)] = value;
+    }
+  });
+  Object.assign(events, data.adminEvents || {});
+  return events;
+}
+function deliveryRecordsFromData(data = {}) {
+  const records = {};
+  Object.entries(data).forEach(([key, value]) => {
+    if (!key.startsWith('deliveryRecords.')) return;
+    const rest = key.slice('deliveryRecords.'.length);
+    const date = rest.slice(0, 10);
+    const uid = rest.slice(11);
+    if (!date || !uid) return;
+    records[date] = { ...(records[date] || {}), [uid]: value };
+  });
+  Object.entries(data.deliveryRecords || {}).forEach(([date, rows]) => {
+    records[date] = { ...(records[date] || {}), ...(rows || {}) };
+  });
+  return records;
+}
+function nestedDeliveryUpdate(date, uid, value) {
+  return { deliveryRecords: { [date]: { [uid]: value } } };
+}
+function mergeNested(target, source) {
+  Object.entries(source).forEach(([key, value]) => {
+    if (value && Object.getPrototypeOf(value) === Object.prototype) {
+      target[key] = mergeNested(target[key] || {}, value);
+    } else {
+      target[key] = value;
+    }
+  });
+  return target;
+}
 function receiptItemRow(item = {}, removable = true) {
   const id = `receipt_item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   return `
@@ -984,7 +1022,8 @@ async function loadOrders() {
       db.collection('orders').doc(currentDateStr).collection('items').get(),
       db.collection('users').doc(adminUid).get()
     ]);
-    const deliveredRecords = adminDoc.exists ? (adminDoc.data().deliveryRecords?.[currentDateStr] || {}) : {};
+    const adminData = adminDoc.exists ? adminDoc.data() : {};
+    const deliveredRecords = deliveryRecordsFromData(adminData)[currentDateStr] || {};
     const orders = mergeOrdersWithDefaults(currentDateStr, snap, deliveredRecords);
     currentOrderRows = orders;
 
@@ -1085,7 +1124,7 @@ async function completeSelectedDeliveries() {
     showToast('배송 완료할 업체를 체크해주세요.');
     return;
   }
-  const updates = {};
+  const updates = { deliveryRecords: { [currentDateStr]: {} } };
   checked.forEach(cb => {
     const uid = cb.value;
     const rowEl = cb.closest('tr');
@@ -1093,7 +1132,7 @@ async function completeSelectedDeliveries() {
     const user = allUsers[uid] || {};
     const lunch = parseDeliveryCount(rowEl.querySelector('.deliver-lunch')?.value, 0);
     const salad = parseDeliveryCount(rowEl.querySelector('.deliver-salad')?.value, 0);
-    updates[`deliveryRecords.${currentDateStr}.${uid}`] = {
+    updates.deliveryRecords[currentDateStr][uid] = {
       uid,
       businessName: row.businessName || user.businessName || '-',
       lunchCount: lunch,
@@ -1223,7 +1262,8 @@ async function saveManualOrder() {
   let prev = null;
   if (selectedUid) {
     const adminDoc = await db.collection('users').doc(adminUid).get();
-    prev = adminDoc.exists ? (adminDoc.data().deliveryRecords?.[currentDateStr]?.[selectedUid] || null) : null;
+    const records = adminDoc.exists ? deliveryRecordsFromData(adminDoc.data()) : {};
+    prev = records[currentDateStr]?.[selectedUid] || null;
   }
   const nextLunch = (prev?.lunchCount || 0) + lunch;
   const nextSalad = (prev?.saladCount || 0) + salad;
@@ -1242,7 +1282,7 @@ async function saveManualOrder() {
   };
   try {
     await db.collection('users').doc(adminUid).set({
-      [`deliveryRecords.${currentDateStr}.${manualUid}`]: payload
+      deliveryRecords: { [currentDateStr]: { [manualUid]: payload } }
     }, { merge: true });
     closeManualOrderModal();
     showToast('✅ 수동 배송 항목이 추가되었습니다.');
@@ -1321,7 +1361,10 @@ function switchAdminTab(tab) {
   });
   document.getElementById('member-section').style.display = 'none';
   if (tab === 'events') loadEventLunches();
-  if (tab === 'settlements') initSettlementForm();
+  if (tab === 'settlements') {
+    initSettlementForm();
+    loadSettlements();
+  }
   if (tab === 'receipts') {
     initReceiptForm();
     renderReceipt();
@@ -1342,7 +1385,7 @@ async function loadEventLunches() {
   tbody.innerHTML = '<tr class="no-order-row"><td colspan="8">불러오는 중...</td></tr>';
   try {
     const doc = await db.collection('users').doc(adminUid).get();
-    const events = doc.exists ? (doc.data().adminEvents || {}) : {};
+    const events = doc.exists ? adminEventsFromData(doc.data()) : {};
     eventLunches = Object.entries(events).map(([id, item]) => ({ id, ...item }));
     eventLunches.sort((a, b) => `${a.eventDate || ''} ${a.eventTime || ''}`.localeCompare(`${b.eventDate || ''} ${b.eventTime || ''}`));
     renderEventLunches();
@@ -1407,7 +1450,7 @@ async function saveEventLunch() {
     const eventRecord = { ...payload, updatedAt: new Date().toISOString() };
     if (!id) eventRecord.createdAt = new Date().toISOString();
     await db.collection('users').doc(adminUid).set({
-      [`adminEvents.${docId}`]: eventRecord
+      adminEvents: { [docId]: eventRecord }
     }, { merge: true });
     showToast(id ? '✅ 행사도시락이 수정되었습니다.' : '✅ 행사도시락이 등록되었습니다.');
     resetEventForm();
@@ -1437,9 +1480,11 @@ async function deleteEventLunch(id) {
   try {
     const item = eventLunches.find(e => e.id === id);
     if (!item) return;
-    await db.collection('users').doc(adminUid).update({
+    const ref = db.collection('users').doc(adminUid);
+    await ref.update({
       [`adminEvents.${id}`]: firebase.firestore.FieldValue.delete()
     });
+    await ref.update(new firebase.firestore.FieldPath(`adminEvents.${id}`), firebase.firestore.FieldValue.delete()).catch(() => {});
     showToast('삭제되었습니다.');
     loadEventLunches();
   } catch(e) {
@@ -1475,7 +1520,8 @@ async function loadSettlements() {
 
     const dates = monthDates(month);
     const adminDoc = await db.collection('users').doc(adminUid).get();
-    cachedDeliveryRecords = adminDoc.exists ? (adminDoc.data().deliveryRecords || {}) : {};
+    const adminData = adminDoc.exists ? adminDoc.data() : {};
+    cachedDeliveryRecords = deliveryRecordsFromData(adminData);
     const deliveryRecords = cachedDeliveryRecords;
     dates.forEach(ds => {
       Object.entries(deliveryRecords[ds] || {}).forEach(([uid, data]) => {
@@ -1492,7 +1538,7 @@ async function loadSettlements() {
       .filter(row => row.lunch > 0 || row.salad > 0)
       .sort((a, b) => (a.user.businessName || '').localeCompare(b.user.businessName || '', 'ko'));
 
-    const adminEvents = adminDoc.exists ? (adminDoc.data().adminEvents || {}) : {};
+    const adminEvents = adminEventsFromData(adminData);
     settlementEvents = Object.entries(adminEvents)
       .map(([id, item]) => ({ id, ...item }))
       .filter(item => (item.eventDate || '').slice(0, 7) === month);
@@ -1757,7 +1803,8 @@ async function exportKakaoSummary() {
       db.collection('orders').doc(currentDateStr).collection('items').get(),
       db.collection('users').doc(adminUid).get()
     ]);
-    const deliveredRecords = adminDoc.exists ? (adminDoc.data().deliveryRecords?.[currentDateStr] || {}) : {};
+    const adminData = adminDoc.exists ? adminDoc.data() : {};
+    const deliveredRecords = deliveryRecordsFromData(adminData)[currentDateStr] || {};
     const rows = mergeOrdersWithDefaults(currentDateStr, snap, deliveredRecords);
     const groups = {};
     let totalLunch = 0;
