@@ -1457,22 +1457,6 @@ function settlementDocId(month, uid) {
   return `${month}_${uid}`;
 }
 
-function ensureSettlementUserRow(byUser, uid, data) {
-  if (byUser[uid]) return;
-  const user = allUsers[uid] || { businessName: data.businessName || uid };
-  byUser[uid] = {
-    uid,
-    user,
-    lunch: 0,
-    salad: 0,
-    lunchPrice: userLunchPrice(user) || 0,
-    saladPrice: userSaladPrice(user) || 0,
-    amount: 0,
-    status: '미정산',
-    note: ''
-  };
-}
-
 async function loadSettlements() {
   const month = document.getElementById('settle-month').value || currentMonthStr();
   const tbody = document.getElementById('settlement-tbody');
@@ -1496,7 +1480,10 @@ async function loadSettlements() {
     dates.forEach(ds => {
       Object.entries(deliveryRecords[ds] || {}).forEach(([uid, data]) => {
         if (!data?.delivered) return;
-        ensureSettlementUserRow(byUser, uid, data);
+        if (!byUser[uid]) {
+          const user = allUsers[uid] || { businessName: data.businessName || uid };
+          byUser[uid] = { uid, user, lunch: 0, salad: 0, lunchPrice: userLunchPrice(user) || 0, saladPrice: userSaladPrice(user) || 0, amount: 0, status: '미정산', note: '' };
+        }
         byUser[uid].lunch += data.lunchCount || 0;
         byUser[uid].salad += data.saladCount || 0;
       });
