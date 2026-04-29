@@ -108,6 +108,18 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .sheet-preview-area .sh-total-row td{font-weight:800;background:#fff8e1}
 .sheet-preview-area .sh-note{margin-top:14px;border:1px solid #888;padding:10px;font-size:12px}
 .sheet-preview-area .sh-note-label{font-weight:700;margin-bottom:4px}
+.manual-entry-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);margin-bottom:8px;background:#fff;transition:border-color .15s,background .15s}
+.manual-entry-row.has-data{border-color:#4caf50;background:#f0fdf0}
+.manual-entry-name{font-weight:600;font-size:14px}
+.manual-qty-group{display:flex;align-items:center;gap:5px}
+.manual-qty-label{font-size:12px;color:var(--sub)}
+.stepper{display:flex;align-items:center;gap:3px}
+.stepper-btn{width:34px;height:34px;border:1px solid var(--border);border-radius:8px;background:#f5f5f5;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;line-height:1;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.stepper-btn:active{background:#ddd}
+.stepper input[type=number]{width:54px;height:34px;text-align:center;border:1px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;font-family:inherit;padding:0}
+.stepper input[type=number]::-webkit-outer-spin-button,.stepper input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+.manual-total-bar{display:flex;gap:20px;padding:10px 14px;background:#faf5ec;border:1px solid var(--border);border-radius:8px;margin-bottom:12px;font-size:13px;font-weight:600}
+.manual-holiday-warn{font-size:12px;color:#e67e22;font-weight:600;margin-top:4px}
 .settle-check{width:16px;height:16px;cursor:pointer}
 .receipt-item-row{display:grid;grid-template-columns:1.8fr .8fr 1fr 42px;gap:8px;align-items:end;margin-bottom:8px}
 .receipt-item-row .form-input{margin-bottom:0}
@@ -224,6 +236,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
     <button class="refresh-btn" onclick="loadAllUsers().then(loadOrders)">🔄 새로고침</button>
     <button class="refresh-btn" onclick="exportKakaoSummary()">💬 카톡용 복사</button>
     <button class="today-btn" onclick="completeSelectedDeliveries()">배송 완료</button>
+    <button class="refresh-btn" onclick="openManualEntry()">✏️ 수동 입력</button>
     <button class="members-btn" onclick="toggleMemberSection()">👥 회원 관리</button>
   </div>
 
@@ -545,6 +558,33 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
       <button class="print-btn" onclick="printSheet()">🖨️ 인쇄 / PDF 저장</button>
     </div>
     <div id="sheet-preview-area"></div>
+  </div>
+</div>
+
+<!-- 수동 배송 입력 모달 -->
+<div class="modal-overlay" id="manual-modal" onclick="closeManualModal(event)">
+  <div class="modal-box" style="max-width:600px;max-height:88vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title">✏️ 수동 배송 입력</div>
+      <button class="modal-close" onclick="closeManualModal()">✕</button>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:160px">
+        <label class="form-label">날짜</label>
+        <input class="form-input" style="margin-bottom:0" type="date" id="manual-date" onchange="renderManualList()">
+      </div>
+      <button class="secondary-btn" onclick="resetManualAll()">전체 초기화</button>
+    </div>
+    <div class="manual-holiday-warn" id="manual-holiday-warn" style="display:none;margin-bottom:10px"></div>
+    <div class="manual-total-bar" id="manual-total-bar">
+      <span>🍱 도시락 합계: <strong id="manual-sum-lunch">0</strong>개</span>
+      <span>🥗 샐러드 합계: <strong id="manual-sum-salad">0</strong>개</span>
+    </div>
+    <div id="manual-list"></div>
+    <div class="error-msg" id="manual-error"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="save-btn" onclick="saveManualEntry()">💾 저장하기</button>
+    </div>
   </div>
 </div>
 
@@ -1750,6 +1790,154 @@ async function copyAllSettlementKakao() {
     showToast('✅ 전체 청구 메시지 복사됨');
   } else {
     window.prompt('복사하세요:', text);
+  }
+}
+
+// ── 수동 배송 입력 ──
+async function openManualEntry() {
+  document.getElementById('manual-date').value = currentDateStr;
+  document.getElementById('manual-error').classList.remove('show');
+  document.getElementById('manual-modal').classList.add('open');
+  document.getElementById('manual-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--sub)">불러오는 중...</div>';
+  try {
+    const adminDoc = await db.collection('users').doc(adminUid).get();
+    cachedDeliveryRecords = adminDoc.exists ? (adminDoc.data().deliveryRecords || {}) : {};
+  } catch(e) {}
+  renderManualList();
+}
+
+function closeManualModal(e) {
+  if (e && e.target !== document.getElementById('manual-modal')) return;
+  document.getElementById('manual-modal').classList.remove('open');
+}
+
+function renderManualList() {
+  const date = document.getElementById('manual-date').value;
+  if (!date) return;
+
+  const warn = document.getElementById('manual-holiday-warn');
+  const hName = holidayName(date);
+  const isWeekend = isWeekendDate(date);
+  if (hName || isWeekend) {
+    warn.textContent = `⚠️ ${hName || '주말'} — 배송 없는 날입니다. 그래도 입력할 수 있어요.`;
+    warn.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+  }
+
+  const existing = cachedDeliveryRecords[date] || {};
+  const customers = Object.entries(allUsers)
+    .filter(([, u]) => !ADMIN_EMAILS.includes(u.email) && u.businessName)
+    .sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'));
+
+  if (customers.length === 0) {
+    document.getElementById('manual-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--sub)">등록된 업체가 없습니다.</div>';
+    return;
+  }
+
+  document.getElementById('manual-list').innerHTML = customers.map(([uid, u]) => {
+    const rec = existing[uid] || {};
+    const lunch = rec.lunchCount || 0;
+    const salad = rec.saladCount || 0;
+    const hasData = lunch > 0 || salad > 0;
+    return `
+      <div class="manual-entry-row${hasData ? ' has-data' : ''}" id="manual-row-${uid}">
+        <div class="manual-entry-name">${escapeHtml(u.businessName)}</div>
+        <div class="manual-qty-group">
+          <span class="manual-qty-label">🍱</span>
+          <div class="stepper">
+            <button class="stepper-btn" onclick="changeManualQty('${uid}','lunch',-1)">−</button>
+            <input type="number" id="m-lunch-${uid}" value="${lunch}" min="0" max="999" oninput="updateManualTotals()">
+            <button class="stepper-btn" onclick="changeManualQty('${uid}','lunch',1)">+</button>
+          </div>
+        </div>
+        <div class="manual-qty-group">
+          <span class="manual-qty-label">🥗</span>
+          <div class="stepper">
+            <button class="stepper-btn" onclick="changeManualQty('${uid}','salad',-1)">−</button>
+            <input type="number" id="m-salad-${uid}" value="${salad}" min="0" max="999" oninput="updateManualTotals()">
+            <button class="stepper-btn" onclick="changeManualQty('${uid}','salad',1)">+</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  updateManualTotals();
+}
+
+function changeManualQty(uid, type, delta) {
+  const el = document.getElementById(`m-${type}-${uid}`);
+  if (!el) return;
+  el.value = Math.max(0, (parseInt(el.value, 10) || 0) + delta);
+  updateManualTotals();
+}
+
+function updateManualTotals() {
+  let totalLunch = 0, totalSalad = 0;
+  document.querySelectorAll('[id^="m-lunch-"]').forEach(el => {
+    const uid = el.id.replace('m-lunch-', '');
+    const lunch = parseInt(el.value, 10) || 0;
+    const salad = parseInt(document.getElementById(`m-salad-${uid}`)?.value, 10) || 0;
+    totalLunch += lunch;
+    totalSalad += salad;
+    const row = document.getElementById(`manual-row-${uid}`);
+    if (row) row.classList.toggle('has-data', lunch > 0 || salad > 0);
+  });
+  document.getElementById('manual-sum-lunch').textContent = totalLunch;
+  document.getElementById('manual-sum-salad').textContent = totalSalad;
+}
+
+function resetManualAll() {
+  document.querySelectorAll('[id^="m-lunch-"],[id^="m-salad-"]').forEach(el => el.value = 0);
+  updateManualTotals();
+}
+
+async function saveManualEntry() {
+  const date = document.getElementById('manual-date').value;
+  if (!date) { showToast('날짜를 선택해주세요.'); return; }
+
+  const customers = Object.entries(allUsers)
+    .filter(([, u]) => !ADMIN_EMAILS.includes(u.email) && u.businessName);
+
+  const updates = {};
+  let savedCount = 0;
+
+  customers.forEach(([uid, u]) => {
+    const lunch = parseInt(document.getElementById(`m-lunch-${uid}`)?.value, 10) || 0;
+    const salad = parseInt(document.getElementById(`m-salad-${uid}`)?.value, 10) || 0;
+    if (lunch > 0 || salad > 0) {
+      updates[`deliveryRecords.${date}.${uid}`] = {
+        uid, businessName: u.businessName,
+        lunchCount: lunch, saladCount: salad,
+        delivered: true, deliveredAt: new Date().toISOString(),
+        deliveredBy: adminUid, adminAdjusted: true, source: 'manual'
+      };
+      savedCount++;
+    } else if ((cachedDeliveryRecords[date] || {})[uid]) {
+      updates[`deliveryRecords.${date}.${uid}`] = firebase.firestore.FieldValue.delete();
+    }
+  });
+
+  const errEl = document.getElementById('manual-error');
+  try {
+    if (Object.keys(updates).length > 0) {
+      await db.collection('users').doc(adminUid).update(updates);
+    }
+    if (!cachedDeliveryRecords[date]) cachedDeliveryRecords[date] = {};
+    customers.forEach(([uid]) => {
+      const lunch = parseInt(document.getElementById(`m-lunch-${uid}`)?.value, 10) || 0;
+      const salad = parseInt(document.getElementById(`m-salad-${uid}`)?.value, 10) || 0;
+      if (lunch > 0 || salad > 0) {
+        cachedDeliveryRecords[date][uid] = { lunchCount: lunch, saladCount: salad };
+      } else {
+        delete cachedDeliveryRecords[date][uid];
+      }
+    });
+    document.getElementById('manual-modal').classList.remove('open');
+    if (date === currentDateStr) loadOrders();
+    showToast(`✅ ${savedCount}곳 배송 내역이 저장되었습니다.`);
+  } catch(e) {
+    errEl.textContent = '저장 실패: ' + e.message;
+    errEl.classList.add('show');
   }
 }
 
