@@ -1267,7 +1267,7 @@ async function saveManualOrder() {
       lunchPrice: selectedUid ? (userLunchPrice(allUsers[selectedUid]) || 0) : lunchPrice,
       saladPrice: selectedUid ? (userSaladPrice(allUsers[selectedUid]) || 0) : saladPrice,
       delivered: Boolean(prev?.delivered),
-      adminManual: !selectedUid || Boolean(prev?.adminManual),
+      adminManual: true,
       deliveredBy: adminUid,
       source: selectedUid ? 'adminMemberInput' : 'adminManual',
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1522,7 +1522,10 @@ async function loadSettlements() {
           saladPrice: user ? (userSaladPrice(user) || 0) : (data.saladPrice || 0),
           amount: 0,
           status: '미정산',
-          note: ''
+          note: '',
+          adjust: 0,
+          paidDate: '',
+          paidAmount: 0
         };
         byUser[uid].lunch += data.lunchCount || 0;
         byUser[uid].salad += data.saladCount || 0;
