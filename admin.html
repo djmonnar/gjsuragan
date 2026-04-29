@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>궁중수라간 관리자 · 주문 현황</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -17,14 +17,14 @@ const ADMIN_EMAILS=['sun1562@naver.com'];
 <style>
 :root{--bg:#f7f3ec;--card:#fff;--primary:#7b3f1a;--gold:#f0d090;--gold2:#f7ead0;--text:#1f2328;--sub:#6b5b4a;--border:#e5d7c5;--success:#1e6e40;--err:#c0392b;--shadow:0 2px 12px rgba(0,0,0,.08);--radius:14px}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 #loading-screen{position:fixed;inset:0;background:var(--primary);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:var(--gold)}
 .spinner{width:36px;height:36px;border:3px solid rgba(240,208,144,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin-top:24px}
 @keyframes spin{to{transform:rotate(360deg)}}
 #auth-screen{min-height:100vh;background:var(--primary);display:none;align-items:center;justify-content:center;padding:24px}
 #auth-screen.active{display:flex}
 .auth-card{background:#fff;border-radius:20px;padding:32px 28px;width:100%;max-width:380px}
-.auth-logo{font-family:'Noto Serif KR',serif;color:var(--primary);font-size:22px;font-weight:700;margin-bottom:4px}
+.auth-logo{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:var(--primary);font-size:22px;font-weight:700;margin-bottom:4px}
 .auth-sub{color:var(--sub);font-size:13px;margin-bottom:24px}
 .form-label{display:block;font-size:13px;font-weight:600;color:var(--sub);margin-bottom:6px}
 .form-input{width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;outline:none;margin-bottom:14px;background:#fafafa}
@@ -35,7 +35,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 #main-screen{display:none}
 #main-screen.active{display:block}
 .top-bar{background:var(--primary);padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
-.top-title{font-family:'Noto Serif KR',serif;font-size:20px;color:var(--gold);letter-spacing:2px}
+.top-title{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:20px;color:var(--gold);letter-spacing:0.5px}
 .top-right{display:flex;align-items:center;gap:10px}
 .admin-badge{background:rgba(240,208,144,.18);color:var(--gold);padding:4px 10px;border-radius:20px;font-size:12px}
 .btn-logout{background:none;border:1px solid rgba(240,208,144,.4);color:var(--gold);padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer}
@@ -69,7 +69,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .print-btn{background:var(--primary);color:#fff}
 .receipt-layout{display:grid;grid-template-columns:minmax(260px,380px) 1fr;gap:16px}
 .receipt-preview{background:#fff;border:1px solid #d8d8d8;border-radius:8px;padding:24px;min-height:420px;color:#111}
-.receipt-title{text-align:center;font-size:28px;font-weight:800;letter-spacing:6px;margin-bottom:22px}
+.receipt-title{text-align:center;font-size:28px;font-weight:800;letter-spacing:2px;margin-bottom:22px}
 .receipt-meta{display:grid;grid-template-columns:90px 1fr;gap:8px 10px;font-size:14px;margin-bottom:18px}
 .receipt-table{width:100%;border-collapse:collapse;margin:18px 0}
 .receipt-table th,.receipt-table td{border:1px solid #333;padding:10px;font-size:14px;text-align:left}
@@ -157,8 +157,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
 <!-- 로딩 -->
 <div id="loading-screen">
-  <div style="font-family:'Noto Serif KR',serif;font-size:24px;letter-spacing:3px">궁중수라간</div>
-  <div style="font-size:12px;letter-spacing:2px;margin-top:6px;opacity:.7">관리자 시스템</div>
+  <div style="font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:24px;letter-spacing:1px">궁중수라간</div>
+  <div style="font-size:12px;letter-spacing:0.5px;margin-top:6px;opacity:.7">관리자 시스템</div>
   <div class="spinner"></div>
 </div>
 
@@ -1464,8 +1464,8 @@ function printReceipt() {
   }
   win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>간이영수증</title>
     <style>
-      body{font-family:'Noto Sans KR',Arial,sans-serif;padding:32px;color:#111}
-      .receipt-title{text-align:center;font-size:30px;font-weight:800;letter-spacing:6px;margin-bottom:28px}
+      body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;padding:32px;color:#111}
+      .receipt-title{text-align:center;font-size:30px;font-weight:800;letter-spacing:2px;margin-bottom:28px}
       .receipt-meta{display:grid;grid-template-columns:90px 1fr;gap:8px 10px;font-size:15px;margin-bottom:18px}
       .receipt-table{width:100%;border-collapse:collapse;margin:20px 0}
       .receipt-table th,.receipt-table td{border:1px solid #333;padding:11px;text-align:left;font-size:15px}
