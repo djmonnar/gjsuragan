@@ -1008,7 +1008,7 @@ async function loadOrders() {
           ? '<span class="delivery-status done">완료</span>'
           : '<span class="delivery-status">대기</span>';
         tr.innerHTML = `
-          <td style="text-align:center"><input class="order-check" type="checkbox" value="${escapeHtml(o.uid)}" ${o.delivered ? '' : 'checked'}></td>
+          <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${o.delivered ? '' : 'checked'}></td>
           <td style="color:var(--sub);font-size:13px">${i + 1}</td>
           <td class="biz-name"><span class="dot"></span>${escapeHtml(o.businessName || '-')}</td>
           <td class="qty-cell">
