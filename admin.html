@@ -1480,6 +1480,8 @@ async function loadSettlements() {
     dates.forEach(ds => {
       Object.entries(deliveryRecords[ds] || {}).forEach(([uid, data]) => {
         if (!data?.delivered) return;
+        // 회원이 아니어도 수동 입력 배송건은 정산 목록에 포함
+        // (회원이면 회원 단가, 비회원이면 0원 단가)
         if (!byUser[uid]) {
           const user = allUsers[uid] || { businessName: data.businessName || uid };
           byUser[uid] = { uid, user, lunch: 0, salad: 0, lunchPrice: userLunchPrice(user) || 0, saladPrice: userSaladPrice(user) || 0, amount: 0, status: '미정산', note: '' };
