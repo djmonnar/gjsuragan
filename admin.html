@@ -124,6 +124,18 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .qty-stepper{display:inline-flex;align-items:center;gap:6px}
 .qty-step-btn{width:26px;height:26px;border:1px solid var(--border);border-radius:7px;background:#f9f5ee;color:var(--primary);font-size:15px;font-weight:800;line-height:1;cursor:pointer}
 .qty-step-btn:active{transform:translateY(1px)}
+.batch-entry-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);margin-bottom:8px;background:#fff;transition:border-color .15s,background .15s}
+.batch-entry-row.has-data{border-color:#4caf50;background:#f0fdf0}
+.batch-entry-name{font-weight:600;font-size:14px}
+.batch-qty-group{display:flex;align-items:center;gap:5px}
+.batch-qty-label{font-size:12px;color:var(--sub)}
+.big-stepper{display:flex;align-items:center;gap:3px}
+.big-step-btn{width:34px;height:34px;border:1px solid var(--border);border-radius:8px;background:#f5f5f5;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.big-step-btn:active{background:#ddd}
+.big-stepper input[type=number]{width:52px;height:34px;text-align:center;border:1px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;font-family:inherit;padding:0}
+.big-stepper input[type=number]::-webkit-outer-spin-button,.big-stepper input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+.batch-total-bar{display:flex;gap:20px;padding:10px 14px;background:#faf5ec;border:1px solid var(--border);border-radius:8px;margin-bottom:12px;font-size:13px;font-weight:600}
+.batch-holiday-warn{font-size:12px;color:#e67e22;font-weight:700;padding:6px 10px;background:#fff8ee;border:1px solid #ffd7a8;border-radius:8px;margin-bottom:10px}
 .order-check,.select-all-check{width:18px;height:18px;cursor:pointer}
 .delivery-status{display:inline-block;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;background:#fff3e0;color:#e65100}
 .delivery-status.done{background:#e8f5e9;color:#2e7d32}
@@ -229,6 +241,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
     <button class="refresh-btn" onclick="exportKakaoSummary()">💬 카톡용 복사</button>
     <button class="today-btn" onclick="completeSelectedDeliveries()">배송 완료</button>
     <button class="manual-btn" onclick="openManualOrderModal()">수동 배송 입력</button>
+    <button class="manual-btn" onclick="openBatchEntry()">📋 일괄 입력</button>
     <button class="members-btn" onclick="toggleMemberSection()">👥 회원 관리</button>
   </div>
 
@@ -543,6 +556,33 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
     <div class="modal-actions">
       <button class="save-btn" onclick="saveManualOrder()">저장하기</button>
       <button class="danger-btn" id="manual-delete-btn" onclick="deleteManualOrder()" style="display:none">삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- 일괄 배송 입력 모달 -->
+<div class="modal-overlay" id="batch-modal" onclick="closeBatchModal(event)">
+  <div class="modal-box" style="max-width:620px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title">📋 일괄 배송 입력</div>
+      <button class="modal-close" onclick="closeBatchModal()">✕</button>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:160px">
+        <label class="form-label">날짜</label>
+        <input class="form-input" style="margin-bottom:0" type="date" id="batch-date" onchange="renderBatchList()">
+      </div>
+      <button class="secondary-btn" onclick="resetBatchAll()">전체 초기화</button>
+    </div>
+    <div class="batch-holiday-warn" id="batch-holiday-warn" style="display:none"></div>
+    <div class="batch-total-bar">
+      <span>🍱 도시락: <strong id="batch-sum-lunch">0</strong>개</span>
+      <span>🥗 샐러드: <strong id="batch-sum-salad">0</strong>개</span>
+    </div>
+    <div id="batch-list"></div>
+    <div class="error-msg" id="batch-error"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="save-btn" onclick="saveBatchEntry()">💾 저장하기</button>
     </div>
   </div>
 </div>
@@ -1225,6 +1265,147 @@ function openMemberEdit(uid) {
   document.getElementById('edit-salad-price').value = userSaladPrice(u) || '';
   document.getElementById('edit-error').classList.remove('show');
   document.getElementById('member-modal').classList.add('open');
+}
+
+// ── 일괄 배송 입력 ──
+async function openBatchEntry() {
+  document.getElementById('batch-date').value = currentDateStr;
+  document.getElementById('batch-error').classList.remove('show');
+  document.getElementById('batch-modal').classList.add('open');
+  document.getElementById('batch-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--sub)">불러오는 중...</div>';
+  try {
+    const adminDoc = await db.collection('users').doc(adminUid).get();
+    cachedDeliveryRecords = adminDoc.exists ? (adminDoc.data().deliveryRecords || {}) : {};
+  } catch(e) {}
+  renderBatchList();
+}
+
+function closeBatchModal(e) {
+  if (e && e.target !== document.getElementById('batch-modal')) return;
+  document.getElementById('batch-modal').classList.remove('open');
+}
+
+function renderBatchList() {
+  const date = document.getElementById('batch-date').value;
+  if (!date) return;
+
+  const warn = document.getElementById('batch-holiday-warn');
+  const hName = holidayName(date);
+  if (hName || isWeekendDate(date)) {
+    warn.textContent = `⚠️ ${hName || '주말'} — 배송 없는 날이지만 그래도 입력할 수 있어요.`;
+    warn.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+  }
+
+  const existing = cachedDeliveryRecords[date] || {};
+  const customers = Object.entries(allUsers)
+    .filter(([, u]) => !ADMIN_EMAILS.includes(u.email) && u.businessName)
+    .sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'));
+
+  if (customers.length === 0) {
+    document.getElementById('batch-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--sub)">등록된 업체가 없습니다.</div>';
+    return;
+  }
+
+  document.getElementById('batch-list').innerHTML = customers.map(([uid, u]) => {
+    const rec = existing[uid] || {};
+    const lunch = rec.lunchCount || 0;
+    const salad = rec.saladCount || 0;
+    return `
+      <div class="batch-entry-row${lunch > 0 || salad > 0 ? ' has-data' : ''}" id="batch-row-${uid}">
+        <div class="batch-entry-name">${escapeHtml(u.businessName)}</div>
+        <div class="batch-qty-group">
+          <span class="batch-qty-label">🍱</span>
+          <div class="big-stepper">
+            <button class="big-step-btn" onclick="changeBatchQty('${uid}','lunch',-1)">−</button>
+            <input type="number" id="b-lunch-${uid}" value="${lunch}" min="0" max="999" oninput="updateBatchTotals()">
+            <button class="big-step-btn" onclick="changeBatchQty('${uid}','lunch',1)">+</button>
+          </div>
+        </div>
+        <div class="batch-qty-group">
+          <span class="batch-qty-label">🥗</span>
+          <div class="big-stepper">
+            <button class="big-step-btn" onclick="changeBatchQty('${uid}','salad',-1)">−</button>
+            <input type="number" id="b-salad-${uid}" value="${salad}" min="0" max="999" oninput="updateBatchTotals()">
+            <button class="big-step-btn" onclick="changeBatchQty('${uid}','salad',1)">+</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  updateBatchTotals();
+}
+
+function changeBatchQty(uid, type, delta) {
+  const el = document.getElementById(`b-${type}-${uid}`);
+  if (!el) return;
+  el.value = Math.max(0, (parseInt(el.value, 10) || 0) + delta);
+  updateBatchTotals();
+}
+
+function updateBatchTotals() {
+  let tl = 0, ts = 0;
+  document.querySelectorAll('[id^="b-lunch-"]').forEach(el => {
+    const uid = el.id.replace('b-lunch-', '');
+    const lunch = parseInt(el.value, 10) || 0;
+    const salad = parseInt(document.getElementById(`b-salad-${uid}`)?.value, 10) || 0;
+    tl += lunch; ts += salad;
+    const row = document.getElementById(`batch-row-${uid}`);
+    if (row) row.classList.toggle('has-data', lunch > 0 || salad > 0);
+  });
+  document.getElementById('batch-sum-lunch').textContent = tl;
+  document.getElementById('batch-sum-salad').textContent = ts;
+}
+
+function resetBatchAll() {
+  document.querySelectorAll('[id^="b-lunch-"],[id^="b-salad-"]').forEach(el => el.value = 0);
+  updateBatchTotals();
+}
+
+async function saveBatchEntry() {
+  const date = document.getElementById('batch-date').value;
+  if (!date) { showToast('날짜를 선택해주세요.'); return; }
+
+  const customers = Object.entries(allUsers)
+    .filter(([, u]) => !ADMIN_EMAILS.includes(u.email) && u.businessName);
+
+  const updates = {};
+  let savedCount = 0;
+  customers.forEach(([uid, u]) => {
+    const lunch = parseInt(document.getElementById(`b-lunch-${uid}`)?.value, 10) || 0;
+    const salad = parseInt(document.getElementById(`b-salad-${uid}`)?.value, 10) || 0;
+    if (lunch > 0 || salad > 0) {
+      updates[`deliveryRecords.${date}.${uid}`] = {
+        uid, businessName: u.businessName,
+        lunchCount: lunch, saladCount: salad,
+        delivered: true, deliveredAt: new Date().toISOString(),
+        deliveredBy: adminUid, adminAdjusted: true, source: 'manual'
+      };
+      savedCount++;
+    } else if ((cachedDeliveryRecords[date] || {})[uid]) {
+      updates[`deliveryRecords.${date}.${uid}`] = firebase.firestore.FieldValue.delete();
+    }
+  });
+
+  const errEl = document.getElementById('batch-error');
+  try {
+    if (Object.keys(updates).length > 0) {
+      await db.collection('users').doc(adminUid).update(updates);
+    }
+    if (!cachedDeliveryRecords[date]) cachedDeliveryRecords[date] = {};
+    customers.forEach(([uid]) => {
+      const lunch = parseInt(document.getElementById(`b-lunch-${uid}`)?.value, 10) || 0;
+      const salad = parseInt(document.getElementById(`b-salad-${uid}`)?.value, 10) || 0;
+      if (lunch > 0 || salad > 0) cachedDeliveryRecords[date][uid] = { lunchCount: lunch, saladCount: salad };
+      else delete cachedDeliveryRecords[date][uid];
+    });
+    document.getElementById('batch-modal').classList.remove('open');
+    if (date === currentDateStr) loadOrders();
+    showToast(`✅ ${savedCount}곳 배송 내역이 저장되었습니다.`);
+  } catch(e) {
+    errEl.textContent = '저장 실패: ' + e.message;
+    errEl.classList.add('show');
+  }
 }
 
 function openManualOrderModal(editUid = '') {
