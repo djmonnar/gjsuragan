@@ -260,10 +260,11 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
           <th>배송</th>
           <th>전송 시간</th>
           <th>메모</th>
+          <th>관리</th>
         </tr>
       </thead>
       <tbody id="order-tbody">
-        <tr class="no-order-row"><td colspan="8">불러오는 중...</td></tr>
+        <tr class="no-order-row"><td colspan="9">불러오는 중...</td></tr>
       </tbody>
     </table>
   </div>
@@ -515,9 +516,10 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 <div class="modal-overlay" id="manual-order-modal" onclick="closeManualOrderModal(event)">
   <div class="modal-box">
     <div class="modal-header">
-      <div class="modal-title">수동 배송 입력</div>
+      <div class="modal-title" id="manual-modal-title">수동 배송 입력</div>
       <button class="modal-close" onclick="closeManualOrderModal()">✕</button>
     </div>
+    <input type="hidden" id="manual-edit-id">
     <label class="form-label">업체명 *</label>
     <select class="form-input" id="manual-user" onchange="syncManualBiznameByUser()">
       <option value="">회원 선택 안함 (직접 입력)</option>
@@ -538,7 +540,10 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
     <label class="form-label">메모</label>
     <input class="form-input" type="text" id="manual-note" placeholder="메모(선택)">
     <div class="error-msg" id="manual-error"></div>
-    <button class="save-btn" onclick="saveManualOrder()">저장하기</button>
+    <div class="modal-actions">
+      <button class="save-btn" onclick="saveManualOrder()">저장하기</button>
+      <button class="danger-btn" id="manual-delete-btn" onclick="deleteManualOrder()" style="display:none">삭제</button>
+    </div>
   </div>
 </div>
 
@@ -699,6 +704,9 @@ function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[ch]));
+}
+function jsString(value) {
+  return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 function formatMoney(value) {
   return `${Number(value || 0).toLocaleString('ko-KR')}원`;
@@ -1000,7 +1008,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}) {
 
 // ── 주문 로드 ──
 async function loadOrders() {
-  document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="8">불러오는 중...</td></tr>';
+  document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="9">불러오는 중...</td></tr>';
   document.getElementById('not-submitted-list').innerHTML = '';
   currentOrderRows = [];
   const checkAll = document.getElementById('order-check-all');
@@ -1008,7 +1016,7 @@ async function loadOrders() {
 
   if (isNoDeliveryDate(currentDateStr)) {
     const message = holidayName(currentDateStr) ? `${holidayName(currentDateStr)}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다';
-    document.getElementById('order-tbody').innerHTML = `<tr class="no-order-row"><td colspan="8">${escapeHtml(message)}</td></tr>`;
+    document.getElementById('order-tbody').innerHTML = `<tr class="no-order-row"><td colspan="9">${escapeHtml(message)}</td></tr>`;
     ['sum-count','sum-lunch','sum-salad'].forEach((id,i) => {
       document.getElementById(id).innerHTML = '0<span class="summary-unit">' + ['곳','개','개'][i] + '</span>';
     });
@@ -1031,7 +1039,7 @@ async function loadOrders() {
     const tbody = document.getElementById('order-tbody');
 
     if (orders.length === 0) {
-      tbody.innerHTML = '<tr class="no-order-row"><td colspan="8">아직 주문이 없습니다</td></tr>';
+      tbody.innerHTML = '<tr class="no-order-row"><td colspan="9">아직 주문이 없습니다</td></tr>';
     } else {
       tbody.innerHTML = '';
       orders.forEach((o, i) => {
@@ -1046,6 +1054,9 @@ async function loadOrders() {
         const statusHtml = o.delivered
           ? '<span class="delivery-status done">완료</span>'
           : '<span class="delivery-status">대기</span>';
+        const manageHtml = o.adminManual || o.source === 'manual'
+          ? `<div class="inline-actions"><button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button><button class="danger-btn" onclick="deleteManualOrder('${jsString(o.uid)}')">삭제</button></div>`
+          : '<span style="color:var(--sub);font-size:12px">-</span>';
         tr.innerHTML = `
           <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${o.delivered ? '' : 'checked'}></td>
           <td style="color:var(--sub);font-size:13px">${i + 1}</td>
@@ -1067,6 +1078,7 @@ async function loadOrders() {
           <td>${statusHtml}</td>
           <td class="time-cell">${o.source === 'default' ? '기본수량' : formatTime(o.submittedAt)}</td>
           <td class="note-cell">${noteHtml}</td>
+          <td>${manageHtml}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -1078,7 +1090,7 @@ async function loadOrders() {
     document.getElementById('sum-salad').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
     renderNotSubmitted(orders);
   } catch(e) {
-    document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="8">불러오기 실패: ' + e.message + '</td></tr>';
+    document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="9">불러오기 실패: ' + e.message + '</td></tr>';
   }
 }
 
@@ -1206,21 +1218,30 @@ function openMemberEdit(uid) {
   document.getElementById('member-modal').classList.add('open');
 }
 
-function openManualOrderModal() {
+function openManualOrderModal(editUid = '') {
   const userSel = document.getElementById('manual-user');
   const opts = ['<option value="">회원 선택 안함 (직접 입력)</option>']
     .concat(Object.entries(allUsers)
       .sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'))
       .map(([uid, u]) => `<option value="${escapeHtml(uid)}">${escapeHtml(u.businessName || uid)}</option>`));
   userSel.innerHTML = opts.join('');
-  userSel.value = '';
-  document.getElementById('manual-bizname').value = '';
-  document.getElementById('manual-lunch').value = 0;
-  document.getElementById('manual-salad').value = 0;
-  document.getElementById('manual-place').value = '';
-  document.getElementById('manual-note').value = '';
+  const record = editUid ? currentOrderRows.find(row => row.uid === editUid) : null;
+  document.getElementById('manual-edit-id').value = record?.uid || '';
+  document.getElementById('manual-modal-title').textContent = record ? '비회원 배송 수정' : '수동 배송 입력';
+  userSel.value = record && allUsers[record.uid] ? record.uid : '';
+  userSel.disabled = Boolean(record);
+  document.getElementById('manual-bizname').value = record?.businessName || '';
+  document.getElementById('manual-lunch').value = record?.lunchCount ?? 0;
+  document.getElementById('manual-salad').value = record?.saladCount ?? 0;
+  document.getElementById('manual-place').value = record?.deliveryPlace || '';
+  document.getElementById('manual-note').value = record?.note || '';
+  document.getElementById('manual-delete-btn').style.display = record ? '' : 'none';
   document.getElementById('manual-error').classList.remove('show');
   document.getElementById('manual-order-modal').classList.add('open');
+}
+
+function editManualOrder(uid) {
+  openManualOrderModal(uid);
 }
 
 function syncManualBiznameByUser() {
@@ -1240,6 +1261,7 @@ function closeManualOrderModal(e) {
 }
 
 async function saveManualOrder() {
+  const editUid = document.getElementById('manual-edit-id').value;
   const selectedUid = document.getElementById('manual-user').value;
   const bizname = document.getElementById('manual-bizname').value.trim();
   const lunch = parseDeliveryCount(document.getElementById('manual-lunch').value, 0);
@@ -1258,15 +1280,15 @@ async function saveManualOrder() {
     return;
   }
   errEl.classList.remove('show');
-  const manualUid = selectedUid || `manual_${Date.now()}`;
+  const manualUid = editUid || selectedUid || `manual_${Date.now()}`;
   let prev = null;
-  if (selectedUid) {
+  if (editUid || selectedUid) {
     const adminDoc = await db.collection('users').doc(adminUid).get();
     const records = adminDoc.exists ? deliveryRecordsFromData(adminDoc.data()) : {};
-    prev = records[currentDateStr]?.[selectedUid] || null;
+    prev = records[currentDateStr]?.[manualUid] || null;
   }
-  const nextLunch = (prev?.lunchCount || 0) + lunch;
-  const nextSalad = (prev?.saladCount || 0) + salad;
+  const nextLunch = editUid ? lunch : (prev?.lunchCount || 0) + lunch;
+  const nextSalad = editUid ? salad : (prev?.saladCount || 0) + salad;
   const payload = {
     uid: manualUid,
     businessName: bizname || (allUsers[selectedUid]?.businessName || '수동입력'),
@@ -1274,10 +1296,10 @@ async function saveManualOrder() {
     saladCount: nextSalad,
     deliveryPlace: place || (allUsers[selectedUid]?.deliveryPlace || allUsers[selectedUid]?.address || ''),
     note: note || prev?.note || '수동 입력',
-    delivered: Boolean(prev?.delivered),
-    adminManual: !selectedUid || Boolean(prev?.adminManual),
+    delivered: editUid ? Boolean(prev?.delivered ?? true) : Boolean(prev?.delivered),
+    adminManual: editUid ? true : (!selectedUid || Boolean(prev?.adminManual)),
     deliveredBy: adminUid,
-    source: selectedUid ? 'adminMemberInput' : 'adminManual',
+    source: editUid ? 'adminManual' : (selectedUid ? 'adminMemberInput' : 'adminManual'),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
   try {
@@ -1285,11 +1307,35 @@ async function saveManualOrder() {
       deliveryRecords: { [currentDateStr]: { [manualUid]: payload } }
     }, { merge: true });
     closeManualOrderModal();
-    showToast('✅ 수동 배송 항목이 추가되었습니다.');
+    showToast(editUid ? '✅ 비회원 배송 항목이 수정되었습니다.' : '✅ 수동 배송 항목이 추가되었습니다.');
     loadOrders();
   } catch (e) {
     errEl.textContent = '저장 실패: ' + e.message;
     errEl.classList.add('show');
+  }
+}
+
+async function deleteManualOrder(uid = '') {
+  const targetUid = uid || document.getElementById('manual-edit-id').value;
+  const row = currentOrderRows.find(item => item.uid === targetUid);
+  if (!targetUid) return;
+  if (!confirm(`${row?.businessName || '비회원 항목'}을 삭제할까요?`)) return;
+  try {
+    const ref = db.collection('users').doc(adminUid);
+    await ref.update(new firebase.firestore.FieldPath('deliveryRecords', currentDateStr, targetUid), firebase.firestore.FieldValue.delete());
+    await ref.update({ [`deliveryRecords.${currentDateStr}.${targetUid}`]: firebase.firestore.FieldValue.delete() }).catch(() => {});
+    closeManualOrderModal();
+    showToast('비회원 배송 항목이 삭제되었습니다.');
+    loadOrders();
+    if (activeAdminTab === 'settlements') loadSettlements();
+  } catch (e) {
+    const errEl = document.getElementById('manual-error');
+    if (errEl && document.getElementById('manual-order-modal').classList.contains('open')) {
+      errEl.textContent = '삭제 실패: ' + e.message;
+      errEl.classList.add('show');
+    } else {
+      showToast('삭제 실패: ' + e.message);
+    }
   }
 }
 
