@@ -98,6 +98,16 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .export-btn{background:#1e6e40;color:#fff;border:0;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .kakao-btn{background:#fae100;color:#3c1e1e;border:0;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .kakao-mini-btn{background:#fae100;color:#3c1e1e;border:0;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.sheet-modal-box{max-width:880px;width:100%;background:#fff;border-radius:var(--radius);padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.18);max-height:92vh;overflow-y:auto}
+.sheet-edit-bar{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.sheet-preview-area{border:1px solid var(--border);border-radius:8px;padding:20px;background:#fff;overflow-x:auto}
+.sheet-preview-area table{width:100%;border-collapse:collapse;font-size:13px}
+.sheet-preview-area td,.sheet-preview-area th{border:1px solid #888;padding:5px 8px;text-align:center}
+.sheet-preview-area th{background:#f0f0f0;font-weight:700}
+.sheet-preview-area .sh-title{text-align:center;font-size:19px;font-weight:800;margin-bottom:14px;letter-spacing:1px}
+.sheet-preview-area .sh-total-row td{font-weight:800;background:#fff8e1}
+.sheet-preview-area .sh-note{margin-top:14px;border:1px solid #888;padding:10px;font-size:12px}
+.sheet-preview-area .sh-note-label{font-weight:700;margin-bottom:4px}
 .settle-check{width:16px;height:16px;cursor:pointer}
 .receipt-item-row{display:grid;grid-template-columns:1.8fr .8fr 1fr 42px;gap:8px;align-items:end;margin-bottom:8px}
 .receipt-item-row .form-input{margin-bottom:0}
@@ -504,6 +514,40 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   </div>
 </div>
 
+<!-- 정산표 미리보기 모달 -->
+<div class="modal-overlay" id="sheet-modal" onclick="closeSheetModal(event)">
+  <div class="sheet-modal-box">
+    <div class="modal-header">
+      <div class="modal-title">📄 월별 정산표</div>
+      <button class="modal-close" onclick="closeSheetModal()">✕</button>
+    </div>
+    <div class="sheet-edit-bar">
+      <div>
+        <label class="form-label">품목명</label>
+        <input class="form-input" id="sheet-item-name" placeholder="월식 1인" oninput="renderSheetPreview()">
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1">
+          <label class="form-label">도시락 단가</label>
+          <input class="form-input" type="number" id="sheet-lunch-price" oninput="renderSheetPreview()">
+        </div>
+        <div style="flex:1">
+          <label class="form-label">샐러드 단가</label>
+          <input class="form-input" type="number" id="sheet-salad-price" oninput="renderSheetPreview()">
+        </div>
+      </div>
+      <div style="grid-column:1/-1">
+        <label class="form-label">비고</label>
+        <textarea class="form-textarea" id="sheet-note-text" rows="3" oninput="renderSheetPreview()"></textarea>
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <button class="print-btn" onclick="printSheet()">🖨️ 인쇄 / PDF 저장</button>
+    </div>
+    <div id="sheet-preview-area"></div>
+  </div>
+</div>
+
 <!-- 정산 수정 모달 -->
 <div class="modal-overlay" id="settlement-modal" onclick="closeSettlementModal(event)">
   <div class="modal-box">
@@ -552,6 +596,15 @@ let settlementEvents = [];
 let currentOrderRows = [];
 let activeAdminTab = 'orders';
 let adminUid = '';
+let cachedDeliveryRecords = {};
+let sheetTargetUid = '';
+
+const SUPPLIER_INFO = {
+  name: '궁중수라간',
+  bizNo: '325-17-01933',
+  email: 'sun1562@naver.com',
+  bank: '농협 302-4578-2271-31 주상훈'
+};
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const KOREA_HOLIDAYS = {
@@ -1269,7 +1322,8 @@ async function loadSettlements() {
 
     const dates = monthDates(month);
     const adminDoc = await db.collection('users').doc(adminUid).get();
-    const deliveryRecords = adminDoc.exists ? (adminDoc.data().deliveryRecords || {}) : {};
+    cachedDeliveryRecords = adminDoc.exists ? (adminDoc.data().deliveryRecords || {}) : {};
+    const deliveryRecords = cachedDeliveryRecords;
     dates.forEach(ds => {
       Object.entries(deliveryRecords[ds] || {}).forEach(([uid, data]) => {
         if (!allUsers[uid]) return;
@@ -1338,6 +1392,7 @@ function renderSettlements() {
         <td>
           <div class="inline-actions">
             <button class="mini-btn" onclick="openSettlementEdit('${row.uid}')">수정</button>
+            <button class="mini-btn" onclick="openSheetModal('${row.uid}')">정산표</button>
             <button class="kakao-mini-btn" onclick="copySettlementKakao('${row.uid}')">💬</button>
             <button class="mini-btn" onclick="makeSettlementReceipt('${row.uid}')">영수증</button>
           </div>
@@ -1696,6 +1751,131 @@ async function copyAllSettlementKakao() {
   } else {
     window.prompt('복사하세요:', text);
   }
+}
+
+function openSheetModal(uid) {
+  const row = settlementRows.find(r => r.uid === uid);
+  if (!row) return;
+  sheetTargetUid = uid;
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  const [, mon] = month.split('-');
+  document.getElementById('sheet-item-name').value = '월식 1인';
+  document.getElementById('sheet-lunch-price').value = row.lunchPrice;
+  document.getElementById('sheet-salad-price').value = row.saladPrice;
+  document.getElementById('sheet-note-text').value = `${parseInt(mon)}월정산서 보내드립니다♡\n궁중수라간을 이용해 주셔서 항상 감사드립니다^^\n계좌이체시 꼭! 상호명으로 부탁드립니다!!`;
+  renderSheetPreview();
+  document.getElementById('sheet-modal').classList.add('open');
+}
+
+function closeSheetModal(e) {
+  if (e && e.target !== document.getElementById('sheet-modal')) return;
+  document.getElementById('sheet-modal').classList.remove('open');
+}
+
+function buildSheetHTML(uid, forPrint) {
+  const row = settlementRows.find(r => r.uid === uid);
+  if (!row) return '';
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  const [year, mon] = month.split('-');
+  const itemName = document.getElementById('sheet-item-name').value || '월식 1인';
+  const lunchPrice = parseInt(document.getElementById('sheet-lunch-price').value, 10) || 0;
+  const saladPrice = parseInt(document.getElementById('sheet-salad-price').value, 10) || 0;
+  const note = document.getElementById('sheet-note-text').value;
+  const user = row.user;
+
+  const dates = monthDates(month);
+  let totalLunch = 0, totalSalad = 0, totalAmount = 0;
+
+  const rowsHtml = dates.map(ds => {
+    const rec = (cachedDeliveryRecords[ds] || {})[uid] || {};
+    const lunch = rec.lunchCount || 0;
+    const salad = rec.saladCount || 0;
+    const amount = lunch * lunchPrice + salad * saladPrice;
+    totalLunch += lunch;
+    totalSalad += salad;
+    totalAmount += amount;
+    const day = parseInt(ds.split('-')[2]);
+    const isZero = lunch === 0 && salad === 0;
+    return `<tr${isZero ? ' style="color:#bbb"' : ''}>
+      <td>${parseInt(mon)}</td>
+      <td>${day}</td>
+      <td style="text-align:left;padding-left:8px">${escapeHtml(itemName)}</td>
+      <td style="text-align:right">${lunchPrice.toLocaleString('ko-KR')}</td>
+      <td style="text-align:right">${saladPrice.toLocaleString('ko-KR')}</td>
+      <td>${lunch || ''}</td>
+      <td>${salad || ''}</td>
+      <td style="text-align:right">${amount > 0 ? amount.toLocaleString('ko-KR') : '0'}</td>
+    </tr>`;
+  }).join('');
+
+  const metaRow = (l1, v1, l2, v2) => `<tr>
+    <td style="background:#f0f0f0;font-weight:700;width:12%;white-space:nowrap">${l1}</td>
+    <td style="width:38%;text-align:left;padding-left:8px">${v1}</td>
+    <td style="background:#f0f0f0;font-weight:700;width:15%;white-space:nowrap">${l2}</td>
+    <td style="text-align:left;padding-left:8px">${v2}</td>
+  </tr>`;
+
+  const printStyles = forPrint ? `<style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Pretendard Variable','Pretendard',-apple-system,sans-serif;padding:20px;color:#111;font-size:11pt}
+    table{width:100%;border-collapse:collapse}
+    td,th{border:1px solid #666;padding:5px 8px;text-align:center}
+    th{background:#f0f0f0;font-weight:700}
+    .sh-title{text-align:center;font-size:17pt;font-weight:800;margin-bottom:14px;letter-spacing:1px}
+    .sh-total-row td{font-weight:800;background:#fff8e1}
+    .sh-note{margin-top:14px;border:1px solid #666;padding:10px;font-size:10pt}
+    .sh-note-label{font-weight:700;margin-bottom:4px}
+  </style>` : '';
+
+  return `${printStyles}
+  <div class="sh-title">고정거래처 정산현황-${year}</div>
+  <table style="margin-bottom:12px">
+    ${metaRow('상&nbsp;&nbsp;&nbsp;&nbsp;호', escapeHtml(user.businessName || ''), '공급자상호', SUPPLIER_INFO.name)}
+    ${metaRow('이&nbsp;&nbsp;&nbsp;&nbsp;름', '', '등록 번호', SUPPLIER_INFO.bizNo)}
+    ${metaRow('등록 번호', '', '메&nbsp;&nbsp;&nbsp;&nbsp;일', SUPPLIER_INFO.email)}
+    ${metaRow('메&nbsp;&nbsp;&nbsp;&nbsp;일', '', '입금계좌', SUPPLIER_INFO.bank)}
+    ${metaRow('연&nbsp;&nbsp;락&nbsp;&nbsp;처', escapeHtml(user.phone || ''), '', '')}
+  </table>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:5%">월</th>
+        <th style="width:5%">일</th>
+        <th style="width:20%">품목</th>
+        <th style="width:11%">도시락</th>
+        <th style="width:11%">샐러드</th>
+        <th style="width:12%">도시락수량</th>
+        <th style="width:12%">샐러드수량</th>
+        <th style="width:14%">금액</th>
+      </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+    <tfoot>
+      <tr class="sh-total-row">
+        <td colspan="5" style="text-align:right;font-weight:800">합계</td>
+        <td>${totalLunch}</td>
+        <td>${totalSalad}</td>
+        <td style="text-align:right;font-weight:800;color:#c0392b">${totalAmount.toLocaleString('ko-KR')}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <div class="sh-note">
+    <div class="sh-note-label">비고</div>
+    <div style="white-space:pre-wrap;line-height:1.7;margin-top:4px">${escapeHtml(note)}</div>
+  </div>`;
+}
+
+function renderSheetPreview() {
+  document.getElementById('sheet-preview-area').innerHTML = buildSheetHTML(sheetTargetUid, false);
+}
+
+function printSheet() {
+  const html = buildSheetHTML(sheetTargetUid, true);
+  const win = window.open('', '_blank', 'width=900,height=750');
+  win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>정산표</title></head><body>${html}</body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 400);
 }
 
 function openSettlementEdit(uid) {
