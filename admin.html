@@ -76,7 +76,18 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .receipt-total{text-align:right;font-size:20px;font-weight:800;margin-top:12px}
 .stamp-area{text-align:right;margin-top:42px;font-weight:700}
 .settlement-tools{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:12px;align-items:end}
-.settlement-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.settlement-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.settlement-summary2{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.summary-card.unpaid{border-color:#e57373}
+.summary-card.unpaid .summary-label{color:#c0392b}
+.summary-card.unpaid .summary-value{color:#c0392b}
+.summary-card.paid-in{border-color:#81c784}
+.summary-card.paid-in .summary-value{color:#1e6e40}
+.settle-status-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap}
+.settle-status-badge.미정산{background:#fff3e0;color:#e65100}
+.settle-status-badge.청구완료{background:#e3f2fd;color:#1565c0}
+.settle-status-badge.입금완료{background:#e8f5e9;color:#1e6e40}
+.settle-status-badge.보류{background:#f3e5f5;color:#6a1b9a}
 .status-select{min-width:100px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;background:#fff}
 .settle-note{width:140px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit}
 .mini-btn{border:0;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--gold2);color:var(--primary)}
@@ -145,7 +156,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .form-grid,.receipt-layout,.settlement-tools{grid-template-columns:1fr}
   .batch-toolbar{gap:8px}
   .receipt-item-row{grid-template-columns:1fr 1fr}
-  .settlement-summary{grid-template-columns:repeat(2,1fr)}
+  .settlement-summary,.settlement-summary2{grid-template-columns:repeat(2,1fr)}
   .summary-value{font-size:22px}
   .current-date{min-width:130px;font-size:14px}
   .order-table th,.order-table td{padding:11px 10px}
@@ -355,19 +366,29 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
     </div>
     <div class="settlement-summary">
       <div class="summary-card">
-        <div class="summary-label">업체 청구액</div>
+        <div class="summary-label">💰 총 청구액</div>
         <div class="summary-value" id="settle-total">0<span class="summary-unit">원</span></div>
       </div>
+      <div class="summary-card paid-in">
+        <div class="summary-label">✅ 입금완료</div>
+        <div class="summary-value" id="settle-paid-total">0<span class="summary-unit">원</span></div>
+      </div>
+      <div class="summary-card unpaid">
+        <div class="summary-label">⚠️ 미수금</div>
+        <div class="summary-value" id="settle-unpaid-total">0<span class="summary-unit">원</span></div>
+      </div>
+    </div>
+    <div class="settlement-summary2">
       <div class="summary-card">
-        <div class="summary-label">도시락</div>
+        <div class="summary-label">🍱 도시락</div>
         <div class="summary-value" id="settle-lunch-total">0<span class="summary-unit">개</span></div>
       </div>
       <div class="summary-card">
-        <div class="summary-label">샐러드</div>
+        <div class="summary-label">🥗 샐러드</div>
         <div class="summary-value" id="settle-salad-total">0<span class="summary-unit">개</span></div>
       </div>
       <div class="summary-card">
-        <div class="summary-label">행사도시락</div>
+        <div class="summary-label">🎉 행사도시락</div>
         <div class="summary-value" id="settle-event-total">0<span class="summary-unit">개</span></div>
       </div>
     </div>
@@ -479,6 +500,43 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
     <div class="modal-actions">
       <button class="save-btn" onclick="saveMember()">저장하기</button>
       <button class="danger-btn" onclick="deleteMember()">업체삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- 정산 수정 모달 -->
+<div class="modal-overlay" id="settlement-modal" onclick="closeSettlementModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="settlement-modal-title">정산 수정</div>
+      <button class="modal-close" onclick="closeSettlementModal()">✕</button>
+    </div>
+    <input type="hidden" id="settle-edit-uid">
+    <label class="form-label">상태</label>
+    <select class="form-input" id="settle-edit-status">
+      <option>미정산</option>
+      <option>청구완료</option>
+      <option>입금완료</option>
+      <option>보류</option>
+    </select>
+    <label class="form-label">메모</label>
+    <input class="form-input" type="text" id="settle-edit-note" placeholder="메모 (선택)">
+    <label class="form-label">조정금액 <span style="font-weight:400;color:var(--sub)">(양수=추가청구 / 음수=할인)</span></label>
+    <input class="form-input" type="number" id="settle-edit-adjust" placeholder="0" value="0">
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label class="form-label">입금일자</label>
+        <input class="form-input" type="date" id="settle-edit-paid-date">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">입금금액</label>
+        <input class="form-input" type="number" id="settle-edit-paid-amount" placeholder="0" value="0">
+      </div>
+    </div>
+    <div class="error-msg" id="settle-edit-error"></div>
+    <div class="modal-actions">
+      <button class="save-btn" onclick="saveSettlementEdit()">저장하기</button>
+      <button class="danger-btn" onclick="deleteSettlement()">정산삭제</button>
     </div>
   </div>
 </div>
@@ -1206,7 +1264,7 @@ async function loadSettlements() {
       const saved = user.settlements?.[month] || {};
       const lunchPrice = userLunchPrice(user) || defaultLunchPrice;
       const saladPrice = userSaladPrice(user) || defaultSaladPrice;
-      byUser[uid] = { uid, user, lunch: 0, salad: 0, lunchPrice, saladPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '' };
+      byUser[uid] = { uid, user, lunch: 0, salad: 0, lunchPrice, saladPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, paidDate: saved.paidDate || '', paidAmount: saved.paidAmount || 0 };
     });
 
     const dates = monthDates(month);
@@ -1245,10 +1303,14 @@ function renderSettlements() {
   const eventTbody = document.getElementById('settlement-event-tbody');
   const totalLunch = settlementRows.reduce((sum, row) => sum + row.lunch, 0);
   const totalSalad = settlementRows.reduce((sum, row) => sum + row.salad, 0);
-  const totalAmount = settlementRows.reduce((sum, row) => sum + row.amount, 0);
+  const totalBilled = settlementRows.reduce((sum, row) => sum + row.amount + (row.adjust || 0), 0);
+  const totalPaid = settlementRows.filter(r => r.status === '입금완료').reduce((sum, r) => sum + (r.paidAmount > 0 ? r.paidAmount : r.amount + (r.adjust || 0)), 0);
+  const totalUnpaid = Math.max(0, totalBilled - totalPaid);
   const totalEventCount = settlementEvents.reduce((sum, item) => sum + (item.count || 0), 0);
 
-  document.getElementById('settle-total').innerHTML = `${totalAmount.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
+  document.getElementById('settle-total').innerHTML = `${totalBilled.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
+  document.getElementById('settle-paid-total').innerHTML = `${totalPaid.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
+  document.getElementById('settle-unpaid-total').innerHTML = `${totalUnpaid.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
   document.getElementById('settle-lunch-total').innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
   document.getElementById('settle-salad-total').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
   document.getElementById('settle-event-total').innerHTML = `${totalEventCount}<span class="summary-unit">개</span>`;
@@ -1260,29 +1322,28 @@ function renderSettlements() {
   if (settlementRows.length === 0) {
     tbody.innerHTML = '<tr class="no-order-row"><td colspan="9">선택한 월의 업체 주문이 없습니다.</td></tr>';
   } else {
-    tbody.innerHTML = settlementRows.map(row => `
+    tbody.innerHTML = settlementRows.map(row => {
+      const billed = row.amount + (row.adjust || 0);
+      const adjustLabel = row.adjust ? `<span style="font-size:11px;color:var(--sub);display:block">${row.adjust > 0 ? '+' : ''}${row.adjust.toLocaleString()}</span>` : '';
+      return `
       <tr>
         <td style="text-align:center"><input class="settle-check" type="checkbox" value="${escapeHtml(row.uid)}"></td>
         <td class="biz-name">${escapeHtml(row.user.businessName || '-')}</td>
         <td class="qty-cell">${row.lunch}</td>
         <td class="qty-cell">${row.salad}</td>
         <td>${formatMoney(row.lunchPrice)} / ${formatMoney(row.saladPrice)}</td>
-        <td>${formatMoney(row.amount)}</td>
-        <td>
-          <select class="status-select" id="settle-status-${row.uid}">
-            ${['미정산','청구완료','입금완료','보류'].map(s => `<option value="${s}"${row.status === s ? ' selected' : ''}>${s}</option>`).join('')}
-          </select>
-        </td>
-        <td><input class="settle-note" id="settle-note-${row.uid}" value="${escapeHtml(row.note)}" placeholder="메모"></td>
+        <td>${formatMoney(billed)}${adjustLabel}</td>
+        <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(row.status)}</span></td>
+        <td class="note-cell">${row.note ? escapeHtml(row.note) : '<span style="color:var(--sub)">-</span>'}</td>
         <td>
           <div class="inline-actions">
-            <button class="mini-btn" onclick="saveSettlement('${row.uid}')">저장</button>
+            <button class="mini-btn" onclick="openSettlementEdit('${row.uid}')">수정</button>
             <button class="kakao-mini-btn" onclick="copySettlementKakao('${row.uid}')">💬</button>
             <button class="mini-btn" onclick="makeSettlementReceipt('${row.uid}')">영수증</button>
           </div>
         </td>
       </tr>
-    `).join('');
+    `}).join('');
   }
 
   if (settlementEvents.length === 0) {
@@ -1546,7 +1607,7 @@ async function bulkUpdateSettlement() {
       const row = settlementRows.find(r => r.uid === uid);
       if (!row) return;
       batch.update(db.collection('users').doc(uid), {
-        [`settlements.${month}`]: { status: newStatus, note: row.note, amount: row.amount, updatedAt: new Date().toISOString() }
+        [`settlements.${month}`]: { status: newStatus, note: row.note, amount: row.amount, adjust: row.adjust || 0, paidDate: row.paidDate || '', paidAmount: row.paidAmount || 0, updatedAt: new Date().toISOString() }
       });
     });
     await batch.commit();
@@ -1554,7 +1615,7 @@ async function bulkUpdateSettlement() {
       const row = settlementRows.find(r => r.uid === uid);
       if (!row) return;
       row.status = newStatus;
-      allUsers[uid] = { ...allUsers[uid], settlements: { ...(allUsers[uid].settlements || {}), [month]: { status: newStatus, note: row.note, amount: row.amount } } };
+      allUsers[uid] = { ...allUsers[uid], settlements: { ...(allUsers[uid].settlements || {}), [month]: { status: newStatus, note: row.note, amount: row.amount, adjust: row.adjust || 0, paidDate: row.paidDate || '', paidAmount: row.paidAmount || 0 } } };
     });
     renderSettlements();
     showToast(`✅ ${uids.length}곳을 "${newStatus}"으로 변경했습니다.`);
@@ -1602,7 +1663,9 @@ function copySettlementKakao(uid) {
   const lines = [`[궁중수라간 ${month} 정산 안내]`, `업체: ${name}`, ''];
   if (row.lunch > 0) lines.push(`도시락 ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원 = ${(row.lunch * row.lunchPrice).toLocaleString()}원`);
   if (row.salad > 0) lines.push(`샐러드 ${row.salad}개 × ${row.saladPrice.toLocaleString()}원 = ${(row.salad * row.saladPrice).toLocaleString()}원`);
-  lines.push('', `청구액: ${row.amount.toLocaleString()}원`);
+  const billed = row.amount + (row.adjust || 0);
+  lines.push('', `청구액: ${billed.toLocaleString()}원`);
+  if (row.paidAmount > 0) lines.push(`입금완료: ${row.paidAmount.toLocaleString()}원`);
   if (row.note) lines.push(`메모: ${row.note}`);
   const text = lines.join('\n');
   if (navigator.clipboard?.writeText) {
@@ -1632,6 +1695,74 @@ async function copyAllSettlementKakao() {
     showToast('✅ 전체 청구 메시지 복사됨');
   } else {
     window.prompt('복사하세요:', text);
+  }
+}
+
+function openSettlementEdit(uid) {
+  const row = settlementRows.find(r => r.uid === uid);
+  if (!row) return;
+  document.getElementById('settle-edit-uid').value = uid;
+  document.getElementById('settlement-modal-title').textContent = `${row.user.businessName || uid} 정산 수정`;
+  document.getElementById('settle-edit-status').value = row.status;
+  document.getElementById('settle-edit-note').value = row.note;
+  document.getElementById('settle-edit-adjust').value = row.adjust || 0;
+  document.getElementById('settle-edit-paid-date').value = row.paidDate || '';
+  document.getElementById('settle-edit-paid-amount').value = row.paidAmount || 0;
+  const errEl = document.getElementById('settle-edit-error');
+  errEl.textContent = '';
+  errEl.classList.remove('show');
+  document.getElementById('settlement-modal').classList.add('open');
+}
+
+function closeSettlementModal(e) {
+  if (e && e.target !== document.getElementById('settlement-modal')) return;
+  document.getElementById('settlement-modal').classList.remove('open');
+}
+
+async function saveSettlementEdit() {
+  const uid = document.getElementById('settle-edit-uid').value;
+  const row = settlementRows.find(r => r.uid === uid);
+  if (!row) return;
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  const status = document.getElementById('settle-edit-status').value;
+  const note = document.getElementById('settle-edit-note').value.trim();
+  const adjust = parseInt(document.getElementById('settle-edit-adjust').value, 10) || 0;
+  const paidDate = document.getElementById('settle-edit-paid-date').value;
+  const paidAmount = parseInt(document.getElementById('settle-edit-paid-amount').value, 10) || 0;
+  try {
+    const data = { status, note, amount: row.amount, adjust, paidDate, paidAmount, updatedAt: new Date().toISOString() };
+    await db.collection('users').doc(uid).update({ [`settlements.${month}`]: data });
+    Object.assign(row, { status, note, adjust, paidDate, paidAmount });
+    allUsers[uid] = { ...allUsers[uid], settlements: { ...(allUsers[uid].settlements || {}), [month]: data } };
+    document.getElementById('settlement-modal').classList.remove('open');
+    renderSettlements();
+    showToast('✅ 정산이 저장되었습니다.');
+  } catch(e) {
+    const errEl = document.getElementById('settle-edit-error');
+    errEl.textContent = '저장 실패: ' + e.message;
+    errEl.classList.add('show');
+  }
+}
+
+async function deleteSettlement() {
+  const uid = document.getElementById('settle-edit-uid').value;
+  const row = settlementRows.find(r => r.uid === uid);
+  const name = row ? (row.user.businessName || uid) : uid;
+  if (!confirm(`${name}의 정산 기록을 삭제하시겠습니까?\n(배송 내역은 유지됩니다)`)) return;
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  try {
+    await db.collection('users').doc(uid).update({
+      [`settlements.${month}`]: firebase.firestore.FieldValue.delete()
+    });
+    if (row) Object.assign(row, { status: '미정산', note: '', adjust: 0, paidDate: '', paidAmount: 0 });
+    if (allUsers[uid]?.settlements) delete allUsers[uid].settlements[month];
+    document.getElementById('settlement-modal').classList.remove('open');
+    renderSettlements();
+    showToast('🗑️ 정산 기록이 삭제되었습니다.');
+  } catch(e) {
+    const errEl = document.getElementById('settle-edit-error');
+    errEl.textContent = '삭제 실패: ' + e.message;
+    errEl.classList.add('show');
   }
 }
 
