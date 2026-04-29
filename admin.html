@@ -388,11 +388,11 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
       <div style="display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:8px;align-items:end;margin-top:12px">
         <div>
           <label class="form-label">거래처관리 엑셀</label>
-          <input class="form-input" type="file" id="settlement-excel-file" accept=".xlsx,.xls">
+          <input class="form-input" type="file" id="settlement-excel-file" accept=".xlsx,.xls" onchange="previewSettlementExcel()">
         </div>
-        <button class="manual-btn" onclick="importSettlementExcel()">엑셀 정산 가져오기</button>
+        <button class="manual-btn" onclick="importSettlementExcel()">파일 선택 후 가져오기</button>
       </div>
-      <div style="font-size:12px;color:var(--sub);margin-top:8px">선택한 정산월의 도시락/샐러드 시트를 비회원 정산으로 가져옵니다. 행사·헹시 표기는 업체별 행사도시락으로 정산에 포함됩니다.</div>
+      <div id="settlement-excel-preview" style="font-size:13px;color:var(--sub);margin-top:8px">먼저 엑셀 파일을 선택해주세요. 선택한 정산월의 도시락/샐러드 시트를 비회원 정산으로 가져오고, 행사·헹시 표기는 업체별 행사도시락으로 정산에 포함됩니다.</div>
     </div>
     <div class="settlement-summary">
       <div class="summary-card">
@@ -1082,23 +1082,69 @@ function manualMonthlyRowAmount(row) {
     + (row.eventLunch || 0) * (row.eventPrice || row.lunchPrice || 0);
 }
 
-async function importSettlementExcel() {
+function summarizeManualMonthlyRows(rows) {
+  return rows.reduce((acc, row) => {
+    acc.lunch += row.lunch || 0;
+    acc.salad += row.salad || 0;
+    acc.eventLunch += row.eventLunch || 0;
+    acc.amount += manualMonthlyRowAmount(row);
+    return acc;
+  }, { lunch: 0, salad: 0, eventLunch: 0, amount: 0 });
+}
+
+function renderSettlementExcelPreview(rows, month) {
+  const preview = document.getElementById('settlement-excel-preview');
+  if (!preview) return;
+  if (!rows?.length) {
+    preview.textContent = `${month} 정산으로 가져올 엑셀 데이터가 없습니다.`;
+    preview.style.color = '#c0392b';
+    return;
+  }
+  const summary = summarizeManualMonthlyRows(rows);
+  preview.innerHTML = [
+    `<strong>${month} 엑셀 확인 완료</strong>`,
+    `비회원 ${rows.length}곳`,
+    `도시락 ${summary.lunch.toLocaleString('ko-KR')}개`,
+    `샐러드 ${summary.salad.toLocaleString('ko-KR')}개`,
+    `업체 행사도시락 ${summary.eventLunch.toLocaleString('ko-KR')}개`,
+    `총 ${summary.amount.toLocaleString('ko-KR')}원`,
+    `이제 오른쪽 버튼을 누르면 정산에 등록됩니다.`
+  ].join(' · ');
+  preview.style.color = 'var(--text)';
+}
+
+async function readSettlementExcelRows() {
   const input = document.getElementById('settlement-excel-file');
   const month = document.getElementById('settle-month').value || currentMonthStr();
-  if (!input?.files?.[0]) { showToast('거래처관리 엑셀 파일을 선택해주세요.'); return; }
-  if (!window.XLSX) { showToast('엑셀 파서를 불러오는 중입니다. 잠시 후 다시 눌러주세요.'); return; }
+  if (!input?.files?.[0]) throw new Error('거래처관리 엑셀 파일을 먼저 선택해주세요.');
+  if (!window.XLSX) throw new Error('엑셀 파서를 불러오는 중입니다. 잠시 후 다시 눌러주세요.');
+  const buffer = await input.files[0].arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: 'array', cellFormula: true });
+  return { month, rows: parseSettlementExcelWorkbook(workbook, month) };
+}
+
+async function previewSettlementExcel() {
+  const preview = document.getElementById('settlement-excel-preview');
+  if (preview) {
+    preview.textContent = '엑셀 내용을 확인하는 중입니다...';
+    preview.style.color = 'var(--sub)';
+  }
   try {
-    const buffer = await input.files[0].arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: 'array', cellFormula: true });
-    const rows = parseSettlementExcelWorkbook(workbook, month);
+    const { month, rows } = await readSettlementExcelRows();
+    renderSettlementExcelPreview(rows, month);
+  } catch (e) {
+    if (preview) {
+      preview.textContent = '엑셀 확인 실패: ' + e.message;
+      preview.style.color = '#c0392b';
+    }
+  }
+}
+
+async function importSettlementExcel() {
+  try {
+    const { month, rows } = await readSettlementExcelRows();
     if (rows.length === 0) { showToast(`${month} 정산으로 가져올 데이터가 없습니다.`); return; }
-    const summary = rows.reduce((acc, row) => {
-      acc.lunch += row.lunch || 0;
-      acc.salad += row.salad || 0;
-      acc.eventLunch += row.eventLunch || 0;
-      acc.amount += manualMonthlyRowAmount(row);
-      return acc;
-    }, { lunch: 0, salad: 0, eventLunch: 0, amount: 0 });
+    const summary = summarizeManualMonthlyRows(rows);
     const message = [
       `${month} 비회원 정산을 가져올까요?`,
       '',
