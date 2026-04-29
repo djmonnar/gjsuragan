@@ -1480,19 +1480,8 @@ async function loadSettlements() {
     dates.forEach(ds => {
       Object.entries(deliveryRecords[ds] || {}).forEach(([uid, data]) => {
         if (!data?.delivered) return;
-        const user = allUsers[uid] || null;
-        if (!user && !data?.adminManual) return;
-        if (!byUser[uid]) byUser[uid] = {
-          uid,
-          user: user || { businessName: data.businessName || uid },
-          lunch: 0,
-          salad: 0,
-          lunchPrice: user ? (userLunchPrice(user) || 0) : 0,
-          saladPrice: user ? (userSaladPrice(user) || 0) : 0,
-          amount: 0,
-          status: '미정산',
-          note: ''
-        };
+        if (!allUsers[uid]) return;
+        if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, lunchPrice: 0, saladPrice: 0, amount: 0, status: '미정산', note: '' };
         byUser[uid].lunch += data.lunchCount || 0;
         byUser[uid].salad += data.saladCount || 0;
       });
