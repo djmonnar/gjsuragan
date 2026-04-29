@@ -466,6 +466,8 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
     <input class="form-input" type="tel" id="edit-phone" placeholder="010-0000-0000">
     <label class="form-label">배송지</label>
     <input class="form-input" type="text" id="edit-place" placeholder="배송지 또는 주소">
+    <label class="form-label">식사 받는 시간</label>
+    <input class="form-input" type="time" id="edit-mealtime" placeholder="예) 12:00">
     <div style="display:flex;gap:10px">
       <div style="flex:1">
         <label class="form-label">매일 도시락 수</label>
@@ -1125,7 +1127,7 @@ async function loadOrders() {
             </div>
           </td>
           <td>${statusHtml}</td>
-          <td class="time-cell">${o.source === 'default' ? '기본수량' : formatTime(o.submittedAt)}</td>
+          <td class="time-cell">${(() => { const mt = (allUsers[o.uid] || {}).mealTime; return (mt ? `<span style="font-weight:600;color:var(--primary)">${mt}</span><br>` : '') + (o.source === 'default' ? '기본수량' : formatTime(o.submittedAt)); })()}</td>
           <td class="note-cell">${noteHtml}</td>
           <td>${manageHtml}</td>
         `;
@@ -1239,7 +1241,7 @@ function renderMembers() {
       <div class="member-card" onclick="openMemberEdit('${uid}')">
         <div class="m-name">${escapeHtml(u.businessName || '-')}</div>
         <div class="m-info">${escapeHtml(u.phone || u.email || '-')}</div>
-        <div class="m-info">${escapeHtml(u.deliveryPlace || '배송지 미입력')}</div>
+        <div class="m-info">${escapeHtml(u.deliveryPlace || '배송지 미입력')}${u.mealTime ? ` · ${u.mealTime}` : ''}</div>
         <div class="m-info">${u.sameDailyMeal === false ? '요일별 식수 설정됨' : `매일 도시락 ${u.defaultLunch ?? 2}개 · 샐러드 ${u.defaultSalad ?? 0}개`}</div>
         <div class="m-info">단가 ${formatMoney(userLunchPrice(u))} / ${formatMoney(userSaladPrice(u))}</div>
         <div class="m-edit-hint">✏️ 수정하기</div>
@@ -1254,6 +1256,7 @@ function openMemberEdit(uid) {
   document.getElementById('edit-bizname').value = u.businessName || '';
   document.getElementById('edit-phone').value = u.phone || '';
   document.getElementById('edit-place').value = u.deliveryPlace || u.address || '';
+  document.getElementById('edit-mealtime').value = u.mealTime || '';
   document.getElementById('edit-lunch').value = u.defaultLunch ?? 2;
   document.getElementById('edit-salad').value = u.defaultSalad ?? 0;
   const meals = normalizeWeekdayMeals(u, u.defaultLunch ?? 2, u.defaultSalad ?? 0);
@@ -1551,6 +1554,7 @@ async function saveMember() {
   const salad = parseInt(document.getElementById('edit-salad').value) || 0;
   const sameDailyMeal = document.getElementById('edit-same-daily').checked;
   const weekdayMeals = readWeekdayMeals('edit', lunch, salad);
+  const mealTime = document.getElementById('edit-mealtime').value.trim();
   const lunchPrice = parseInt(document.getElementById('edit-lunch-price').value, 10) || 0;
   const saladPrice = parseInt(document.getElementById('edit-salad-price').value, 10) || 0;
   if (!bizname) {
@@ -1560,8 +1564,8 @@ async function saveMember() {
     return;
   }
   try {
-    await db.collection('users').doc(uid).update({ businessName: bizname, phone, deliveryPlace, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice });
-    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice };
+    await db.collection('users').doc(uid).update({ businessName: bizname, phone, deliveryPlace, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice });
+    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice };
     closeMemberModal();
     renderMembers();
     loadOrders();
@@ -2455,7 +2459,7 @@ async function saveSettlementEdit() {
   const paidDate = document.getElementById('settle-edit-paid-date').value;
   const paidAmount = parseInt(document.getElementById('settle-edit-paid-amount').value, 10) || 0;
   try {
-    const data = { status, note, amount: row.amount, adjust, paidDate, paidAmount, updatedAt: new Date().toISOString() };
+    const data = { status, note, amount: row.amount, adjust, paidDate, paidAmount, lunchTotal: row.lunch || 0, saladTotal: row.salad || 0, updatedAt: new Date().toISOString() };
     if (row.type === 'event') {
       await db.collection('users').doc(adminUid).set({
         adminEvents: { [row.eventId]: { settlement: data } }

@@ -808,6 +808,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" id="tab-today" onclick="switchTab('today')">오늘 주문</button>
     <button class="tab-btn" id="tab-week" onclick="switchTab('week')">평일 일정</button>
+    <button class="tab-btn" id="tab-settlement" onclick="switchTab('settlement')">정산</button>
     <button class="tab-btn" id="tab-profile" onclick="switchTab('profile')">내 정보</button>
   </div>
 
@@ -872,6 +873,37 @@
     <div id="week-list"></div>
   </div>
 
+  <!-- 정산 탭 -->
+  <div id="pane-settlement" class="content-area" style="display:none">
+    <div class="section-title">💰 월별 정산 내역</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <input type="month" id="settle-month-input" class="form-input" style="max-width:160px">
+      <button class="save-btn" style="padding:10px 16px" onclick="loadCustomerSettlement()">조회</button>
+    </div>
+    <div id="customer-settle-area" style="display:none">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px">
+        <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #e5d7c5">
+          <div style="font-size:12px;color:#6b5b4a;margin-bottom:4px;font-weight:600">💰 청구액</div>
+          <div id="cs-total" style="font-size:20px;font-weight:800;color:#7b3f1a">-</div>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #e5d7c5">
+          <div style="font-size:12px;color:#6b5b4a;margin-bottom:4px;font-weight:600">✅ 입금</div>
+          <div id="cs-paid" style="font-size:20px;font-weight:800;color:#1e6e40">-</div>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #e5d7c5">
+          <div style="font-size:12px;color:#6b5b4a;margin-bottom:4px;font-weight:600">⚠️ 미수금</div>
+          <div id="cs-unpaid" style="font-size:20px;font-weight:800;color:#c0392b">-</div>
+        </div>
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e5d7c5;font-size:14px">
+        <div style="margin-bottom:8px"><span style="color:#6b5b4a;font-weight:600">상태</span>&nbsp;<span id="cs-status">-</span></div>
+        <div style="margin-bottom:8px"><span style="color:#6b5b4a;font-weight:600">🍱 도시락</span>&nbsp;<span id="cs-lunch">-</span>&nbsp;&nbsp;<span style="color:#6b5b4a;font-weight:600">🥗 샐러드</span>&nbsp;<span id="cs-salad">-</span></div>
+        <div id="cs-note-row" style="display:none"><span style="color:#6b5b4a;font-weight:600">메모</span>&nbsp;<span id="cs-note">-</span></div>
+      </div>
+    </div>
+    <div id="customer-settle-empty" style="color:#6b5b4a;font-size:14px;padding:24px 0;text-align:center;display:none">해당 월 정산 내역이 없습니다.</div>
+  </div>
+
   <!-- 내 정보 탭 -->
   <div id="pane-profile" class="content-area" style="display:none">
 
@@ -904,6 +936,10 @@
       <div class="form-group">
         <label class="form-label">휴대폰 번호</label>
         <input class="form-input" type="tel" id="prof-phone" placeholder="010-0000-0000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">식사 받는 시간</label>
+        <input class="form-input" type="time" id="prof-mealtime">
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -1327,13 +1363,56 @@ function showRegister() {
 }
 
 function switchTab(tab) {
-  ['today','week','profile'].forEach(t => {
+  ['today','week','settlement','profile'].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
   });
   document.getElementById('pane-today').style.display = tab === 'today' ? 'block' : 'none';
   document.getElementById('pane-week').style.display = tab === 'week' ? 'block' : 'none';
+  document.getElementById('pane-settlement').style.display = tab === 'settlement' ? 'block' : 'none';
   document.getElementById('pane-profile').style.display = tab === 'profile' ? 'block' : 'none';
   if (tab === 'profile') renderProfile();
+  if (tab === 'settlement') initSettlementTab();
+}
+
+function initSettlementTab() {
+  const input = document.getElementById('settle-month-input');
+  if (!input.value) {
+    const kst = getKST();
+    input.value = `${kst.getFullYear()}-${String(kst.getMonth()+1).padStart(2,'0')}`;
+  }
+  loadCustomerSettlement();
+}
+
+async function loadCustomerSettlement() {
+  const month = document.getElementById('settle-month-input').value;
+  if (!month || !currentUser) return;
+  document.getElementById('customer-settle-area').style.display = 'none';
+  document.getElementById('customer-settle-empty').style.display = 'none';
+  try {
+    const snap = await db.collection('users').doc(currentUser.uid).get();
+    const data = snap.exists ? snap.data() : {};
+    const s = (data.settlements || {})[month];
+    if (!s) {
+      document.getElementById('customer-settle-empty').style.display = 'block';
+      return;
+    }
+    const billed = (s.amount || 0) + (s.adjust || 0);
+    const paid = s.status === '입금완료' ? (s.paidAmount || billed) : 0;
+    const unpaid = Math.max(0, billed - paid);
+    document.getElementById('cs-total').textContent = billed.toLocaleString() + '원';
+    document.getElementById('cs-paid').textContent = paid > 0 ? paid.toLocaleString() + '원' : '-';
+    document.getElementById('cs-unpaid').textContent = unpaid > 0 ? unpaid.toLocaleString() + '원' : '없음';
+    const statusMap = { '입금완료':'✅ 입금완료', '미정산':'⏳ 미정산', '부분입금':'🔶 부분입금', '정산완료':'✅ 정산완료' };
+    document.getElementById('cs-status').textContent = statusMap[s.status] || s.status || '-';
+    document.getElementById('cs-lunch').textContent = (s.lunchTotal || 0) + '개';
+    document.getElementById('cs-salad').textContent = (s.saladTotal || 0) + '개';
+    const noteRow = document.getElementById('cs-note-row');
+    if (s.note) { document.getElementById('cs-note').textContent = s.note; noteRow.style.display = 'block'; }
+    else noteRow.style.display = 'none';
+    document.getElementById('customer-settle-area').style.display = 'block';
+  } catch(e) {
+    document.getElementById('customer-settle-empty').style.display = 'block';
+  }
 }
 
 // ───────── 오늘 주문 렌더링 ─────────
@@ -1636,6 +1715,7 @@ function renderProfile() {
   if (!userProfile) return;
   document.getElementById('prof-bizname').value = userProfile.businessName || '';
   document.getElementById('prof-phone').value = userProfile.phone || '';
+  document.getElementById('prof-mealtime').value = userProfile.mealTime || '';
   document.getElementById('prof-lunch').value = userProfile.defaultLunch ?? 2;
   document.getElementById('prof-salad').value = userProfile.defaultSalad ?? 0;
   const meals = normalizeWeekdayMeals(userProfile, userProfile.defaultLunch ?? 2, userProfile.defaultSalad ?? 0);
@@ -1649,6 +1729,7 @@ function renderProfile() {
 async function saveProfile() {
   const bizname = document.getElementById('prof-bizname').value.trim();
   const phone = document.getElementById('prof-phone').value.trim();
+  const mealTime = document.getElementById('prof-mealtime').value.trim();
   const lunch = parseInt(document.getElementById('prof-lunch').value) || 0;
   const salad = parseInt(document.getElementById('prof-salad').value) || 0;
   const sameDailyMeal = document.getElementById('prof-same-daily').checked;
@@ -1656,9 +1737,9 @@ async function saveProfile() {
   if (!bizname) { showToast('업체명을 입력해주세요.', 'error'); return; }
   try {
     await db.collection('users').doc(currentUser.uid).update({
-      businessName: bizname, phone, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals
+      businessName: bizname, phone, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals
     });
-    userProfile = { ...userProfile, businessName: bizname, phone, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals };
+    userProfile = { ...userProfile, businessName: bizname, phone, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals };
     document.getElementById('header-bizname').textContent = bizname;
     renderToday();
     renderWeek();
