@@ -948,8 +948,6 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}) {
       lunchCount: data.lunchCount || 0,
       saladCount: data.saladCount || 0,
       note: data.note || '수동 입력',
-      lunchPrice: data.lunchPrice || 0,
-      saladPrice: data.saladPrice || 0,
       submittedAt: data.updatedAt || data.deliveredAt || null,
       delivered: Boolean(data.delivered),
       deliveredAt: data.deliveredAt || null,
@@ -957,6 +955,8 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}) {
       adminManual: true,
       source: 'manual'
     };
+    rowsByUid[uid].lunchPrice = data.lunchPrice || 0;
+    rowsByUid[uid].saladPrice = data.saladPrice || 0;
   });
   return Object.values(rowsByUid)
     .sort((a, b) => (a.businessName || '').localeCompare(b.businessName || '', 'ko'));
