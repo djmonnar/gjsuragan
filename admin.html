@@ -819,6 +819,9 @@ function adminEventsFromData(data = {}) {
     }
   });
   Object.assign(events, data.adminEvents || {});
+  Object.entries(events).forEach(([id, value]) => {
+    if (value?.deleted) delete events[id];
+  });
   return events;
 }
 function deliveryRecordsFromData(data = {}) {
@@ -833,6 +836,11 @@ function deliveryRecordsFromData(data = {}) {
   });
   Object.entries(data.deliveryRecords || {}).forEach(([date, rows]) => {
     records[date] = { ...(records[date] || {}), ...(rows || {}) };
+  });
+  Object.entries(records).forEach(([date, rows]) => {
+    Object.entries(rows || {}).forEach(([uid, value]) => {
+      if (value?.deleted) delete records[date][uid];
+    });
   });
   return records;
 }
@@ -1323,12 +1331,15 @@ async function deleteManualOrder(uid = '') {
   if (!confirm(`${row?.businessName || '비회원 항목'}을 삭제할까요?`)) return;
   try {
     const ref = db.collection('users').doc(adminUid);
-    const doc = await ref.get();
-    const records = doc.exists ? deliveryRecordsFromData(doc.data()) : {};
-    const dayRecords = { ...(records[currentDateStr] || {}) };
-    delete dayRecords[targetUid];
-    await ref.update(new firebase.firestore.FieldPath('deliveryRecords', currentDateStr), dayRecords);
-    await ref.update({ [`deliveryRecords.${currentDateStr}.${targetUid}`]: firebase.firestore.FieldValue.delete() }).catch(() => {});
+    const tombstone = {
+      deleted: true,
+      deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      deletedBy: adminUid
+    };
+    await ref.set({
+      deliveryRecords: { [currentDateStr]: { [targetUid]: tombstone } },
+      [`deliveryRecords.${currentDateStr}.${targetUid}`]: tombstone
+    }, { merge: true });
     closeManualOrderModal();
     showToast('비회원 배송 항목이 삭제되었습니다.');
     loadOrders();
@@ -1529,13 +1540,18 @@ function editEventLunch(id) {
 async function deleteEventLunch(id, skipConfirm = false) {
   if (!skipConfirm && !confirm('이 행사도시락을 삭제할까요?')) return;
   try {
-    const item = eventLunches.find(e => e.id === id);
+    const item = eventLunches.find(e => e.id === id) || settlementEvents.find(e => e.id === id);
     if (!item) return;
     const ref = db.collection('users').doc(adminUid);
-    await ref.update({
-      [`adminEvents.${id}`]: firebase.firestore.FieldValue.delete()
-    });
-    await ref.update(new firebase.firestore.FieldPath('adminEvents', id), firebase.firestore.FieldValue.delete()).catch(() => {});
+    const tombstone = {
+      deleted: true,
+      deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      deletedBy: adminUid
+    };
+    await ref.set({
+      adminEvents: { [id]: tombstone },
+      [`adminEvents.${id}`]: tombstone
+    }, { merge: true });
     if (!skipConfirm) showToast('삭제되었습니다.');
     loadEventLunches();
   } catch(e) {
@@ -2300,14 +2316,28 @@ async function deleteSettlementRow(uid, fromModal = false) {
       const ref = db.collection('users').doc(adminUid);
       const doc = await ref.get();
       const records = doc.exists ? deliveryRecordsFromData(doc.data()) : {};
-      const updates = [];
+      const deliveryUpdates = {};
+      const tombstone = {
+        deleted: true,
+        deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        deletedBy: adminUid
+      };
       monthDates(month).forEach(ds => {
         if (!records[ds] || !records[ds][uid]) return;
-        delete records[ds][uid];
-        updates.push(ref.update(new firebase.firestore.FieldPath('deliveryRecords', ds), records[ds]));
-        updates.push(ref.update({ [`deliveryRecords.${ds}.${uid}`]: firebase.firestore.FieldValue.delete() }).catch(() => {}));
+        if (!deliveryUpdates[ds]) deliveryUpdates[ds] = {};
+        deliveryUpdates[ds][uid] = tombstone;
+        deliveryUpdates[`legacy:${ds}:${uid}`] = tombstone;
       });
-      await Promise.all(updates);
+      const payload = { deliveryRecords: {} };
+      Object.entries(deliveryUpdates).forEach(([key, value]) => {
+        if (key.startsWith('legacy:')) {
+          const [, ds, targetUid] = key.split(':');
+          payload[`deliveryRecords.${ds}.${targetUid}`] = value;
+        } else {
+          payload.deliveryRecords[key] = value;
+        }
+      });
+      if (Object.keys(payload.deliveryRecords).length > 0) await ref.set(payload, { merge: true });
       await db.collection('users').doc(uid).update({
         [`settlements.${month}`]: firebase.firestore.FieldValue.delete()
       }).catch(() => {});
