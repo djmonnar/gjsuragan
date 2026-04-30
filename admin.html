@@ -715,68 +715,86 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   </div>
 </div>
 
-<!-- 정산 수정 모달 -->
+<!-- 정산 수정 모달 (개편) -->
 <div class="modal-overlay" id="settlement-modal" onclick="closeSettlementModal(event)">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width:600px;max-height:90vh;overflow-y:auto">
     <div class="modal-header">
       <div class="modal-title" id="settlement-modal-title">정산 수정</div>
       <button class="modal-close" onclick="closeSettlementModal()">✕</button>
     </div>
     <input type="hidden" id="settle-edit-uid">
     <input type="hidden" id="settle-edit-type" value="user">
-    <label class="form-label">상태</label>
-    <select class="form-input" id="settle-edit-status">
-      <option>미정산</option>
-      <option>청구완료</option>
-      <option>입금완료</option>
-      <option>보류</option>
-    </select>
-    <label class="form-label">메모</label>
-    <input class="form-input" type="text" id="settle-edit-note" placeholder="메모 (선택)">
-    <div id="settle-manual-fields" style="display:none">
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-        <div>
-          <label class="form-label">도시락 수량</label>
-          <input class="form-input" type="number" id="settle-edit-lunch" min="0" value="0">
-        </div>
-        <div>
-          <label class="form-label">샐러드 수량</label>
-          <input class="form-input" type="number" id="settle-edit-salad" min="0" value="0">
-        </div>
-        <div>
-          <label class="form-label">행사도시락 수량</label>
-          <input class="form-input" type="number" id="settle-edit-event-lunch" min="0" value="0">
-        </div>
+
+    <!-- 상태 + 청구서 번호 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <label class="form-label">상태</label>
+        <select class="form-input" id="settle-edit-status" onchange="updatePaymentSummary()">
+          <option>미정산</option><option>청구완료</option><option>입금완료</option><option>보류</option>
+        </select>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-        <div>
-          <label class="form-label">도시락 단가</label>
-          <input class="form-input" type="number" id="settle-edit-lunch-price" min="0" value="0">
-        </div>
-        <div>
-          <label class="form-label">샐러드 단가</label>
-          <input class="form-input" type="number" id="settle-edit-salad-price" min="0" value="0">
-        </div>
-        <div>
-          <label class="form-label">행사도시락 단가</label>
-          <input class="form-input" type="number" id="settle-edit-event-price" min="0" value="0">
+      <div>
+        <label class="form-label">청구서 번호</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="form-input" type="text" id="settle-edit-invoice-no" placeholder="자동발번"
+            style="flex:1;font-family:monospace;font-size:13px;margin-bottom:0;background:#fafafa" readonly>
+          <button class="secondary-btn" style="white-space:nowrap;height:48px" onclick="issueInvoiceNo()">발번</button>
         </div>
       </div>
     </div>
-    <label class="form-label">조정금액 <span style="font-weight:400;color:var(--sub)">(양수=추가청구 / 음수=할인)</span></label>
-    <input class="form-input" type="number" id="settle-edit-adjust" placeholder="0" value="0">
-    <div style="display:flex;gap:10px">
-      <div style="flex:1">
-        <label class="form-label">입금일자</label>
-        <input class="form-input" type="date" id="settle-edit-paid-date">
+
+    <!-- 납부기한 + 조정금액 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+      <div>
+        <label class="form-label">납부기한</label>
+        <input class="form-input" type="date" id="settle-edit-due-date" onchange="updatePaymentSummary()">
       </div>
-      <div style="flex:1">
-        <label class="form-label">입금금액</label>
-        <input class="form-input" type="number" id="settle-edit-paid-amount" placeholder="0" value="0">
+      <div>
+        <label class="form-label">조정금액 <span style="font-weight:400;color:var(--sub)">(+추가 / -할인)</span></label>
+        <input class="form-input" type="number" id="settle-edit-adjust" placeholder="0" value="0" oninput="updatePaymentSummary()">
       </div>
     </div>
+
+    <!-- 메모 -->
+    <div style="margin-top:10px">
+      <label class="form-label">메모</label>
+      <input class="form-input" type="text" id="settle-edit-note" placeholder="메모 (선택)">
+    </div>
+
+    <!-- 수동 필드 (기존 호환) -->
+    <div id="settle-manual-fields" style="display:none;margin-top:10px">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div><label class="form-label">도시락 수량</label><input class="form-input" type="number" id="settle-edit-lunch" min="0" value="0"></div>
+        <div><label class="form-label">샐러드 수량</label><input class="form-input" type="number" id="settle-edit-salad" min="0" value="0"></div>
+        <div><label class="form-label">행사도시락 수량</label><input class="form-input" type="number" id="settle-edit-event-lunch" min="0" value="0"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">
+        <div><label class="form-label">도시락 단가</label><input class="form-input" type="number" id="settle-edit-lunch-price" min="0" value="0"></div>
+        <div><label class="form-label">샐러드 단가</label><input class="form-input" type="number" id="settle-edit-salad-price" min="0" value="0"></div>
+        <div><label class="form-label">행사도시락 단가</label><input class="form-input" type="number" id="settle-edit-event-price" min="0" value="0"></div>
+      </div>
+    </div>
+
+    <!-- 청구 요약 바 -->
+    <div class="settle-summary-bar">
+      <div><div class="ssb-label">청구액</div><div class="ssb-value" id="sem-billed">-</div></div>
+      <div><div class="ssb-label">입금 합계</div><div class="ssb-value" id="sem-paid" style="color:#1e6e40">-</div></div>
+      <div><div class="ssb-label">잔액</div><div class="ssb-value" id="sem-balance" style="color:#c0392b">-</div></div>
+    </div>
+
+    <!-- 입금 이력 -->
+    <div style="margin-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <label class="form-label" style="margin-bottom:0">입금 이력</label>
+        <button class="secondary-btn" style="font-size:12px;padding:5px 10px" onclick="addPaymentRow()">+ 입금 추가</button>
+      </div>
+      <div id="payment-list" style="display:flex;flex-direction:column;gap:8px">
+        <div class="payment-empty-msg" style="color:var(--sub);font-size:13px;padding:6px 0">입금 이력이 없습니다. [+ 입금 추가] 버튼으로 추가하세요.</div>
+      </div>
+    </div>
+
     <div class="error-msg" id="settle-edit-error"></div>
-    <div class="modal-actions">
+    <div class="modal-actions" style="margin-top:16px">
       <button class="save-btn" onclick="saveSettlementEdit()">저장하기</button>
       <button class="danger-btn" onclick="deleteSettlement()">정산삭제</button>
     </div>
