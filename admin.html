@@ -2258,7 +2258,11 @@ async function loadSettlements() {
       const saved = user.settlements?.[month] || {};
       const lunchPrice = userLunchPrice(user) || 0;
       const saladPrice = userSaladPrice(user) || 0;
-      byUser[uid] = { uid, user, lunch: 0, salad: 0, lunchPrice, saladPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, paidDate: saved.paidDate || '', paidAmount: saved.paidAmount || 0, dateBreakdown: {} };
+      let payments = saved.payments || [];
+      if (payments.length === 0 && saved.paidAmount > 0) {
+        payments = [{ amount: saved.paidAmount, date: saved.paidDate || '', note: '(이전 기록)', recordedAt: saved.updatedAt || '' }];
+      }
+      byUser[uid] = { uid, user, lunch: 0, salad: 0, lunchPrice, saladPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, invoiceNo: saved.invoiceNo || '', dueDate: saved.dueDate || '', payments, dateBreakdown: {} };
     });
 
     const dates = monthDates(month);
@@ -2271,7 +2275,7 @@ async function loadSettlements() {
       Object.entries(deliveryRecords[ds] || {}).forEach(([uid, data]) => {
         if (!data?.delivered) return;
         if (!allUsers[uid]) return;
-        if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, lunchPrice: 0, saladPrice: 0, amount: 0, status: '미정산', note: '', dateBreakdown: {} };
+        if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, lunchPrice: 0, saladPrice: 0, amount: 0, status: '미정산', note: '', adjust: 0, invoiceNo: '', dueDate: '', payments: [], dateBreakdown: {} };
         const dl = data.lunchCount || 0, dd = data.saladCount || 0;
         byUser[uid].lunch += dl;
         byUser[uid].salad += dd;
@@ -2317,9 +2321,10 @@ async function loadSettlements() {
 
     settlementRows = rows;
     renderSettlements();
+    renderSettlementCharts().catch(() => {});
   } catch(e) {
-    tbody.innerHTML = `<tr class="no-order-row"><td colspan="10">정산 계산 실패: ${escapeHtml(e.message)}</td></tr>`;
-    eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="7">행사도시락 내역을 불러오지 못했습니다.</td></tr>';
+    tbody.innerHTML = `<tr class="no-order-row"><td colspan="12">정산 계산 실패: ${escapeHtml(e.message)}</td></tr>`;
+    eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="9">행사도시락 내역을 불러오지 못했습니다.</td></tr>';
   }
 }
 
