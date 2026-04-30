@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
 const firebaseConfig={apiKey:"AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A",authDomain:"gjsuragan-60505.firebaseapp.com",projectId:"gjsuragan-60505",storageBucket:"gjsuragan-60505.firebasestorage.app",messagingSenderId:"1009198450175",appId:"1:1009198450175:web:4a55da7c2092dba42613ca"};
 firebase.initializeApp(firebaseConfig);
@@ -100,6 +101,32 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .export-btn{background:#1e6e40;color:#fff;border:0;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .kakao-btn{background:#fae100;color:#3c1e1e;border:0;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .kakao-mini-btn{background:#fae100;color:#3c1e1e;border:0;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+/* ── 정산 업그레이드 CSS ── */
+.settle-header-bar{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.settle-month-picker{display:flex;gap:10px;align-items:flex-end}
+.settle-filter-tabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.settle-tab-btn{border:1.5px solid var(--border);background:#fff;color:var(--sub);padding:7px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.settle-tab-btn:hover{border-color:var(--primary);color:var(--primary)}
+.settle-tab-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.settle-tab-btn.overdue-tab.active{background:#c0392b;border-color:#c0392b}
+.settle-dashboard{display:grid;grid-template-columns:auto 1fr;gap:16px;margin-bottom:16px;align-items:start}
+.settle-kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;min-width:280px}
+.settle-charts-area{display:flex;gap:12px;min-width:0;overflow:hidden}
+.settle-chart-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;flex:1;min-width:0;box-shadow:var(--shadow)}
+.settle-chart-card.donut-card{flex:0 0 210px}
+.settle-chart-title{font-size:12px;font-weight:700;color:var(--sub);margin-bottom:8px}
+.invoice-no{font-size:12px;font-family:monospace;color:var(--primary);font-weight:700;background:var(--gold2);padding:2px 7px;border-radius:6px;white-space:nowrap;letter-spacing:.3px}
+.balance-positive{color:#c0392b;font-weight:700}
+.balance-zero{color:#1e6e40;font-weight:700}
+.due-badge{display:inline-block;padding:3px 8px;border-radius:12px;font-size:12px;font-weight:700;white-space:nowrap}
+.due-badge.overdue{background:#fdecea;color:#c0392b}
+.due-badge.soon{background:#fff3e0;color:#e65100}
+.due-badge.ok{color:var(--sub);font-size:12px}
+.payment-row{display:grid;grid-template-columns:1fr 1fr 2fr 32px;gap:8px;align-items:end;background:#fafafa;padding:10px;border-radius:8px;border:1px solid var(--border)}
+.payment-row .form-input{margin-bottom:0}
+.settle-summary-bar{background:var(--gold2);border-radius:10px;padding:12px 14px;margin:12px 0;font-size:13px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.settle-summary-bar .ssb-label{color:var(--sub);font-size:11px;margin-bottom:2px}
+.settle-summary-bar .ssb-value{font-weight:800;font-size:15px}
 .breakdown-row{background:#fafaf7}.breakdown-cell{padding:0!important}.breakdown-wrap{padding:12px 16px;border-top:1px solid var(--border)}.breakdown-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.breakdown-table{border-collapse:collapse;font-size:13px}.breakdown-table th{background:var(--gold2);color:var(--primary);padding:6px 12px;text-align:center;font-weight:700;border:1px solid var(--border)}.breakdown-table td{padding:5px 10px;border:1px solid var(--border);text-align:center}.breakdown-total td{font-weight:800;background:var(--gold2)}.bd-date{text-align:left!important;white-space:nowrap;font-size:12px}.bd-input{width:58px;padding:4px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;text-align:center}.breakdown-btn{background:var(--gold2);color:var(--primary);border:0;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;display:block;margin-top:3px;white-space:nowrap}
 .sheet-modal-box{max-width:880px;width:100%;background:#fff;border-radius:var(--radius);padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.18);max-height:92vh;overflow-y:auto}
 .sheet-edit-bar{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}
@@ -189,6 +216,13 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .current-date{min-width:130px;font-size:14px}
   .order-table th,.order-table td{padding:11px 10px}
   .members-btn{margin-left:0}
+  .settle-dashboard{grid-template-columns:1fr}
+  .settle-kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .settle-charts-area{flex-direction:column}
+  .settle-chart-card.donut-card{flex:none}
+  .settle-header-bar{flex-direction:column;align-items:flex-start}
+  .settle-filter-tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;width:100%}
+  .payment-row{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
