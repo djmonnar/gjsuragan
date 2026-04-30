@@ -3012,12 +3012,15 @@ function openSettlementEdit(uid) {
   document.getElementById('settle-edit-salad-price').value = row.saladPrice || 0;
   document.getElementById('settle-edit-event-price').value = row.eventPrice || row.lunchPrice || 0;
   document.getElementById('settle-edit-adjust').value = row.adjust || 0;
-  document.getElementById('settle-edit-paid-date').value = row.paidDate || '';
-  document.getElementById('settle-edit-paid-amount').value = row.paidAmount || 0;
+  document.getElementById('settle-edit-invoice-no').value = row.invoiceNo || '';
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  document.getElementById('settle-edit-due-date').value = row.dueDate || defaultDueDate(month);
+  renderPaymentList(row.payments || []);
   const errEl = document.getElementById('settle-edit-error');
   errEl.textContent = '';
   errEl.classList.remove('show');
   document.getElementById('settlement-modal').classList.add('open');
+  updatePaymentSummary();
 }
 
 function closeSettlementModal(e) {
@@ -3033,10 +3036,15 @@ async function saveSettlementEdit() {
   const status = document.getElementById('settle-edit-status').value;
   const note = document.getElementById('settle-edit-note').value.trim();
   const adjust = parseInt(document.getElementById('settle-edit-adjust').value, 10) || 0;
-  const paidDate = document.getElementById('settle-edit-paid-date').value;
-  const paidAmount = parseInt(document.getElementById('settle-edit-paid-amount').value, 10) || 0;
+  const dueDate = document.getElementById('settle-edit-due-date').value;
+  let invoiceNo = document.getElementById('settle-edit-invoice-no').value.trim();
+  if (status === '청구완료' && !invoiceNo) {
+    try { invoiceNo = await generateInvoiceNo(month); } catch(_) {}
+  }
+  const payments = collectPaymentsFromModal();
+  const paidTotal = payments.reduce((s,p)=>s+(parseInt(p.amount,10)||0),0);
   try {
-    let data = { status, note, amount: row.amount, adjust, paidDate, paidAmount, lunchTotal: row.lunch || 0, saladTotal: row.salad || 0, updatedAt: new Date().toISOString() };
+    let data = { status, note, amount: row.amount, adjust, invoiceNo, dueDate, payments, paidAmount: paidTotal, lunchTotal: row.lunch || 0, saladTotal: row.salad || 0, updatedAt: new Date().toISOString() };
     if (row.type === 'event') {
       await db.collection('users').doc(adminUid).set({
         adminEvents: { [row.eventId]: { settlement: data } }
@@ -3073,7 +3081,7 @@ async function saveSettlementEdit() {
       await db.collection('users').doc(uid).update({ [`settlements.${month}`]: data });
       allUsers[uid] = { ...allUsers[uid], settlements: { ...(allUsers[uid].settlements || {}), [month]: data } };
     }
-    Object.assign(row, { status, note, adjust, paidDate, paidAmount });
+    Object.assign(row, { status, note, adjust, invoiceNo, dueDate, payments });
     document.getElementById('settlement-modal').classList.remove('open');
     renderSettlements();
     showToast('✅ 정산이 저장되었습니다.');
@@ -3082,6 +3090,117 @@ async function saveSettlementEdit() {
     errEl.textContent = '저장 실패: ' + e.message;
     errEl.classList.add('show');
   }
+}
+
+// ── 입금 이력 UI ──
+function renderPaymentList(payments) {
+  const container = document.getElementById('payment-list');
+  if (!container) return;
+  if (!payments.length) {
+    container.innerHTML = '<div class="payment-empty-msg" style="color:var(--sub);font-size:13px;padding:6px 0">입금 이력이 없습니다. [+ 입금 추가] 버튼으로 추가하세요.</div>';
+  } else {
+    container.innerHTML = payments.map((p, i) => `
+      <div class="payment-row" data-idx="${i}">
+        <div><label class="form-label" style="font-size:11px">입금일</label>
+          <input class="form-input" type="date" data-field="date" value="${escapeHtml(p.date||'')}" oninput="updatePaymentSummary()"></div>
+        <div><label class="form-label" style="font-size:11px">입금액</label>
+          <input class="form-input" type="number" data-field="amount" value="${p.amount||0}" placeholder="0" oninput="updatePaymentSummary()"></div>
+        <div><label class="form-label" style="font-size:11px">메모</label>
+          <input class="form-input" type="text" data-field="note" value="${escapeHtml(p.note||'')}" placeholder="메모(선택)"></div>
+        <button onclick="removePaymentRow(${i})"
+          style="background:#fdecea;color:#c0392b;border:0;border-radius:8px;padding:0 10px;font-size:16px;font-weight:700;cursor:pointer;height:46px;align-self:end">✕</button>
+      </div>`).join('');
+  }
+  updatePaymentSummary();
+}
+function addPaymentRow() {
+  const container = document.getElementById('payment-list');
+  const emptyMsg = container.querySelector('.payment-empty-msg');
+  if (emptyMsg) emptyMsg.remove();
+  const today = dateStr(getKST());
+  const idx = container.querySelectorAll('.payment-row').length;
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="payment-row" data-idx="${idx}">
+      <div><label class="form-label" style="font-size:11px">입금일</label>
+        <input class="form-input" type="date" data-field="date" value="${today}" oninput="updatePaymentSummary()"></div>
+      <div><label class="form-label" style="font-size:11px">입금액</label>
+        <input class="form-input" type="number" data-field="amount" value="0" placeholder="0" oninput="updatePaymentSummary()"></div>
+      <div><label class="form-label" style="font-size:11px">메모</label>
+        <input class="form-input" type="text" data-field="note" value="" placeholder="메모(선택)"></div>
+      <button onclick="removePaymentRow(${idx})"
+        style="background:#fdecea;color:#c0392b;border:0;border-radius:8px;padding:0 10px;font-size:16px;font-weight:700;cursor:pointer;height:46px;align-self:end">✕</button>
+    </div>`;
+  container.appendChild(div.firstElementChild);
+  updatePaymentSummary();
+}
+function removePaymentRow(idx) {
+  const container = document.getElementById('payment-list');
+  const rows = Array.from(container.querySelectorAll('.payment-row'));
+  if (rows[idx]) rows[idx].remove();
+  if (!container.querySelectorAll('.payment-row').length) {
+    container.innerHTML = '<div class="payment-empty-msg" style="color:var(--sub);font-size:13px;padding:6px 0">입금 이력이 없습니다.</div>';
+  }
+  updatePaymentSummary();
+}
+function collectPaymentsFromModal() {
+  return Array.from(document.querySelectorAll('#payment-list .payment-row')).map(row => ({
+    date: row.querySelector('[data-field="date"]').value,
+    amount: parseInt(row.querySelector('[data-field="amount"]').value, 10) || 0,
+    note: row.querySelector('[data-field="note"]').value.trim(),
+    recordedAt: new Date().toISOString()
+  })).filter(p => p.amount > 0);
+}
+function updatePaymentSummary() {
+  const uid = document.getElementById('settle-edit-uid').value;
+  const row = getSettlementRow(uid);
+  if (!row) return;
+  const adjust = parseInt(document.getElementById('settle-edit-adjust')?.value, 10) || 0;
+  const billed = row.amount + adjust;
+  const paidTotal = Array.from(document.querySelectorAll('#payment-list .payment-row'))
+    .reduce((s, r) => s + (parseInt(r.querySelector('[data-field="amount"]').value, 10) || 0), 0);
+  const balance = billed - paidTotal;
+  const billedEl = document.getElementById('sem-billed');
+  const paidEl = document.getElementById('sem-paid');
+  const balEl = document.getElementById('sem-balance');
+  if (billedEl) billedEl.textContent = formatMoney(billed);
+  if (paidEl) paidEl.textContent = formatMoney(paidTotal);
+  if (balEl) { balEl.textContent = formatMoney(balance); balEl.style.color = balance <= 0 ? '#1e6e40' : '#c0392b'; }
+}
+
+// ── 청구서 번호 자동 발번 ──
+async function generateInvoiceNo(month) {
+  const [year, mon] = month.split('-');
+  const prefix = `GJS-${year}${mon}-`;
+  let maxSeq = 0;
+  const usersSnap = await db.collection('users').get();
+  usersSnap.forEach(doc => {
+    const inv = doc.data()?.settlements?.[month]?.invoiceNo || '';
+    if (inv.startsWith(prefix)) {
+      const seq = parseInt(inv.slice(prefix.length), 10) || 0;
+      if (seq > maxSeq) maxSeq = seq;
+    }
+  });
+  const adminDoc = await db.collection('users').doc(adminUid).get();
+  if (adminDoc.exists) {
+    const events = adminEventsFromData(adminDoc.data());
+    Object.values(events).forEach(evt => {
+      const inv = evt?.settlement?.invoiceNo || '';
+      if (inv.startsWith(prefix)) {
+        const seq = parseInt(inv.slice(prefix.length), 10) || 0;
+        if (seq > maxSeq) maxSeq = seq;
+      }
+    });
+  }
+  return `${prefix}${String(maxSeq + 1).padStart(3, '0')}`;
+}
+async function issueInvoiceNo() {
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  try {
+    const no = await generateInvoiceNo(month);
+    document.getElementById('settle-edit-invoice-no').value = no;
+    showToast(`✅ ${no} 발번됨`);
+  } catch(e) { showToast('발번 실패: ' + e.message); }
 }
 
 async function deleteSettlement() {
