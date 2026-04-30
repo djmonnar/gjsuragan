@@ -2334,54 +2334,68 @@ function renderSettlements() {
   const totalLunch = settlementRows.reduce((sum, row) => sum + row.lunch, 0);
   const totalSalad = settlementRows.reduce((sum, row) => sum + row.salad, 0);
   const eventRows = settlementEvents.map(eventSettlementRow);
-  const totalBilled = [...settlementRows, ...eventRows].reduce((sum, row) => sum + row.amount + (row.adjust || 0), 0);
-  const totalPaid = [...settlementRows, ...eventRows].filter(r => r.status === '입금완료').reduce((sum, r) => sum + (r.paidAmount > 0 ? r.paidAmount : r.amount + (r.adjust || 0)), 0);
+  const allRows = [...settlementRows, ...eventRows];
+  const totalBilled = allRows.reduce((sum, row) => sum + row.amount + (row.adjust || 0), 0);
+  const totalPaid = allRows.reduce((sum, r) => {
+    const p = (r.payments||[]).reduce((s,p)=>s+(parseInt(p.amount,10)||0),0);
+    return sum + (p > 0 ? p : (r.paidAmount > 0 ? r.paidAmount : 0));
+  }, 0);
   const totalUnpaid = Math.max(0, totalBilled - totalPaid);
-  const totalEventCount = settlementRows.reduce((sum, row) => sum + (row.eventLunch || 0), 0) + settlementEvents.reduce((sum, item) => sum + (item.count || 0), 0);
+  const overdueCount = allRows.filter(r => r.status !== '입금완료' && calcOverdue(r.dueDate) > 0).length;
 
   document.getElementById('settle-total').innerHTML = `${totalBilled.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
   document.getElementById('settle-paid-total').innerHTML = `${totalPaid.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
   document.getElementById('settle-unpaid-total').innerHTML = `${totalUnpaid.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
   document.getElementById('settle-lunch-total').innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
   document.getElementById('settle-salad-total').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
-  document.getElementById('settle-event-total').innerHTML = `${totalEventCount}<span class="summary-unit">개</span>`;
+  document.getElementById('settle-overdue-count').innerHTML = `${overdueCount}<span class="summary-unit">곳</span>`;
 
   const hasBatch = settlementRows.length > 0;
   document.getElementById('settle-batch-toolbar').style.display = hasBatch ? 'flex' : 'none';
   document.getElementById('settle-check-all').checked = false;
 
   if (settlementRows.length === 0) {
-    tbody.innerHTML = '<tr class="no-order-row"><td colspan="10">선택한 월의 업체 주문이 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr class="no-order-row"><td colspan="12">선택한 월의 업체 주문이 없습니다.</td></tr>';
   } else {
-    tbody.innerHTML = settlementRows.map(row => {
-      const billed = row.amount + (row.adjust || 0);
-      const adjustLabel = row.adjust ? `<span style="font-size:11px;color:var(--sub);display:block">${row.adjust > 0 ? '+' : ''}${row.adjust.toLocaleString()}</span>` : '';
-      const safeUid = row.uid.replace(/[^a-zA-Z0-9_-]/g, '_');
-      return `
-      <tr>
-        <td style="text-align:center"><input class="settle-check" type="checkbox" value="${escapeHtml(row.uid)}"></td>
-        <td class="biz-name">${escapeHtml(row.user.businessName || '-')}</td>
-        <td class="qty-cell">${row.lunch}<button class="breakdown-btn" onclick="toggleBreakdown('${escapeHtml(row.uid)}')">📋 일별▼</button></td>
-        <td class="qty-cell">${row.salad}</td>
-        <td class="qty-cell">${row.eventLunch || 0}</td>
-        <td>${formatMoney(row.lunchPrice)} / ${formatMoney(row.saladPrice)} / ${formatMoney(row.eventPrice || row.lunchPrice || 0)}</td>
-        <td>${formatMoney(billed)}${adjustLabel}</td>
-        <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(row.status)}</span></td>
-        <td class="note-cell">${row.note ? escapeHtml(row.note) : '<span style="color:var(--sub)">-</span>'}</td>
-        <td>
-          <div class="inline-actions">
-            <button class="mini-btn" onclick="openSettlementEdit('${row.uid}')">수정</button>
-            <button class="mini-btn" onclick="openSheetModal('${row.uid}')">정산표</button>
-            <button class="kakao-mini-btn" onclick="copySettlementKakao('${row.uid}')">💬</button>
-            <button class="mini-btn" onclick="makeSettlementReceipt('${row.uid}')">영수증</button>
-            <button class="danger-btn" onclick="deleteSettlementRow('${row.uid}')">삭제</button>
-          </div>
-        </td>
-      </tr>
-      <tr class="breakdown-row" id="bdr-${safeUid}" style="display:none">
-        <td colspan="9" class="breakdown-cell">${renderBreakdownHTML(row)}</td>
-      </tr>
-    `}).join('');
+    const filtered = settlementRows.filter(row => filterMatchesRow(row));
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr class="no-order-row"><td colspan="12">해당 조건의 업체가 없습니다.</td></tr>`;
+    } else {
+      tbody.innerHTML = filtered.map(row => {
+        const billed = row.amount + (row.adjust || 0);
+        const adjustLabel = row.adjust ? `<span style="font-size:11px;color:var(--sub);display:block">${row.adjust > 0 ? '+' : ''}${row.adjust.toLocaleString()}</span>` : '';
+        const safeUid = row.uid.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const paidTotal = (row.payments||[]).reduce((s,p)=>s+(parseInt(p.amount,10)||0),0);
+        const balance = billed - paidTotal;
+        const balanceClass = balance <= 0 ? 'balance-zero' : 'balance-positive';
+        return `
+        <tr>
+          <td style="text-align:center"><input class="settle-check" type="checkbox" value="${escapeHtml(row.uid)}"></td>
+          <td class="biz-name">${escapeHtml(row.user.businessName || '-')}</td>
+          <td class="qty-cell">${row.lunch}<button class="breakdown-btn" onclick="toggleBreakdown('${escapeHtml(row.uid)}')">📋 일별▼</button></td>
+          <td class="qty-cell">${row.salad}</td>
+          <td style="font-size:13px">${formatMoney(row.lunchPrice)} / ${formatMoney(row.saladPrice)}</td>
+          <td>${formatMoney(billed)}${adjustLabel}</td>
+          <td>${row.invoiceNo ? `<span class="invoice-no">${escapeHtml(row.invoiceNo)}</span>` : '<span style="color:var(--sub);font-size:12px">-</span>'}</td>
+          <td>${dueDateBadgeHtml(row)}</td>
+          <td class="${balanceClass}">${formatMoney(balance)}</td>
+          <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(row.status)}</span></td>
+          <td class="note-cell">${row.note ? escapeHtml(row.note) : '<span style="color:var(--sub)">-</span>'}</td>
+          <td>
+            <div class="inline-actions">
+              <button class="mini-btn" onclick="openSettlementEdit('${row.uid}')">수정</button>
+              <button class="mini-btn" onclick="openSheetModal('${row.uid}')">정산표</button>
+              <button class="kakao-mini-btn" onclick="copySettlementKakao('${row.uid}')">💬</button>
+              <button class="mini-btn" onclick="makeSettlementReceipt('${row.uid}')">영수증</button>
+              <button class="danger-btn" onclick="deleteSettlementRow('${row.uid}')">삭제</button>
+            </div>
+          </td>
+        </tr>
+        <tr class="breakdown-row" id="bdr-${safeUid}" style="display:none">
+          <td colspan="12" class="breakdown-cell">${renderBreakdownHTML(row)}</td>
+        </tr>
+      `}).join('');
+    }
   }
 
   if (settlementEvents.length === 0) {
