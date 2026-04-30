@@ -99,6 +99,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .export-btn{background:#1e6e40;color:#fff;border:0;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .kakao-btn{background:#fae100;color:#3c1e1e;border:0;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .kakao-mini-btn{background:#fae100;color:#3c1e1e;border:0;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.breakdown-row{background:#fafaf7}.breakdown-cell{padding:0!important}.breakdown-wrap{padding:12px 16px;border-top:1px solid var(--border)}.breakdown-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.breakdown-table{border-collapse:collapse;font-size:13px}.breakdown-table th{background:var(--gold2);color:var(--primary);padding:6px 12px;text-align:center;font-weight:700;border:1px solid var(--border)}.breakdown-table td{padding:5px 10px;border:1px solid var(--border);text-align:center}.breakdown-total td{font-weight:800;background:var(--gold2)}.bd-date{text-align:left!important;white-space:nowrap;font-size:12px}.bd-input{width:58px;padding:4px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;text-align:center}.breakdown-btn{background:var(--gold2);color:var(--primary);border:0;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;display:block;margin-top:3px;white-space:nowrap}
 .sheet-modal-box{max-width:880px;width:100%;background:#fff;border-radius:var(--radius);padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.18);max-height:92vh;overflow-y:auto}
 .sheet-edit-bar{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}
 .sheet-preview-area{border:1px solid var(--border);border-radius:8px;padding:20px;background:#fff;overflow-x:auto}
@@ -233,7 +234,10 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   <div class="controls-bar admin-tab-panel" data-tab="orders">
     <div class="date-nav">
       <button class="nav-btn" onclick="changeDate(-1)">◀</button>
-      <div class="current-date" id="current-date-label">날짜</div>
+      <label style="position:relative;display:inline-block;cursor:pointer" title="클릭하면 날짜를 직접 선택할 수 있습니다">
+        <div class="current-date" id="current-date-label">날짜</div>
+        <input type="date" id="date-picker" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="setDateFromPicker()">
+      </label>
       <button class="nav-btn" onclick="changeDate(1)">▶</button>
     </div>
     <button class="today-btn" onclick="goToday()">오늘</button>
@@ -991,6 +995,12 @@ function changeDate(delta) {
 function goToday() { currentDateStr = dateStr(getKST()); updateDateLabel(); loadOrders(); }
 function updateDateLabel() {
   document.getElementById('current-date-label').textContent = formatDateKR(currentDateStr);
+  const dp = document.getElementById('date-picker');
+  if (dp) dp.value = currentDateStr;
+}
+function setDateFromPicker() {
+  const val = document.getElementById('date-picker').value;
+  if (val) { currentDateStr = val; updateDateLabel(); loadOrders(); }
 }
 
 function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}) {
@@ -1803,7 +1813,7 @@ async function loadSettlements() {
       const saved = user.settlements?.[month] || {};
       const lunchPrice = userLunchPrice(user) || 0;
       const saladPrice = userSaladPrice(user) || 0;
-      byUser[uid] = { uid, user, lunch: 0, salad: 0, lunchPrice, saladPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, paidDate: saved.paidDate || '', paidAmount: saved.paidAmount || 0 };
+      byUser[uid] = { uid, user, lunch: 0, salad: 0, lunchPrice, saladPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, paidDate: saved.paidDate || '', paidAmount: saved.paidAmount || 0, dateBreakdown: {} };
     });
 
     const dates = monthDates(month);
@@ -1815,9 +1825,11 @@ async function loadSettlements() {
       Object.entries(deliveryRecords[ds] || {}).forEach(([uid, data]) => {
         if (!data?.delivered) return;
         if (!allUsers[uid]) return;
-        if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, lunchPrice: 0, saladPrice: 0, amount: 0, status: '미정산', note: '' };
-        byUser[uid].lunch += data.lunchCount || 0;
-        byUser[uid].salad += data.saladCount || 0;
+        if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, lunchPrice: 0, saladPrice: 0, amount: 0, status: '미정산', note: '', dateBreakdown: {} };
+        const dl = data.lunchCount || 0, dd = data.saladCount || 0;
+        byUser[uid].lunch += dl;
+        byUser[uid].salad += dd;
+        if (dl > 0 || dd > 0) byUser[uid].dateBreakdown[ds] = { lunch: dl, salad: dd };
       });
     });
 
@@ -1868,11 +1880,12 @@ function renderSettlements() {
     tbody.innerHTML = settlementRows.map(row => {
       const billed = row.amount + (row.adjust || 0);
       const adjustLabel = row.adjust ? `<span style="font-size:11px;color:var(--sub);display:block">${row.adjust > 0 ? '+' : ''}${row.adjust.toLocaleString()}</span>` : '';
+      const safeUid = row.uid.replace(/[^a-zA-Z0-9_-]/g, '_');
       return `
       <tr>
         <td style="text-align:center"><input class="settle-check" type="checkbox" value="${escapeHtml(row.uid)}"></td>
         <td class="biz-name">${escapeHtml(row.user.businessName || '-')}</td>
-        <td class="qty-cell">${row.lunch}</td>
+        <td class="qty-cell">${row.lunch}<button class="breakdown-btn" onclick="toggleBreakdown('${escapeHtml(row.uid)}')">📋 일별▼</button></td>
         <td class="qty-cell">${row.salad}</td>
         <td>${formatMoney(row.lunchPrice)} / ${formatMoney(row.saladPrice)}</td>
         <td>${formatMoney(billed)}${adjustLabel}</td>
@@ -1887,6 +1900,9 @@ function renderSettlements() {
             <button class="danger-btn" onclick="deleteSettlementRow('${row.uid}')">삭제</button>
           </div>
         </td>
+      </tr>
+      <tr class="breakdown-row" id="bdr-${safeUid}" style="display:none">
+        <td colspan="9" class="breakdown-cell">${renderBreakdownHTML(row)}</td>
       </tr>
     `}).join('');
   }
@@ -2480,6 +2496,83 @@ async function saveSettlementEdit() {
 async function deleteSettlement() {
   const uid = document.getElementById('settle-edit-uid').value;
   await deleteSettlementRow(uid, true);
+}
+
+function renderBreakdownHTML(row) {
+  const breakdown = row.dateBreakdown || {};
+  const dates = Object.keys(breakdown).sort();
+  if (dates.length === 0) {
+    return '<p style="padding:12px 16px;color:var(--sub);font-size:13px">배송 완료 처리된 날짜 내역이 없습니다.</p>';
+  }
+  const days = ['일','월','화','수','목','금','토'];
+  const safeUid = row.uid.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const rows = dates.map(ds => {
+    const [,m,d] = ds.split('-');
+    const dt = new Date(`${ds}T00:00:00+09:00`);
+    const label = `${parseInt(m)}/${parseInt(d)}(${days[dt.getDay()]})`;
+    return `<tr>
+      <td class="bd-date">${label}</td>
+      <td><input type="number" class="bd-input" id="bd-${safeUid}-${ds}-lunch" value="${breakdown[ds].lunch}" min="0" max="99"></td>
+      <td><input type="number" class="bd-input" id="bd-${safeUid}-${ds}-salad" value="${breakdown[ds].salad}" min="0" max="99"></td>
+    </tr>`;
+  }).join('');
+  return `<div class="breakdown-wrap">
+    <div class="breakdown-header">
+      <span style="font-weight:700;color:var(--primary);font-size:13px">📋 ${escapeHtml(row.user.businessName || '-')} 일별 배송내역</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="save-btn" style="font-size:12px;padding:6px 12px" onclick="saveBreakdownEdits('${escapeHtml(row.uid)}')">저장</button>
+        <button class="mini-btn" onclick="toggleBreakdown('${escapeHtml(row.uid)}')">닫기</button>
+      </div>
+    </div>
+    <table class="breakdown-table">
+      <thead><tr><th>날짜</th><th>🍱 도시락</th><th>🥗 샐러드</th></tr></thead>
+      <tbody>${rows}
+        <tr class="breakdown-total"><td>합계</td><td id="bd-total-lunch-${safeUid}">${row.lunch}</td><td id="bd-total-salad-${safeUid}">${row.salad}</td></tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function toggleBreakdown(uid) {
+  const safeUid = uid.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const el = document.getElementById('bdr-' + safeUid);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+async function saveBreakdownEdits(uid) {
+  const row = settlementRows.find(r => r.uid === uid);
+  if (!row) return;
+  const safeUid = uid.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const dates = Object.keys(row.dateBreakdown || {}).sort();
+  const updates = {};
+  let changed = false;
+  for (const ds of dates) {
+    const lunchEl = document.getElementById(`bd-${safeUid}-${ds}-lunch`);
+    const saladEl = document.getElementById(`bd-${safeUid}-${ds}-salad`);
+    if (!lunchEl || !saladEl) continue;
+    const newLunch = Math.max(0, parseInt(lunchEl.value, 10) || 0);
+    const newSalad = Math.max(0, parseInt(saladEl.value, 10) || 0);
+    if (newLunch !== row.dateBreakdown[ds].lunch || newSalad !== row.dateBreakdown[ds].salad) {
+      changed = true;
+      const existing = (cachedDeliveryRecords[ds] || {})[uid] || {};
+      updates[`deliveryRecords.${ds}.${uid}`] = {
+        ...existing,
+        lunchCount: newLunch,
+        saladCount: newSalad,
+        delivered: newLunch > 0 || newSalad > 0,
+        updatedAt: new Date().toISOString()
+      };
+    }
+  }
+  if (!changed) { showToast('변경 사항이 없습니다.'); return; }
+  try {
+    await db.collection('users').doc(adminUid).update(updates);
+    showToast('✅ 배송 내역이 저장되었습니다. 정산을 다시 불러옵니다...');
+    loadSettlements();
+  } catch(e) {
+    showToast('저장 실패: ' + e.message);
+  }
 }
 
 async function deleteSettlementRow(uid, fromModal = false) {
