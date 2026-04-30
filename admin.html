@@ -3208,6 +3208,70 @@ async function deleteSettlement() {
   await deleteSettlementRow(uid, true);
 }
 
+// ── 정산 차트 ──
+async function loadSettlementChartData() {
+  const today = getKST();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  const chartData = months.map(m => {
+    let billed = 0, paid = 0;
+    Object.values(allUsers).forEach(user => {
+      const s = user.settlements?.[m];
+      if (!s) return;
+      billed += (s.amount || 0) + (s.adjust || 0);
+      const p = (s.payments || []).reduce((sum, x) => sum + (parseInt(x.amount, 10) || 0), 0);
+      paid += p > 0 ? p : (s.paidAmount || 0);
+    });
+    return { month: m, billed, paid };
+  });
+  return { months, chartData };
+}
+async function renderSettlementCharts() {
+  const { months, chartData } = await loadSettlementChartData();
+  const labels = months.map(m => {
+    const [y, mo] = m.split('-');
+    return `${y.slice(2)}/${parseInt(mo)}`;
+  });
+  const barCtx = document.getElementById('settle-bar-chart');
+  if (!barCtx) return;
+  if (settlementChartBar) { settlementChartBar.destroy(); settlementChartBar = null; }
+  settlementChartBar = new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: '청구액', data: chartData.map(d => d.billed), backgroundColor: 'rgba(123,63,26,0.75)', borderRadius: 5 },
+        { label: '입금액', data: chartData.map(d => d.paid), backgroundColor: 'rgba(30,110,64,0.75)', borderRadius: 5 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.toLocaleString('ko-KR')}원` } }
+      },
+      scales: { y: { ticks: { callback: v => v >= 10000 ? `${Math.floor(v/10000)}만` : v.toLocaleString(), font: { size: 11 } }, beginAtZero: true } }
+    }
+  });
+  const donutCtx = document.getElementById('settle-donut-chart');
+  if (!donutCtx) return;
+  if (settlementChartDonut) { settlementChartDonut.destroy(); settlementChartDonut = null; }
+  const allRows = [...settlementRows, ...settlementEvents.map(eventSettlementRow)];
+  const counts = { '미정산': 0, '청구완료': 0, '입금완료': 0, '보류': 0 };
+  allRows.forEach(r => { if (r.status in counts) counts[r.status]++; });
+  settlementChartDonut = new Chart(donutCtx, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(counts),
+      datasets: [{ data: Object.values(counts), backgroundColor: ['#fff3e0','#e3f2fd','#e8f5e9','#f3e5f5'], borderColor: ['#e65100','#1565c0','#1e6e40','#6a1b9a'], borderWidth: 2 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 12 } } } }
+  });
+}
+
 function renderBreakdownHTML(row) {
   const breakdown = row.dateBreakdown || {};
   const dates = Object.keys(breakdown).sort();
