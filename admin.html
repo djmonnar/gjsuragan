@@ -2692,14 +2692,12 @@ async function bulkUpdateSettlement() {
     uids.forEach(uid => {
       const row = settlementRows.find(r => r.uid === uid);
       if (!row) return;
-      const data = { status: newStatus, note: row.note, amount: row.amount, adjust: row.adjust || 0, paidDate: row.paidDate || '', paidAmount: row.paidAmount || 0, updatedAt: new Date().toISOString() };
+      const data = { status: newStatus, note: row.note, amount: row.amount, adjust: row.adjust || 0, invoiceNo: row.invoiceNo || '', dueDate: row.dueDate || '', payments: row.payments || [], updatedAt: new Date().toISOString() };
       if (row.type === 'manualMonthly') {
         manualUpdates[`${uid}.status`] = data.status;
         manualUpdates[`${uid}.note`] = data.note;
         manualUpdates[`${uid}.amount`] = data.amount;
         manualUpdates[`${uid}.adjust`] = data.adjust;
-        manualUpdates[`${uid}.paidDate`] = data.paidDate;
-        manualUpdates[`${uid}.paidAmount`] = data.paidAmount;
         manualUpdates[`${uid}.updatedAt`] = data.updatedAt;
       } else {
         batch.update(db.collection('users').doc(uid), {
@@ -2734,24 +2732,22 @@ function exportSettlementCSV() {
   const rows = [...settlementRows, ...settlementEvents.map(eventSettlementRow)];
   if (rows.length === 0) { showToast('정산 데이터가 없습니다.'); return; }
   const month = document.getElementById('settle-month').value || currentMonthStr();
-  const headers = ['업체명', '도시락(개)', '샐러드(개)', '행사도시락(개)', '도시락 단가', '샐러드 단가', '행사도시락 단가', '청구액(원)', '상태', '메모'];
-  const dataRows = rows.map(row => [
-    row.user.businessName || '-',
-    row.lunch,
-    row.salad,
-    row.eventLunch || 0,
-    row.lunchPrice,
-    row.saladPrice,
-    row.eventPrice || row.lunchPrice || 0,
-    row.amount,
-    row.status,
-    row.note
-  ]);
+  const headers = ['업체명', '도시락(개)', '샐러드(개)', '도시락 단가', '샐러드 단가', '청구액(원)', '조정금액', '청구서번호', '납부기한', '입금합계', '잔액', '상태', '메모'];
+  const dataRows = rows.map(row => {
+    const billed = row.amount + (row.adjust || 0);
+    const paidTotal = (row.payments||[]).reduce((s,p)=>s+(parseInt(p.amount,10)||0),0);
+    return [
+      row.user.businessName || '-', row.lunch, row.salad,
+      row.lunchPrice, row.saladPrice,
+      billed, row.adjust || 0,
+      row.invoiceNo || '-', row.dueDate || '-',
+      paidTotal, billed - paidTotal, row.status, row.note
+    ];
+  });
   const totalLunch = rows.reduce((s, r) => s + r.lunch, 0);
   const totalSalad = rows.reduce((s, r) => s + r.salad, 0);
-  const totalEventLunch = rows.reduce((s, r) => s + (r.eventLunch || 0), 0);
   const totalAmount = rows.reduce((s, r) => s + r.amount + (r.adjust || 0), 0);
-  dataRows.push(['합계', totalLunch, totalSalad, totalEventLunch, '', '', '', totalAmount, '', '']);
+  dataRows.push(['합계', totalLunch, totalSalad, '', '', totalAmount, '', '', '', '', '', '', '']);
   const csv = [headers, ...dataRows]
     .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     .join('\n');
@@ -2771,14 +2767,19 @@ function copySettlementKakao(uid) {
   if (!row) return;
   const name = row.user.businessName || '-';
   const lines = [`[궁중수라간 ${month} 정산 안내]`, `업체: ${name}`, ''];
+  if (row.invoiceNo) lines.push(`청구서번호: ${row.invoiceNo}`);
   if (row.type === 'event') lines.push(`행사일시: ${row.event.eventDate || '-'} ${row.event.eventTime || ''}`.trim());
   if (row.lunch > 0) lines.push(`${row.type === 'event' ? '행사도시락' : '도시락'} ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원 = ${(row.lunch * row.lunchPrice).toLocaleString()}원`);
   if (row.salad > 0) lines.push(`샐러드 ${row.salad}개 × ${row.saladPrice.toLocaleString()}원 = ${(row.salad * row.saladPrice).toLocaleString()}원`);
-  if ((row.eventLunch || 0) > 0) lines.push(`업체 행사도시락 ${row.eventLunch}개 × ${(row.eventPrice || row.lunchPrice || 0).toLocaleString()}원 = ${(row.eventLunch * (row.eventPrice || row.lunchPrice || 0)).toLocaleString()}원`);
   const billed = row.amount + (row.adjust || 0);
+  const paidTotal = (row.payments||[]).reduce((s,p)=>s+(parseInt(p.amount,10)||0),0);
+  const balance = billed - paidTotal;
   lines.push('', `청구액: ${billed.toLocaleString()}원`);
-  if (row.paidAmount > 0) lines.push(`입금완료: ${row.paidAmount.toLocaleString()}원`);
+  if (row.dueDate) lines.push(`납부기한: ${row.dueDate}`);
+  if (paidTotal > 0) lines.push(`기입금: ${paidTotal.toLocaleString()}원`);
+  if (balance > 0) lines.push(`잔액: ${balance.toLocaleString()}원`);
   if (row.note) lines.push(`메모: ${row.note}`);
+  lines.push('', `입금계좌: ${SUPPLIER_INFO.bank}`);
   const text = lines.join('\n');
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(text).then(() => showToast(`✅ ${name} 청구 메시지 복사됨`));
