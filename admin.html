@@ -465,6 +465,16 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
             <label class="form-label">식단 PDF</label>
             <input class="form-input" type="file" id="menu-pdf-file" accept=".pdf">
           </div>
+          <div>
+            <label class="form-label">OCR 방향</label>
+            <select class="form-input" id="menu-pdf-rotation">
+              <option value="auto">자동</option>
+              <option value="90">오른쪽 90도</option>
+              <option value="270">왼쪽 90도</option>
+              <option value="180">180도</option>
+              <option value="0">회전 없음</option>
+            </select>
+          </div>
           <button class="secondary-btn" onclick="extractMealPdf()">PDF 분석</button>
         </div>
         <div class="pdf-status" id="menu-pdf-status">PDF를 선택하면 날짜별 식단 후보를 만들 수 있습니다. 스캔 PDF는 OCR 때문에 시간이 조금 걸립니다.</div>
@@ -2546,32 +2556,62 @@ async function extractTextFromPdfPage(page) {
   return content.items.map(item => item.str || '').join('\n').trim();
 }
 
-async function ocrPdfPage(page, pageNo) {
-  if (!window.Tesseract) throw new Error('OCR 라이브러리를 불러오지 못했습니다.');
-  const viewport = page.getViewport({ scale: 2.2 });
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.ceil(viewport.width);
-  canvas.height = Math.ceil(viewport.height);
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  await page.render({ canvasContext: ctx, viewport }).promise;
+function ocrTextScore(text) {
+  const compact = String(text || '').replace(/\s+/g, '');
+  const hangul = (compact.match(/[가-힣]/g) || []).length;
+  const digits = (compact.match(/\d/g) || []).length;
+  const commonFood = (compact.match(/밥|국|탕|찌개|볶음|구이|조림|무침|김치|샐러드|닭|돼지|소고기|계란|두부|나물/g) || []).length;
+  const noise = (compact.match(/[=+*_~^`|[\]{}<>]/g) || []).length;
+  return hangul * 3 + digits + commonFood * 20 - noise * 3;
+}
+
+async function recognizeCanvas(canvas, pageNo, rotationLabel = '') {
   const result = await Tesseract.recognize(canvas, 'kor+eng', {
     logger: info => {
       if (info.status === 'recognizing text') {
-        setMenuPdfStatus(`OCR 진행 중: ${pageNo}페이지 ${Math.round((info.progress || 0) * 100)}%`);
+        const suffix = rotationLabel ? ` (${rotationLabel})` : '';
+        setMenuPdfStatus(`OCR 진행 중: ${pageNo}페이지${suffix} ${Math.round((info.progress || 0) * 100)}%`);
       }
     }
   });
   return result?.data?.text || '';
 }
 
-async function renderMealPdfPreview(pdf) {
+async function renderPdfPageToCanvas(page, scale = 2.2, rotation = 0) {
+  const viewport = page.getViewport({ scale, rotation: ((page.rotate || 0) + rotation) % 360 });
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  return canvas;
+}
+
+async function ocrPdfPage(page, pageNo, rotationMode = 'auto') {
+  if (!window.Tesseract) throw new Error('OCR 라이브러리를 불러오지 못했습니다.');
+  const rotations = rotationMode === 'auto'
+    ? [0, 90, 270, 180]
+    : [parseInt(rotationMode, 10) || 0];
+  let best = { text: '', score: -Infinity, rotation: rotations[0] || 0 };
+  for (const rotation of rotations) {
+    const canvas = await renderPdfPageToCanvas(page, 2.4, rotation);
+    const text = await recognizeCanvas(canvas, pageNo, `${rotation}도`);
+    const score = ocrTextScore(text);
+    if (score > best.score) best = { text, score, rotation };
+    if (rotationMode === 'auto' && score >= 180) break;
+  }
+  return best;
+}
+
+async function renderMealPdfPreview(pdf, rotationMode = '0') {
   const wrap = document.getElementById('menu-pdf-preview');
   if (!wrap) return;
   wrap.innerHTML = '';
   const maxPages = Math.min(pdf.numPages, 6);
+  const rotation = rotationMode === 'auto' ? 90 : (parseInt(rotationMode, 10) || 0);
   for (let i = 1; i <= maxPages; i += 1) {
     const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 0.9 });
+    const viewport = page.getViewport({ scale: 0.9, rotation: ((page.rotate || 0) + rotation) % 360 });
     const box = document.createElement('div');
     box.className = 'pdf-preview-page';
     box.innerHTML = `<div class="pdf-preview-page-title">${i}페이지</div>`;
@@ -2587,6 +2627,7 @@ async function renderMealPdfPreview(pdf) {
 async function extractMealPdf() {
   const input = document.getElementById('menu-pdf-file');
   const file = input?.files?.[0];
+  const rotationMode = document.getElementById('menu-pdf-rotation')?.value || 'auto';
   if (!file) {
     setMenuPdfStatus('PDF 파일을 먼저 선택해주세요.');
     return;
@@ -2609,21 +2650,24 @@ async function extractMealPdf() {
     const buffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
     setMenuPdfStatus('PDF 미리보기를 만드는 중입니다...');
-    await renderMealPdfPreview(pdf);
+    await renderMealPdfPreview(pdf, rotationMode);
     const pageTexts = [];
     let usedOcr = false;
+    const usedRotations = [];
     for (let i = 1; i <= pdf.numPages; i += 1) {
       setMenuPdfStatus(`${i}/${pdf.numPages}페이지 텍스트를 확인하는 중입니다...`);
       const page = await pdf.getPage(i);
       let text = await extractTextFromPdfPage(page);
       if (text.replace(/\s+/g, '').length < 20) {
         usedOcr = true;
-        text = await ocrPdfPage(page, i);
+        const ocr = await ocrPdfPage(page, i, rotationMode);
+        text = ocr.text;
+        usedRotations.push(`${i}p:${ocr.rotation}도`);
       }
       pageTexts.push(`--- ${i}페이지 ---\n${text}`);
       rawEl.value = normalizePdfMenuText(pageTexts.join('\n\n'));
     }
-    const beforeBuildStatus = `PDF 분석 완료${usedOcr ? ' (OCR 사용)' : ''}. `;
+    const beforeBuildStatus = `PDF 분석 완료${usedOcr ? ` (OCR 사용${usedRotations.length ? `, ${usedRotations.join(', ')}` : ''})` : ''}. `;
     buildMealPdfCandidates();
     const statusEl = document.getElementById('menu-pdf-status');
     if (statusEl && !statusEl.textContent.startsWith('OCR 인식 품질')) {
