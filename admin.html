@@ -1483,6 +1483,7 @@ async function loadAllUsers() {
     snap.forEach(doc => {
       const data = doc.data();
       if (ADMIN_EMAILS.includes(data.email) || (data.adminEvents && !data.businessName)) return;
+      if (data.deleted || data.disabled) return;
       allUsers[doc.id] = data;
     });
   } catch(e) { console.log('유저 로드 오류:', e); }
@@ -2092,7 +2093,7 @@ async function deleteMember() {
   const user = allUsers[uid] || {};
   const name = user.businessName || document.getElementById('edit-bizname').value.trim() || '이 업체';
   if (!uid) return;
-  if (!confirm(`${name} 업체를 삭제할까요?\n회원 목록과 기본 배송 수량, 정산 기준에서 제외됩니다.`)) return;
+  if (!confirm(`${name} 업체를 삭제할까요?\n회원 목록과 기본 배송 수량, 정산 기준에서 제외되고 고객 로그인이 차단됩니다.`)) return;
   try {
     await db.collection('users').doc(uid).delete();
     delete allUsers[uid];
@@ -2100,7 +2101,7 @@ async function deleteMember() {
     renderMembers();
     loadOrders();
     initReceiptForm();
-    showToast('업체가 삭제되었습니다.');
+    showToast('업체가 삭제되었습니다. 고객 로그인도 차단됩니다.');
   } catch(e) {
     const errEl = document.getElementById('edit-error');
     errEl.textContent = '삭제 실패: ' + e.message;

@@ -1262,7 +1262,7 @@ auth.onAuthStateChanged(async (user) => {
     try {
       await loadUserProfile();
     } catch(e) {
-      showToast('프로필 로딩 실패. 다시 시도해주세요.', 'error');
+      showToast(e.message || '프로필 로딩 실패. 다시 시도해주세요.', 'error');
       auth.signOut();
       return;
     }
@@ -1274,13 +1274,20 @@ auth.onAuthStateChanged(async (user) => {
 
 async function loadUserProfile() {
   const doc = await db.collection('users').doc(currentUser.uid).get();
-  if (doc.exists) {
-    userProfile = doc.data();
-    document.getElementById('header-bizname').textContent = userProfile.businessName;
-    const todayDefault = defaultMealsForDate(dateStr(getKST()), userProfile);
-    todayLunch = todayDefault.lunch;
-    todaySalad = todayDefault.salad;
+  if (!doc.exists) {
+    userProfile = null;
+    throw new Error('삭제된 회원입니다. 관리자에게 문의해주세요.');
   }
+  const data = doc.data() || {};
+  if (data.deleted || data.disabled) {
+    userProfile = null;
+    throw new Error('삭제된 회원입니다. 관리자에게 문의해주세요.');
+  }
+  userProfile = data;
+  document.getElementById('header-bizname').textContent = userProfile.businessName || currentUser.email || '';
+  const todayDefault = defaultMealsForDate(dateStr(getKST()), userProfile);
+  todayLunch = todayDefault.lunch;
+  todaySalad = todayDefault.salad;
 }
 
 async function doLogin() {
