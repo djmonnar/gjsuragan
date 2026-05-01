@@ -690,6 +690,27 @@
     .section-title { font-size: 13px; margin-bottom: 8px; }
     .toast { bottom: 64px; font-size: 13px; padding: 10px 16px; }
   }
+  .cust-invoice-card{border:1px solid var(--border);border-radius:10px;padding:16px;background:#fff;margin-bottom:12px}
+  .cust-invoice-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+  .cust-invoice-no{font-family:monospace;font-size:12px;color:var(--primary);background:#fff8e1;padding:3px 8px;border-radius:4px;border:1px solid #f5c842}
+  .cust-due-badge{font-size:12px;padding:3px 10px;border-radius:12px;font-weight:600}
+  .cust-due-badge.overdue{background:#fdecea;color:#c0392b}
+  .cust-due-badge.soon{background:#fff3e0;color:#e65100}
+  .cust-due-badge.ok{background:#e8f5e9;color:#1e6e40}
+  .cust-amount-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .cust-amount-item{background:var(--bg);border-radius:8px;padding:12px;text-align:center}
+  .cust-amount-item .label{font-size:11px;color:var(--text-secondary);margin-bottom:4px;font-weight:600}
+  .cust-amount-item .value{font-size:18px;font-weight:800;color:var(--primary)}
+  .cust-amount-item.balance .value{color:#c0392b}
+  .cust-amount-item.balance.paid .value{color:#1e6e40}
+  .cust-meta-row{font-size:13px;color:var(--text-secondary);margin-bottom:6px}
+  .cust-meta-row span{color:var(--text);font-weight:600}
+  .cust-ph-title{font-size:12px;color:var(--text-secondary);font-weight:600;margin-bottom:6px;padding-top:10px;border-top:1px solid var(--border)}
+  .cust-payment-row{display:grid;grid-template-columns:100px 1fr 2fr;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .cust-payment-row:last-child{border-bottom:none}
+  .cust-payment-row .p-date{color:var(--text-secondary)}
+  .cust-payment-row .p-amt{font-weight:700;color:var(--primary);text-align:right}
+  .cust-payment-row .p-note{color:var(--text-secondary);font-size:12px}
 </style>
 </head>
 <body>
@@ -880,27 +901,7 @@
       <input type="month" id="settle-month-input" class="form-input" style="max-width:160px">
       <button class="save-btn" style="padding:10px 16px" onclick="loadCustomerSettlement()">조회</button>
     </div>
-    <div id="customer-settle-area" style="display:none">
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px">
-        <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #e5d7c5">
-          <div style="font-size:12px;color:#6b5b4a;margin-bottom:4px;font-weight:600">💰 청구액</div>
-          <div id="cs-total" style="font-size:20px;font-weight:800;color:#7b3f1a">-</div>
-        </div>
-        <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #e5d7c5">
-          <div style="font-size:12px;color:#6b5b4a;margin-bottom:4px;font-weight:600">✅ 입금</div>
-          <div id="cs-paid" style="font-size:20px;font-weight:800;color:#1e6e40">-</div>
-        </div>
-        <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #e5d7c5">
-          <div style="font-size:12px;color:#6b5b4a;margin-bottom:4px;font-weight:600">⚠️ 미수금</div>
-          <div id="cs-unpaid" style="font-size:20px;font-weight:800;color:#c0392b">-</div>
-        </div>
-      </div>
-      <div style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e5d7c5;font-size:14px">
-        <div style="margin-bottom:8px"><span style="color:#6b5b4a;font-weight:600">상태</span>&nbsp;<span id="cs-status">-</span></div>
-        <div style="margin-bottom:8px"><span style="color:#6b5b4a;font-weight:600">🍱 도시락</span>&nbsp;<span id="cs-lunch">-</span>&nbsp;&nbsp;<span style="color:#6b5b4a;font-weight:600">🥗 샐러드</span>&nbsp;<span id="cs-salad">-</span></div>
-        <div id="cs-note-row" style="display:none"><span style="color:#6b5b4a;font-weight:600">메모</span>&nbsp;<span id="cs-note">-</span></div>
-      </div>
-    </div>
+    <div id="customer-settle-area" style="display:none"></div>
     <div id="customer-settle-empty" style="color:#6b5b4a;font-size:14px;padding:24px 0;text-align:center;display:none">해당 월 정산 내역이 없습니다.</div>
   </div>
 
@@ -1383,35 +1384,90 @@ function initSettlementTab() {
   loadCustomerSettlement();
 }
 
+function custDueBadge(dueDate) {
+  if (!dueDate) return '';
+  const today = new Date(dateStr(getKST()) + 'T00:00:00');
+  const due = new Date(dueDate + 'T00:00:00');
+  const diff = Math.floor((today - due) / 86400000);
+  if (diff > 0) return `<span class="cust-due-badge overdue">연체 ${diff}일</span>`;
+  if (diff >= -7) return `<span class="cust-due-badge soon">D-${-diff}</span>`;
+  return `<span class="cust-due-badge ok">${dueDate}</span>`;
+}
+
+function renderCustomerSettlementDetail(s) {
+  const billed = (s.amount || 0) + (s.adjust || 0);
+  let payments = s.payments || [];
+  if (payments.length === 0 && s.paidAmount > 0) {
+    payments = [{ amount: s.paidAmount, date: s.paidDate || '', note: '(이전 기록)' }];
+  }
+  const paidTotal = payments.reduce((sum, p) => sum + (parseInt(p.amount, 10) || 0), 0);
+  const balance = billed - paidTotal;
+
+  const statusMap = { '입금완료':'✅ 입금완료', '미정산':'⏳ 미정산', '부분입금':'🔶 부분입금', '청구완료':'📄 청구완료', '연체':'🔴 연체', '보류':'⏸ 보류', '정산완료':'✅ 정산완료' };
+  const statusLabel = statusMap[s.status] || s.status || '-';
+
+  const invoiceHtml = s.invoiceNo
+    ? `<span class="cust-invoice-no">${s.invoiceNo}</span>`
+    : `<span style="font-size:12px;color:#aaa">청구서 미발행</span>`;
+
+  const dueBadge = s.dueDate ? custDueBadge(s.dueDate) : '';
+  const dueDateLine = s.dueDate
+    ? `<div class="cust-meta-row">납부기한 <span>${s.dueDate}${dueBadge ? '&nbsp;' + dueBadge : ''}</span></div>`
+    : '';
+
+  const paymentRows = payments.length > 0
+    ? `<div class="cust-ph-title">입금 이력</div>` +
+      payments.map(p => `
+        <div class="cust-payment-row">
+          <span class="p-date">${p.date || '-'}</span>
+          <span class="p-amt">${(parseInt(p.amount,10)||0).toLocaleString()}원</span>
+          <span class="p-note">${p.note || ''}</span>
+        </div>`).join('')
+    : '';
+
+  const noteHtml = s.note
+    ? `<div class="cust-meta-row" style="margin-top:8px">메모 <span>${s.note}</span></div>`
+    : '';
+
+  return `
+    <div class="cust-invoice-card">
+      <div class="cust-invoice-header">
+        <div>${invoiceHtml}</div>
+        <div>${statusLabel}</div>
+      </div>
+      ${dueDateLine}
+      <div class="cust-amount-grid">
+        <div class="cust-amount-item">
+          <div class="label">💰 청구액</div>
+          <div class="value">${billed.toLocaleString()}원</div>
+        </div>
+        <div class="cust-amount-item balance${balance <= 0 ? ' paid' : ''}">
+          <div class="label">${balance <= 0 ? '✅ 완납' : '⚠️ 잔액'}</div>
+          <div class="value">${balance <= 0 ? '없음' : balance.toLocaleString() + '원'}</div>
+        </div>
+      </div>
+      <div class="cust-meta-row">🍱 도시락 <span>${s.lunchTotal || 0}개</span>&emsp;🥗 샐러드 <span>${s.saladTotal || 0}개</span>${s.adjust ? `&emsp;조정 <span>${s.adjust > 0 ? '+' : ''}${s.adjust.toLocaleString()}원</span>` : ''}</div>
+      ${paymentRows}
+      ${noteHtml}
+    </div>`;
+}
+
 async function loadCustomerSettlement() {
   const month = document.getElementById('settle-month-input').value;
   if (!month || !currentUser) return;
-  document.getElementById('customer-settle-area').style.display = 'none';
-  document.getElementById('customer-settle-empty').style.display = 'none';
+  const area = document.getElementById('customer-settle-area');
+  const empty = document.getElementById('customer-settle-empty');
+  area.style.display = 'none';
+  empty.style.display = 'none';
   try {
     const snap = await db.collection('users').doc(currentUser.uid).get();
     const data = snap.exists ? snap.data() : {};
     const s = (data.settlements || {})[month];
-    if (!s) {
-      document.getElementById('customer-settle-empty').style.display = 'block';
-      return;
-    }
-    const billed = (s.amount || 0) + (s.adjust || 0);
-    const paid = s.status === '입금완료' ? (s.paidAmount || billed) : 0;
-    const unpaid = Math.max(0, billed - paid);
-    document.getElementById('cs-total').textContent = billed.toLocaleString() + '원';
-    document.getElementById('cs-paid').textContent = paid > 0 ? paid.toLocaleString() + '원' : '-';
-    document.getElementById('cs-unpaid').textContent = unpaid > 0 ? unpaid.toLocaleString() + '원' : '없음';
-    const statusMap = { '입금완료':'✅ 입금완료', '미정산':'⏳ 미정산', '부분입금':'🔶 부분입금', '정산완료':'✅ 정산완료' };
-    document.getElementById('cs-status').textContent = statusMap[s.status] || s.status || '-';
-    document.getElementById('cs-lunch').textContent = (s.lunchTotal || 0) + '개';
-    document.getElementById('cs-salad').textContent = (s.saladTotal || 0) + '개';
-    const noteRow = document.getElementById('cs-note-row');
-    if (s.note) { document.getElementById('cs-note').textContent = s.note; noteRow.style.display = 'block'; }
-    else noteRow.style.display = 'none';
-    document.getElementById('customer-settle-area').style.display = 'block';
+    if (!s) { empty.style.display = 'block'; return; }
+    area.innerHTML = renderCustomerSettlementDetail(s);
+    area.style.display = 'block';
   } catch(e) {
-    document.getElementById('customer-settle-empty').style.display = 'block';
+    empty.style.display = 'block';
   }
 }
 
