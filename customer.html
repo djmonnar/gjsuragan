@@ -772,6 +772,18 @@
   .cust-payment-row .p-date{color:var(--text-secondary)}
   .cust-payment-row .p-amt{font-weight:700;color:var(--primary);text-align:right}
   .cust-payment-row .p-note{color:var(--text-secondary);font-size:12px}
+.btn-call{display:inline-flex;align-items:center;gap:5px;background:#1e6e40;color:#fff;border:none;border-radius:20px;padding:7px 14px;font-size:13px;font-weight:700;text-decoration:none;cursor:pointer}
+.btn-call:hover{background:#145230}
+.tomorrow-card{border:1px dashed var(--border);border-radius:14px;padding:14px 16px;background:var(--bg);cursor:pointer;transition:.2s}
+.tomorrow-card:hover{border-color:var(--primary);background:#fffaf5}
+.tomorrow-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.tomorrow-card-date{font-size:14px;font-weight:700;color:var(--primary)}
+.tomorrow-card-status{font-size:12px;color:var(--text-secondary)}
+.tomorrow-card-status.submitted{color:#1e6e40;font-weight:700}
+.tomorrow-card-hint{font-size:12px;color:var(--text-secondary);margin-top:4px}
+.modal-meal-card{background:#f9f8f5;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;border:1px solid var(--border)}
+.modal-meal-title{font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px}
+.modal-meal-items{display:flex;flex-direction:column;gap:4px;color:var(--text)}
 </style>
 </head>
 <body>
@@ -881,8 +893,9 @@
 <div id="main-screen" class="screen">
   <div class="app-header">
     <div class="header-title">궁중수라간 🍱</div>
-    <div style="display:flex;align-items:center;gap:10px">
+    <div style="display:flex;align-items:center;gap:8px">
       <div class="header-biz" id="header-bizname"></div>
+      <a class="btn-call" href="tel:01035071278">📞 전화</a>
       <button class="btn-logout" onclick="doLogout()">로그아웃</button>
     </div>
   </div>
@@ -949,6 +962,12 @@
       <div class="submitted-badge" id="submitted-badge" style="display:none">
         ✅ 전송 완료 · <span id="submitted-time"></span>
       </div>
+    </div>
+
+    <!-- 내일 주문 미리 설정 -->
+    <div id="tomorrow-section" style="margin-top:16px;display:none">
+      <div class="section-title" style="font-size:14px;margin-bottom:8px">📅 내일 주문 미리 설정</div>
+      <div id="tomorrow-card" class="tomorrow-card"></div>
     </div>
   </div>
 
@@ -1263,6 +1282,38 @@ function isNoDeliveryDate(dStr) {
 function isPastDate(dStr) {
   return dStr < dateStr(getKST());
 }
+
+function getNextBusinessDay(fromStr) {
+  const d = new Date(fromStr + 'T00:00:00');
+  for (let i = 1; i <= 7; i++) {
+    d.setDate(d.getDate() + 1);
+    const s = dateStr(d);
+    if (!isNoDeliveryDate(s)) return s;
+  }
+  return null;
+}
+
+function renderTomorrowCard(tomorrowStr, existing) {
+  const sec = document.getElementById('tomorrow-section');
+  const card = document.getElementById('tomorrow-card');
+  if (!tomorrowStr) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  const defaults = defaultMealsForDate(tomorrowStr);
+  const submitted = Boolean(existing);
+  const statusText = submitted
+    ? `도시락 ${existing.lunchCount}개 / 샐러드 ${existing.saladCount}개`
+    : `기본 도시락 ${defaults.lunch}개 / 샐러드 ${defaults.salad}개`;
+  card.innerHTML = `
+    <div class="tomorrow-card-head">
+      <span class="tomorrow-card-date">${formatDateKR(tomorrowStr)}</span>
+      <span class="tomorrow-card-status${submitted ? ' submitted' : ''}">${submitted ? '✅ 입력됨' : '미입력'}</span>
+    </div>
+    <div style="font-size:13px;color:var(--text)">${statusText}</div>
+    <div class="tomorrow-card-hint">탭하면 수정할 수 있습니다</div>
+  `;
+  card.onclick = () => openDayModal(tomorrowStr, existing);
+}
+
 function formatDateKR(dStr) {
   const [y, m, d] = dStr.split('-');
   const days = ['일','월','화','수','목','금','토'];
@@ -1703,6 +1754,16 @@ async function renderToday() {
 
   document.getElementById('lunch-value').textContent = todayLunch;
   document.getElementById('salad-value').textContent = todaySalad;
+
+  // 내일 주문 미리 설정
+  const tomorrowStr = getNextBusinessDay(today);
+  if (tomorrowStr) {
+    db.collection('orders').doc(tomorrowStr).collection('items').doc(currentUser.uid).get()
+      .then(snap => renderTomorrowCard(tomorrowStr, snap.exists ? snap.data() : null))
+      .catch(() => renderTomorrowCard(tomorrowStr, null));
+  } else {
+    document.getElementById('tomorrow-section').style.display = 'none';
+  }
 }
 
 function setCardSubmitted(yes, ts) {
@@ -1796,6 +1857,14 @@ async function submitOrder(source) {
     } else {
       closeModal();
       renderWeek();
+      // 모달에서 저장한 날짜가 내일이면 내일 카드 갱신
+      const today = dateStr(getKST());
+      const tomorrowStr = getNextBusinessDay(today);
+      if (tomorrowStr && modalDateStr === tomorrowStr) {
+        db.collection('orders').doc(tomorrowStr).collection('items').doc(currentUser.uid).get()
+          .then(snap => renderTomorrowCard(tomorrowStr, snap.exists ? snap.data() : null))
+          .catch(() => {});
+      }
     }
   } catch(e) {
     showToast('전송 실패. 다시 시도해주세요.', 'error');
@@ -1877,6 +1946,9 @@ function openDayModal(ds, existing) {
 
   document.getElementById('modal-date-text').textContent = formatDateKR(ds);
   document.getElementById('modal-content').innerHTML = `
+    <div class="modal-meal-card" id="modal-meal-info">
+      <div class="modal-meal-title">🍽 식단 불러오는 중...</div>
+    </div>
     <div class="qty-row">
       <div class="qty-label">
         <div class="qty-icon">🍱</div>
@@ -1902,6 +1974,19 @@ function openDayModal(ds, existing) {
     <div class="note-label">💬 특이사항 <span style="font-weight:400;color:var(--text-sub)">(선택)</span></div>
     <textarea class="note-area" id="modal-note" placeholder="요청사항을 입력하세요...">${existing?.note || ''}</textarea>
   `;
+
+  // 식단 비동기 로드
+  loadMealMenu(ds).then(menu => {
+    const el = document.getElementById('modal-meal-info');
+    if (!el) return;
+    if (!menu) { el.style.display = 'none'; return; }
+    const lunchList = (menu.lunchItems || []).map(i => `<div>🍱 ${escapeHtml(i)}</div>`).join('');
+    const saladList = (menu.saladItems || []).map(i => `<div>🥗 ${escapeHtml(i)}</div>`).join('');
+    el.innerHTML = `<div class="modal-meal-title">🍽 오늘 식단</div><div class="modal-meal-items">${lunchList}${saladList}</div>`;
+  }).catch(() => {
+    const el = document.getElementById('modal-meal-info');
+    if (el) el.style.display = 'none';
+  });
 
   const submitBtn = document.getElementById('modal-submit-btn');
   submitBtn.style.display = 'block';
