@@ -1219,6 +1219,7 @@ const mealMenuCache = {};
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
+let customHolidays = {};
 const KOREA_HOLIDAYS = {
   '2026-01-01': '신정',
   '2026-02-16': '설 연휴',
@@ -1273,8 +1274,15 @@ function isWeekendDate(dStr) {
   const day = dt.getDay();
   return day === 0 || day === 6;
 }
+async function loadCustomHolidays() {
+  try {
+    const snap = await db.collection('config').doc('holidays').get();
+    customHolidays = snap.exists ? (snap.data().custom || {}) : {};
+  } catch(e) { customHolidays = {}; }
+}
+
 function holidayName(dStr) {
-  return KOREA_HOLIDAYS[dStr] || FIXED_KOREA_HOLIDAYS[dStr.slice(5)] || '';
+  return KOREA_HOLIDAYS[dStr] || FIXED_KOREA_HOLIDAYS[dStr ? dStr.slice(5) : ''] || customHolidays[dStr] || '';
 }
 function isNoDeliveryDate(dStr) {
   return isWeekendDate(dStr) || Boolean(holidayName(dStr));
@@ -1466,7 +1474,7 @@ auth.onAuthStateChanged(async (user) => {
   if (user) {
     currentUser = user;
     try {
-      await loadUserProfile();
+      await Promise.all([loadUserProfile(), loadCustomHolidays()]);
     } catch(e) {
       showToast(e.message || '프로필 로딩 실패. 다시 시도해주세요.', 'error');
       auth.signOut();

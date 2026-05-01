@@ -294,6 +294,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
     <button class="tab-btn" id="tab-settlements" onclick="switchAdminTab('settlements')">정산</button>
     <button class="tab-btn" id="tab-receipts" onclick="switchAdminTab('receipts')">간이영수증</button>
     <button class="tab-btn" id="tab-stats" onclick="switchAdminTab('stats')">📊 통계</button>
+    <button class="tab-btn" id="tab-settings" onclick="switchAdminTab('settings')">⚙️ 설정</button>
   </div>
 
   <div class="controls-bar admin-tab-panel" data-tab="orders">
@@ -537,6 +538,34 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
         <thead><tr><th>요일</th><th>도시락 평균</th><th>샐러드 평균</th><th>주문일수</th></tr></thead>
         <tbody></tbody>
       </table>
+    </div>
+  </div>
+
+  <div class="receipt-section admin-tab-panel" data-tab="settings" style="display:none">
+    <div class="panel" style="margin-bottom:14px">
+      <div style="font-weight:700;color:var(--primary);margin-bottom:16px">⚙️ 설정</div>
+
+      <!-- 커스텀 휴무일 관리 -->
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px">배송 휴무일 관리</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">법정 공휴일 외 회사 자체 휴무일(여름휴가, 창립기념일 등)을 추가하세요.</div>
+
+      <!-- 추가 폼 -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+        <input type="date" id="holiday-date-input" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit">
+        <input type="text" id="holiday-name-input" placeholder="이름 (예: 여름휴가)" maxlength="20"
+          style="border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;width:160px">
+        <button onclick="addCustomHoliday()"
+          style="background:var(--primary);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">+ 추가</button>
+      </div>
+
+      <!-- 커스텀 휴무일 목록 -->
+      <div id="custom-holiday-list"></div>
+
+      <!-- 법정 공휴일 참고 목록 -->
+      <div style="margin-top:20px">
+        <div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:8px">법정 공휴일 (참고용, 자동 적용됨)</div>
+        <div id="legal-holiday-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
     </div>
   </div>
 
@@ -959,6 +988,7 @@ const SUPPLIER_INFO = {
 };
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
+let customHolidays = {};
 const KOREA_HOLIDAYS = {
   '2026-01-01': '신정',
   '2026-02-16': '설 연휴',
@@ -1013,8 +1043,15 @@ function isWeekendDate(dStr) {
   const dt = new Date(`${dStr}T00:00:00+09:00`);
   return dt.getDay() === 0 || dt.getDay() === 6;
 }
+async function loadCustomHolidays() {
+  try {
+    const snap = await db.collection('config').doc('holidays').get();
+    customHolidays = snap.exists ? (snap.data().custom || {}) : {};
+  } catch(e) { customHolidays = {}; }
+}
+
 function holidayName(dStr) {
-  return KOREA_HOLIDAYS[dStr] || FIXED_KOREA_HOLIDAYS[dStr.slice(5)] || '';
+  return KOREA_HOLIDAYS[dStr] || FIXED_KOREA_HOLIDAYS[dStr ? dStr.slice(5) : ''] || customHolidays[dStr] || '';
 }
 function isNoDeliveryDate(dStr) {
   return isWeekendDate(dStr) || Boolean(holidayName(dStr));
@@ -1521,6 +1558,7 @@ auth.onAuthStateChanged(async (user) => {
     mainScreen.classList.add('active');
     currentDateStr = dateStr(getKST());
     await loadAllUsers();
+    await loadCustomHolidays();
     initReceiptForm();
     initSettlementForm();
     updateDateLabel();
@@ -2511,7 +2549,7 @@ async function saveMealPdfCandidates() {
 
 function switchAdminTab(tab) {
   activeAdminTab = tab;
-  ['orders','events','menus','settlements','receipts','stats'].forEach(name => {
+  ['orders','events','menus','settlements','receipts','stats','settings'].forEach(name => {
     document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
   });
   document.querySelectorAll('.admin-tab-panel').forEach(el => {
@@ -2533,6 +2571,7 @@ function switchAdminTab(tab) {
     renderReceipt();
   }
   if (tab === 'stats') loadOrderStats();
+  if (tab === 'settings') renderSettingsTab();
 }
 
 function resetEventForm() {
@@ -3794,6 +3833,66 @@ async function renderSettlementCharts() {
 // ── 주문 통계 대시보드 ──
 let statsDailyChart = null, statsVendorChart = null, statsMonthlyChart = null;
 let currentStatsPeriod = 1;
+
+// ── 설정 탭: 커스텀 휴무일 관리 ─────────────────────────────
+function renderSettingsTab() {
+  renderCustomHolidayList();
+  renderLegalHolidayList();
+}
+
+function renderCustomHolidayList() {
+  const el = document.getElementById('custom-holiday-list');
+  const entries = Object.entries(customHolidays).sort((a, b) => a[0].localeCompare(b[0]));
+  if (!entries.length) {
+    el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:8px 0">커스텀 휴무일이 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = `<table class="data-table"><thead><tr><th>날짜</th><th>이름</th><th></th></tr></thead><tbody>
+    ${entries.map(([d, name]) => `<tr>
+      <td style="font-family:monospace">${d}</td>
+      <td>${name}</td>
+      <td><button onclick="removeCustomHoliday('${d}')"
+        style="background:#fdecea;color:#c0392b;border:0;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">삭제</button></td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function renderLegalHolidayList() {
+  const el = document.getElementById('legal-holiday-list');
+  const all = {...KOREA_HOLIDAYS};
+  el.innerHTML = Object.entries(all).sort((a,b) => a[0].localeCompare(b[0])).map(([d, name]) =>
+    `<span style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:3px 10px;font-size:12px;color:var(--text-secondary)">${d} ${name}</span>`
+  ).join('');
+}
+
+async function addCustomHoliday() {
+  const date = document.getElementById('holiday-date-input').value;
+  const name = document.getElementById('holiday-name-input').value.trim();
+  if (!date) return showToast('날짜를 선택해주세요');
+  if (!name) return showToast('이름을 입력해주세요');
+  customHolidays[date] = name;
+  try {
+    await db.collection('config').doc('holidays').set({ custom: customHolidays }, { merge: true });
+    document.getElementById('holiday-date-input').value = '';
+    document.getElementById('holiday-name-input').value = '';
+    renderCustomHolidayList();
+    showToast(`${date} 휴무일 추가 완료`);
+  } catch(e) {
+    delete customHolidays[date];
+    showToast('저장 실패: ' + e.message);
+  }
+}
+
+async function removeCustomHoliday(dateStr) {
+  delete customHolidays[dateStr];
+  try {
+    await db.collection('config').doc('holidays').set({ custom: customHolidays }, { merge: true });
+    renderCustomHolidayList();
+    showToast(`${dateStr} 휴무일 삭제 완료`);
+  } catch(e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
 
 function setStatsPeriod(months) {
   currentStatsPeriod = months;
