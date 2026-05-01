@@ -203,6 +203,10 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .pdf-import-grid{display:grid;grid-template-columns:minmax(160px,220px) 1fr auto;gap:10px;align-items:end}
 .pdf-status{font-size:13px;color:var(--sub);line-height:1.5;margin-top:8px}
 .pdf-raw-text{width:100%;min-height:130px;margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.5;resize:vertical;background:#fff}
+.pdf-preview-strip{display:flex;gap:10px;overflow-x:auto;padding:10px 0;margin-top:8px}
+.pdf-preview-page{flex:0 0 260px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:var(--shadow)}
+.pdf-preview-page canvas{display:block;width:100%;height:auto;border-radius:6px;background:#fff}
+.pdf-preview-page-title{font-size:12px;font-weight:800;color:var(--primary);margin-bottom:6px}
 .menu-import-row{display:grid;grid-template-columns:118px 1fr 1fr 48px;gap:8px;align-items:start;background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px;margin-top:8px}
 .menu-import-row .form-textarea{min-height:70px;margin:0;font-size:13px}
 .menu-import-row .form-input{margin:0}
@@ -463,9 +467,11 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
           <button class="secondary-btn" onclick="extractMealPdf()">PDF 분석</button>
         </div>
         <div class="pdf-status" id="menu-pdf-status">PDF를 선택하면 날짜별 식단 후보를 만들 수 있습니다. 스캔 PDF는 OCR 때문에 시간이 조금 걸립니다.</div>
+        <div class="pdf-preview-strip" id="menu-pdf-preview"></div>
         <textarea class="pdf-raw-text" id="menu-pdf-raw" placeholder="PDF에서 추출된 텍스트가 여기에 표시됩니다. 필요하면 직접 수정 후 후보 만들기를 누르세요."></textarea>
         <div class="inline-actions">
           <button class="secondary-btn" onclick="buildMealPdfCandidates()">후보 만들기</button>
+          <button class="secondary-btn" onclick="addBlankMealPdfCandidate()">후보 행 추가</button>
           <button class="save-btn" style="width:auto" onclick="saveMealPdfCandidates()">후보 전체 저장</button>
         </div>
         <div id="menu-pdf-candidates"></div>
@@ -2367,7 +2373,19 @@ function cleanMenuCandidateLines(lines) {
     .map(line => line.replace(/^[\s\-–—*ㆍ·•]+/, '').replace(/\s+/g, ' ').trim())
     .filter(line => line && line.length > 1)
     .filter(line => !drop.test(line))
-    .filter(line => !/^\d{1,2}$/.test(line));
+    .filter(line => !/^\d{1,2}$/.test(line))
+    .filter(line => /[가-힣]/.test(line));
+}
+
+function hasReliableKoreanMenuText(text) {
+  const compact = String(text || '').replace(/\s+/g, '');
+  const hangulCount = (compact.match(/[가-힣]/g) || []).length;
+  const alphaCount = (compact.match(/[A-Za-z]/g) || []).length;
+  const symbolCount = (compact.match(/[=+*_~^`|[\]{}<>]/g) || []).length;
+  if (hangulCount < 30) return false;
+  if (alphaCount > hangulCount * 2) return false;
+  if (symbolCount > hangulCount) return false;
+  return true;
 }
 
 function menuDateRegexForMonth(month) {
@@ -2455,12 +2473,42 @@ function renderMealPdfCandidates() {
   `;
 }
 
+function nextMenuPdfCandidateDate() {
+  const month = document.getElementById('menu-pdf-month')?.value || currentMonthStr();
+  const usedDays = mealPdfCandidates
+    .map(row => Number(String(row.date || '').slice(-2)))
+    .filter(Boolean);
+  const nextDay = usedDays.length ? Math.min(31, Math.max(...usedDays) + 1) : 1;
+  return `${month}-${String(nextDay).padStart(2, '0')}`;
+}
+
+function addBlankMealPdfCandidate() {
+  mealPdfCandidates.push({
+    date: nextMenuPdfCandidateDate(),
+    lunchItems: [],
+    saladItems: [],
+    note: 'PDF 식단표에서 직접 입력'
+  });
+  renderMealPdfCandidates();
+  setMenuPdfStatus('후보 행을 추가했습니다. PDF 미리보기를 보면서 내용을 입력해주세요.');
+}
+
 function buildMealPdfCandidates() {
   const raw = document.getElementById('menu-pdf-raw')?.value || '';
   const month = document.getElementById('menu-pdf-month')?.value || currentMonthStr();
+  if (!hasReliableKoreanMenuText(raw)) {
+    mealPdfCandidates = [];
+    renderMealPdfCandidates();
+    setMenuPdfStatus('OCR 인식 품질이 낮아서 자동 후보를 만들지 않았습니다. PDF 미리보기를 보며 [후보 행 추가]로 직접 입력해주세요.');
+    return;
+  }
   mealPdfCandidates = parseMealPdfCandidates(raw, month);
   renderMealPdfCandidates();
-  setMenuPdfStatus(`식단 후보 ${mealPdfCandidates.length}건을 만들었습니다. 저장 전 내용을 확인해주세요.`);
+  if (mealPdfCandidates.length === 0) {
+    setMenuPdfStatus('자동으로 나눌 수 있는 날짜별 식단을 찾지 못했습니다. PDF 미리보기를 보며 [후보 행 추가]로 직접 입력해주세요.');
+  } else {
+    setMenuPdfStatus(`식단 후보 ${mealPdfCandidates.length}건을 만들었습니다. 저장 전 내용을 확인해주세요.`);
+  }
 }
 
 async function extractTextFromPdfPage(page) {
@@ -2486,6 +2534,26 @@ async function ocrPdfPage(page, pageNo) {
   return result?.data?.text || '';
 }
 
+async function renderMealPdfPreview(pdf) {
+  const wrap = document.getElementById('menu-pdf-preview');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const maxPages = Math.min(pdf.numPages, 6);
+  for (let i = 1; i <= maxPages; i += 1) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 0.9 });
+    const box = document.createElement('div');
+    box.className = 'pdf-preview-page';
+    box.innerHTML = `<div class="pdf-preview-page-title">${i}페이지</div>`;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    box.appendChild(canvas);
+    wrap.appendChild(box);
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+  }
+}
+
 async function extractMealPdf() {
   const input = document.getElementById('menu-pdf-file');
   const file = input?.files?.[0];
@@ -2502,12 +2570,16 @@ async function extractMealPdf() {
   }
   mealPdfCandidates = [];
   renderMealPdfCandidates();
+  const previewWrap = document.getElementById('menu-pdf-preview');
+  if (previewWrap) previewWrap.innerHTML = '';
   const rawEl = document.getElementById('menu-pdf-raw');
   rawEl.value = '';
   try {
     setMenuPdfStatus('PDF를 여는 중입니다...');
     const buffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    setMenuPdfStatus('PDF 미리보기를 만드는 중입니다...');
+    await renderMealPdfPreview(pdf);
     const pageTexts = [];
     let usedOcr = false;
     for (let i = 1; i <= pdf.numPages; i += 1) {
@@ -2521,8 +2593,12 @@ async function extractMealPdf() {
       pageTexts.push(`--- ${i}페이지 ---\n${text}`);
       rawEl.value = normalizePdfMenuText(pageTexts.join('\n\n'));
     }
+    const beforeBuildStatus = `PDF 분석 완료${usedOcr ? ' (OCR 사용)' : ''}. `;
     buildMealPdfCandidates();
-    setMenuPdfStatus(`PDF 분석 완료${usedOcr ? ' (OCR 사용)' : ''}. 후보를 확인한 뒤 저장해주세요.`);
+    const statusEl = document.getElementById('menu-pdf-status');
+    if (statusEl && !statusEl.textContent.startsWith('OCR 인식 품질')) {
+      statusEl.textContent = beforeBuildStatus + statusEl.textContent;
+    }
   } catch(e) {
     setMenuPdfStatus('PDF 분석 실패: ' + e.message);
   }
