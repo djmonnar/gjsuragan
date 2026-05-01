@@ -331,6 +331,67 @@
     background: var(--success);
   }
 
+  /* ── 식단 카드 ── */
+  .meal-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .meal-card.is-empty { color: var(--text-sub); }
+  .meal-card .meal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .meal-card .meal-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .meal-card .meal-date {
+    font-size: 12px;
+    color: var(--text-sub);
+    white-space: nowrap;
+  }
+  .meal-card .meal-group {
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-top: 8px;
+  }
+  .meal-card .meal-group-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--primary);
+    margin-bottom: 6px;
+  }
+  .meal-card .meal-items {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .meal-card .meal-note {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text-sub);
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .meal-search-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: end;
+    margin-bottom: 12px;
+  }
+  .meal-search-row .form-input { margin-bottom: 0; }
+
   /* ── 전송 완료 ── */
   .submitted-badge {
     display: flex;
@@ -828,6 +889,7 @@
 
   <div class="tab-bar">
     <button class="tab-btn active" id="tab-today" onclick="switchTab('today')">오늘 주문</button>
+    <button class="tab-btn" id="tab-meal" onclick="switchTab('meal')">식단</button>
     <button class="tab-btn" id="tab-week" onclick="switchTab('week')">평일 일정</button>
     <button class="tab-btn" id="tab-settlement" onclick="switchTab('settlement')">정산</button>
     <button class="tab-btn" id="tab-profile" onclick="switchTab('profile')">내 정보</button>
@@ -836,6 +898,8 @@
   <!-- 오늘 주문 탭 -->
   <div id="pane-today" class="content-area">
     <div class="date-badge" id="today-badge">📅 날짜 로딩중...</div>
+
+    <div id="today-meal-card" class="meal-card is-empty">오늘 식단을 불러오는 중...</div>
 
     <div class="closed-banner" id="closed-banner" style="display:none">
       <span class="icon">⏰</span>
@@ -886,6 +950,16 @@
         ✅ 전송 완료 · <span id="submitted-time"></span>
       </div>
     </div>
+  </div>
+
+  <!-- 식단 탭 -->
+  <div id="pane-meal" class="content-area" style="display:none">
+    <div class="section-title">🍽 식단 조회</div>
+    <div class="meal-search-row">
+      <input class="form-input" type="date" id="meal-search-date">
+      <button class="save-btn" style="margin-top:0;padding:12px 16px" onclick="searchMealMenu()">조회</button>
+    </div>
+    <div id="meal-search-result" class="meal-card is-empty">날짜를 선택하면 식단을 확인할 수 있습니다.</div>
   </div>
 
   <!-- 주간 일정 탭 -->
@@ -1122,6 +1196,7 @@ let todaySalad = 0;
 let modalDateStr = '';
 let modalLunch = 0;
 let modalSalad = 0;
+const mealMenuCache = {};
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
@@ -1194,6 +1269,11 @@ function formatDateKR(dStr) {
   const dt = new Date(`${dStr}T00:00:00+09:00`);
   return `${parseInt(m)}월 ${parseInt(d)}일 (${days[dt.getDay()]})`;
 }
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+}
 function weekdayKeyForDate(dStr) {
   const day = new Date(`${dStr}T00:00:00+09:00`).getDay();
   return WEEKDAY_KEYS[day - 1] || 'mon';
@@ -1253,6 +1333,81 @@ function readWeekdayMeals(scope, fallbackLunch, fallbackSalad) {
 function hasDifferentWeekdayMeals(meals, lunch, salad) {
   return WEEKDAY_KEYS.some(key => (meals[key]?.lunch ?? lunch) !== lunch || (meals[key]?.salad ?? salad) !== salad);
 }
+function normalizeMealItems(value) {
+  if (Array.isArray(value)) return value.map(v => String(v || '').trim()).filter(Boolean);
+  return String(value || '').split(/\r?\n|,/).map(v => v.trim()).filter(Boolean);
+}
+function mealItemsHtml(items) {
+  const list = normalizeMealItems(items);
+  if (list.length === 0) return '<div style="font-size:13px;color:var(--text-sub)">등록된 항목이 없습니다.</div>';
+  return `<ul class="meal-items">${list.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+}
+function renderMealMenuCard(targetId, dStr, menu) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  if (!menu) {
+    el.className = 'meal-card is-empty';
+    el.innerHTML = `
+      <div class="meal-head">
+        <div class="meal-title">식단이 아직 등록되지 않았습니다</div>
+        <div class="meal-date">${formatDateKR(dStr)}</div>
+      </div>
+      <div style="font-size:13px;line-height:1.6">관리자가 식단을 등록하면 이곳에서 바로 확인할 수 있습니다.</div>
+    `;
+    return;
+  }
+  const title = menu.title || '오늘의 식단';
+  el.className = 'meal-card';
+  el.innerHTML = `
+    <div class="meal-head">
+      <div class="meal-title">🍽 ${escapeHtml(title)}</div>
+      <div class="meal-date">${formatDateKR(dStr)}</div>
+    </div>
+    <div class="meal-group">
+      <div class="meal-group-title">🍱 도시락</div>
+      ${mealItemsHtml(menu.lunchItems || menu.lunchMenu)}
+    </div>
+    <div class="meal-group">
+      <div class="meal-group-title">🥗 샐러드</div>
+      ${mealItemsHtml(menu.saladItems || menu.saladMenu)}
+    </div>
+    ${menu.note ? `<div class="meal-note">${escapeHtml(menu.note)}</div>` : ''}
+  `;
+}
+async function loadMealMenu(dStr) {
+  if (!dStr) return null;
+  if (mealMenuCache[dStr] !== undefined) return mealMenuCache[dStr];
+  const snap = await db.collection('mealMenus').doc(dStr).get();
+  mealMenuCache[dStr] = snap.exists ? snap.data() : null;
+  return mealMenuCache[dStr];
+}
+async function loadTodayMealMenu() {
+  const today = dateStr(getKST());
+  try {
+    renderMealMenuCard('today-meal-card', today, await loadMealMenu(today));
+  } catch(e) {
+    const el = document.getElementById('today-meal-card');
+    if (el) {
+      el.className = 'meal-card is-empty';
+      el.textContent = '식단을 불러오지 못했습니다.';
+    }
+  }
+}
+async function searchMealMenu() {
+  const input = document.getElementById('meal-search-date');
+  const dStr = input?.value || dateStr(getKST());
+  if (input) input.value = dStr;
+  const target = document.getElementById('meal-search-result');
+  if (target) target.textContent = '식단을 불러오는 중...';
+  try {
+    renderMealMenuCard('meal-search-result', dStr, await loadMealMenu(dStr));
+  } catch(e) {
+    if (target) {
+      target.className = 'meal-card is-empty';
+      target.textContent = '식단 조회 실패: ' + e.message;
+    }
+  }
+}
 
 // ───────── 인증 ─────────
 auth.onAuthStateChanged(async (user) => {
@@ -1262,7 +1417,7 @@ auth.onAuthStateChanged(async (user) => {
     try {
       await loadUserProfile();
     } catch(e) {
-      showToast('프로필 로딩 실패. 다시 시도해주세요.', 'error');
+      showToast(e.message || '프로필 로딩 실패. 다시 시도해주세요.', 'error');
       auth.signOut();
       return;
     }
@@ -1274,13 +1429,20 @@ auth.onAuthStateChanged(async (user) => {
 
 async function loadUserProfile() {
   const doc = await db.collection('users').doc(currentUser.uid).get();
-  if (doc.exists) {
-    userProfile = doc.data();
-    document.getElementById('header-bizname').textContent = userProfile.businessName;
-    const todayDefault = defaultMealsForDate(dateStr(getKST()), userProfile);
-    todayLunch = todayDefault.lunch;
-    todaySalad = todayDefault.salad;
+  if (!doc.exists) {
+    userProfile = null;
+    throw new Error('삭제된 회원입니다. 관리자에게 문의해주세요.');
   }
+  const data = doc.data() || {};
+  if (data.deleted || data.disabled) {
+    userProfile = null;
+    throw new Error('삭제된 회원입니다. 관리자에게 문의해주세요.');
+  }
+  userProfile = data;
+  document.getElementById('header-bizname').textContent = userProfile.businessName || currentUser.email || '';
+  const todayDefault = defaultMealsForDate(dateStr(getKST()), userProfile);
+  todayLunch = todayDefault.lunch;
+  todaySalad = todayDefault.salad;
 }
 
 async function doLogin() {
@@ -1343,6 +1505,9 @@ function showMain() {
   document.getElementById('main-screen').classList.add('active');
   renderToday();
   renderWeek();
+  const mealSearchDate = document.getElementById('meal-search-date');
+  if (mealSearchDate && !mealSearchDate.value) mealSearchDate.value = dateStr(getKST());
+  loadTodayMealMenu();
 
   // iOS 사파리에서 홈 화면 추가 안내
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -1364,13 +1529,15 @@ function showRegister() {
 }
 
 function switchTab(tab) {
-  ['today','week','settlement','profile'].forEach(t => {
+  ['today','meal','week','settlement','profile'].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
   });
   document.getElementById('pane-today').style.display = tab === 'today' ? 'block' : 'none';
+  document.getElementById('pane-meal').style.display = tab === 'meal' ? 'block' : 'none';
   document.getElementById('pane-week').style.display = tab === 'week' ? 'block' : 'none';
   document.getElementById('pane-settlement').style.display = tab === 'settlement' ? 'block' : 'none';
   document.getElementById('pane-profile').style.display = tab === 'profile' ? 'block' : 'none';
+  if (tab === 'meal') searchMealMenu();
   if (tab === 'profile') renderProfile();
   if (tab === 'settlement') initSettlementTab();
 }
