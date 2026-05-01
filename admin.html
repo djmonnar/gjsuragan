@@ -2379,13 +2379,20 @@ function normalizePdfMenuText(text) {
 }
 
 function cleanMenuCandidateLines(lines) {
-  const drop = /(궁중수라간|식단표|식단|월식|도시락|샐러드|알레르기|원산지|TEL|전화|문의|상기|변경|이미지|page|페이지)/i;
+  const drop = /(궁중수라간|궁중수라간이야기|정기구독|공공마켓|구매후기|이용안내|로그인|장바구니|주문조회|식단표|식단|월식|도시락|샐러드|알레르기|원산지|TEL|전화|문의|상기|변경|이미지|page|페이지|도착|배송|결제|회원|메뉴요리|매일 샐러드|오늘 조리해서|내일 식탁으로|진주|사천)/i;
   return lines
     .map(line => line.replace(/^[\s\-–—*ㆍ·•]+/, '').replace(/\s+/g, ' ').trim())
     .filter(line => line && line.length > 1)
     .filter(line => !drop.test(line))
     .filter(line => !/^\d{1,2}$/.test(line))
-    .filter(line => /[가-힣]/.test(line));
+    .filter(line => /[가-힣]/.test(line))
+    .filter(line => {
+      const compact = line.replace(/\s+/g, '');
+      const hangul = (compact.match(/[가-힣]/g) || []).length;
+      const alpha = (compact.match(/[A-Za-z]/g) || []).length;
+      const noise = (compact.match(/[=+*_~^`|[\]{}<>@$]/g) || []).length;
+      return hangul >= 2 && alpha <= hangul * 1.5 && noise <= Math.max(2, hangul);
+    });
 }
 
 function hasReliableKoreanMenuText(text) {
@@ -2416,71 +2423,66 @@ function pdfDateString(baseMonth, explicitMonth, day) {
 }
 
 function menuDateRegexForMonth(month) {
-  const monthNum = Number(month.split('-')[1]);
-  return new RegExp(`(?:(\\d{1,2})\\s*월\\s*)?(\\d{1,2})\\s*(?:일|\\(|\\)|월|화|수|목|금|토|일요일|$)|(?:(\\d{1,2})[./-])(\\d{1,2})|(?:${monthNum}|${String(monthNum).padStart(2, '0')})[./-](\\d{1,2})`, 'g');
+  return /(?:(\d{1,2})\s*월\s*)?(\d{1,2})\s*일(?:\s*[\(\[]?[월화수목금토일][\)\]]?)?|(\d{1,2})\s*[./]\s*(\d{1,2})(?=\s*(?:[\(\[]?[월화수목금토일][\)\]]?|[>~\-]|$))/g;
+}
+
+function stripDateMarkersFromLine(line) {
+  return String(line || '')
+    .replace(/(?:(\d{1,2})\s*월\s*)?\d{1,2}\s*일(?:\s*[\(\[]?[월화수목금토일][\)\]]?)?/g, ' ')
+    .replace(/\d{1,2}\s*[./]\s*\d{1,2}(?:\s*[\(\[]?[월화수목금토일][\)\]]?)?/g, ' ')
+    .replace(/[>~\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function foodMenuScore(lines) {
+  const text = lines.join(' ');
+  const hangul = (text.match(/[가-힣]/g) || []).length;
+  const foodWords = (text.match(/밥|국|탕|찌개|볶음|구이|조림|무침|김치|샐러드|닭|돼지|소고기|계란|두부|나물|장아찌|소스|카레|돈까스|생선|버섯|감자|오이|미역|고추|멸치|잡채|불고기|제육|떡갈비/g) || []).length;
+  return hangul + foodWords * 12;
+}
+
+function splitTextByPdfDateMarkers(text, baseMonth) {
+  const regex = menuDateRegexForMonth(baseMonth);
+  const matches = [...text.matchAll(regex)]
+    .map(match => ({
+      index: match.index,
+      length: match[0].length,
+      explicitMonth: Number(match[1] || match[3] || 0),
+      day: Number(match[2] || match[4])
+    }))
+    .filter(item => item.day >= 1 && item.day <= 31)
+    .filter(item => item.explicitMonth === 0 || (item.explicitMonth >= 1 && item.explicitMonth <= 12))
+    .sort((a, b) => a.index - b.index);
+  const chunks = [];
+  let activeMonth = Number(baseMonth.split('-')[1]);
+  matches.forEach((item, idx) => {
+    if (item.explicitMonth) activeMonth = item.explicitMonth;
+    const nextIndex = matches[idx + 1]?.index ?? text.length;
+    chunks.push({
+      date: pdfDateString(baseMonth, activeMonth, item.day),
+      body: text.slice(item.index + item.length, nextIndex)
+    });
+  });
+  return chunks;
 }
 
 function parseMealPdfCandidates(rawText, month) {
   const text = normalizePdfMenuText(rawText);
-  const baseMon = Number(month.split('-')[1]);
-  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   const candidates = [];
   const seen = new Set();
-  let current = null;
-  let activeMonth = baseMon;
-  const flush = () => {
-    if (!current) return;
-    const items = cleanMenuCandidateLines(current.lines);
+  splitTextByPdfDateMarkers(text, month).forEach(chunk => {
+    const items = cleanMenuCandidateLines(
+      chunk.body
+        .split(/\r?\n|,/)
+        .map(stripDateMarkersFromLine)
+    );
     if (items.length === 0) return;
-    const key = current.date;
+    if (foodMenuScore(items) < 18) return;
+    const key = chunk.date;
     if (seen.has(key)) return;
     seen.add(key);
-    candidates.push({ date: current.date, lunchItems: items, saladItems: [], note: 'PDF 식단표에서 가져옴' });
-  };
-
-  lines.forEach(line => {
-    const normalized = line.replace(/\s+/g, ' ');
-    const explicit = normalized.match(/(?:(\d{1,2})\s*월\s*)?(\d{1,2})\s*일/);
-    const slashAny = normalized.match(/(\d{1,2})[./-](\d{1,2})/);
-    const weekdayOnly = normalized.match(/^(\d{1,2})\s*[\(\[]?[월화수목금토일][\)\]]?/);
-    const explicitMonth = explicit?.[1] ? Number(explicit[1]) : slashAny ? Number(slashAny[1]) : 0;
-    const day = explicit ? Number(explicit[2]) : slashAny ? Number(slashAny[2]) : weekdayOnly ? Number(weekdayOnly[1]) : 0;
-    if (day >= 1 && day <= 31) {
-      if (explicitMonth >= 1 && explicitMonth <= 12) activeMonth = explicitMonth;
-      flush();
-      current = {
-        date: pdfDateString(month, activeMonth, day),
-        lines: [normalized.replace(/(?:(\d{1,2})\s*월\s*)?\d{1,2}\s*일/g, '').replace(/^\d{1,2}\s*[\(\[]?[월화수목금토일][\)\]]?/, '').trim()]
-      };
-    } else if (current) {
-      current.lines.push(normalized);
-    }
-  });
-  flush();
-
-  if (candidates.length > 0) return candidates;
-
-  const regex = menuDateRegexForMonth(month);
-  const matches = [...text.matchAll(regex)]
-    .map(match => ({
-      index: match.index,
-      explicitMonth: Number(match[1] || match[3] || 0),
-      day: Number(match[2] || match[4] || match[5])
-    }))
-    .filter(item => item.day >= 1 && item.day <= 31)
-    .sort((a, b) => a.index - b.index);
-  let fallbackActiveMonth = baseMon;
-  matches.forEach((item, idx) => {
-    if (item.explicitMonth >= 1 && item.explicitMonth <= 12) fallbackActiveMonth = item.explicitMonth;
-    const nextIndex = matches[idx + 1]?.index ?? text.length;
-    const chunk = text.slice(item.index, nextIndex);
-    const items = cleanMenuCandidateLines(chunk.split(/\r?\n|,/).slice(1));
-    if (items.length === 0) return;
-    const date = pdfDateString(month, fallbackActiveMonth, item.day);
-    if (!seen.has(date)) {
-      seen.add(date);
-      candidates.push({ date, lunchItems: items, saladItems: [], note: 'PDF 식단표에서 가져옴' });
-    }
+    candidates.push({ date: chunk.date, lunchItems: items, saladItems: [], note: 'PDF 식단표에서 가져옴' });
   });
   return candidates;
 }
