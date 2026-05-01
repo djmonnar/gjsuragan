@@ -2428,6 +2428,42 @@ function parseMealCode() {
 }
 
 
+function renderMealPdfCandidates() {
+  const wrap = document.getElementById('menu-pdf-candidates');
+  if (!wrap) return;
+  if (mealPdfCandidates.length === 0) {
+    wrap.innerHTML = '<div style="font-size:13px;color:var(--sub);padding:8px 0">저장할 식단 후보가 없습니다.</div>';
+    return;
+  }
+  wrap.innerHTML =
+    '<div class="menu-import-list-head"><div>날짜</div><div>도시락 메뉴</div><div>샐러드 메뉴</div><div>사용</div></div>' +
+    mealPdfCandidates.map((row, idx) => `
+      <div class="menu-import-row" data-menu-import-row="${idx}">
+        <input class="form-input menu-import-date" type="date" value="${escapeHtml(row.date)}">
+        <textarea class="form-textarea menu-import-lunch" placeholder="도시락 메뉴">${escapeHtml((row.lunchItems||[]).join('\n'))}</textarea>
+        <textarea class="form-textarea menu-import-salad" placeholder="샐러드 메뉴">${escapeHtml((row.saladItems||[]).join('\n'))}</textarea>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--sub)">
+          <input type="checkbox" class="menu-import-use" checked> 저장
+        </label>
+      </div>`).join('');
+}
+
+function nextMenuPdfCandidateDate() {
+  const month = currentMonthStr();
+  const usedDays = readMealPdfCandidateRows({ includeUnchecked: true })
+    .concat(mealPdfCandidates)
+    .filter(row => String(row.date || '').slice(0, 7) === month)
+    .map(row => Number(String(row.date || '').slice(-2)))
+    .filter(Boolean);
+  const nextDay = usedDays.length ? Math.min(31, Math.max(...usedDays) + 1) : 1;
+  return `${month}-${String(nextDay).padStart(2, '0')}`;
+}
+
+function addBlankMealPdfCandidate() {
+  mealPdfCandidates.push({ date: nextMenuPdfCandidateDate(), lunchItems: [], saladItems: [], note: '' });
+  renderMealPdfCandidates();
+}
+
 function readMealPdfCandidateRows(options = {}) {
   const includeUnchecked = Boolean(options.includeUnchecked);
   return Array.from(document.querySelectorAll('[data-menu-import-row]')).map(row => {
