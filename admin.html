@@ -429,10 +429,6 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
           <input class="form-input" type="text" id="menu-title" placeholder="예) 오늘의 수라">
         </div>
         <div class="full">
-          <label class="form-label">식단 사이트 주소</label>
-          <input class="form-input" type="url" id="menu-source-url" value="https://www.gjsuragan.co.kr/meal">
-        </div>
-        <div class="full">
           <label class="form-label">도시락 메뉴</label>
           <textarea class="form-textarea" id="menu-lunch-items" placeholder="한 줄에 하나씩 입력"></textarea>
         </div>
@@ -448,7 +444,6 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
       <div class="inline-actions">
         <button class="save-btn" style="width:auto" onclick="saveMealMenu()">저장하기</button>
         <button class="secondary-btn" onclick="loadMealMenuEditor()">불러오기</button>
-        <button class="secondary-btn" onclick="fetchMealMenuFromSite()">식단 사이트 가져오기</button>
         <button class="danger-btn" onclick="deleteMealMenu()">삭제</button>
         <a class="secondary-btn" href="https://www.gjsuragan.co.kr/meal" target="_blank" rel="noopener" style="text-decoration:none">사이트 열기</a>
       </div>
@@ -2242,8 +2237,6 @@ function initMenuForm() {
   if (!dateEl.value) dateEl.value = dateStr(getKST());
   const pdfMonthEl = document.getElementById('menu-pdf-month');
   if (pdfMonthEl && !pdfMonthEl.value) pdfMonthEl.value = dateEl.value.slice(0, 7) || currentMonthStr();
-  const sourceEl = document.getElementById('menu-source-url');
-  if (sourceEl && !sourceEl.value) sourceEl.value = 'https://www.gjsuragan.co.kr/meal';
   renderMenuPreview();
 }
 
@@ -2259,7 +2252,6 @@ async function loadMealMenuEditor() {
     document.getElementById('menu-lunch-items').value = normalizeMealItems(data.lunchItems || data.lunchMenu).join('\n');
     document.getElementById('menu-salad-items').value = normalizeMealItems(data.saladItems || data.saladMenu).join('\n');
     document.getElementById('menu-note').value = data.note || '';
-    document.getElementById('menu-source-url').value = data.sourceUrl || document.getElementById('menu-source-url').value || 'https://www.gjsuragan.co.kr/meal';
     renderMenuPreview({ ...data, title: data.title || '오늘의 식단' });
   } catch(e) {
     errEl.textContent = '식단 불러오기 실패: ' + e.message;
@@ -2274,7 +2266,6 @@ async function saveMealMenu() {
   const lunchItems = normalizeMealItems(document.getElementById('menu-lunch-items').value);
   const saladItems = normalizeMealItems(document.getElementById('menu-salad-items').value);
   const note = document.getElementById('menu-note').value.trim();
-  const sourceUrl = document.getElementById('menu-source-url').value.trim();
   const errEl = document.getElementById('menu-error');
   errEl.classList.remove('show');
   if (!date) {
@@ -2288,7 +2279,7 @@ async function saveMealMenu() {
     return;
   }
   const payload = {
-    date, title, lunchItems, saladItems, note, sourceUrl,
+    date, title, lunchItems, saladItems, note,
     updatedBy: adminUid,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
@@ -2353,50 +2344,6 @@ function selectMealMenuDate(date) {
   document.getElementById('menu-date').value = date;
   loadMealMenuEditor();
   window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function extractMealTextFromSite(html, date) {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  doc.querySelectorAll('script,style,noscript').forEach(el => el.remove());
-  const lines = (doc.body?.innerText || '')
-    .split(/\r?\n/)
-    .map(line => line.replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
-  const [, month, day] = date.split('-').map(Number);
-  const markers = [`${month}월 ${day}일`, `${String(month).padStart(2, '0')}월 ${String(day).padStart(2, '0')}일`];
-  const start = lines.findIndex(line => markers.some(marker => line.includes(marker)));
-  if (start < 0) throw new Error('선택한 날짜의 식단 문구를 사이트에서 찾지 못했습니다.');
-  const picked = [];
-  for (let i = start; i < lines.length && picked.length < 14; i += 1) {
-    const line = lines[i];
-    if (i > start && /\d{1,2}월\s*\d{1,2}일/.test(line)) break;
-    if (/TIME SALE|주문불가|장바구니|로그인|회원 가입|MENU/i.test(line)) continue;
-    if (!picked.includes(line)) picked.push(line);
-  }
-  if (picked.length <= 1) throw new Error('식단 내용을 충분히 읽지 못했습니다.');
-  return picked;
-}
-
-async function fetchMealMenuFromSite() {
-  initMenuForm();
-  const date = document.getElementById('menu-date').value;
-  const sourceUrl = document.getElementById('menu-source-url').value.trim() || 'https://www.gjsuragan.co.kr/meal';
-  const errEl = document.getElementById('menu-error');
-  errEl.classList.remove('show');
-  try {
-    const res = await fetch(sourceUrl, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`사이트 응답 오류(${res.status})`);
-    const lines = extractMealTextFromSite(await res.text(), date);
-    document.getElementById('menu-title').value = lines[0] || '오늘의 식단';
-    document.getElementById('menu-lunch-items').value = lines.slice(1).join('\n');
-    document.getElementById('menu-salad-items').value = '';
-    document.getElementById('menu-note').value = `사이트에서 가져온 내용입니다. 저장 전 도시락/샐러드 항목을 확인해주세요.\n${sourceUrl}`;
-    renderMenuPreview();
-    showToast('사이트 내용을 가져왔습니다. 확인 후 저장해주세요.');
-  } catch(e) {
-    errEl.textContent = '사이트 가져오기 실패: ' + e.message + ' 브라우저 보안 정책으로 막히면 사이트를 열어 직접 복사해 입력해주세요.';
-    errEl.classList.add('show');
-  }
 }
 
 function setMenuPdfStatus(message) {
