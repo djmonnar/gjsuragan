@@ -224,6 +224,14 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .settle-filter-tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;width:100%}
   .payment-row{grid-template-columns:1fr 1fr}
 }
+/* ── 통계 CSS ── */
+.stats-period-btn{border:1px solid var(--border);background:#fff;color:var(--sub);font-size:12px;font-weight:600;padding:5px 12px;border-radius:16px;cursor:pointer;font-family:inherit}
+.stats-period-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.stats-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:4px}
+.stats-kpi-card{background:var(--bg);border-radius:10px;padding:12px;text-align:center}
+.stats-kpi-card .kpi-label{font-size:11px;color:var(--text-secondary);margin-bottom:4px}
+.stats-kpi-card .kpi-value{font-size:22px;font-weight:800;color:var(--primary)}
+@media(max-width:700px){.stats-kpi-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -264,6 +272,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
     <button class="tab-btn" id="tab-events" onclick="switchAdminTab('events')">행사도시락</button>
     <button class="tab-btn" id="tab-settlements" onclick="switchAdminTab('settlements')">정산</button>
     <button class="tab-btn" id="tab-receipts" onclick="switchAdminTab('receipts')">간이영수증</button>
+    <button class="tab-btn" id="tab-stats" onclick="switchAdminTab('stats')">📊 통계</button>
   </div>
 
   <div class="controls-bar admin-tab-panel" data-tab="orders">
@@ -409,6 +418,47 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
         </div>
       </div>
       <div class="receipt-preview" id="receipt-preview"></div>
+    </div>
+  </div>
+
+  <!-- ── 통계 탭 ── -->
+  <div class="receipt-section admin-tab-panel" data-tab="stats" style="display:none">
+    <div class="panel">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <span style="font-weight:700;color:var(--primary)">📊 주문 통계</span>
+        <div style="display:flex;gap:6px">
+          <button class="stats-period-btn active" data-period="1" onclick="setStatsPeriod(1)">이번달</button>
+          <button class="stats-period-btn" data-period="3" onclick="setStatsPeriod(3)">최근 3개월</button>
+          <button class="stats-period-btn" data-period="6" onclick="setStatsPeriod(6)">최근 6개월</button>
+        </div>
+      </div>
+      <div class="stats-kpi-grid" id="stats-kpi-grid">
+        <div class="stats-kpi-card"><div class="kpi-label">주문일수</div><div class="kpi-value" id="sk-days">-</div></div>
+        <div class="stats-kpi-card"><div class="kpi-label">총 도시락</div><div class="kpi-value" id="sk-lunch">-</div></div>
+        <div class="stats-kpi-card"><div class="kpi-label">총 샐러드</div><div class="kpi-value" id="sk-salad">-</div></div>
+        <div class="stats-kpi-card"><div class="kpi-label">평균 도시락/일</div><div class="kpi-value" id="sk-avg">-</div></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:10px">일별 배송 추이</div>
+      <div style="position:relative;height:200px"><canvas id="stats-daily-chart"></canvas></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="panel">
+        <div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:10px">업체별 TOP 10 (도시락)</div>
+        <div style="position:relative;height:220px"><canvas id="stats-vendor-chart"></canvas></div>
+      </div>
+      <div class="panel">
+        <div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:10px">월별 트렌드</div>
+        <div style="position:relative;height:220px"><canvas id="stats-monthly-chart"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:10px">요일별 평균</div>
+      <table class="data-table" id="stats-weekday-table">
+        <thead><tr><th>요일</th><th>도시락 평균</th><th>샐러드 평균</th><th>주문일수</th></tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 
@@ -2051,7 +2101,7 @@ async function deleteMember() {
 
 function switchAdminTab(tab) {
   activeAdminTab = tab;
-  ['orders','events','settlements','receipts'].forEach(name => {
+  ['orders','events','settlements','receipts','stats'].forEach(name => {
     document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
   });
   document.querySelectorAll('.admin-tab-panel').forEach(el => {
@@ -2067,6 +2117,7 @@ function switchAdminTab(tab) {
     initReceiptForm();
     renderReceipt();
   }
+  if (tab === 'stats') loadOrderStats();
 }
 
 function resetEventForm() {
@@ -3271,6 +3322,130 @@ async function renderSettlementCharts() {
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 12 } } } }
   });
+}
+
+// ── 주문 통계 대시보드 ──
+let statsDailyChart = null, statsVendorChart = null, statsMonthlyChart = null;
+let currentStatsPeriod = 1;
+
+function setStatsPeriod(months) {
+  currentStatsPeriod = months;
+  document.querySelectorAll('.stats-period-btn').forEach(btn =>
+    btn.classList.toggle('active', parseInt(btn.dataset.period) === months));
+  renderOrderStats();
+}
+
+async function loadOrderStats() {
+  if (Object.keys(cachedDeliveryRecords).length === 0) {
+    try {
+      const snap = await db.collection('users').doc(adminUid).get();
+      cachedDeliveryRecords = snap.exists ? (snap.data().deliveryRecords || {}) : {};
+    } catch(e) { /* ignore */ }
+  }
+  renderOrderStats();
+}
+
+function renderOrderStats() {
+  const kst = getKST();
+  const today = dateStr(kst);
+  const periodStart = (() => {
+    const d = new Date(today + 'T00:00:00');
+    d.setMonth(d.getMonth() - currentStatsPeriod + 1);
+    d.setDate(1);
+    return dateStr(d);
+  })();
+
+  const allDates = Object.keys(cachedDeliveryRecords).filter(d => d >= periodStart && d <= today).sort();
+
+  // aggregate
+  let totalDays = 0, totalLunch = 0, totalSalad = 0;
+  const dailyLunch = {}, dailySalad = {};
+  const vendorLunch = {};
+  const weekday = [0,1,2,3,4].map(() => ({ days:0, lunch:0, salad:0 }));
+
+  allDates.forEach(d => {
+    const rows = cachedDeliveryRecords[d];
+    let dayLunch = 0, daySalad = 0;
+    Object.values(rows).forEach(r => {
+      const l = parseInt(r.lunchCount,10)||0, s = parseInt(r.saladCount,10)||0;
+      if (l === 0 && s === 0) return;
+      dayLunch += l; daySalad += s;
+    });
+    Object.entries(rows).forEach(([uid, r]) => {
+      const l = parseInt(r.lunchCount,10)||0;
+      if (l > 0) vendorLunch[uid] = (vendorLunch[uid]||0) + l;
+    });
+    if (dayLunch + daySalad === 0) return;
+    totalDays++;
+    totalLunch += dayLunch; totalSalad += daySalad;
+    dailyLunch[d] = dayLunch; dailySalad[d] = daySalad;
+    const dow = new Date(d + 'T00:00:00').getDay();
+    if (dow >= 1 && dow <= 5) { const w = weekday[dow-1]; w.days++; w.lunch+=dayLunch; w.salad+=daySalad; }
+  });
+
+  // KPI
+  document.getElementById('sk-days').textContent = totalDays;
+  document.getElementById('sk-lunch').textContent = totalLunch.toLocaleString();
+  document.getElementById('sk-salad').textContent = totalSalad.toLocaleString();
+  document.getElementById('sk-avg').textContent = totalDays ? (totalLunch/totalDays).toFixed(1) : '-';
+
+  // daily chart (최근 30일만 표시)
+  const dailyDates = allDates.filter(d => dailyLunch[d] || dailySalad[d]).slice(-30);
+  const dayLabels = dailyDates.map(d => { const [,m,dd]=d.split('-'); return `${parseInt(m)}/${parseInt(dd)}`; });
+  if (statsDailyChart) statsDailyChart.destroy();
+  const dc = document.getElementById('stats-daily-chart').getContext('2d');
+  statsDailyChart = new Chart(dc, {
+    type: 'bar',
+    data: {
+      labels: dayLabels,
+      datasets: [
+        { label: '도시락', data: dailyDates.map(d=>dailyLunch[d]||0), backgroundColor: 'rgba(123,63,26,.75)', borderRadius: 3 },
+        { label: '샐러드', data: dailyDates.map(d=>dailySalad[d]||0), backgroundColor: 'rgba(30,110,64,.65)', borderRadius: 3 }
+      ]
+    },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{font:{size:11},boxWidth:12}}}, scales:{x:{ticks:{font:{size:9},maxRotation:45}},y:{beginAtZero:true,ticks:{stepSize:1}}} }
+  });
+
+  // vendor TOP 10
+  const top10 = Object.entries(vendorLunch).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const vendorLabels = top10.map(([uid]) => (allUsers[uid]?.businessName || uid).slice(0,6));
+  if (statsVendorChart) statsVendorChart.destroy();
+  const vc = document.getElementById('stats-vendor-chart').getContext('2d');
+  statsVendorChart = new Chart(vc, {
+    type: 'bar',
+    data: { labels: vendorLabels, datasets: [{ label:'도시락', data: top10.map(([,v])=>v), backgroundColor:'rgba(123,63,26,.75)', borderRadius:4 }] },
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,ticks:{stepSize:10}},y:{ticks:{font:{size:11}}}} }
+  });
+
+  // monthly trend (last 6 months)
+  const months = [];
+  for (let i=5; i>=0; i--) {
+    const d = new Date(today + 'T00:00:00');
+    d.setMonth(d.getMonth() - i);
+    months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  const mLabels = months.map(m => { const [,mon]=m.split('-'); return `${parseInt(mon)}월`; });
+  const mLunch = months.map(m => {
+    return Object.keys(cachedDeliveryRecords).filter(d=>d.startsWith(m))
+      .reduce((s,d)=>s+Object.values(cachedDeliveryRecords[d]).reduce((ss,r)=>ss+(parseInt(r.lunchCount,10)||0),0),0);
+  });
+  if (statsMonthlyChart) statsMonthlyChart.destroy();
+  const mc = document.getElementById('stats-monthly-chart').getContext('2d');
+  statsMonthlyChart = new Chart(mc, {
+    type: 'line',
+    data: { labels: mLabels, datasets: [{ label:'도시락', data: mLunch, borderColor:'#7b3f1a', backgroundColor:'rgba(123,63,26,.12)', fill:true, tension:.3, pointRadius:4 }] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+  });
+
+  // weekday table
+  const dayNames = ['월','화','수','목','금'];
+  const tbody = document.querySelector('#stats-weekday-table tbody');
+  tbody.innerHTML = weekday.map((w,i) => `<tr>
+    <td><strong>${dayNames[i]}요일</strong></td>
+    <td>${w.days ? (w.lunch/w.days).toFixed(1) : '-'}</td>
+    <td>${w.days ? (w.salad/w.days).toFixed(1) : '-'}</td>
+    <td>${w.days}일</td>
+  </tr>`).join('');
 }
 
 function renderBreakdownHTML(row) {
