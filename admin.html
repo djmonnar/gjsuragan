@@ -188,6 +188,15 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .weekday-meals{display:grid;gap:8px;margin-bottom:12px}
 .weekday-meal-row{display:grid;grid-template-columns:40px 1fr 1fr;gap:8px;align-items:center}
 .weekday-label{font-size:13px;font-weight:800;color:var(--primary)}
+.menu-preview-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-top:14px}
+.menu-preview-card .mp-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}
+.menu-preview-card .mp-title{font-size:15px;font-weight:800;color:var(--primary)}
+.menu-preview-card .mp-date{font-size:12px;color:var(--sub);white-space:nowrap}
+.menu-preview-card .mp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.menu-preview-card .mp-box{background:var(--bg);border-radius:10px;padding:12px}
+.menu-preview-card .mp-box-title{font-size:12px;font-weight:800;color:var(--primary);margin-bottom:6px}
+.menu-preview-card ul{margin:0;padding-left:18px;font-size:13px;line-height:1.7}
+.menu-preview-card .mp-note{margin-top:10px;font-size:13px;color:var(--sub);line-height:1.6;white-space:pre-wrap}
 /* 모달 */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:center;justify-content:center;padding:24px}
 .modal-overlay.open{display:flex}
@@ -270,6 +279,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   <div class="admin-tabs">
     <button class="tab-btn active" id="tab-orders" onclick="switchAdminTab('orders')">주문 현황</button>
     <button class="tab-btn" id="tab-events" onclick="switchAdminTab('events')">행사도시락</button>
+    <button class="tab-btn" id="tab-menus" onclick="switchAdminTab('menus')">식단관리</button>
     <button class="tab-btn" id="tab-settlements" onclick="switchAdminTab('settlements')">정산</button>
     <button class="tab-btn" id="tab-receipts" onclick="switchAdminTab('receipts')">간이영수증</button>
     <button class="tab-btn" id="tab-stats" onclick="switchAdminTab('stats')">📊 통계</button>
@@ -390,6 +400,56 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
       </thead>
       <tbody id="event-tbody">
         <tr class="no-order-row"><td colspan="8">불러오는 중...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="event-section admin-tab-panel" data-tab="menus" style="display:none">
+    <div class="section-title">🍽 고객앱 식단 관리</div>
+    <div class="panel">
+      <div class="form-grid">
+        <div>
+          <label class="form-label">식단 날짜</label>
+          <input class="form-input" type="date" id="menu-date" onchange="loadMealMenuEditor()">
+        </div>
+        <div>
+          <label class="form-label">식단 제목</label>
+          <input class="form-input" type="text" id="menu-title" placeholder="예) 오늘의 수라">
+        </div>
+        <div class="full">
+          <label class="form-label">식단 사이트 주소</label>
+          <input class="form-input" type="url" id="menu-source-url" value="https://www.gjsuragan.co.kr/meal">
+        </div>
+        <div class="full">
+          <label class="form-label">도시락 메뉴</label>
+          <textarea class="form-textarea" id="menu-lunch-items" placeholder="한 줄에 하나씩 입력"></textarea>
+        </div>
+        <div class="full">
+          <label class="form-label">샐러드 메뉴</label>
+          <textarea class="form-textarea" id="menu-salad-items" placeholder="한 줄에 하나씩 입력"></textarea>
+        </div>
+        <div class="full">
+          <label class="form-label">안내 메모</label>
+          <textarea class="form-textarea" id="menu-note" placeholder="알레르기, 변경 안내, 참고사항"></textarea>
+        </div>
+      </div>
+      <div class="inline-actions">
+        <button class="save-btn" style="width:auto" onclick="saveMealMenu()">저장하기</button>
+        <button class="secondary-btn" onclick="loadMealMenuEditor()">불러오기</button>
+        <button class="secondary-btn" onclick="fetchMealMenuFromSite()">식단 사이트 가져오기</button>
+        <button class="danger-btn" onclick="deleteMealMenu()">삭제</button>
+        <a class="secondary-btn" href="https://www.gjsuragan.co.kr/meal" target="_blank" rel="noopener" style="text-decoration:none">사이트 열기</a>
+      </div>
+      <div class="error-msg" id="menu-error"></div>
+      <div id="menu-preview" class="menu-preview-card"></div>
+    </div>
+    <div class="section-title">최근 등록 식단</div>
+    <table class="order-table">
+      <thead>
+        <tr><th>날짜</th><th>제목</th><th>도시락</th><th>샐러드</th><th>관리</th></tr>
+      </thead>
+      <tbody id="menu-tbody">
+        <tr class="no-order-row"><td colspan="5">불러오는 중...</td></tr>
       </tbody>
     </table>
   </div>
@@ -861,6 +921,7 @@ let eventLunches = [];
 let settlementRows = [];
 let settlementEvents = [];
 let currentOrderRows = [];
+let mealMenus = [];
 let activeAdminTab = 'orders';
 let adminUid = '';
 let cachedDeliveryRecords = {};
@@ -2109,9 +2170,202 @@ async function deleteMember() {
   }
 }
 
+function normalizeMealItems(value) {
+  if (Array.isArray(value)) return value.map(v => String(v || '').trim()).filter(Boolean);
+  return String(value || '').split(/\r?\n|,/).map(v => v.trim()).filter(Boolean);
+}
+
+function mealItemsListHtml(items) {
+  const list = normalizeMealItems(items);
+  if (list.length === 0) return '<div style="font-size:13px;color:var(--sub)">등록된 항목이 없습니다.</div>';
+  return `<ul>${list.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+}
+
+function renderMenuPreview(menu = {}) {
+  const target = document.getElementById('menu-preview');
+  if (!target) return;
+  const date = document.getElementById('menu-date')?.value || dateStr(getKST());
+  const title = menu.title || document.getElementById('menu-title')?.value.trim() || '오늘의 식단';
+  const lunchItems = menu.lunchItems || normalizeMealItems(document.getElementById('menu-lunch-items')?.value || '');
+  const saladItems = menu.saladItems || normalizeMealItems(document.getElementById('menu-salad-items')?.value || '');
+  const note = menu.note ?? document.getElementById('menu-note')?.value.trim() ?? '';
+  target.innerHTML = `
+    <div class="mp-head">
+      <div class="mp-title">🍽 ${escapeHtml(title)}</div>
+      <div class="mp-date">${formatDateKR(date)}</div>
+    </div>
+    <div class="mp-grid">
+      <div class="mp-box"><div class="mp-box-title">🍱 도시락</div>${mealItemsListHtml(lunchItems)}</div>
+      <div class="mp-box"><div class="mp-box-title">🥗 샐러드</div>${mealItemsListHtml(saladItems)}</div>
+    </div>
+    ${note ? `<div class="mp-note">${escapeHtml(note)}</div>` : ''}
+  `;
+}
+
+function initMenuForm() {
+  const dateEl = document.getElementById('menu-date');
+  if (!dateEl) return;
+  if (!dateEl.value) dateEl.value = dateStr(getKST());
+  const sourceEl = document.getElementById('menu-source-url');
+  if (sourceEl && !sourceEl.value) sourceEl.value = 'https://www.gjsuragan.co.kr/meal';
+  renderMenuPreview();
+}
+
+async function loadMealMenuEditor() {
+  initMenuForm();
+  const date = document.getElementById('menu-date').value;
+  const errEl = document.getElementById('menu-error');
+  errEl.classList.remove('show');
+  try {
+    const snap = await db.collection('mealMenus').doc(date).get();
+    const data = snap.exists ? snap.data() : {};
+    document.getElementById('menu-title').value = data.title || '';
+    document.getElementById('menu-lunch-items').value = normalizeMealItems(data.lunchItems || data.lunchMenu).join('\n');
+    document.getElementById('menu-salad-items').value = normalizeMealItems(data.saladItems || data.saladMenu).join('\n');
+    document.getElementById('menu-note').value = data.note || '';
+    document.getElementById('menu-source-url').value = data.sourceUrl || document.getElementById('menu-source-url').value || 'https://www.gjsuragan.co.kr/meal';
+    renderMenuPreview({ ...data, title: data.title || '오늘의 식단' });
+  } catch(e) {
+    errEl.textContent = '식단 불러오기 실패: ' + e.message;
+    errEl.classList.add('show');
+  }
+}
+
+async function saveMealMenu() {
+  initMenuForm();
+  const date = document.getElementById('menu-date').value;
+  const title = document.getElementById('menu-title').value.trim() || '오늘의 식단';
+  const lunchItems = normalizeMealItems(document.getElementById('menu-lunch-items').value);
+  const saladItems = normalizeMealItems(document.getElementById('menu-salad-items').value);
+  const note = document.getElementById('menu-note').value.trim();
+  const sourceUrl = document.getElementById('menu-source-url').value.trim();
+  const errEl = document.getElementById('menu-error');
+  errEl.classList.remove('show');
+  if (!date) {
+    errEl.textContent = '식단 날짜를 선택해주세요.';
+    errEl.classList.add('show');
+    return;
+  }
+  if (lunchItems.length === 0 && saladItems.length === 0) {
+    errEl.textContent = '도시락 또는 샐러드 메뉴를 1개 이상 입력해주세요.';
+    errEl.classList.add('show');
+    return;
+  }
+  const payload = {
+    date, title, lunchItems, saladItems, note, sourceUrl,
+    updatedBy: adminUid,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try {
+    await db.collection('mealMenus').doc(date).set(payload, { merge: true });
+    showToast('✅ 식단이 저장되었습니다.');
+    renderMenuPreview(payload);
+    loadMealMenuList();
+  } catch(e) {
+    errEl.textContent = '식단 저장 실패: ' + e.message;
+    errEl.classList.add('show');
+  }
+}
+
+async function deleteMealMenu() {
+  const date = document.getElementById('menu-date')?.value;
+  if (!date) return;
+  if (!confirm(`${formatDateKR(date)} 식단을 삭제할까요?`)) return;
+  try {
+    await db.collection('mealMenus').doc(date).delete();
+    document.getElementById('menu-title').value = '';
+    document.getElementById('menu-lunch-items').value = '';
+    document.getElementById('menu-salad-items').value = '';
+    document.getElementById('menu-note').value = '';
+    showToast('식단이 삭제되었습니다.');
+    renderMenuPreview();
+    loadMealMenuList();
+  } catch(e) {
+    const errEl = document.getElementById('menu-error');
+    errEl.textContent = '식단 삭제 실패: ' + e.message;
+    errEl.classList.add('show');
+  }
+}
+
+async function loadMealMenuList() {
+  const tbody = document.getElementById('menu-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr class="no-order-row"><td colspan="5">불러오는 중...</td></tr>';
+  try {
+    const snap = await db.collection('mealMenus').orderBy('date', 'desc').limit(30).get();
+    mealMenus = [];
+    snap.forEach(doc => mealMenus.push({ id: doc.id, ...doc.data() }));
+    if (mealMenus.length === 0) {
+      tbody.innerHTML = '<tr class="no-order-row"><td colspan="5">등록된 식단이 없습니다.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = mealMenus.map(menu => `
+      <tr>
+        <td>${escapeHtml(menu.date || menu.id)}</td>
+        <td class="biz-name">${escapeHtml(menu.title || '오늘의 식단')}</td>
+        <td>${normalizeMealItems(menu.lunchItems || menu.lunchMenu).length}개</td>
+        <td>${normalizeMealItems(menu.saladItems || menu.saladMenu).length}개</td>
+        <td><button class="secondary-btn" onclick="selectMealMenuDate('${jsString(menu.date || menu.id)}')">열기</button></td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr class="no-order-row"><td colspan="5">식단 목록 불러오기 실패: ${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+function selectMealMenuDate(date) {
+  document.getElementById('menu-date').value = date;
+  loadMealMenuEditor();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function extractMealTextFromSite(html, date) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('script,style,noscript').forEach(el => el.remove());
+  const lines = (doc.body?.innerText || '')
+    .split(/\r?\n/)
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  const [, month, day] = date.split('-').map(Number);
+  const markers = [`${month}월 ${day}일`, `${String(month).padStart(2, '0')}월 ${String(day).padStart(2, '0')}일`];
+  const start = lines.findIndex(line => markers.some(marker => line.includes(marker)));
+  if (start < 0) throw new Error('선택한 날짜의 식단 문구를 사이트에서 찾지 못했습니다.');
+  const picked = [];
+  for (let i = start; i < lines.length && picked.length < 14; i += 1) {
+    const line = lines[i];
+    if (i > start && /\d{1,2}월\s*\d{1,2}일/.test(line)) break;
+    if (/TIME SALE|주문불가|장바구니|로그인|회원 가입|MENU/i.test(line)) continue;
+    if (!picked.includes(line)) picked.push(line);
+  }
+  if (picked.length <= 1) throw new Error('식단 내용을 충분히 읽지 못했습니다.');
+  return picked;
+}
+
+async function fetchMealMenuFromSite() {
+  initMenuForm();
+  const date = document.getElementById('menu-date').value;
+  const sourceUrl = document.getElementById('menu-source-url').value.trim() || 'https://www.gjsuragan.co.kr/meal';
+  const errEl = document.getElementById('menu-error');
+  errEl.classList.remove('show');
+  try {
+    const res = await fetch(sourceUrl, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`사이트 응답 오류(${res.status})`);
+    const lines = extractMealTextFromSite(await res.text(), date);
+    document.getElementById('menu-title').value = lines[0] || '오늘의 식단';
+    document.getElementById('menu-lunch-items').value = lines.slice(1).join('\n');
+    document.getElementById('menu-salad-items').value = '';
+    document.getElementById('menu-note').value = `사이트에서 가져온 내용입니다. 저장 전 도시락/샐러드 항목을 확인해주세요.\n${sourceUrl}`;
+    renderMenuPreview();
+    showToast('사이트 내용을 가져왔습니다. 확인 후 저장해주세요.');
+  } catch(e) {
+    errEl.textContent = '사이트 가져오기 실패: ' + e.message + ' 브라우저 보안 정책으로 막히면 사이트를 열어 직접 복사해 입력해주세요.';
+    errEl.classList.add('show');
+  }
+}
+
 function switchAdminTab(tab) {
   activeAdminTab = tab;
-  ['orders','events','settlements','receipts','stats'].forEach(name => {
+  ['orders','events','menus','settlements','receipts','stats'].forEach(name => {
     document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
   });
   document.querySelectorAll('.admin-tab-panel').forEach(el => {
@@ -2119,6 +2373,11 @@ function switchAdminTab(tab) {
   });
   document.getElementById('member-section').style.display = 'none';
   if (tab === 'events') loadEventLunches();
+  if (tab === 'menus') {
+    initMenuForm();
+    loadMealMenuEditor();
+    loadMealMenuList();
+  }
   if (tab === 'settlements') {
     initSettlementForm();
     loadSettlements();
