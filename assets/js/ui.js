@@ -157,7 +157,6 @@ function goTab(name){
 
 function openM(id){document.getElementById(id).classList.add('on');}
 function closeM(id){document.getElementById(id).classList.remove('on');}
-document.querySelectorAll('.mbg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('on');}));
 
 function toggleAll(el){document.querySelectorAll('.ck').forEach(c=>c.checked=el.checked);}
 
