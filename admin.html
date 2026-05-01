@@ -459,6 +459,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
           <div>
             <label class="form-label">기준월</label>
             <input class="form-input" type="month" id="menu-pdf-month">
+            <div style="font-size:11px;color:var(--sub);margin-top:-8px">PDF에 월이 보이면 자동으로 해당 월을 우선 사용합니다.</div>
           </div>
           <div>
             <label class="form-label">식단 PDF</label>
@@ -2388,18 +2389,35 @@ function hasReliableKoreanMenuText(text) {
   return true;
 }
 
+function resolvePdfYearMonth(baseMonth, explicitMonth = 0) {
+  const [baseYear, baseMon] = (baseMonth || currentMonthStr()).split('-').map(Number);
+  const targetMon = explicitMonth || baseMon;
+  let targetYear = baseYear;
+  if (explicitMonth) {
+    if (baseMon >= 11 && explicitMonth <= 2) targetYear += 1;
+    if (baseMon <= 2 && explicitMonth >= 11) targetYear -= 1;
+  }
+  return { year: targetYear, mon: targetMon };
+}
+
+function pdfDateString(baseMonth, explicitMonth, day) {
+  const { year, mon } = resolvePdfYearMonth(baseMonth, explicitMonth);
+  return `${year}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 function menuDateRegexForMonth(month) {
   const monthNum = Number(month.split('-')[1]);
-  return new RegExp(`(?:${monthNum}\\s*월\\s*)?(\\d{1,2})\\s*(?:일|\\(|\\)|월|화|수|목|금|토|일요일|$)|${monthNum}[./-](\\d{1,2})|${String(monthNum).padStart(2, '0')}[./-](\\d{1,2})`, 'g');
+  return new RegExp(`(?:(\\d{1,2})\\s*월\\s*)?(\\d{1,2})\\s*(?:일|\\(|\\)|월|화|수|목|금|토|일요일|$)|(?:(\\d{1,2})[./-])(\\d{1,2})|(?:${monthNum}|${String(monthNum).padStart(2, '0')})[./-](\\d{1,2})`, 'g');
 }
 
 function parseMealPdfCandidates(rawText, month) {
   const text = normalizePdfMenuText(rawText);
-  const [year, mon] = month.split('-').map(Number);
+  const baseMon = Number(month.split('-')[1]);
   const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   const candidates = [];
   const seen = new Set();
   let current = null;
+  let activeMonth = baseMon;
   const flush = () => {
     if (!current) return;
     const items = cleanMenuCandidateLines(current.lines);
@@ -2413,13 +2431,15 @@ function parseMealPdfCandidates(rawText, month) {
   lines.forEach(line => {
     const normalized = line.replace(/\s+/g, ' ');
     const explicit = normalized.match(/(?:(\d{1,2})\s*월\s*)?(\d{1,2})\s*일/);
-    const slash = normalized.match(new RegExp(`(?:${mon}|${String(mon).padStart(2, '0')})[./-](\\d{1,2})`));
+    const slashAny = normalized.match(/(\d{1,2})[./-](\d{1,2})/);
     const weekdayOnly = normalized.match(/^(\d{1,2})\s*[\(\[]?[월화수목금토일][\)\]]?/);
-    const day = explicit ? Number(explicit[2]) : slash ? Number(slash[1]) : weekdayOnly ? Number(weekdayOnly[1]) : 0;
+    const explicitMonth = explicit?.[1] ? Number(explicit[1]) : slashAny ? Number(slashAny[1]) : 0;
+    const day = explicit ? Number(explicit[2]) : slashAny ? Number(slashAny[2]) : weekdayOnly ? Number(weekdayOnly[1]) : 0;
     if (day >= 1 && day <= 31) {
+      if (explicitMonth >= 1 && explicitMonth <= 12) activeMonth = explicitMonth;
       flush();
       current = {
-        date: `${year}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        date: pdfDateString(month, activeMonth, day),
         lines: [normalized.replace(/(?:(\d{1,2})\s*월\s*)?\d{1,2}\s*일/g, '').replace(/^\d{1,2}\s*[\(\[]?[월화수목금토일][\)\]]?/, '').trim()]
       };
     } else if (current) {
@@ -2432,15 +2452,21 @@ function parseMealPdfCandidates(rawText, month) {
 
   const regex = menuDateRegexForMonth(month);
   const matches = [...text.matchAll(regex)]
-    .map(match => ({ index: match.index, day: Number(match[1] || match[2] || match[3]) }))
+    .map(match => ({
+      index: match.index,
+      explicitMonth: Number(match[1] || match[3] || 0),
+      day: Number(match[2] || match[4] || match[5])
+    }))
     .filter(item => item.day >= 1 && item.day <= 31)
     .sort((a, b) => a.index - b.index);
+  let fallbackActiveMonth = baseMon;
   matches.forEach((item, idx) => {
+    if (item.explicitMonth >= 1 && item.explicitMonth <= 12) fallbackActiveMonth = item.explicitMonth;
     const nextIndex = matches[idx + 1]?.index ?? text.length;
     const chunk = text.slice(item.index, nextIndex);
     const items = cleanMenuCandidateLines(chunk.split(/\r?\n|,/).slice(1));
     if (items.length === 0) return;
-    const date = `${year}-${String(mon).padStart(2, '0')}-${String(item.day).padStart(2, '0')}`;
+    const date = pdfDateString(month, fallbackActiveMonth, item.day);
     if (!seen.has(date)) {
       seen.add(date);
       candidates.push({ date, lunchItems: items, saladItems: [], note: 'PDF 식단표에서 가져옴' });
@@ -2475,7 +2501,9 @@ function renderMealPdfCandidates() {
 
 function nextMenuPdfCandidateDate() {
   const month = document.getElementById('menu-pdf-month')?.value || currentMonthStr();
-  const usedDays = mealPdfCandidates
+  const usedDays = readMealPdfCandidateRows({ includeUnchecked: true })
+    .concat(mealPdfCandidates)
+    .filter(row => String(row.date || '').slice(0, 7) === month)
     .map(row => Number(String(row.date || '').slice(-2)))
     .filter(Boolean);
   const nextDay = usedDays.length ? Math.min(31, Math.max(...usedDays) + 1) : 1;
@@ -2496,18 +2524,20 @@ function addBlankMealPdfCandidate() {
 function buildMealPdfCandidates() {
   const raw = document.getElementById('menu-pdf-raw')?.value || '';
   const month = document.getElementById('menu-pdf-month')?.value || currentMonthStr();
+  const mentionedMonths = [...new Set([...raw.matchAll(/(\d{1,2})\s*월/g)].map(match => Number(match[1])).filter(m => m >= 1 && m <= 12))];
   if (!hasReliableKoreanMenuText(raw)) {
     mealPdfCandidates = [];
     renderMealPdfCandidates();
-    setMenuPdfStatus('OCR 인식 품질이 낮아서 자동 후보를 만들지 않았습니다. PDF 미리보기를 보며 [후보 행 추가]로 직접 입력해주세요.');
+    setMenuPdfStatus(`OCR 인식 품질이 낮아서 자동 후보를 만들지 않았습니다.${mentionedMonths.length > 1 ? ` 감지된 월: ${mentionedMonths.join(', ')}월.` : ''} PDF 미리보기를 보며 기준월을 바꾸고 [후보 행 추가]로 직접 입력해주세요.`);
     return;
   }
   mealPdfCandidates = parseMealPdfCandidates(raw, month);
   renderMealPdfCandidates();
   if (mealPdfCandidates.length === 0) {
-    setMenuPdfStatus('자동으로 나눌 수 있는 날짜별 식단을 찾지 못했습니다. PDF 미리보기를 보며 [후보 행 추가]로 직접 입력해주세요.');
+    setMenuPdfStatus(`자동으로 나눌 수 있는 날짜별 식단을 찾지 못했습니다.${mentionedMonths.length > 1 ? ` 감지된 월: ${mentionedMonths.join(', ')}월.` : ''} PDF 미리보기를 보며 기준월을 바꾸고 [후보 행 추가]로 직접 입력해주세요.`);
   } else {
-    setMenuPdfStatus(`식단 후보 ${mealPdfCandidates.length}건을 만들었습니다. 저장 전 내용을 확인해주세요.`);
+    const months = [...new Set(mealPdfCandidates.map(row => row.date.slice(0, 7)))];
+    setMenuPdfStatus(`식단 후보 ${mealPdfCandidates.length}건을 만들었습니다. 포함 월: ${months.join(', ')}. 저장 전 내용을 확인해주세요.`);
   }
 }
 
@@ -2604,14 +2634,15 @@ async function extractMealPdf() {
   }
 }
 
-function readMealPdfCandidateRows() {
+function readMealPdfCandidateRows(options = {}) {
+  const includeUnchecked = Boolean(options.includeUnchecked);
   return Array.from(document.querySelectorAll('[data-menu-import-row]')).map(row => {
     const date = row.querySelector('.menu-import-date')?.value || '';
     const lunchItems = normalizeMealItems(row.querySelector('.menu-import-lunch')?.value || '');
     const saladItems = normalizeMealItems(row.querySelector('.menu-import-salad')?.value || '');
     const use = row.querySelector('.menu-import-use')?.checked;
     return { date, lunchItems, saladItems, use };
-  }).filter(row => row.use && row.date && (row.lunchItems.length || row.saladItems.length));
+  }).filter(row => (includeUnchecked || row.use) && row.date && (includeUnchecked || row.lunchItems.length || row.saladItems.length));
 }
 
 async function saveMealPdfCandidates() {
@@ -2637,7 +2668,8 @@ async function saveMealPdfCandidates() {
       }, { merge: true });
     });
     await batch.commit();
-    setMenuPdfStatus(`✅ 식단 ${rows.length}건을 저장했습니다.`);
+    const months = [...new Set(rows.map(row => row.date.slice(0, 7)))];
+    setMenuPdfStatus(`✅ 식단 ${rows.length}건을 저장했습니다. 저장 월: ${months.join(', ')}`);
     showToast(`✅ PDF 식단 ${rows.length}건 저장 완료`);
     loadMealMenuList();
     const first = rows[0];
