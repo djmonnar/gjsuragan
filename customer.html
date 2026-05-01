@@ -781,6 +781,10 @@
 .tomorrow-card-status{font-size:12px;color:var(--text-secondary)}
 .tomorrow-card-status.submitted{color:#1e6e40;font-weight:700}
 .tomorrow-card-hint{font-size:12px;color:var(--text-secondary);margin-top:4px}
+.tomorrow-card-status.self-holiday{color:#c0392b;font-weight:700}
+.self-holiday-btn{width:100%;padding:12px;border:1.5px solid #e74c3c;background:#fff;color:#c0392b;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;transition:.15s}
+.self-holiday-btn:hover{background:#fdecea}
+.self-holiday-badge{display:inline-block;background:#fdecea;color:#c0392b;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700}
 .modal-meal-card{background:#f9f8f5;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;border:1px solid var(--border)}
 .modal-meal-title{font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px}
 .modal-meal-items{display:flex;flex-direction:column;gap:4px;color:var(--text)}
@@ -1103,6 +1107,7 @@
     <div class="modal-date" id="modal-date-text"></div>
     <div id="modal-content"></div>
     <button class="submit-btn" id="modal-submit-btn" onclick="submitOrder('modal')">주문 전송하기</button>
+    <button class="self-holiday-btn" id="modal-holiday-btn" onclick="submitSelfHoliday()" style="display:none">🚫 자체 휴무로 등록</button>
     <div class="submitted-badge" id="modal-submitted-badge" style="display:none">
       ✅ 전송 완료
     </div>
@@ -1308,13 +1313,16 @@ function renderTomorrowCard(tomorrowStr, existing) {
   sec.style.display = 'block';
   const defaults = defaultMealsForDate(tomorrowStr);
   const submitted = Boolean(existing);
-  const statusText = submitted
+  const isSelfHoliday = submitted && existing.selfHoliday;
+  const statusText = isSelfHoliday
+    ? '자체 휴무 등록됨'
+    : submitted
     ? `도시락 ${existing.lunchCount}개 / 샐러드 ${existing.saladCount}개`
     : `기본 도시락 ${defaults.lunch}개 / 샐러드 ${defaults.salad}개`;
   card.innerHTML = `
     <div class="tomorrow-card-head">
       <span class="tomorrow-card-date">${formatDateKR(tomorrowStr)}</span>
-      <span class="tomorrow-card-status${submitted ? ' submitted' : ''}">${submitted ? '✅ 입력됨' : '미입력'}</span>
+      <span class="tomorrow-card-status${isSelfHoliday ? ' self-holiday' : submitted ? ' submitted' : ''}">${isSelfHoliday ? '🚫 자체 휴무' : submitted ? '✅ 입력됨' : '미입력'}</span>
     </div>
     <div style="font-size:13px;color:var(--text)">${statusText}</div>
     <div class="tomorrow-card-hint">탭하면 수정할 수 있습니다</div>
@@ -1881,6 +1889,40 @@ async function submitOrder(source) {
   }
 }
 
+async function submitSelfHoliday() {
+  const btn = document.getElementById('modal-holiday-btn');
+  btn.disabled = true;
+  const isCancelling = btn.textContent.includes('해제');
+  try {
+    if (isCancelling) {
+      await db.collection('orders').doc(modalDateStr).collection('items').doc(currentUser.uid).delete();
+      showToast('자체 휴무가 해제되었습니다.', 'success');
+    } else {
+      await db.collection('orders').doc(modalDateStr).collection('items').doc(currentUser.uid).set({
+        businessName: userProfile.businessName,
+        lunchCount: 0,
+        saladCount: 0,
+        selfHoliday: true,
+        submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        uid: currentUser.uid
+      });
+      showToast('자체 휴무로 등록되었습니다.', 'success');
+    }
+    closeModal();
+    renderWeek();
+    const today = dateStr(getKST());
+    const tomorrowStr = getNextBusinessDay(today);
+    if (tomorrowStr && modalDateStr === tomorrowStr) {
+      db.collection('orders').doc(tomorrowStr).collection('items').doc(currentUser.uid).get()
+        .then(snap => renderTomorrowCard(tomorrowStr, snap.exists ? snap.data() : null))
+        .catch(() => {});
+    }
+  } catch(e) {
+    showToast('저장 실패. 다시 시도해주세요.', 'error');
+    btn.disabled = false;
+  }
+}
+
 // ───────── 주간 렌더링 ─────────
 async function renderWeek() {
   const kst = getKST();
@@ -1918,13 +1960,15 @@ async function renderWeek() {
 
     let statusClass = 'status-pending';
     let statusText = '미입력';
-    if (submitted) { statusClass = 'status-submitted'; statusText = `도시락 ${snap.data().lunchCount} / 샐러드 ${snap.data().saladCount}`; }
+    if (submitted && snap.data().selfHoliday) { statusClass = 'status-closed'; statusText = '자체 휴무'; }
+    else if (submitted) { statusClass = 'status-submitted'; statusText = `도시락 ${snap.data().lunchCount} / 샐러드 ${snap.data().saladCount}`; }
     else if (noDelivery) { statusClass = 'status-closed'; statusText = holiday ? `${holiday} 배송없음` : '배송없음'; }
     else if ((defaults.lunch + defaults.salad) > 0) { statusClass = 'status-pending'; statusText = `기본 도시락 ${defaults.lunch} / 샐러드 ${defaults.salad}`; }
     else if (isPast) { statusClass = 'status-past'; statusText = '입력없음'; }
     else if (todayClosed) { statusClass = 'status-closed'; statusText = '마감'; }
 
-    const clickable = !noDelivery && !isPast && !(todayClosed && !submitted);
+    const isSelfHoliday = submitted && snap.data().selfHoliday;
+    const clickable = (!noDelivery || isSelfHoliday) && !isPast && !(todayClosed && !submitted);
 
     const el = document.createElement('div');
     el.className = `week-item${isToday ? ' is-today' : ''}${isPast ? ' is-past' : ''}${submitted ? ' is-submitted' : ''}`;
@@ -1996,11 +2040,23 @@ function openDayModal(ds, existing) {
     if (el) el.style.display = 'none';
   });
 
+  const isSelfHoliday = existing && existing.selfHoliday;
   const submitBtn = document.getElementById('modal-submit-btn');
-  submitBtn.style.display = 'block';
-  submitBtn.disabled = false;
-  submitBtn.className = existing ? 'submit-btn submitted-btn' : 'submit-btn';
-  submitBtn.textContent = existing ? '✅ 수정 후 재전송' : '주문 전송하기';
+  const holidayBtn = document.getElementById('modal-holiday-btn');
+  if (isSelfHoliday) {
+    submitBtn.style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.className = 'submit-btn submitted-btn';
+    submitBtn.textContent = '✅ 주문으로 전환';
+    holidayBtn.textContent = '🚫 자체 휴무 해제';
+  } else {
+    submitBtn.style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.className = existing ? 'submit-btn submitted-btn' : 'submit-btn';
+    submitBtn.textContent = existing ? '✅ 수정 후 재전송' : '주문 전송하기';
+    holidayBtn.textContent = '🚫 자체 휴무로 등록';
+  }
+  holidayBtn.style.display = 'block';
   document.getElementById('modal-submitted-badge').style.display = 'none';
 
   document.getElementById('day-modal').classList.add('open');
