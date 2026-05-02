@@ -944,7 +944,7 @@
       <span class="icon">⏰</span>
       <div>
         <strong>오늘 주문이 마감되었습니다</strong><br>
-        <span style="font-size:12px">주문 마감: 오전 9시 20분</span>
+        <span style="font-size:12px" id="closed-banner-time">주문 마감: 오전 9시 20분</span>
       </div>
     </div>
 
@@ -1248,6 +1248,7 @@ const mealMenuCache = {};
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
 let customHolidays = {};
+let orderDeadline = { hour: 9, minute: 20 };
 const KOREA_HOLIDAYS = {
   '2026-01-01': '신정',
   '2026-02-16': '설 연휴',
@@ -1295,7 +1296,9 @@ function dateStr(d) {
 }
 function isClosed() {
   const kst = getKST();
-  return kst.getUTCHours() > 9 || (kst.getUTCHours() === 9 && kst.getUTCMinutes() >= 20);
+  const h = kst.getUTCHours();
+  const m = kst.getUTCMinutes();
+  return h > orderDeadline.hour || (h === orderDeadline.hour && m >= orderDeadline.minute);
 }
 function isWeekendDate(dStr) {
   const dt = new Date(`${dStr}T00:00:00+09:00`);
@@ -1307,6 +1310,26 @@ async function loadCustomHolidays() {
     const snap = await db.collection('config').doc('holidays').get();
     customHolidays = snap.exists ? (snap.data().custom || {}) : {};
   } catch(e) { customHolidays = {}; }
+}
+
+async function loadSettings() {
+  try {
+    const snap = await db.collection('config').doc('settings').get();
+    if (snap.exists) {
+      const d = snap.data();
+      if (d.closeHour != null && d.closeMinute != null) {
+        orderDeadline = { hour: d.closeHour, minute: d.closeMinute };
+      }
+    }
+  } catch(e) {}
+}
+
+function deadlineText() {
+  const h = orderDeadline.hour;
+  const m = orderDeadline.minute;
+  const ampm = h < 12 ? '오전' : '오후';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${ampm} ${h12}시${m > 0 ? ` ${m}분` : ''}`;
 }
 
 function holidayName(dStr) {
@@ -1510,7 +1533,7 @@ auth.onAuthStateChanged(async (user) => {
   if (user) {
     currentUser = user;
     try {
-      await Promise.all([loadUserProfile(), loadCustomHolidays()]);
+      await Promise.all([loadUserProfile(), loadCustomHolidays(), loadSettings()]);
     } catch(e) {
       showToast(e.message || '프로필 로딩 실패. 다시 시도해주세요.', 'error');
       auth.signOut();
@@ -1759,7 +1782,7 @@ async function renderToday() {
       <span class="icon">⏰</span>
       <div>
         <strong>오늘 주문이 마감되었습니다</strong><br>
-        <span style="font-size:12px">주문 마감: 오전 9시 20분</span>
+        <span style="font-size:12px" id="closed-banner-time">주문 마감: ${deadlineText()}</span>
       </div>
     `;
   } else {
