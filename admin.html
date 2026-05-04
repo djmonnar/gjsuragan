@@ -1711,6 +1711,21 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}) {
     const delivered = deliveredRecords[order.uid];
     const lunch = order.lunchCount || 0;
     const salad = order.saladCount || 0;
+    if (order.selfHoliday) {
+      rowsByUid[order.uid] = {
+        ...order,
+        businessName: order.businessName || user.businessName || '-',
+        lunchCount: 0,
+        saladCount: 0,
+        note: order.note || '자체 휴무',
+        delivered: false,
+        deliveredAt: null,
+        deliveryPlace: order.deliveryPlace || user.deliveryPlace || user.address || '',
+        selfHoliday: true,
+        source: 'selfHoliday'
+      };
+      return;
+    }
     if ((lunch + salad) <= 0) {
       delete rowsByUid[order.uid];
       return;
@@ -1786,6 +1801,8 @@ async function loadOrders() {
         totalLunch += o.lunchCount || 0;
         totalSalad += o.saladCount || 0;
         const tr = document.createElement('tr');
+        const isSelfHoliday = Boolean(o.selfHoliday);
+        const disabledAttr = isSelfHoliday ? 'disabled' : '';
         const noteHtml = o.selfHoliday
           ? '<span style="background:#fdecea;color:#c0392b;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">자체 휴무</span>'
           : o.source === 'default'
@@ -1793,28 +1810,30 @@ async function loadOrders() {
           : o.note
           ? `<span class="note-badge" title="${escapeHtml(o.note)}">${escapeHtml(o.note)}</span>`
           : '<span style="color:#ccc">-</span>';
-        const statusHtml = o.delivered
+        const statusHtml = isSelfHoliday
+          ? '<span class="delivery-status" style="background:#fdecea;color:#c0392b;border-color:#f5b7b1">휴무</span>'
+          : o.delivered
           ? '<span class="delivery-status done">완료</span>'
           : '<span class="delivery-status">대기</span>';
         const manageHtml = o.adminManual || o.source === 'manual'
           ? `<div class="inline-actions"><button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button><button class="danger-btn" onclick="deleteManualOrder('${jsString(o.uid)}')">삭제</button></div>`
           : '<span style="color:var(--sub);font-size:12px">-</span>';
         tr.innerHTML = `
-          <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${o.delivered ? '' : 'checked'}></td>
+          <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${(!o.delivered && !isSelfHoliday) ? 'checked' : ''} ${disabledAttr}></td>
           <td style="color:var(--sub);font-size:13px">${i + 1}</td>
           <td class="biz-name"><span class="dot"></span>${escapeHtml(o.businessName || '-')}</td>
           <td class="qty-cell">
             <div class="qty-stepper">
-              <button type="button" class="qty-step-btn" onclick="adjustQty(this,-1)">−</button>
-              <input class="qty-edit deliver-lunch" type="number" min="0" max="999" value="${o.lunchCount ?? 0}">
-              <button type="button" class="qty-step-btn" onclick="adjustQty(this,1)">+</button>
+              <button type="button" class="qty-step-btn" onclick="adjustQty(this,-1)" ${disabledAttr}>−</button>
+              <input class="qty-edit deliver-lunch" type="number" min="0" max="999" value="${o.lunchCount ?? 0}" ${disabledAttr}>
+              <button type="button" class="qty-step-btn" onclick="adjustQty(this,1)" ${disabledAttr}>+</button>
             </div>
           </td>
           <td class="qty-cell">
             <div class="qty-stepper">
-              <button type="button" class="qty-step-btn" onclick="adjustQty(this,-1)">−</button>
-              <input class="qty-edit deliver-salad" type="number" min="0" max="999" value="${o.saladCount ?? 0}">
-              <button type="button" class="qty-step-btn" onclick="adjustQty(this,1)">+</button>
+              <button type="button" class="qty-step-btn" onclick="adjustQty(this,-1)" ${disabledAttr}>−</button>
+              <input class="qty-edit deliver-salad" type="number" min="0" max="999" value="${o.saladCount ?? 0}" ${disabledAttr}>
+              <button type="button" class="qty-step-btn" onclick="adjustQty(this,1)" ${disabledAttr}>+</button>
             </div>
           </td>
           <td>${statusHtml}</td>
@@ -1824,7 +1843,7 @@ async function loadOrders() {
         `;
         tbody.appendChild(tr);
       });
-      if (checkAll) checkAll.checked = orders.some(o => !o.delivered);
+      if (checkAll) checkAll.checked = orders.some(o => !o.delivered && !o.selfHoliday);
     }
 
     document.getElementById('sum-count').innerHTML = `${orders.length}<span class="summary-unit">곳</span>`;
@@ -1864,6 +1883,7 @@ function adjustQty(btn, delta) {
 
 function toggleAllOrders(checked) {
   document.querySelectorAll('.order-check').forEach(el => {
+    if (el.disabled) return;
     el.checked = checked;
   });
 }
@@ -1873,7 +1893,7 @@ async function completeSelectedDeliveries() {
     showToast('배송 없는 날은 완료 처리할 수 없습니다.');
     return;
   }
-  const checked = Array.from(document.querySelectorAll('.order-check:checked'));
+  const checked = Array.from(document.querySelectorAll('.order-check:checked:not(:disabled)'));
   if (checked.length === 0) {
     showToast('배송 완료할 업체를 체크해주세요.');
     return;
@@ -1883,6 +1903,7 @@ async function completeSelectedDeliveries() {
     const uid = cb.value;
     const rowEl = cb.closest('tr');
     const row = currentOrderRows.find(item => item.uid === uid) || {};
+    if (row.selfHoliday) return;
     const user = allUsers[uid] || {};
     const lunch = parseDeliveryCount(rowEl.querySelector('.deliver-lunch')?.value, 0);
     const salad = parseDeliveryCount(rowEl.querySelector('.deliver-salad')?.value, 0);
