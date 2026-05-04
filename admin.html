@@ -371,11 +371,31 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .stats-kpi-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);text-align:left}
 .stats-kpi-card .kpi-label{color:var(--sub);font-weight:700}
 .stats-kpi-card .kpi-value{color:var(--text)}
+.manual-hero{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:16px}
+.manual-eyebrow{font-size:12px;font-weight:800;color:var(--primary);margin-bottom:6px}
+.manual-hero h2{font-size:24px;line-height:1.25;margin:0 0 8px;color:var(--text)}
+.manual-hero p{color:var(--sub);font-size:14px;margin:0;max-width:720px}
+.manual-contact-box{min-width:240px;background:#f0fdfa;border:1px solid #ccfbf1;border-radius:var(--radius);padding:14px;color:var(--primary);display:flex;flex-direction:column;gap:5px}
+.manual-contact-box span{font-size:13px;color:#134e4a}
+.manual-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.manual-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+.manual-card-title{font-size:15px;font-weight:900;color:var(--text);margin-bottom:10px}
+.manual-card ol{margin:0;padding-left:18px;color:#344054;font-size:13px;line-height:1.75}
+.manual-card li::marker{font-weight:800;color:var(--primary)}
+.manual-tip{margin-top:12px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:7px;padding:10px;font-size:12px;font-weight:700;line-height:1.55}
+.manual-checklist{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:center}
+.manual-checklist .manual-card-title{grid-column:1/-1;margin-bottom:0}
+.manual-checklist label{display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid var(--border);border-radius:7px;padding:10px;font-size:13px;font-weight:700;color:#344054}
+.manual-checklist input{width:16px;height:16px}
 @media(max-width:900px){
   .summary-row{grid-template-columns:repeat(2,1fr)}
   .settle-dashboard{grid-template-columns:1fr}
   .settle-charts-area{flex-direction:column}
   .controls-bar{margin-left:16px;margin-right:16px}
+  .manual-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .manual-hero{align-items:flex-start;flex-direction:column}
+  .manual-contact-box{min-width:0;width:100%}
+  .manual-checklist{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:600px){
   .top-bar{padding:12px 16px}
@@ -385,6 +405,8 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   .summary-row{grid-template-columns:1fr}
   .summary-value{font-size:26px}
   .controls-bar{margin-top:12px}
+  .manual-grid,.manual-checklist{grid-template-columns:1fr}
+  .manual-hero h2{font-size:21px}
 }
 </style>
 </head>
@@ -429,6 +451,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <button class="tab-btn" id="tab-receipts" onclick="switchAdminTab('receipts')">간이영수증</button>
     <button class="tab-btn" id="tab-stats" onclick="switchAdminTab('stats')">📊 통계</button>
     <button class="tab-btn" id="tab-settings" onclick="switchAdminTab('settings')">⚙️ 설정</button>
+    <button class="tab-btn" id="tab-manual" onclick="switchAdminTab('manual')">메뉴얼</button>
   </div>
 
   <div class="controls-bar admin-tab-panel" data-tab="orders">
@@ -717,6 +740,85 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:8px">법정 공휴일 (참고용, 자동 적용됨)</div>
         <div id="legal-holiday-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
+    </div>
+  </div>
+
+  <div class="receipt-section admin-tab-panel" data-tab="manual" style="display:none">
+    <div class="manual-hero panel">
+      <div>
+        <div class="manual-eyebrow">직원용 메뉴얼</div>
+        <h2>매일 쓰는 순서대로 정리했어요</h2>
+        <p>주문 확인, 배송 완료, 정산, 행사도시락, 식단 입력까지 헷갈리기 쉬운 작업만 빠르게 볼 수 있습니다.</p>
+      </div>
+      <div class="manual-contact-box">
+        <strong>기본 흐름</strong>
+        <span>주문 확인 → 수량 수정 → 배송 완료 → 정산 확인</span>
+      </div>
+    </div>
+
+    <div class="manual-grid">
+      <div class="manual-card">
+        <div class="manual-card-title">1. 주문 현황</div>
+        <ol>
+          <li>날짜를 선택하면 해당 날짜의 업체별 주문이 보입니다.</li>
+          <li>수량이 실제 배송과 다르면 도시락/샐러드 숫자를 수정합니다.</li>
+          <li>배송 나간 업체만 체크한 뒤 <b>배송 완료</b>를 누릅니다.</li>
+          <li>배송 완료된 건만 정산에 반영됩니다.</li>
+        </ol>
+        <div class="manual-tip">고객이 자체 휴무로 보낸 날은 휴무 표시가 뜨며 배송 완료 대상에서 제외됩니다.</div>
+      </div>
+      <div class="manual-card">
+        <div class="manual-card-title">2. 회원 관리</div>
+        <ol>
+          <li>주문 현황의 <b>회원 관리</b>를 눌러 업체 목록을 엽니다.</li>
+          <li>업체 카드를 클릭하면 업체명, 배송지, 식사시간, 요일별 기본 수량을 수정할 수 있습니다.</li>
+          <li>매일 수량이 같으면 <b>매일 같은 수량 사용</b>을 체크합니다.</li>
+          <li>요일마다 다르면 월~금 수량을 각각 입력합니다.</li>
+        </ol>
+      </div>
+      <div class="manual-card">
+        <div class="manual-card-title">3. 행사도시락</div>
+        <ol>
+          <li>행사도시락 탭에서 도시락명, 날짜, 시간, 장소, 개수, 단가를 입력합니다.</li>
+          <li>저장하면 행사도시락 목록과 정산에 함께 반영됩니다.</li>
+          <li>변경이 생기면 목록에서 수정 후 다시 저장합니다.</li>
+        </ol>
+        <div class="manual-tip">업체가 별도로 주문한 행사도시락은 정산에서 수정할 수 있게 남겨두면 됩니다.</div>
+      </div>
+      <div class="manual-card">
+        <div class="manual-card-title">4. 정산</div>
+        <ol>
+          <li>정산월을 선택하고 <b>불러오기</b>를 누릅니다.</li>
+          <li>업체별 도시락, 샐러드, 행사 수량과 금액을 확인합니다.</li>
+          <li>입금 상태는 미정산, 청구완료, 입금완료, 보류로 관리합니다.</li>
+          <li>필요하면 정산표, 카톡 내보내기, 영수증을 사용합니다.</li>
+        </ol>
+      </div>
+      <div class="manual-card">
+        <div class="manual-card-title">5. 식단 관리</div>
+        <ol>
+          <li>날짜를 고르고 도시락/샐러드 메뉴를 입력합니다.</li>
+          <li>저장하면 고객앱 식단 탭과 오늘 주문 화면에 표시됩니다.</li>
+          <li>PDF나 사이트에서 가져온 내용은 저장 전 후보 내용을 꼭 확인합니다.</li>
+        </ol>
+      </div>
+      <div class="manual-card">
+        <div class="manual-card-title">6. 설정과 휴무일</div>
+        <ol>
+          <li>설정 탭에서 고객 주문 마감 시간을 정합니다.</li>
+          <li>회사 자체 휴무일은 날짜와 이름을 추가합니다.</li>
+          <li>주말과 공휴일은 기본적으로 배송 없음으로 처리됩니다.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="manual-checklist panel">
+      <div class="manual-card-title">하루 마감 체크리스트</div>
+      <label><input type="checkbox"> 오늘 날짜 주문현황 확인</label>
+      <label><input type="checkbox"> 실제 배송 수량으로 수정</label>
+      <label><input type="checkbox"> 배송 완료 처리</label>
+      <label><input type="checkbox"> 행사도시락 누락 여부 확인</label>
+      <label><input type="checkbox"> 정산 탭 금액 반영 확인</label>
     </div>
   </div>
 
@@ -2766,7 +2868,7 @@ async function saveMealPdfCandidates() {
 
 function switchAdminTab(tab) {
   activeAdminTab = tab;
-  ['orders','events','menus','settlements','receipts','stats','settings'].forEach(name => {
+  ['orders','events','menus','settlements','receipts','stats','settings','manual'].forEach(name => {
     document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
   });
   document.querySelectorAll('.admin-tab-panel').forEach(el => {
