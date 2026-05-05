@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- 배경 -->
+  <rect width="512" height="512" rx="112" fill="#7B3F1A"/>
+
+  <!-- 밥그릇 본체 -->
+  <ellipse cx="256" cy="295" rx="110" ry="28" fill="#C8922A" opacity="0.3"/>
+  <path d="M150 255 Q150 340 256 340 Q362 340 362 255 Z" fill="#F0D090"/>
+  <!-- 그릇 테두리 -->
+  <path d="M140 258 Q140 355 256 355 Q372 355 372 258" fill="none" stroke="#C8922A" stroke-width="10" stroke-linecap="round"/>
+  <!-- 받침 접시 -->
+  <ellipse cx="256" cy="355" rx="130" ry="18" fill="#C8922A" opacity="0.6"/>
+  <rect x="196" y="353" width="120" height="16" rx="8" fill="#C8922A"/>
+
+  <!-- 뚜껑 -->
+  <path d="M148 260 Q148 188 256 188 Q364 188 364 260 Z" fill="#C8922A"/>
+  <ellipse cx="256" cy="186" rx="108" ry="16" fill="#E8A840"/>
+  <!-- 뚜껑 손잡이 -->
+  <ellipse cx="256" cy="170" rx="22" ry="14" fill="#C8922A"/>
+  <ellipse cx="256" cy="162" rx="14" ry="9" fill="#E8A840"/>
+
+  <!-- 김 모락모락 -->
+  <path d="M210 145 Q214 128 210 112" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" opacity="0.6"/>
+  <path d="M256 138 Q260 118 256 100" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" opacity="0.6"/>
+  <path d="M302 145 Q298 128 302 112" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- 월식 텍스트 -->
+  <text x="256" y="430" text-anchor="middle" font-family="'Pretendard', -apple-system, sans-serif" font-size="58" font-weight="800" fill="#F0D090" letter-spacing="4">월식</text>
+</svg>
