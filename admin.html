@@ -707,10 +707,8 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">고객 앱에서 주문 입력이 마감되는 시각입니다.</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
         <select id="deadline-hour" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit">
-          ${Array.from({length:24},(_,i)=>`<option value="${i}">${i < 12 ? '오전' : '오후'} ${i===0?12:i>12?i-12:i}시</option>`).join('')}
         </select>
         <select id="deadline-minute" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit">
-          ${[0,5,10,15,20,25,30,35,40,45,50,55].map(m=>`<option value="${m}">${String(m).padStart(2,'0')}분</option>`).join('')}
         </select>
         <button onclick="saveDeadline()"
           style="background:var(--primary);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">저장</button>
@@ -1335,6 +1333,19 @@ function renderDeadlineUI() {
   if (cur) cur.textContent = deadlineLabel(adminDeadline.hour, adminDeadline.minute);
   const hSel = document.getElementById('deadline-hour');
   const mSel = document.getElementById('deadline-minute');
+  if (hSel && hSel.options.length === 0) {
+    for (let i = 0; i < 24; i++) {
+      const ampm = i < 12 ? '오전' : '오후';
+      const h12 = i === 0 ? 12 : i > 12 ? i - 12 : i;
+      const opt = new Option(`${ampm} ${h12}시`, i);
+      hSel.add(opt);
+    }
+  }
+  if (mSel && mSel.options.length === 0) {
+    [0,5,10,15,20,25,30,35,40,45,50,55].forEach(m => {
+      mSel.add(new Option(`${String(m).padStart(2,'0')}분`, m));
+    });
+  }
   if (hSel) hSel.value = adminDeadline.hour;
   if (mSel) mSel.value = adminDeadline.minute;
 }

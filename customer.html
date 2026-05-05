@@ -1882,7 +1882,17 @@ async function renderToday() {
     todayLunch = data.lunchCount;
     todaySalad = data.saladCount;
     document.getElementById('today-note').value = data.note || '';
-    setCardSubmitted(true, data.submittedAt);
+    if (data.selfHoliday) {
+      const submitBtn = document.getElementById('submit-btn');
+      submitBtn.className = 'submit-btn submitted-btn';
+      submitBtn.textContent = '🚫 자체 휴무 등록됨';
+      submitBtn.disabled = false;
+      document.getElementById('default-apply-notice').style.display = 'none';
+      if (!isClosed()) setQtyDisabled(false);
+      else setQtyDisabled(true);
+    } else {
+      setCardSubmitted(true, data.submittedAt);
+    }
     if (closed || noDelivery) setQtyDisabled(true);
   } else {
     const todayDefault = defaultMealsForDate(today);
