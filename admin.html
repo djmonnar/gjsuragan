@@ -19,9 +19,9 @@ const auth=firebase.auth();const db=firebase.firestore();
 const ADMIN_EMAILS=['sun1562@naver.com'];
 </script>
 <style>
-:root{--bg:#f7f3ec;--card:#fff;--primary:#7b3f1a;--gold:#f0d090;--gold2:#f7ead0;--text:#1f2328;--sub:#6b5b4a;--border:#e5d7c5;--success:#1e6e40;--err:#c0392b;--shadow:0 2px 12px rgba(0,0,0,.08);--radius:14px}
+:root{--bg:#f7f3ec;--card:#fff;--primary:#7b3f1a;--gold:#f0d090;--gold2:#f7ead0;--text:#1f2328;--sub:#6b5b4a;--border:#e5d7c5;--success:#1e6e40;--err:#c0392b;--shadow:0 2px 12px rgba(0,0,0,.08);--radius:14px;--ease-spring:cubic-bezier(0.16,1,0.3,1)}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;word-break:keep-all}
 #loading-screen{position:fixed;inset:0;background:var(--primary);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:var(--gold)}
 .spinner{width:36px;height:36px;border:3px solid rgba(240,208,144,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin-top:24px}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -44,7 +44,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .admin-badge{background:rgba(240,208,144,.18);color:var(--gold);padding:4px 10px;border-radius:20px;font-size:12px}
 .btn-logout{background:none;border:1px solid rgba(240,208,144,.4);color:var(--gold);padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer}
 .admin-tabs{background:#fff;padding:10px 24px 0;display:flex;gap:8px;border-bottom:1px solid var(--border)}
-.tab-btn{border:0;background:transparent;color:var(--sub);font-size:14px;font-weight:700;font-family:inherit;padding:11px 14px;border-bottom:3px solid transparent;cursor:pointer}
+.tab-btn{border:0;background:transparent;color:var(--sub);font-size:14px;font-weight:700;font-family:inherit;padding:11px 14px;border-bottom:3px solid transparent;cursor:pointer;transition:color 0.2s var(--ease-spring),border-color 0.2s var(--ease-spring)}
 .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
 .controls-bar{background:#fff;border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .date-nav{display:flex;align-items:center;gap:8px}
@@ -56,7 +56,8 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .members-btn{background:#e8f0fe;color:#1a56db;margin-left:auto}
 .manual-btn{background:#fff3e0;color:#8a4100;border:1px solid #ffd7a8;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px 24px}
-.summary-card{background:#fff;border-radius:var(--radius);padding:16px;text-align:center;box-shadow:var(--shadow);border:1px solid var(--border)}
+.summary-card{background:#fff;border-radius:var(--radius);padding:16px;text-align:center;box-shadow:var(--shadow);border:1px solid var(--border);transition:transform 0.25s var(--ease-spring),box-shadow 0.25s var(--ease-spring)}
+.summary-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.12)}
 .summary-label{font-size:12px;color:var(--sub);margin-bottom:6px;font-weight:600}
 .summary-value{font-size:28px;font-weight:800;color:var(--primary)}
 .summary-unit{font-size:13px;color:var(--sub);margin-left:2px}
@@ -180,8 +181,8 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .no-not{color:var(--success);font-size:14px;font-weight:700;padding:8px 0}
 /* 회원 관리 */
 .member-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
-.member-card{background:#fff;border-radius:var(--radius);padding:14px;border:1px solid var(--border);cursor:pointer;transition:box-shadow .15s;box-shadow:var(--shadow)}
-.member-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.member-card{background:#fff;border-radius:var(--radius);padding:14px;border:1px solid var(--border);cursor:pointer;transition:transform 0.25s var(--ease-spring),box-shadow 0.25s var(--ease-spring);box-shadow:var(--shadow)}
+.member-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.12)}
 .m-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
 .m-info{font-size:12px;color:var(--sub);margin-top:2px}
 .m-edit-hint{font-size:11px;color:var(--primary);margin-top:6px;font-weight:600}
@@ -217,8 +218,9 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
 .modal-title{font-size:17px;font-weight:700;color:var(--primary)}
 .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--sub);line-height:1}
-.save-btn{width:100%;background:var(--primary);color:#fff;border:0;border-radius:10px;padding:13px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:6px}
-.save-btn:hover{opacity:.9}
+.save-btn{width:100%;background:var(--primary);color:#fff;border:0;border-radius:10px;padding:13px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:6px;transition:all 0.25s var(--ease-spring)}
+.save-btn:hover{filter:brightness(1.08);transform:scale(1.01)}
+.save-btn:active{transform:scale(0.97)}
 /* 토스트 */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#333;color:#fff;padding:11px 20px;border-radius:20px;font-size:13px;opacity:0;transition:all .3s;z-index:3000;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -324,7 +326,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .order-table thead tr{background:#f8fafc;color:#475467}
 .order-table th{padding:12px 14px;font-size:12px;font-weight:800;text-transform:none;border-bottom:1px solid var(--border);white-space:nowrap}
 .order-table td{padding:12px 14px;border-bottom:1px solid #eef2f6;color:#344054}
-.order-table tbody tr:hover td{background:#f9fafb}
+.order-table tbody tr{transition:background 0.15s}
+.order-table tbody tr:hover td{background:#fdf8f2}
+.order-table tbody tr:hover td:first-child{border-left:3px solid var(--primary)}
 .order-table tbody tr:last-child td{border-bottom:0}
 .biz-name{color:var(--text);font-weight:800}
 .dot{background:var(--primary)}

@@ -58,6 +58,7 @@
     --closed: #9E9E9E;
     --shadow: 0 2px 10px rgba(15,23,42,0.06);
     --radius: 14px;
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -70,6 +71,7 @@
     max-width: 480px;
     margin: 0 auto;
     position: relative;
+    word-break: keep-all;
   }
 
   /* ── 로딩 ── */
@@ -103,6 +105,12 @@
     margin-top: 32px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in-up { opacity: 0; }
+  .fade-in-up.visible { animation: fadeInUp 0.45s var(--ease-spring) both; }
 
   /* ── 앱 화면 전환 ── */
   .screen { display: none; }
@@ -165,7 +173,7 @@
     cursor: pointer;
     border-bottom: 3px solid transparent;
     margin-bottom: -2px;
-    transition: all 0.2s;
+    transition: color 0.2s var(--ease-spring), border-color 0.2s var(--ease-spring);
   }
   .tab-btn.active {
     color: var(--primary);
@@ -215,6 +223,11 @@
     padding: 14px 14px;
     margin-bottom: 10px;
     border: 1px solid var(--border);
+    transition: transform 0.3s var(--ease-spring), box-shadow 0.3s var(--ease-spring);
+  }
+  .order-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(15,23,42,0.10);
   }
   .order-card.submitted {
     border-color: var(--success);
@@ -289,10 +302,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s;
+    transition: background 0.15s, transform 0.15s var(--ease-spring);
     -webkit-tap-highlight-color: transparent;
   }
-  .qty-btn:active { background: var(--gold-light); }
+  .qty-btn:active { background: var(--gold-light); transform: scale(0.82); }
   .qty-btn:disabled { color: var(--closed); cursor: default; }
   .qty-value {
     width: 42px;
@@ -318,11 +331,11 @@
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     cursor: pointer;
     margin-top: 14px;
-    transition: all 0.2s;
+    transition: all 0.3s var(--ease-spring);
     letter-spacing: 1px;
   }
-  .submit-btn:hover { background: var(--primary-light); }
-  .submit-btn:active { transform: scale(0.98); }
+  .submit-btn:hover { background: var(--primary-light); transform: scale(1.01); }
+  .submit-btn:active { transform: scale(0.97); }
   .submit-btn:disabled {
     background: var(--closed);
     cursor: default;
@@ -433,8 +446,9 @@
     align-items: center;
     justify-content: space-between;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring), border-color 0.2s, background 0.2s;
   }
+  .week-item:hover:not(.is-past) { transform: translateX(3px); border-color: var(--gold); background: var(--gold-light); box-shadow: 0 4px 14px rgba(15,23,42,0.08); }
   .week-item:active { transform: scale(0.99); }
   .week-item.is-past { background: #F5F5F5; opacity: 0.75; cursor: default; }
   .week-item.is-today { border-color: var(--gold); border-width: 2px; }
@@ -795,7 +809,8 @@
   .cust-payment-row .p-note{color:var(--text-secondary);font-size:12px}
 .btn-call{display:inline-flex;align-items:center;gap:5px;background:#1e6e40;color:#fff;border:none;border-radius:20px;padding:7px 14px;font-size:13px;font-weight:700;text-decoration:none;cursor:pointer}
 .btn-call:hover{background:#145230}
-.tomorrow-card{border:1px dashed var(--border);border-radius:14px;padding:14px 16px;background:var(--bg);cursor:pointer;transition:.2s}
+.tomorrow-card{border:1px dashed var(--border);border-radius:14px;padding:14px 16px;background:var(--bg);cursor:pointer;transition:transform 0.25s var(--ease-spring),box-shadow 0.25s var(--ease-spring),border-color 0.2s,border-style 0.2s}
+.tomorrow-card:hover{border-color:var(--primary);border-style:solid;transform:translateY(-2px);box-shadow:0 6px 18px rgba(15,23,42,0.09)}
 .tomorrow-card:hover{border-color:var(--primary);background:#fffaf5}
 .tomorrow-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .tomorrow-card-date{font-size:14px;font-weight:700;color:var(--primary)}
@@ -2079,6 +2094,21 @@ async function submitSelfHoliday() {
   }
 }
 
+// ───────── 진입 애니메이션 ─────────
+function initFadeInObserver() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        el.style.animationDelay = `${i * 60}ms`;
+        el.classList.add('visible');
+        observer.unobserve(el);
+      }
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.fade-in-up').forEach(el => observer.observe(el));
+}
+
 // ───────── 주간 렌더링 ─────────
 async function renderWeek() {
   const kst = getKST();
@@ -2127,7 +2157,7 @@ async function renderWeek() {
     const clickable = (!noDelivery || isSelfHoliday) && !isPast && !(todayClosed && !submitted);
 
     const el = document.createElement('div');
-    el.className = `week-item${isToday ? ' is-today' : ''}${isPast ? ' is-past' : ''}${submitted ? ' is-submitted' : ''}`;
+    el.className = `week-item fade-in-up${isToday ? ' is-today' : ''}${isPast ? ' is-past' : ''}${submitted ? ' is-submitted' : ''}`;
     el.innerHTML = `
       <div class="week-date-area">
         <div class="week-day${isToday ? ' today-text' : ''}">${formatDateKR(ds)}${isToday ? ' 오늘' : ''}</div>
@@ -2139,6 +2169,7 @@ async function renderWeek() {
     }
     list.appendChild(el);
   });
+  initFadeInObserver();
 }
 
 // ───────── 날짜 모달 ─────────
