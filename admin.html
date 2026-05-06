@@ -37,6 +37,8 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .auth-btn{width:100%;background:var(--primary);color:#fff;border:0;border-radius:10px;padding:14px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer}
 .error-msg{color:var(--err);font-size:13px;margin-top:10px;display:none}
 .error-msg.show{display:block}
+.info-msg{color:#0369a1;background:#e0f2fe;border-radius:8px;padding:8px 12px;font-size:13px;margin-top:10px;display:none}
+.info-msg.show{display:block}
 #main-screen{display:none}
 #main-screen.active{display:block}
 .top-bar{background:var(--primary);padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
@@ -432,6 +434,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <label class="form-label">비밀번호</label>
     <input class="form-input" type="password" id="admin-pw" placeholder="관리자 비밀번호" onkeydown="if(event.key==='Enter') doAdminLogin()" autofocus>
     <button class="auth-btn" id="admin-login-btn" onclick="doAdminLogin()">로그인</button>
+    <div class="info-msg" id="login-info"></div>
     <div class="error-msg" id="login-error">비밀번호가 올바르지 않습니다.</div>
   </div>
 </div>
@@ -1869,6 +1872,8 @@ auth.onAuthStateChanged(async (user) => {
   if (user && ADMIN_EMAILS.includes(user.email)) {
     adminUid = user.uid;
     loadingEl.style.display = 'none';
+    document.getElementById('login-info').classList.remove('show');
+    document.getElementById('login-error').classList.remove('show');
     authScreen.classList.remove('active');
     mainScreen.classList.add('active');
     if (!_appInitialized) {
@@ -1887,8 +1892,8 @@ auth.onAuthStateChanged(async (user) => {
     loadingEl.style.display = 'none';
     mainScreen.classList.remove('active');
     authScreen.classList.add('active');
-    document.getElementById('login-error').textContent = `고객 계정(${user.email})으로 로그인된 상태입니다. 관리자 계정으로 로그인해주세요.`;
-    document.getElementById('login-error').classList.add('show');
+    document.getElementById('login-info').textContent = `고객 계정(${user.email})이 열려 있습니다. 관리자 비밀번호를 입력하면 전환됩니다.`;
+    document.getElementById('login-info').classList.add('show');
   } else {
     loadingEl.style.display = 'none';
     mainScreen.classList.remove('active');
