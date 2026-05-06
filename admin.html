@@ -625,13 +625,19 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div id="menu-pdf-candidates"></div>
       </div>
     </div>
-    <div class="section-title">최근 등록 식단</div>
+    <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>최근 등록 식단</span>
+      <button class="danger-btn" onclick="deleteSelectedMenus()" id="menu-delete-selected-btn" style="display:none;font-size:12px;padding:6px 12px">선택 삭제</button>
+    </div>
     <table class="order-table">
       <thead>
-        <tr><th>날짜</th><th>제목</th><th>도시락</th><th>샐러드</th><th>관리</th></tr>
+        <tr>
+          <th style="width:36px"><input type="checkbox" id="menu-check-all" onchange="toggleAllMenuChecks(this)"></th>
+          <th>날짜</th><th>제목</th><th>도시락</th><th>샐러드</th><th>관리</th>
+        </tr>
       </thead>
       <tbody id="menu-tbody">
-        <tr class="no-order-row"><td colspan="5">불러오는 중...</td></tr>
+        <tr class="no-order-row"><td colspan="6">불러오는 중...</td></tr>
       </tbody>
     </table>
   </div>
@@ -2745,13 +2751,20 @@ async function loadMealMenuList() {
       tbody.innerHTML = '<tr class="no-order-row"><td colspan="5">등록된 식단이 없습니다.</td></tr>';
       return;
     }
+    const checkAll = document.getElementById('menu-check-all');
+    if (checkAll) checkAll.checked = false;
+    document.getElementById('menu-delete-selected-btn').style.display = 'none';
     tbody.innerHTML = mealMenus.map(menu => `
       <tr>
+        <td><input type="checkbox" class="menu-check" value="${jsString(menu.date || menu.id)}" onchange="onMenuCheckChange()"></td>
         <td>${escapeHtml(menu.date || menu.id)}</td>
         <td class="biz-name">${escapeHtml(menu.title || '오늘의 식단')}</td>
         <td>${normalizeMealItems(menu.lunchItems || menu.lunchMenu).length}개</td>
         <td>${normalizeMealItems(menu.saladItems || menu.saladMenu).length}개</td>
-        <td><button class="secondary-btn" onclick="selectMealMenuDate('${jsString(menu.date || menu.id)}')">열기</button></td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="secondary-btn" onclick="selectMealMenuDate('${jsString(menu.date || menu.id)}')">열기</button>
+          <button class="danger-btn" style="font-size:12px;padding:5px 10px" onclick="deleteSingleMenu('${jsString(menu.date || menu.id)}')">삭제</button>
+        </td>
       </tr>
     `).join('');
   } catch(e) {
@@ -2763,6 +2776,39 @@ function selectMealMenuDate(date) {
   document.getElementById('menu-date').value = date;
   loadMealMenuEditor();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleAllMenuChecks(master) {
+  document.querySelectorAll('.menu-check').forEach(cb => cb.checked = master.checked);
+  onMenuCheckChange();
+}
+
+function onMenuCheckChange() {
+  const checks = document.querySelectorAll('.menu-check');
+  const checked = document.querySelectorAll('.menu-check:checked');
+  const master = document.getElementById('menu-check-all');
+  if (master) master.checked = checks.length > 0 && checked.length === checks.length;
+  document.getElementById('menu-delete-selected-btn').style.display = checked.length > 0 ? '' : 'none';
+}
+
+async function deleteSingleMenu(date) {
+  if (!confirm(`${date} 식단을 삭제할까요?`)) return;
+  try {
+    await db.collection('mealMenus').doc(date).delete();
+    showToast('식단이 삭제되었습니다.');
+    loadMealMenuList();
+  } catch(e) { showToast('삭제 실패: ' + e.message); }
+}
+
+async function deleteSelectedMenus() {
+  const checked = [...document.querySelectorAll('.menu-check:checked')].map(cb => cb.value);
+  if (checked.length === 0) return;
+  if (!confirm(`선택한 ${checked.length}개 식단을 삭제할까요?`)) return;
+  try {
+    await Promise.all(checked.map(date => db.collection('mealMenus').doc(date).delete()));
+    showToast(`${checked.length}개 식단이 삭제되었습니다.`);
+    loadMealMenuList();
+  } catch(e) { showToast('삭제 실패: ' + e.message); }
 }
 
 function showCodeStatus(msg, isError = false) {
