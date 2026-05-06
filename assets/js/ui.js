@@ -167,3 +167,70 @@ function toast(msg,type=''){
   t.className='toast '+type; t.appendChild(document.createTextNode(msg));
   w.appendChild(t); setTimeout(()=>t.remove(),3500);
 }
+
+// 배송완료 후에도 해당 날짜 목록에서 고객을 유지하고 회색 완료 행으로 표시
+function isDeliveredOnDate(c, ds){
+  return !!(c && ds && Array.isArray(c.deliveredDates) && c.deliveredDates.includes(ds));
+}
+
+function completedDeliveryListFor(baseList, ds){
+  const list = Array.isArray(baseList) ? baseList.slice() : [];
+  if(!Array.isArray(custs)) return list;
+  const seen = new Set(list.map(c=>c && c.id).filter(Boolean));
+  custs.forEach(c=>{
+    if(c && c.id && !seen.has(c.id) && isDeliveredOnDate(c, ds)){
+      list.push(c);
+      seen.add(c.id);
+    }
+  });
+  return list;
+}
+
+function applyCompletedDeliveryRows(){
+  const ds = document.getElementById('dashDate')?.value || (typeof todayStr === 'function' ? todayStr() : '');
+  if(!ds || !Array.isArray(custs)) return;
+
+  ['dTodayDirect','dToday'].forEach(tbodyId=>{
+    const tb = document.getElementById(tbodyId);
+    if(!tb) return;
+    tb.querySelectorAll('tr').forEach(row=>{
+      const opener = row.querySelector('[onclick*="openEdit"]');
+      const raw = opener ? opener.getAttribute('onclick') || '' : '';
+      const matched = raw.match(/openEdit\('([^']+)'\)/);
+      if(!matched) return;
+      const c = custs.find(x=>x.id===matched[1]);
+      if(isDeliveredOnDate(c, ds)) row.classList.add('trd','completed-delivery-row');
+    });
+  });
+}
+
+function installCompletedDeliveryVisibilityPatch(){
+  if(typeof window.listFor === 'function' && !window.listFor.__keepCompletedPatch){
+    const originalListFor = window.listFor;
+    window.listFor = function(ds){
+      return completedDeliveryListFor(originalListFor.call(this, ds), ds);
+    };
+    window.listFor.__keepCompletedPatch = true;
+  }
+
+  if(typeof window.renderDash === 'function' && !window.renderDash.__completedStylePatch){
+    const originalRenderDash = window.renderDash;
+    window.renderDash = function(){
+      const result = originalRenderDash.apply(this, arguments);
+      applyCompletedDeliveryRows();
+      return result;
+    };
+    window.renderDash.__completedStylePatch = true;
+  }
+}
+
+(function bootCompletedDeliveryVisibilityPatch(retry){
+  installCompletedDeliveryVisibilityPatch();
+  if((typeof window.listFor !== 'function' || typeof window.renderDash !== 'function') && retry < 20){
+    setTimeout(()=>bootCompletedDeliveryVisibilityPatch(retry+1), 50);
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', installCompletedDeliveryVisibilityPatch, {once:true});
+  }
+  window.addEventListener('load', installCompletedDeliveryVisibilityPatch, {once:true});
+})(0);
