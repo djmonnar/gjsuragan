@@ -39,6 +39,7 @@
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
+  auth.setPersistence('local').catch(()=>{});
 </script>
 <!-- ===================================================== -->
 
@@ -1523,7 +1524,6 @@ async function doLogin() {
   const btn = document.querySelector('#login-form .auth-submit');
   if (btn) { btn.disabled = true; btn.textContent = '로그인 중…'; }
   try {
-    await auth.setPersistence('local');
     await auth.signInWithEmailAndPassword(email, pw);
   } catch(e) {
     console.error('로그인 오류:', e.code, e.message);
@@ -1551,6 +1551,15 @@ async function doRegister() {
   let cred = null;
   try {
     cred = await auth.createUserWithEmailAndPassword(email, pw);
+  } catch(e) {
+    if (e.code === 'auth/email-already-in-use') {
+      showError('reg-error', '이미 가입된 이메일입니다. 관리자에게 계정 삭제를 요청한 후 다시 가입해주세요.');
+    } else {
+      showError('reg-error', '가입 중 오류: ' + e.message);
+    }
+    return;
+  }
+  try {
     await db.collection('users').doc(cred.user.uid).set({
       businessName: bizname, email, phone,
       defaultLunch: lunch, defaultSalad: salad,
@@ -1558,8 +1567,8 @@ async function doRegister() {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch(e) {
-    if (cred) await cred.user.delete();
-    showError('reg-error', '가입 중 오류: ' + e.message);
+    await cred.user.delete();
+    showError('reg-error', '프로필 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
   }
 }
 
