@@ -94,8 +94,16 @@ function parseText(){
   for(let i=0;i<lines.length;i++){
     const l=lines[i];
     if(/현관|비밀번호/i.test(l)&&!door){
-      const combined=(l+' '+(lines[i+1]||'')).replace(/현관\s*비밀번호\s*[:：]?/i,'').trim();
-      door=combined.split('\n')[0].trim();
+      const fullText=l+' '+(lines[i+1]||'');
+      // "현관[...]: 값" 형태에서 콜론 뒤 값 추출 (중간에 부가설명 있어도 처리)
+      const m=fullText.match(/현관[^:：\n]*[:：]\s*(.+)/i)
+             ||fullText.match(/비밀번호[^:：\n]*[:：]\s*(.+)/i);
+      if(m){
+        door=m[1].split(/\s{2,}|\n/)[0].trim();
+      } else {
+        // 콜론 없는 경우: 라벨 제거 후 나머지
+        door=fullText.replace(/현관\s*비밀번호\s*/i,'').split(/\s{2,}|\n/)[0].trim();
+      }
     }
     if(/배송\s*전|미리\s*연락|부재|문\s*앞|두고\s*가|놓아/i.test(l)) request=l;
   }
