@@ -1482,11 +1482,16 @@ auth.onAuthStateChanged(async (user) => {
   if (user) {
     currentUser = user;
     try {
-      await Promise.all([loadUserProfile(), loadCustomHolidays()]);
+      await loadCustomHolidays();
+      await loadUserProfile();
     } catch(e) {
-      showToast(e.message || '프로필 로딩 실패. 다시 시도해주세요.', 'error');
-      auth.signOut();
-      return;
+      console.error('프로필 로딩 오류:', e.code, e.message);
+      if (e.message && (e.message.includes('삭제') || e.message.includes('비활성'))) {
+        showToast(e.message, 'error');
+        auth.signOut();
+        return;
+      }
+      showToast('데이터 로딩 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
     }
     showMain();
   } else {
@@ -1515,10 +1520,15 @@ async function loadUserProfile() {
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pw = document.getElementById('login-pw').value;
+  const btn = document.querySelector('#login-form .auth-submit');
+  if (btn) { btn.disabled = true; btn.textContent = '로그인 중…'; }
   try {
+    await auth.setPersistence('local');
     await auth.signInWithEmailAndPassword(email, pw);
   } catch(e) {
+    console.error('로그인 오류:', e.code, e.message);
     showError('login-error', '이메일 또는 비밀번호가 올바르지 않습니다.');
+    if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
   }
 }
 

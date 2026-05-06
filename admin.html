@@ -272,7 +272,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
     <input class="form-input" type="email" id="admin-email" placeholder="관리자 이메일">
     <label class="form-label">비밀번호</label>
     <input class="form-input" type="password" id="admin-pw" placeholder="비밀번호" onkeydown="if(event.key==='Enter') doAdminLogin()">
-    <button class="auth-btn" onclick="doAdminLogin()">로그인</button>
+    <button class="auth-btn" id="admin-login-btn" onclick="doAdminLogin()">로그인</button>
     <div class="error-msg" id="login-error">이메일 또는 비밀번호가 올바르지 않습니다.</div>
   </div>
 </div>
@@ -1589,18 +1589,20 @@ async function doAdminLogin() {
   const email = document.getElementById('admin-email').value.trim();
   const pw = document.getElementById('admin-pw').value;
   const errorEl = document.getElementById('login-error');
-  const btn = document.querySelector('#auth-screen .auth-btn');
+  const btn = document.getElementById('admin-login-btn');
   errorEl.classList.remove('show');
   if (!email || !pw) { errorEl.classList.add('show'); return; }
-  btn.disabled = true;
-  btn.textContent = '로그인 중…';
+  if (btn) { btn.disabled = true; btn.textContent = '로그인 중…'; }
   try {
-    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    await auth.setPersistence('local');
     await auth.signInWithEmailAndPassword(email, pw);
   } catch(e) {
+    console.error('로그인 오류:', e.code, e.message);
+    errorEl.textContent = e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found'
+      ? '이메일 또는 비밀번호가 올바르지 않습니다.'
+      : `오류: ${e.message}`;
     errorEl.classList.add('show');
-    btn.disabled = false;
-    btn.textContent = '로그인';
+    if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
   }
 }
 
