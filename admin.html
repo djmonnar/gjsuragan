@@ -268,13 +268,11 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 <div id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">🍱 궁중수라간</div>
-    <div class="auth-sub">관리자 로그인</div>
-    <label class="form-label">이메일</label>
-    <input class="form-input" type="email" id="admin-email" placeholder="관리자 이메일">
+    <div class="auth-sub">관리자 전용</div>
     <label class="form-label">비밀번호</label>
-    <input class="form-input" type="password" id="admin-pw" placeholder="비밀번호" onkeydown="if(event.key==='Enter') doAdminLogin()">
+    <input class="form-input" type="password" id="admin-pw" placeholder="관리자 비밀번호" onkeydown="if(event.key==='Enter') doAdminLogin()" autofocus>
     <button class="auth-btn" id="admin-login-btn" onclick="doAdminLogin()">로그인</button>
-    <div class="error-msg" id="login-error">이메일 또는 비밀번호가 올바르지 않습니다.</div>
+    <div class="error-msg" id="login-error">비밀번호가 올바르지 않습니다.</div>
   </div>
 </div>
 
@@ -1588,24 +1586,17 @@ auth.onAuthStateChanged(async (user) => {
 });
 
 async function doAdminLogin() {
-  const email = document.getElementById('admin-email').value.trim();
   const pw = document.getElementById('admin-pw').value;
   const errorEl = document.getElementById('login-error');
   const btn = document.getElementById('admin-login-btn');
   errorEl.classList.remove('show');
-  if (!email || !pw) { errorEl.classList.add('show'); return; }
-  if (!ADMIN_EMAILS.includes(email)) {
-    errorEl.textContent = '관리자 이메일이 아닙니다.';
-    errorEl.classList.add('show'); return;
-  }
-  if (btn) { btn.disabled = true; btn.textContent = '로그인 중…'; }
+  if (!pw) return;
+  if (btn) { btn.disabled = true; btn.textContent = '확인 중…'; }
   try {
-    await auth.signInWithEmailAndPassword(email, pw);
+    await auth.signInWithEmailAndPassword(ADMIN_EMAILS[0], pw);
   } catch(e) {
-    console.error('로그인 오류:', e.code, e.message);
-    errorEl.textContent = e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found'
-      ? '이메일 또는 비밀번호가 올바르지 않습니다.'
-      : `오류: ${e.message}`;
+    console.error('로그인 오류:', e.code);
+    errorEl.textContent = '비밀번호가 올바르지 않습니다.';
     errorEl.classList.add('show');
     if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
   }
