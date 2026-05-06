@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>궁중수라간 고객 정산표</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+const firebaseConfig={apiKey:"AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A",authDomain:"gjsuragan-60505.firebaseapp.com",projectId:"gjsuragan-60505",storageBucket:"gjsuragan-60505.firebasestorage.app",messagingSenderId:"1009198450175",appId:"1:1009198450175:web:4a55da7c2092dba42613ca"};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const db=firebase.firestore();
+auth.setPersistence('local').catch(()=>{});
+</script>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--primary:#7b3f1a;--gold:#c8922a;--gold-light:#f8efe2;--text:#1f2328;--sub:#6b7280;--border:#e5e7eb;--success:#2e7d52;--danger:#c0392b;--info:#2563eb;--shadow:0 2px 12px rgba(15,23,42,.07);--radius:14px}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:var(--bg);color:var(--text);max-width:760px;margin:0 auto;min-height:100vh;word-break:keep-all}.top{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--border);padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}.brand{font-size:17px;font-weight:800;color:var(--primary);letter-spacing:.3px}.top-sub{font-size:12px;color:var(--sub);margin-top:2px}.btn{border:0;border-radius:10px;padding:10px 12px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer}.btn-primary{background:var(--primary);color:#fff}.btn-soft{background:var(--gold-light);color:var(--primary);border:1px solid #ecd3ad}.btn-line{background:#fff;color:var(--primary);border:1px solid var(--border)}.wrap{padding:14px 14px 40px}.panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:12px}.login-card{max-width:420px;margin:60px auto}.form-label{display:block;font-size:13px;font-weight:800;color:var(--sub);margin:10px 0 6px}.inp{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;background:#fafafa;font:inherit;outline:none}.inp:focus{border-color:var(--primary);background:#fff}.toolbar{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.toolbar .field{flex:1;min-width:160px}.notice{font-size:13px;color:var(--sub);line-height:1.6;background:#fffaf3;border:1px solid #f2d8aa;border-radius:12px;padding:12px;margin-bottom:12px}.invoice{background:#fff;border:1px solid #d8d8d8;border-radius:14px;box-shadow:var(--shadow);overflow:hidden}.invoice-pad{padding:24px}.inv-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;border-bottom:2px solid #222;padding-bottom:14px;margin-bottom:16px}.inv-title{font-size:26px;font-weight:900;letter-spacing:2px}.inv-meta{font-size:12px;color:var(--sub);text-align:right;line-height:1.6}.chip{display:inline-block;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:900}.chip-wait{background:#fff3e0;color:#e65100}.chip-paid{background:#e8f5e9;color:#1e6e40}.chip-over{background:#fdecea;color:#c0392b}.biz-box{display:grid;grid-template-columns:80px 1fr;gap:8px 12px;font-size:14px;margin-bottom:16px}.biz-box .k{color:var(--sub);font-weight:700}.biz-box .v{font-weight:800}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}.summary{background:#fafafa;border:1px solid var(--border);border-radius:12px;padding:11px;text-align:center}.summary .l{font-size:11px;color:var(--sub);font-weight:800;margin-bottom:4px}.summary .v{font-size:20px;font-weight:900;color:var(--primary)}.summary.balance .v{color:var(--danger)}.summary.paid .v{color:var(--success)}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-top:10px}table{width:100%;border-collapse:collapse;font-size:13px;background:#fff}th{background:#f6efe7;color:var(--primary);font-size:12px;font-weight:900}th,td{border-bottom:1px solid var(--border);padding:9px 8px;text-align:center;white-space:nowrap}td.left,th.left{text-align:left}.total-row td{background:#fffaf3;font-weight:900}.section-name{font-size:14px;font-weight:900;color:var(--primary);margin:18px 0 8px}.empty{padding:32px 12px;text-align:center;color:var(--sub);line-height:1.6}.footer-note{font-size:12px;color:var(--sub);line-height:1.6;margin-top:14px;border-top:1px solid var(--border);padding-top:12px}.loading{position:fixed;inset:0;background:rgba(255,255,255,.82);z-index:50;display:none;align-items:center;justify-content:center;color:var(--primary);font-weight:900}.loading.on{display:flex}.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);opacity:0;background:#222;color:#fff;padding:11px 16px;border-radius:999px;font-size:13px;font-weight:700;transition:.25s;z-index:80;white-space:nowrap}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}.print-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}@media(max-width:560px){.summary-grid{grid-template-columns:repeat(2,1fr)}.invoice-pad{padding:16px}.inv-title{font-size:23px}.top{align-items:flex-start}.top-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.btn{padding:9px 10px;font-size:12px}.biz-box{grid-template-columns:70px 1fr}}@media print{body{background:#fff;max-width:none}.top,.toolbar,.notice,.print-actions,.login-card,.loading,.toast{display:none!important}.wrap{padding:0}.panel{box-shadow:none;border:0}.invoice{box-shadow:none;border:0;border-radius:0}.invoice-pad{padding:0}.table-wrap{overflow:visible}.no-print{display:none!important}}
+</style>
+</head>
+<body>
+<div class="loading" id="loading">정산 데이터를 불러오는 중...</div>
+<header class="top">
+  <div><div class="brand">궁중수라간 고객 정산표</div><div class="top-sub" id="topSub">로그인 후 월별 정산 내역을 확인하세요.</div></div>
+  <div class="top-actions" id="topActions" style="display:none"><button class="btn btn-line" onclick="location.href='customer.html'">주문으로</button><button class="btn btn-soft" onclick="doLogout()">로그아웃</button></div>
+</header>
+
+<main class="wrap">
+  <section class="panel login-card" id="loginPanel">
+    <div style="font-size:19px;font-weight:900;color:var(--primary);margin-bottom:8px">고객 로그인</div>
+    <div style="font-size:13px;color:var(--sub);line-height:1.6;margin-bottom:12px">기존 월식 주문 페이지와 같은 계정으로 로그인하면 정산표를 확인할 수 있습니다.</div>
+    <label class="form-label">이메일</label><input class="inp" type="email" id="email" autocomplete="username">
+    <label class="form-label">비밀번호</label><input class="inp" type="password" id="pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="doLogin()">로그인</button>
+  </section>
+
+  <section id="appPanel" style="display:none">
+    <div class="notice">관리자 정산표 데이터가 있으면 그 내역을 우선 보여주고, 없으면 고객 주문 기록에서 도시락·샐러드·행사도시락 수량을 합산해 임시 정산표를 만듭니다.</div>
+    <div class="panel toolbar">
+      <div class="field"><label class="form-label">정산 월</label><input class="inp" type="month" id="monthInput"></div>
+      <button class="btn btn-primary" onclick="loadSettlement()">조회</button>
+      <button class="btn btn-soft" onclick="downloadPdf()">PDF 다운로드</button>
+    </div>
+    <div id="invoiceHost"></div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+let currentUser=null, profile={}, invoiceState=null;
+const SETTLEMENT_COLLECTIONS=['settlements','customerSettlements','monthlySettlements','invoices','settlementSheets'];
+const ORDER_COLLECTIONS=['orders','dailyOrders','orderSubmissions','submissions','mealOrders','customerOrders','lunchOrders'];
+const DATE_FIELDS=['date','orderDate','deliveryDate','mealDate','targetDate','submittedDate','createdAt','created_at'];
+const ID_FIELDS=['uid','userId','userUid','customerUid','customerId','memberId','ownerUid'];
+const EMAIL_FIELDS=['email','userEmail','customerEmail','memberEmail'];
+const NAME_FIELDS=['bizName','businessName','customerName','companyName','orgName','schoolName','kindergartenName','name'];
+const ITEM_DEFS=[
+  {id:'lunch',label:'도시락',aliases:['lunch','lunchQty','lunchCount','dosirak','dosirakQty','dosirakCount','meal','mealQty','mealCount','boxLunch','boxLunchQty','도시락','도시락수량'],priceAliases:['lunchPrice','dosirakPrice','mealPrice','boxLunchPrice','도시락단가']},
+  {id:'salad',label:'샐러드',aliases:['salad','saladQty','saladCount','샐러드','샐러드수량'],priceAliases:['saladPrice','샐러드단가']},
+  {id:'eventLunch',label:'행사도시락',aliases:['eventLunch','eventLunchQty','eventLunchCount','eventMeal','eventMealQty','eventDosirak','eventDosirakQty','eventBoxLunch','eventBoxLunchQty','행사도시락','행사도시락수량'],priceAliases:['eventLunchPrice','eventMealPrice','eventDosirakPrice','행사도시락단가']}
+];
+function money(n){return (Number(n)||0).toLocaleString('ko-KR')+'원'}
+function qty(n){return (Number(n)||0).toLocaleString('ko-KR')+'개'}
+function ymNow(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
+function showLoading(v){document.getElementById('loading').classList.toggle('on',!!v)}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400)}
+function flat(obj,prefix='',out={}){if(!obj||typeof obj!=='object')return out;Object.entries(obj).forEach(([k,v])=>{const key=prefix?prefix+'.'+k:k;if(v&&typeof v==='object'&&!Array.isArray(v)&&!(v.toDate)){flat(v,key,out)}else{out[key]=v;out[k]=v}});return out}
+function toNum(v){if(v==null||v==='')return 0;if(typeof v==='number')return v;const n=Number(String(v).replace(/[^0-9.-]/g,''));return isNaN(n)?0:n}
+function getAny(obj,keys){const f=flat(obj);for(const k of keys){if(f[k]!=null&&f[k]!=='')return f[k]}return undefined}
+function getNum(obj,keys){return toNum(getAny(obj,keys))}
+function getDateStr(v){if(!v)return '';if(v.toDate)v=v.toDate();if(v instanceof Date)return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`;const s=String(v);let m=s.match(/(20\d{2})[-./년\s]?(\d{1,2})[-./월\s]?(\d{1,2})/);if(m)return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;m=s.match(/^(20\d{2})(\d{2})(\d{2})$/);if(m)return `${m[1]}-${m[2]}-${m[3]}`;return ''}
+function docMonth(d){for(const f of DATE_FIELDS){const ds=getDateStr(d[f]);if(ds)return ds.slice(0,7)}const m=getAny(d,['month','settleMonth','settlementMonth','billingMonth','ym']);if(m)return String(m).slice(0,7).replace('.','-');return ''}
+function docDate(d){for(const f of DATE_FIELDS){const ds=getDateStr(d[f]);if(ds)return ds}return ''}
+function customerName(){return profile.bizName||profile.businessName||profile.customerName||profile.companyName||profile.orgName||profile.schoolName||profile.kindergartenName||profile.name||currentUser?.email||'고객'}
+async function doLogin(){const email=document.getElementById('email').value.trim();const pw=document.getElementById('pw').value;if(!email||!pw){toast('이메일과 비밀번호를 입력하세요');return}try{showLoading(true);await auth.signInWithEmailAndPassword(email,pw)}catch(e){toast('로그인 실패: '+(e.message||e.code))}finally{showLoading(false)}}
+async function doLogout(){await auth.signOut();location.reload()}
+auth.onAuthStateChanged(async u=>{currentUser=u;if(!u){document.getElementById('loginPanel').style.display='block';document.getElementById('appPanel').style.display='none';document.getElementById('topActions').style.display='none';return}document.getElementById('loginPanel').style.display='none';document.getElementById('appPanel').style.display='block';document.getElementById('topActions').style.display='flex';document.getElementById('topSub').textContent=u.email||'';document.getElementById('monthInput').value=ymNow();await loadProfile();await loadSettlement()});
+async function loadProfile(){profile={};for(const col of ['users','members','customers','customerProfiles']){try{const snap=await db.collection(col).doc(currentUser.uid).get();if(snap.exists){profile={id:snap.id,...snap.data(),_collection:col};return}}catch(e){}}
+for(const col of ['users','members','customers','customerProfiles']){for(const f of EMAIL_FIELDS){try{const q=await db.collection(col).where(f,'==',currentUser.email).limit(1).get();if(!q.empty){const doc=q.docs[0];profile={id:doc.id,...doc.data(),_collection:col};return}}catch(e){}}}}
+function matchUser(d){const f=flat(d);if(Object.values(ID_FIELDS).some(k=>f[k]===currentUser.uid))return true;if(currentUser.email&&EMAIL_FIELDS.some(k=>String(f[k]||'').toLowerCase()===currentUser.email.toLowerCase()))return true;const name=customerName();if(name&&NAME_FIELDS.some(k=>String(f[k]||'').trim()===name))return true;return false}
+async function queryByCandidates(col, month){const found=new Map();const add=s=>s.forEach(doc=>found.set(doc.ref.path,{id:doc.id,path:doc.ref.path,...doc.data()}));const filters=[...ID_FIELDS.map(f=>[f,currentUser.uid]),...EMAIL_FIELDS.map(f=>[f,currentUser.email]),...NAME_FIELDS.map(f=>[f,customerName()])].filter(x=>x[1]);for(const [field,val] of filters){try{add(await db.collection(col).where(field,'==',val).limit(240).get())}catch(e){}}
+return Array.from(found.values()).filter(d=>!month||docMonth(d)===month||docDate(d).slice(0,7)===month||String(getAny(d,['month','ym','billingMonth','settleMonth'])||'').includes(month));}
+async function loadSettlement(){if(!currentUser)return;showLoading(true);try{const month=document.getElementById('monthInput').value||ymNow();let adminDocs=[];for(const col of SETTLEMENT_COLLECTIONS){const rows=await queryByCandidates(col,month);adminDocs.push(...rows.map(r=>({...r,_collection:col})))}
+if(adminDocs.length){invoiceState=normalizeSettlement(adminDocs[0],month,'admin');renderInvoice(invoiceState);return}
+let orderDocs=[];for(const col of ORDER_COLLECTIONS){const rows=await queryByCandidates(col,month);orderDocs.push(...rows.map(r=>({...r,_collection:col})))}
+invoiceState=buildFromOrders(orderDocs,month);renderInvoice(invoiceState)}catch(e){document.getElementById('invoiceHost').innerHTML=`<div class="panel empty">정산 데이터를 불러오지 못했습니다.<br>${e.message||e}</div>`}finally{showLoading(false)}}
+function itemKindByText(txt){const s=String(txt||'').toLowerCase();if(/행사|event/.test(s))return 'eventLunch';if(/샐러드|salad/.test(s))return 'salad';if(/도시락|dosirak|lunch|meal|box/.test(s))return 'lunch';return ''}
+function emptyItems(){return ITEM_DEFS.map(x=>({id:x.id,label:x.label,qty:0,price:getNum(profile,x.priceAliases),amount:0}))}
+function normalizeSettlement(d,month,source){const items=emptyItems();let rows=[];const arrays=[d.items,d.lines,d.details,d.breakdown,d.dailyBreakdown,d.rows,d.orderRows].filter(Array.isArray).flat();arrays.forEach((r,i)=>{const kind=itemKindByText([r.type,r.item,r.name,r.label,r.product,r.category].join(' '));const def=items.find(x=>x.id===kind);if(!def)return;const q=getNum(r,['qty','count','quantity','amountQty','ea','value'])||1;const p=getNum(r,['unitPrice','price','unit_amount','단가'])||def.price;const a=getNum(r,['amount','total','lineAmount','금액'])||(q*p);def.qty+=q;if(p)def.price=p;def.amount+=a;rows.push({date:docDate(r)||docDate(d)||'',item:def.label,qty:q,price:p,amount:a,note:r.note||r.memo||''})});
+items.forEach(it=>{const q=getNum(d,[it.id+'Qty',it.id+'Count',it.id,'total'+it.id]);if(q&&!it.qty)it.qty=q;const p=getNum(d,ITEM_DEFS.find(x=>x.id===it.id).priceAliases);if(p)it.price=p;const a=getNum(d,[it.id+'Amount',it.id+'Total']);if(a&&!it.amount)it.amount=a;if(!it.amount)it.amount=it.qty*it.price;if(it.qty&&!rows.some(r=>r.item===it.label))rows.push({date:'월 합계',item:it.label,qty:it.qty,price:it.price,amount:it.amount,note:''})});
+const subtotal=items.reduce((a,b)=>a+b.amount,0);const total=getNum(d,['totalAmount','billingAmount','claimAmount','amount','total','subtotal'])||subtotal;const paid=getNum(d,['paidAmount','paymentAmount','receivedAmount','paid','depositAmount']);const balance=(getAny(d,['balanceAmount','unpaidAmount','remainAmount'])!=null)?getNum(d,['balanceAmount','unpaidAmount','remainAmount']):Math.max(0,total-paid);return {month,source,invoiceNo:getAny(d,['invoiceNo','invoiceNumber','settlementNo','no'])||`GS-${month.replace('-','')}-${String(customerName()).slice(0,6)}`,status:getAny(d,['status','settlementStatus','paymentStatus'])||'',dueDate:getDateStr(getAny(d,['dueDate','paymentDueDate','deadline']))||'',issuedAt:getDateStr(getAny(d,['issuedAt','createdAt']))||new Date().toISOString().slice(0,10),items,rows,total,paid,balance,payments:Array.isArray(d.payments)?d.payments:[]}}
+function buildFromOrders(docs,month){const items=emptyItems();let rows=[];docs.filter(matchUser).forEach(d=>{ITEM_DEFS.forEach(def=>{const it=items.find(x=>x.id===def.id);let q=getNum(d,def.aliases);if(!q){const kind=itemKindByText([d.type,d.item,d.name,d.label,d.product,d.category,d.menuName].join(' '));if(kind===def.id)q=getNum(d,['qty','count','quantity','ea'])||1}if(q){const p=getNum(d,def.priceAliases)||getNum(profile,def.priceAliases)||it.price;const a=getNum(d,['amount','totalAmount','lineAmount'])||(q*p);it.qty+=q;if(p)it.price=p;it.amount+=a;rows.push({date:docDate(d),item:def.label,qty:q,price:p,amount:a,note:d.note||d.memo||d.request||''})}})});items.forEach(it=>{if(!it.amount)it.amount=it.qty*it.price});const total=items.reduce((a,b)=>a+b.amount,0);return {month,source:'computed',invoiceNo:`GS-${month.replace('-','')}-${String(customerName()).slice(0,6)}`,status:'임시 산출',dueDate:'',issuedAt:new Date().toISOString().slice(0,10),items,rows,total,paid:0,balance:total,payments:[]}}
+function dueBadge(inv){if(inv.balance<=0)return '<span class="chip chip-paid">입금완료</span>';if(inv.dueDate){const today=new Date().toISOString().slice(0,10);if(inv.dueDate<today)return '<span class="chip chip-over">기한초과</span>'}return '<span class="chip chip-wait">정산대기</span>'}
+function renderInvoice(inv){const rows=inv.rows.length?inv.rows:[{date:'-',item:'정산 데이터 없음',qty:0,price:0,amount:0,note:''}];const sourceMsg=inv.source==='admin'?'관리자가 생성한 정산표 기준입니다.':'관리자 정산표가 없어 주문 기록 기준으로 임시 합산했습니다. 단가가 0원으로 보이면 관리자 정산표 또는 고객 단가 설정이 필요합니다.';document.getElementById('invoiceHost').innerHTML=`
+<div class="invoice" id="invoicePaper"><div class="invoice-pad">
+  <div class="inv-head"><div><div class="inv-title">정산표</div><div style="font-size:13px;color:var(--sub);margin-top:4px">궁중수라간 월식 정산 내역</div></div><div class="inv-meta">정산번호 ${inv.invoiceNo}<br>발행일 ${inv.issuedAt}<br>${dueBadge(inv)}</div></div>
+  <div class="biz-box"><div class="k">고객명</div><div class="v">${customerName()}</div><div class="k">정산월</div><div class="v">${inv.month}</div><div class="k">납부기한</div><div class="v">${inv.dueDate||'별도 안내'}</div><div class="k">기준</div><div class="v">${sourceMsg}</div></div>
+  <div class="summary-grid"><div class="summary"><div class="l">도시락</div><div class="v">${qty(inv.items[0].qty)}</div></div><div class="summary"><div class="l">샐러드</div><div class="v">${qty(inv.items[1].qty)}</div></div><div class="summary"><div class="l">행사도시락</div><div class="v">${qty(inv.items[2].qty)}</div></div><div class="summary balance ${inv.balance<=0?'paid':''}"><div class="l">잔액</div><div class="v">${money(inv.balance)}</div></div></div>
+  <div class="section-name">품목별 합계</div><div class="table-wrap"><table><thead><tr><th class="left">품목</th><th>수량</th><th>단가</th><th>금액</th></tr></thead><tbody>${inv.items.map(it=>`<tr><td class="left">${it.label}</td><td>${qty(it.qty)}</td><td>${money(it.price)}</td><td>${money(it.amount)}</td></tr>`).join('')}<tr class="total-row"><td class="left">청구 합계</td><td>${qty(inv.items.reduce((a,b)=>a+b.qty,0))}</td><td>-</td><td>${money(inv.total)}</td></tr><tr><td class="left">입금액</td><td colspan="2">${inv.payments.length?inv.payments.length+'건':''}</td><td>${money(inv.paid)}</td></tr><tr class="total-row"><td class="left">미수/잔액</td><td colspan="2"></td><td>${money(inv.balance)}</td></tr></tbody></table></div>
+  <div class="section-name">상세 내역</div><div class="table-wrap"><table><thead><tr><th>날짜</th><th class="left">품목</th><th>수량</th><th>단가</th><th>금액</th><th class="left">비고</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.date||'-'}</td><td class="left">${r.item}</td><td>${qty(r.qty)}</td><td>${money(r.price)}</td><td>${money(r.amount)}</td><td class="left">${r.note||''}</td></tr>`).join('')}</tbody></table></div>
+  ${inv.payments.length?`<div class="section-name">입금 내역</div><div class="table-wrap"><table><thead><tr><th>일자</th><th>금액</th><th class="left">메모</th></tr></thead><tbody>${inv.payments.map(p=>`<tr><td>${getDateStr(p.date||p.paidAt)||'-'}</td><td>${money(getNum(p,['amount','paidAmount','value']))}</td><td class="left">${p.memo||p.note||''}</td></tr>`).join('')}</tbody></table></div>`:''}
+  <div class="footer-note">※ 본 정산표는 궁중수라간 고객 확인용입니다. 금액 또는 수량이 실제와 다르면 관리자에게 문의해 주세요.</div>
+</div></div><div class="print-actions"><button class="btn btn-primary" onclick="downloadPdf()">PDF 다운로드</button><button class="btn btn-line" onclick="window.print()">인쇄</button></div>`}
+async function downloadPdf(){const el=document.getElementById('invoicePaper');if(!el){toast('다운로드할 정산표가 없습니다');return}const name=`궁중수라간_정산표_${customerName()}_${document.getElementById('monthInput').value}.pdf`;try{await html2pdf().set({margin:8,filename:name,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(el).save()}catch(e){toast('PDF 생성이 안 되어 인쇄 화면을 엽니다');window.print()}}
+</script>
+</body>
+</html>
