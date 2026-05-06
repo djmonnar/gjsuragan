@@ -1579,7 +1579,8 @@ auth.onAuthStateChanged(async (user) => {
     loadingEl.style.display = 'none';
     mainScreen.classList.remove('active');
     authScreen.classList.add('active');
-    showToast('관리자 계정이 아닙니다.');
+    document.getElementById('login-error').textContent = `고객 계정(${user.email})이 로그인된 상태였습니다. 관리자 계정으로 다시 로그인해주세요.`;
+    document.getElementById('login-error').classList.add('show');
   } else {
     loadingEl.style.display = 'none';
     mainScreen.classList.remove('active');
