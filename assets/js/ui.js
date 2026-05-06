@@ -234,3 +234,72 @@ function installCompletedDeliveryVisibilityPatch(){
   }
   window.addEventListener('load', installCompletedDeliveryVisibilityPatch, {once:true});
 })(0);
+
+// 대시보드 활성구독/오늘 보낼 A·B·C 세트 집계 보정
+function dashProductKey(c){
+  return c ? (c.productId || c.set || '') : '';
+}
+
+function isDashAbcSet(c){
+  return ['A','B','C'].includes(dashProductKey(c));
+}
+
+function isActiveAbcSubscription(c){
+  return !!(c && c.orderType === 'sub' && c.status === 'active' && Number(c.remain) > 0 && isDashAbcSet(c));
+}
+
+function isPendingActiveAbcDelivery(c, ds){
+  if(!isActiveAbcSubscription(c) || isDeliveredOnDate(c, ds)) return false;
+  return typeof isDeliv === 'function' ? isDeliv(c, ds) : false;
+}
+
+function applyDashboardActiveSetStats(){
+  if(!Array.isArray(custs)) return;
+  const ds = document.getElementById('dashDate')?.value || (typeof todayStr === 'function' ? todayStr() : '');
+  const activeSubs = custs.filter(isActiveAbcSubscription);
+  const pendingList = ds ? custs.filter(c=>isPendingActiveAbcDelivery(c, ds)) : [];
+
+  s('s1', activeSubs.length);
+  s('sA', pendingList.filter(c=>dashProductKey(c)==='A').length);
+  s('sB', pendingList.filter(c=>dashProductKey(c)==='B').length);
+  s('sC', pendingList.filter(c=>dashProductKey(c)==='C').length);
+
+  const isTodayDash = ds && typeof todayStr === 'function' && ds === todayStr();
+  [
+    ['sA', isTodayDash ? '오늘 보낼 A세트' : '선택일 A세트'],
+    ['sB', isTodayDash ? '오늘 보낼 B세트' : '선택일 B세트'],
+    ['sC', isTodayDash ? '오늘 보낼 C세트' : '선택일 C세트'],
+  ].forEach(([id, label])=>{
+    const valueEl = document.getElementById(id);
+    const card = valueEl?.closest('.card');
+    if(!card) return;
+    const labelEl = card.querySelector('.sl');
+    const subEl = card.querySelector('.ss');
+    if(labelEl) labelEl.textContent = label;
+    if(subEl) subEl.textContent = '건';
+  });
+}
+
+function installDashboardActiveSetStatsPatch(){
+  if(typeof window.renderDash === 'function' && !window.renderDash.__activeSetStatsPatch){
+    const originalRenderDash = window.renderDash;
+    window.renderDash = function(){
+      const result = originalRenderDash.apply(this, arguments);
+      applyDashboardActiveSetStats();
+      return result;
+    };
+    window.renderDash.__activeSetStatsPatch = true;
+  }
+  applyDashboardActiveSetStats();
+}
+
+(function bootDashboardActiveSetStatsPatch(retry){
+  installDashboardActiveSetStatsPatch();
+  if(typeof window.renderDash !== 'function' && retry < 20){
+    setTimeout(()=>bootDashboardActiveSetStatsPatch(retry+1), 50);
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', installDashboardActiveSetStatsPatch, {once:true});
+  }
+  window.addEventListener('load', installDashboardActiveSetStatsPatch, {once:true});
+})(0);
