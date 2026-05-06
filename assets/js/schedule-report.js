@@ -9,8 +9,14 @@ function dow(ds){
   const [y,m,d]=ds.split('-').map(Number);
   return new Date(y,m-1,d).getDay();
 }
+function wasDeliveredOn(c,ds){
+  return Array.isArray(c.deliveredDates) && c.deliveredDates.includes(ds);
+}
 function isDelivSub(c,ds){
-  if(c.status!=='active'||c.remain<=0||c.orderType!=='sub') return false;
+  if(c.orderType!=='sub') return false;
+  // 배송완료 처리된 날짜는 잔여 0회/종료 상태여도 회색 완료 행으로 남겨야 함
+  if(wasDeliveredOn(c,ds)) return true;
+  if(c.status!=='active'||Number(c.remain||0)<=0) return false;
   if(c.startDate && ds < c.startDate) return false;  // 첫 배송일 이전 차단
   const d=dow(ds);
   // cookDays가 저장된 경우: 조리일 기준으로 표시 (오늘 조리=오늘 출고)
@@ -24,7 +30,10 @@ function isDelivSub(c,ds){
   return cookFromArrive.includes(d);
 }
 function isDelivOnce(c,ds){
-  if(c.status!=='active'||c.remain<=0||c.orderType!=='once') return false;
+  if(c.orderType!=='once') return false;
+  // 1회성 주문은 완료 후 remain=0/status=end가 되므로 완료 이력을 우선 인정
+  if(wasDeliveredOn(c,ds)) return true;
+  if(c.status!=='active'||Number(c.remain||0)<=0) return false;
   if(c.startDate && ds < c.startDate) return false;  // 첫 배송일 이전 차단
   if(c.isDirect){
     // 직배송: onceDate 당일 배송
