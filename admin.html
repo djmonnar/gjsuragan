@@ -1548,27 +1548,38 @@ function formatTime(ts) {
 }
 
 // ── 인증 ──
+let _appInitialized = false;
+
 auth.onAuthStateChanged(async (user) => {
-  document.getElementById('loading-screen').style.display = 'none';
+  const loadingEl = document.getElementById('loading-screen');
   const authScreen = document.getElementById('auth-screen');
   const mainScreen = document.getElementById('main-screen');
+
   if (user && ADMIN_EMAILS.includes(user.email)) {
     adminUid = user.uid;
+    loadingEl.style.display = 'none';
     authScreen.classList.remove('active');
     mainScreen.classList.add('active');
-    currentDateStr = dateStr(getKST());
-    await loadAllUsers();
-    await loadCustomHolidays();
-    initReceiptForm();
-    initSettlementForm();
-    updateDateLabel();
-    loadOrders();
+    if (!_appInitialized) {
+      _appInitialized = true;
+      currentDateStr = dateStr(getKST());
+      try {
+        await loadAllUsers();
+        await loadCustomHolidays();
+        initReceiptForm();
+        initSettlementForm();
+      } catch(e) { console.error('초기화 오류:', e); }
+      updateDateLabel();
+      loadOrders();
+    }
   } else if (user) {
+    await auth.signOut();
+    loadingEl.style.display = 'none';
     mainScreen.classList.remove('active');
     authScreen.classList.add('active');
-    await auth.signOut();
     showToast('관리자 계정이 아닙니다.');
   } else {
+    loadingEl.style.display = 'none';
     mainScreen.classList.remove('active');
     authScreen.classList.add('active');
   }
@@ -1578,16 +1589,23 @@ async function doAdminLogin() {
   const email = document.getElementById('admin-email').value.trim();
   const pw = document.getElementById('admin-pw').value;
   const errorEl = document.getElementById('login-error');
+  const btn = document.querySelector('#auth-screen .auth-btn');
   errorEl.classList.remove('show');
-  if (!ADMIN_EMAILS.includes(email)) {
-    errorEl.classList.add('show'); return;
-  }
+  if (!email || !pw) { errorEl.classList.add('show'); return; }
+  btn.disabled = true;
+  btn.textContent = '로그인 중…';
   try {
+    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     await auth.signInWithEmailAndPassword(email, pw);
-  } catch(e) { errorEl.classList.add('show'); }
+  } catch(e) {
+    errorEl.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = '로그인';
+  }
 }
 
 function doAdminLogout() {
+  _appInitialized = false;
   auth.signOut();
   document.getElementById('main-screen').classList.remove('active');
   document.getElementById('auth-screen').classList.add('active');
