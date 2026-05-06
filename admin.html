@@ -17,6 +17,7 @@ const firebaseConfig={apiKey:"AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A",authDomai
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth();const db=firebase.firestore();
 const ADMIN_EMAILS=['sun1562@naver.com'];
+auth.setPersistence('local').catch(()=>{});
 </script>
 <style>
 :root{--bg:#f7f3ec;--card:#fff;--primary:#7b3f1a;--gold:#f0d090;--gold2:#f7ead0;--text:#1f2328;--sub:#6b5b4a;--border:#e5d7c5;--success:#1e6e40;--err:#c0392b;--shadow:0 2px 12px rgba(0,0,0,.08);--radius:14px;--ease-spring:cubic-bezier(0.16,1,0.3,1)}
@@ -427,13 +428,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 <div id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">🍱 궁중수라간</div>
-    <div class="auth-sub">관리자 로그인</div>
-    <label class="form-label">이메일</label>
-    <input class="form-input" type="email" id="admin-email" placeholder="관리자 이메일">
+    <div class="auth-sub">관리자 전용</div>
     <label class="form-label">비밀번호</label>
-    <input class="form-input" type="password" id="admin-pw" placeholder="비밀번호" onkeydown="if(event.key==='Enter') doAdminLogin()">
-    <button class="auth-btn" onclick="doAdminLogin()">로그인</button>
-    <div class="error-msg" id="login-error">이메일 또는 비밀번호가 올바르지 않습니다.</div>
+    <input class="form-input" type="password" id="admin-pw" placeholder="관리자 비밀번호" onkeydown="if(event.key==='Enter') doAdminLogin()" autofocus>
+    <button class="auth-btn" id="admin-login-btn" onclick="doAdminLogin()">로그인</button>
+    <div class="error-msg" id="login-error">비밀번호가 올바르지 않습니다.</div>
   </div>
 </div>
 
@@ -1219,6 +1218,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 <script>
 let currentDateStr = '';
 let allUsers = {};
+let deletedUsers = {};
 let eventLunches = [];
 let settlementRows = [];
 let settlementEvents = [];
@@ -1859,46 +1859,62 @@ function formatTime(ts) {
 }
 
 // ── 인증 ──
+let _appInitialized = false;
+
 auth.onAuthStateChanged(async (user) => {
-  document.getElementById('loading-screen').style.display = 'none';
+  const loadingEl = document.getElementById('loading-screen');
   const authScreen = document.getElementById('auth-screen');
   const mainScreen = document.getElementById('main-screen');
+
   if (user && ADMIN_EMAILS.includes(user.email)) {
     adminUid = user.uid;
+    loadingEl.style.display = 'none';
     authScreen.classList.remove('active');
     mainScreen.classList.add('active');
-    currentDateStr = dateStr(getKST());
-    await loadAllUsers();
-    await Promise.all([loadCustomHolidays(), loadSettings()]);
-    initReceiptForm();
-    initSettlementForm();
-    updateDateLabel();
-    loadOrders();
+    if (!_appInitialized) {
+      _appInitialized = true;
+      currentDateStr = dateStr(getKST());
+      try {
+        await loadAllUsers();
+        await Promise.all([loadCustomHolidays(), loadSettings()]);
+        initReceiptForm();
+        initSettlementForm();
+      } catch(e) { console.error('초기화 오류:', e); }
+      updateDateLabel();
+      loadOrders();
+    }
   } else if (user) {
+    loadingEl.style.display = 'none';
     mainScreen.classList.remove('active');
     authScreen.classList.add('active');
-    await auth.signOut();
-    showToast('관리자 계정이 아닙니다.');
+    document.getElementById('login-error').textContent = `고객 계정(${user.email})으로 로그인된 상태입니다. 관리자 계정으로 로그인해주세요.`;
+    document.getElementById('login-error').classList.add('show');
   } else {
+    loadingEl.style.display = 'none';
     mainScreen.classList.remove('active');
     authScreen.classList.add('active');
   }
 });
 
 async function doAdminLogin() {
-  const email = document.getElementById('admin-email').value.trim();
   const pw = document.getElementById('admin-pw').value;
   const errorEl = document.getElementById('login-error');
+  const btn = document.getElementById('admin-login-btn');
   errorEl.classList.remove('show');
-  if (!ADMIN_EMAILS.includes(email)) {
-    errorEl.classList.add('show'); return;
-  }
+  if (!pw) return;
+  if (btn) { btn.disabled = true; btn.textContent = '확인 중…'; }
   try {
-    await auth.signInWithEmailAndPassword(email, pw);
-  } catch(e) { errorEl.classList.add('show'); }
+    await auth.signInWithEmailAndPassword(ADMIN_EMAILS[0], pw);
+  } catch(e) {
+    console.error('로그인 오류:', e.code);
+    errorEl.textContent = '비밀번호가 올바르지 않습니다.';
+    errorEl.classList.add('show');
+    if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
+  }
 }
 
 function doAdminLogout() {
+  _appInitialized = false;
   auth.signOut();
   document.getElementById('main-screen').classList.remove('active');
   document.getElementById('auth-screen').classList.add('active');
@@ -1907,12 +1923,16 @@ function doAdminLogout() {
 // ── 유저 로드 ──
 async function loadAllUsers() {
   allUsers = {};
+  deletedUsers = {};
   try {
     const snap = await db.collection('users').get();
     snap.forEach(doc => {
       const data = doc.data();
       if (ADMIN_EMAILS.includes(data.email) || (data.adminEvents && !data.businessName)) return;
-      if (data.deleted || data.disabled) return;
+      if (data.deleted || data.disabled) {
+        deletedUsers[doc.id] = data;
+        return;
+      }
       allUsers[doc.id] = data;
     });
   } catch(e) { console.log('유저 로드 오류:', e); }
@@ -2194,22 +2214,53 @@ function toggleMemberSection() {
 function renderMembers() {
   const grid = document.getElementById('member-grid');
   const users = Object.entries(allUsers);
+  const deleted = Object.entries(deletedUsers);
+  let html = '';
   if (users.length === 0) {
-    grid.innerHTML = '<div style="color:var(--sub);font-size:14px;grid-column:1/-1">등록된 회원이 없습니다.</div>';
-    return;
+    html += '<div style="color:var(--sub);font-size:14px;grid-column:1/-1">등록된 회원이 없습니다.</div>';
+  } else {
+    html += users
+      .sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'))
+      .map(([uid, u]) => `
+        <div class="member-card" onclick="openMemberEdit('${uid}')">
+          <div class="m-name">${escapeHtml(u.businessName || '-')}</div>
+          <div class="m-info">${escapeHtml(u.phone || u.email || '-')}</div>
+          <div class="m-info">${escapeHtml(u.deliveryPlace || '배송지 미입력')}${u.mealTime ? ` · ${u.mealTime}` : ''}</div>
+          <div class="m-info">${u.sameDailyMeal === false ? '요일별 식수 설정됨' : `매일 도시락 ${u.defaultLunch ?? 2}개 · 샐러드 ${u.defaultSalad ?? 0}개`}</div>
+          <div class="m-info">단가 ${formatMoney(userLunchPrice(u))} / ${formatMoney(userSaladPrice(u))}</div>
+          <div class="m-edit-hint">✏️ 수정하기</div>
+        </div>
+      `).join('');
   }
-  grid.innerHTML = users
-    .sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'))
-    .map(([uid, u]) => `
-      <div class="member-card" onclick="openMemberEdit('${uid}')">
-        <div class="m-name">${escapeHtml(u.businessName || '-')}</div>
-        <div class="m-info">${escapeHtml(u.phone || u.email || '-')}</div>
-        <div class="m-info">${escapeHtml(u.deliveryPlace || '배송지 미입력')}${u.mealTime ? ` · ${u.mealTime}` : ''}</div>
-        <div class="m-info">${u.sameDailyMeal === false ? '요일별 식수 설정됨' : `매일 도시락 ${u.defaultLunch ?? 2}개 · 샐러드 ${u.defaultSalad ?? 0}개`}</div>
-        <div class="m-info">단가 ${formatMoney(userLunchPrice(u))} / ${formatMoney(userSaladPrice(u))}</div>
-        <div class="m-edit-hint">✏️ 수정하기</div>
+  if (deleted.length > 0) {
+    html += `<div style="grid-column:1/-1;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:700;color:var(--sub);margin-bottom:10px">삭제된 회원 (${deleted.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${deleted.map(([uid, u]) => `
+          <div style="background:#fdecea;border:1px solid #f5c6cb;border-radius:10px;padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:10px">
+            <div>
+              <div style="font-weight:600;color:var(--text)">${escapeHtml(u.businessName || u.email || '-')}</div>
+              <div style="color:var(--sub);font-size:12px">${escapeHtml(u.email || '')}</div>
+            </div>
+            <button onclick="restoreMember('${uid}')" style="background:var(--success);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">복구</button>
+          </div>
+        `).join('')}
       </div>
-    `).join('');
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+async function restoreMember(uid) {
+  if (!confirm('이 회원을 복구할까요? 고객 로그인이 다시 가능해집니다.')) return;
+  try {
+    await db.collection('users').doc(uid).update({ deleted: false, deletedAt: firebase.firestore.FieldValue.delete() });
+    allUsers[uid] = deletedUsers[uid];
+    allUsers[uid].deleted = false;
+    delete deletedUsers[uid];
+    renderMembers();
+    showToast('회원이 복구되었습니다.');
+  } catch(e) { showToast('복구 실패: ' + e.message); }
 }
 
 function openMemberEdit(uid) {
@@ -2547,7 +2598,10 @@ async function deleteMember() {
   if (!uid) return;
   if (!confirm(`${name} 업체를 삭제할까요?\n회원 목록과 기본 배송 수량, 정산 기준에서 제외되고 고객 로그인이 차단됩니다.`)) return;
   try {
-    await db.collection('users').doc(uid).delete();
+    await db.collection('users').doc(uid).update({
+      deleted: true,
+      deletedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
     delete allUsers[uid];
     closeMemberModal();
     renderMembers();
