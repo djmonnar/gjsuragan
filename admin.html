@@ -1594,6 +1594,10 @@ async function doAdminLogin() {
   const btn = document.getElementById('admin-login-btn');
   errorEl.classList.remove('show');
   if (!email || !pw) { errorEl.classList.add('show'); return; }
+  if (!ADMIN_EMAILS.includes(email)) {
+    errorEl.textContent = '관리자 이메일이 아닙니다.';
+    errorEl.classList.add('show'); return;
+  }
   if (btn) { btn.disabled = true; btn.textContent = '로그인 중…'; }
   try {
     await auth.signInWithEmailAndPassword(email, pw);
