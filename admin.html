@@ -2449,7 +2449,7 @@ async function openBatchEntry() {
   document.getElementById('batch-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--sub)">불러오는 중...</div>';
   try {
     const adminDoc = await db.collection('users').doc(adminUid).get();
-    cachedDeliveryRecords = adminDoc.exists ? (adminDoc.data().deliveryRecords || {}) : {};
+    cachedDeliveryRecords = adminDoc.exists ? deliveryRecordsFromData(adminDoc.data()) : {};
   } catch(e) {}
   renderBatchList();
 }
@@ -2732,12 +2732,15 @@ async function deleteOrderItem(uid = '') {
         deliveryRecords: { [currentDateStr]: { [targetUid]: tombstone } },
         [`deliveryRecords.${currentDateStr}.${targetUid}`]: tombstone
       }, { merge: true });
+      if (!cachedDeliveryRecords[currentDateStr]) cachedDeliveryRecords[currentDateStr] = {};
+      cachedDeliveryRecords[currentDateStr][targetUid] = tombstone;
     }
     closeManualOrderModal();
     currentOrderRows = currentOrderRows.filter(item => item.uid !== targetUid);
     showToast('주문 항목이 삭제되었습니다.');
     loadOrders();
     if (activeAdminTab === 'settlements') loadSettlements();
+    if (activeAdminTab === 'stats') loadOrderStats();
   } catch (e) {
     const errEl = document.getElementById('manual-error');
     if (errEl && document.getElementById('manual-order-modal').classList.contains('open')) {
@@ -4534,12 +4537,10 @@ function setStatsPeriod(months) {
 }
 
 async function loadOrderStats() {
-  if (Object.keys(cachedDeliveryRecords).length === 0) {
-    try {
-      const snap = await db.collection('users').doc(adminUid).get();
-      cachedDeliveryRecords = snap.exists ? (snap.data().deliveryRecords || {}) : {};
-    } catch(e) { /* ignore */ }
-  }
+  try {
+    const snap = await db.collection('users').doc(adminUid).get();
+    cachedDeliveryRecords = snap.exists ? deliveryRecordsFromData(snap.data()) : {};
+  } catch(e) { /* ignore */ }
   renderOrderStats();
 }
 
