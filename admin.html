@@ -622,11 +622,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="error-msg" id="menu-error"></div>
       <div id="menu-preview" class="menu-preview-card"></div>
       <div class="code-import-box">
-        <div style="font-size:14px;font-weight:800;color:var(--primary);margin-bottom:6px">📋 식단표 코드 가져오기</div>
-        <div style="font-size:12px;color:var(--sub);margin-bottom:6px">식단표 HTML 전체 코드를 붙여넣으면 자동으로 파싱합니다.</div>
-        <textarea class="code-raw-text" id="menu-code-input" placeholder="식단표 HTML 코드를 여기에 붙여넣으세요..."></textarea>
+        <div style="font-size:14px;font-weight:800;color:var(--primary);margin-bottom:6px">🖼 식단표 이미지 OCR 가져오기</div>
+        <div style="font-size:12px;color:var(--sub);margin-bottom:8px">미리캔버스 식단표 이미지를 업로드하면 날짜별 도시락/샐러드 메뉴를 읽어옵니다. 인식 후 내용을 확인하고 전체 저장하세요.</div>
+        <input class="form-input" type="file" id="menu-ocr-file" accept="image/*">
         <div class="inline-actions" style="margin-top:8px">
-          <button class="secondary-btn" onclick="parseMealCode()">파싱하기</button>
+          <button class="secondary-btn" onclick="runMealImageOcr()">이미지 읽기</button>
           <button class="secondary-btn" onclick="addBlankMealPdfCandidate()">행 추가</button>
           <button class="save-btn" style="width:auto" onclick="saveMealPdfCandidates()">전체 저장</button>
         </div>
@@ -3046,92 +3046,311 @@ function showCodeStatus(msg, isError = false) {
   el.style.color = isError ? '#c0392b' : 'var(--sub)';
 }
 
-function parseMenuDateStr(dateStr, year, month) {
-  // '4/1 (수)' -> '2026-04-01'
-  const m = String(dateStr || '').match(/(\d{1,2})[\/\-](\d{1,2})/);
-  if (!m) return null;
-  const mon = parseInt(m[1], 10);
-  const day = parseInt(m[2], 10);
-  if (mon < 1 || mon > 12 || day < 1 || day > 31) return null;
-  // handle year boundary: if parsed month < source month, assume next year
-  const resolvedYear = mon < month ? year + 1 : year;
-  return String(resolvedYear) + '-' + String(mon).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+function cleanOcrLine(text) {
+  return String(text || '')
+    .replace(/[|•·]/g, ' ')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-function parseMealCode() {
-  const code = document.getElementById('menu-code-input')?.value || '';
-  showCodeStatus('');
-  document.getElementById('menu-pdf-candidates').innerHTML = '';
-  mealPdfCandidates = [];
+function isOcrNoiseLine(text) {
+  const s = cleanOcrLine(text);
+  if (!s) return true;
+  return /궁중수라간|식단표|보다\s*신선|재료상황|유동적|전날\s*6시|부탁드립|주문\s*및\s*변경|^[-_=]+$/.test(s);
+}
 
-  if (!code.trim()) {
-    showCodeStatus('코드를 먼저 붙여넣어 주세요.', true);
-    return;
-  }
+function getOcrBox(item = {}) {
+  const box = item.bbox || item.boundingBox || {};
+  const x0 = Number(box.x0 ?? box.left ?? box.x ?? 0);
+  const y0 = Number(box.y0 ?? box.top ?? box.y ?? 0);
+  const x1 = Number(box.x1 ?? (x0 + Number(box.width || 0)) ?? x0);
+  const y1 = Number(box.y1 ?? (y0 + Number(box.height || 0)) ?? y0);
+  return { x0, y0, x1, y1 };
+}
 
-  // Extract JSON object after "const payload = "
-  const assignIdx = code.indexOf('const payload = ');
-  if (assignIdx === -1) {
-    showCodeStatus('payload 변수를 찾을 수 없습니다. 식단표 HTML 전체를 붙여넣어 주세요.', true);
-    return;
-  }
-  const jsonStart = code.indexOf('{', assignIdx);
-  if (jsonStart === -1) {
-    showCodeStatus('payload JSON 객체를 찾을 수 없습니다.', true);
-    return;
-  }
-  // Count braces to find matching closing brace
-  let depth = 0, jsonEnd = -1;
-  for (let i = jsonStart; i < code.length; i++) {
-    const c = code[i];
-    if (c === '{') depth++;
-    else if (c === '}') { depth--; if (depth === 0) { jsonEnd = i; break; } }
-  }
-  if (jsonEnd === -1) {
-    showCodeStatus('JSON 파싱 실패: 닫히는 중괄호를 찾을 수 없습니다.', true);
-    return;
-  }
+function normalizeOcrMenuItem(text) {
+  return cleanOcrLine(text)
+    .replace(/^[<\[\(]\s*/, '')
+    .replace(/\s*[>\]\)]$/, '')
+    .replace(/^\s*&\s*$/, '')
+    .trim();
+}
 
-  let payload;
-  try {
-    payload = JSON.parse(code.slice(jsonStart, jsonEnd + 1));
-  } catch(e) {
-    showCodeStatus('JSON 파싱 실패: ' + e.message, true);
-    return;
-  }
+function parseOcrMenuDate(text, fallbackYear) {
+  const s = cleanOcrLine(text);
+  const m = s.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+  if (!m) return null;
+  const month = Number(m[1]);
+  const day = Number(m[2]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return `${fallbackYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
 
-  const months = payload.months;
-  if (!Array.isArray(months) || months.length === 0) {
-    showCodeStatus('months 배열을 찾을 수 없습니다.', true);
-    return;
-  }
+function buildOcrDateAnchor(month, day, fallbackYear, box, source = 'line') {
+  const mon = Number(month);
+  const dateDay = Number(day);
+  if (mon < 1 || mon > 12 || dateDay < 1 || dateDay > 31) return null;
+  const date = `${fallbackYear}-${String(mon).padStart(2, '0')}-${String(dateDay).padStart(2, '0')}`;
+  return {
+    date,
+    source,
+    x0: box.x0,
+    x1: box.x1,
+    y0: box.y0,
+    y1: box.y1,
+    centerX: (box.x0 + box.x1) / 2,
+    centerY: (box.y0 + box.y1) / 2,
+    height: Math.max(0, box.y1 - box.y0),
+    text: `${mon}월 ${dateDay}일`
+  };
+}
 
-  const candidates = [];
-  const seen = new Set();
-  months.forEach(monthObj => {
-    (monthObj.menuData || []).forEach(day => {
-      const dateStr = parseMenuDateStr(day.date, monthObj.year, monthObj.month);
-      if (!dateStr || seen.has(dateStr)) return;
-      seen.add(dateStr);
-      const lunchItems = [day.main, day.soup, ...(day.sides || [])].filter(Boolean);
-      const saladItems = day.salad ? [day.salad] : [];
-      // skip holidays (no food items)
-      if (lunchItems.length === 0 && saladItems.length === 0) return;
-      candidates.push({ date: dateStr, lunchItems, saladItems, note: '' });
-    });
+function dedupeOcrDateAnchors(anchors) {
+  const unique = [];
+  anchors.sort((a, b) => a.centerX - b.centerX);
+  anchors.forEach(anchor => {
+    const existing = unique.find(item =>
+      item.date === anchor.date ||
+      (Math.abs(item.centerX - anchor.centerX) < 36 && Math.abs(item.centerY - anchor.centerY) < 28)
+    );
+    if (!existing) {
+      unique.push(anchor);
+    } else if (anchor.source === 'word' && existing.source !== 'word') {
+      Object.assign(existing, anchor);
+    }
+  });
+  return unique.sort((a, b) => a.centerX - b.centerX);
+}
+
+function extractOcrDateAnchors(rawLines, rawWords, fallbackYear) {
+  const lineAnchors = [];
+  (rawLines || []).forEach(line => {
+    const text = cleanOcrLine(line.text);
+    const matches = [...text.matchAll(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/g)];
+    if (matches.length !== 1) return;
+    const anchor = buildOcrDateAnchor(matches[0][1], matches[0][2], fallbackYear, getOcrBox(line), 'line');
+    if (anchor) lineAnchors.push(anchor);
   });
 
-  if (candidates.length === 0) {
-    showCodeStatus('파싱된 식단이 없습니다. 메뉴 데이터를 확인해주세요.', true);
+  const words = (rawWords || []).map(word => {
+    const box = getOcrBox(word);
+    return {
+      text: cleanOcrLine(word.text),
+      x0: box.x0,
+      x1: box.x1,
+      y0: box.y0,
+      y1: box.y1,
+      centerX: (box.x0 + box.x1) / 2,
+      centerY: (box.y0 + box.y1) / 2
+    };
+  }).filter(word => word.text);
+
+  const wordAnchors = [];
+  words.forEach((word, idx) => {
+    const direct = word.text.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+    if (direct) {
+      const anchor = buildOcrDateAnchor(direct[1], direct[2], fallbackYear, word, 'word');
+      if (anchor) wordAnchors.push(anchor);
+      return;
+    }
+
+    const monthMatch = word.text.match(/(\d{1,2})\s*월/);
+    if (!monthMatch) return;
+    const dayWord = words.slice(idx + 1, idx + 8).find(next => {
+      const dayMatch = next.text.match(/(\d{1,2})\s*일/);
+      return dayMatch && Math.abs(next.centerY - word.centerY) < 42 && next.centerX > word.centerX && next.centerX - word.centerX < 190;
+    });
+    const dayMatch = dayWord?.text.match(/(\d{1,2})\s*일/);
+    if (!dayMatch) return;
+    const box = {
+      x0: Math.min(word.x0, dayWord.x0),
+      x1: Math.max(word.x1, dayWord.x1),
+      y0: Math.min(word.y0, dayWord.y0),
+      y1: Math.max(word.y1, dayWord.y1)
+    };
+    const anchor = buildOcrDateAnchor(monthMatch[1], dayMatch[1], fallbackYear, box, 'word');
+    if (anchor) wordAnchors.push(anchor);
+  });
+
+  const dedupedWords = dedupeOcrDateAnchors(wordAnchors);
+  const dedupedLines = dedupeOcrDateAnchors(lineAnchors);
+  return dedupedWords.length >= dedupedLines.length ? dedupedWords : dedupedLines;
+}
+
+function buildOcrUnits(items) {
+  return (items || []).map(item => {
+    const box = getOcrBox(item);
+    return {
+      text: cleanOcrLine(item.text),
+      x0: box.x0,
+      x1: box.x1,
+      y0: box.y0,
+      y1: box.y1,
+      centerX: (box.x0 + box.x1) / 2,
+      centerY: (box.y0 + box.y1) / 2,
+      height: Math.max(0, box.y1 - box.y0)
+    };
+  }).filter(item => item.text && !isOcrNoiseLine(item.text));
+}
+
+function groupOcrWordsAsLines(words) {
+  const rows = [];
+  [...words].sort((a, b) => a.centerY - b.centerY || a.x0 - b.x0).forEach(word => {
+    const threshold = Math.max(16, Math.min(32, (word.height || 16) * 1.35));
+    let row = rows.find(item => Math.abs(item.centerY - word.centerY) <= threshold);
+    if (!row) {
+      row = { words: [], centerY: word.centerY, height: word.height || 16 };
+      rows.push(row);
+    }
+    row.words.push(word);
+    row.centerY = row.words.reduce((sum, item) => sum + item.centerY, 0) / row.words.length;
+    row.height = Math.max(row.height, word.height || 16);
+  });
+
+  return rows.map(row => {
+    const sorted = row.words.sort((a, b) => a.x0 - b.x0);
+    const x0 = Math.min(...sorted.map(word => word.x0));
+    const x1 = Math.max(...sorted.map(word => word.x1));
+    const y0 = Math.min(...sorted.map(word => word.y0));
+    const y1 = Math.max(...sorted.map(word => word.y1));
+    return {
+      text: cleanOcrLine(sorted.map(word => word.text).join(' ')),
+      x0,
+      x1,
+      y0,
+      y1,
+      centerX: (x0 + x1) / 2,
+      centerY: (y0 + y1) / 2,
+      height: Math.max(0, y1 - y0)
+    };
+  }).filter(line => line.text);
+}
+
+function splitOcrMenuColumn(lines) {
+  const menuLines = lines
+    .map(line => ({ ...line, text: normalizeOcrMenuItem(line.text) }))
+    .filter(line => line.text && !isOcrNoiseLine(line.text))
+    .filter(line => !parseOcrMenuDate(line.text, getKST().getFullYear()));
+
+  const holidayLine = menuLines.find(line => /어린이날|공휴일|휴무|휴일/.test(line.text));
+  const foodLines = menuLines
+    .filter(line => !/어린이날|공휴일|휴무|휴일/.test(line.text))
+    .sort((a, b) => a.centerY - b.centerY);
+
+  if (foodLines.length === 0) {
+    return { lunchItems: [], saladItems: [], note: holidayLine ? holidayLine.text : '' };
+  }
+
+  let saladStart = foodLines.findIndex(line => /샐러드|드레싱/.test(line.text));
+  if (saladStart < 0 && foodLines.length >= 2) {
+    let largestGap = 0;
+    let gapIndex = -1;
+    for (let i = 1; i < foodLines.length; i++) {
+      const gap = foodLines[i].centerY - foodLines[i - 1].centerY;
+      if (gap > largestGap) {
+        largestGap = gap;
+        gapIndex = i;
+      }
+    }
+    const avgHeight = foodLines.reduce((sum, line) => sum + Math.max(12, line.height || 12), 0) / foodLines.length;
+    if (gapIndex > 0 && largestGap > Math.max(52, avgHeight * 2.6)) saladStart = gapIndex;
+  }
+
+  const rawLunch = saladStart >= 0 ? foodLines.slice(0, saladStart) : foodLines;
+  const rawSalad = saladStart >= 0 ? foodLines.slice(saladStart) : [];
+  const pick = list => list
+    .map(line => normalizeOcrMenuItem(line.text))
+    .filter(item => item && item !== '&' && !/^[^가-힣A-Za-z0-9]+$/.test(item));
+
+  return {
+    lunchItems: pick(rawLunch),
+    saladItems: pick(rawSalad),
+    note: holidayLine ? holidayLine.text : ''
+  };
+}
+
+async function runMealImageOcr() {
+  const file = document.getElementById('menu-ocr-file')?.files?.[0];
+  const candidateWrap = document.getElementById('menu-pdf-candidates');
+  if (candidateWrap) candidateWrap.innerHTML = '';
+  mealPdfCandidates = [];
+
+  if (!file) {
+    showCodeStatus('식단표 이미지 파일을 먼저 선택해주세요.', true);
+    return;
+  }
+  if (!window.Tesseract) {
+    showCodeStatus('OCR 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.', true);
     return;
   }
 
-  mealPdfCandidates = candidates;
-  renderMealPdfCandidates();
-  const monthSet = [...new Set(candidates.map(c => c.date.slice(0, 7)))].join(', ');
-  showCodeStatus('총 ' + candidates.length + '일치 식단을 파싱했습니다 (' + monthSet + '). 내용 확인 후 [전체 저장]을 눌러주세요.');
-}
+  const baseDate = document.getElementById('menu-date')?.value || dateStr(getKST());
+  const fallbackYear = Number(String(baseDate).slice(0, 4)) || getKST().getFullYear();
+  showCodeStatus('OCR 인식 중입니다. 이미지 크기에 따라 10~30초 정도 걸릴 수 있습니다.');
 
+  try {
+    const result = await Tesseract.recognize(file, 'kor+eng', {
+      logger: info => {
+        if (!info || !info.status) return;
+        const pct = Number.isFinite(info.progress) ? ` ${Math.round(info.progress * 100)}%` : '';
+        showCodeStatus(`OCR ${info.status}${pct}`);
+      }
+    });
+    const rawLines = result?.data?.lines || [];
+    const rawWords = result?.data?.words || [];
+    const lineUnits = buildOcrUnits(rawLines);
+    const wordUnits = buildOcrUnits(rawWords);
+    const dateLines = extractOcrDateAnchors(rawLines, rawWords, fallbackYear);
+
+    if (dateLines.length === 0) {
+      throw new Error('날짜를 찾지 못했습니다. 식단표 상단 날짜가 잘 보이도록 이미지를 다시 올려주세요.');
+    }
+
+    const columns = dateLines.map((dateLine, idx) => {
+      const prev = dateLines[idx - 1];
+      const next = dateLines[idx + 1];
+      const left = prev ? (prev.centerX + dateLine.centerX) / 2 : -Infinity;
+      const right = next ? (dateLine.centerX + next.centerX) / 2 : Infinity;
+      return { dateLine, date: dateLine.date, left, right };
+    });
+
+    const candidates = columns.map(column => {
+      const columnWords = wordUnits.filter(word =>
+        !parseOcrMenuDate(word.text, fallbackYear) &&
+        word.centerX >= column.left &&
+        word.centerX < column.right &&
+        word.centerY > column.dateLine.centerY + 35
+      );
+      const fallbackLines = lineUnits.filter(line =>
+        !parseOcrMenuDate(line.text, fallbackYear) &&
+        line.centerX >= column.left &&
+        line.centerX < column.right &&
+        line.centerY > column.dateLine.centerY + 35
+      );
+      const columnLines = columnWords.length ? groupOcrWordsAsLines(columnWords) : fallbackLines;
+      const split = splitOcrMenuColumn(columnLines);
+      return {
+        date: column.date,
+        lunchItems: split.lunchItems,
+        saladItems: split.saladItems,
+        note: split.note || ''
+      };
+    }).filter(row => row.lunchItems.length > 0 || row.saladItems.length > 0);
+
+    if (candidates.length === 0) {
+      throw new Error('저장할 메뉴를 찾지 못했습니다. OCR 후보가 비어 있으면 행 추가로 직접 보정해주세요.');
+    }
+
+    mealPdfCandidates = candidates;
+    renderMealPdfCandidates();
+    const monthSet = [...new Set(candidates.map(c => c.date.slice(0, 7)))].join(', ');
+    showCodeStatus(`✅ OCR로 ${candidates.length}일치 식단을 읽었습니다 (${monthSet}). 내용 확인 후 [전체 저장]을 눌러주세요.`);
+  } catch(e) {
+    showCodeStatus('OCR 실패: ' + (e.message || e), true);
+  }
+}
 
 function renderMealPdfCandidates() {
   const wrap = document.getElementById('menu-pdf-candidates');
