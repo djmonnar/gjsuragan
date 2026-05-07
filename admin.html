@@ -2216,7 +2216,7 @@ async function loadOrders() {
           ? '<span class="delivery-status done">완료</span>'
           : '<span class="delivery-status">대기</span>';
         const canEditManual = (o.adminManual || o.source === 'manual') && !allUsers[o.uid];
-        const canDeleteOrder = o.orderDocExists || o.adminManual || o.source === 'manual' || o.selfHoliday;
+        const canDeleteOrder = o.orderDocExists || o.adminManual || o.source === 'manual' || o.source === 'default' || o.selfHoliday;
         const manageHtml = canDeleteOrder
           ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="danger-btn" onclick="deleteOrderItem('${jsString(o.uid)}')">삭제</button></div>`
           : '<span style="color:var(--sub);font-size:12px">-</span>';
