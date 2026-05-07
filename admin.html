@@ -2338,6 +2338,8 @@ async function completeSelectedDeliveries() {
       totalQty: lunch + salad + eventLunch,
       totalAmount: items.reduce((sum, item) => sum + item.amount, 0),
       items,
+      orderDeleted: false,
+      deleted: false,
       note: row.note === '요일 기본값' ? '요일 기본값 배송확정' : (row.note || ''),
       deliveryPlace: row.deliveryPlace || user.deliveryPlace || user.address || '',
       delivered: true,
@@ -2550,6 +2552,11 @@ async function saveBatchEntry() {
       updates[`deliveryRecords.${date}.${uid}`] = {
         uid, businessName: u.businessName,
         lunchCount: lunch, saladCount: salad,
+        lunchQty: lunch, saladQty: salad,
+        eventLunchQty: 0,
+        totalQty: lunch + salad,
+        orderDeleted: false,
+        deleted: false,
         delivered: true, deliveredAt: new Date().toISOString(),
         deliveredBy: adminUid, adminAdjusted: true, source: 'manual'
       };
@@ -2703,6 +2710,16 @@ async function deleteOrderItem(uid = '') {
       const tombstone = row?.orderDocExists || allUsers[targetUid]
         ? {
             orderDeleted: true,
+            delivered: false,
+            lunchCount: 0,
+            saladCount: 0,
+            lunchQty: 0,
+            saladQty: 0,
+            eventLunchQty: 0,
+            eventLunchCount: 0,
+            totalQty: 0,
+            totalAmount: 0,
+            items: [],
             deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
             deletedBy: adminUid
           }
@@ -3384,7 +3401,7 @@ async function loadSettlements() {
       if (payments.length === 0 && saved.paidAmount > 0) {
         payments = [{ amount: saved.paidAmount, date: saved.paidDate || '', note: '(이전 기록)', recordedAt: saved.updatedAt || '' }];
       }
-      byUser[uid] = { uid, user, lunch: 0, salad: 0, lunchPrice, saladPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, invoiceNo: saved.invoiceNo || '', dueDate: saved.dueDate || '', payments, dateBreakdown: {} };
+      byUser[uid] = { uid, user, lunch: 0, salad: 0, eventLunch: 0, lunchPrice, saladPrice, eventPrice: lunchPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, invoiceNo: saved.invoiceNo || '', dueDate: saved.dueDate || '', payments, dateBreakdown: {} };
     });
 
     const dates = monthDates(month);
@@ -3395,13 +3412,17 @@ async function loadSettlements() {
     const monthlyManualSettlements = mergedManualMonthlySettlements(month, manualMonthlySettlementsFromData(adminData)[month] || {});
     dates.forEach(ds => {
       Object.entries(deliveryRecords[ds] || {}).forEach(([uid, data]) => {
+        if (data?.deleted || data?.orderDeleted) return;
         if (!data?.delivered) return;
         if (!allUsers[uid]) return;
-        if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, lunchPrice: 0, saladPrice: 0, amount: 0, status: '미정산', note: '', adjust: 0, invoiceNo: '', dueDate: '', payments: [], dateBreakdown: {} };
-        const dl = data.lunchCount || 0, dd = data.saladCount || 0;
+        if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, eventLunch: 0, lunchPrice: 0, saladPrice: 0, eventPrice: 0, amount: 0, status: '미정산', note: '', adjust: 0, invoiceNo: '', dueDate: '', payments: [], dateBreakdown: {} };
+        const dl = orderLunchQty(data), dd = orderSaladQty(data), de = orderEventLunchQty(data);
+        const dataEventPrice = orderEventLunchPrice(data);
         byUser[uid].lunch += dl;
         byUser[uid].salad += dd;
-        if (dl > 0 || dd > 0) byUser[uid].dateBreakdown[ds] = { lunch: dl, salad: dd };
+        byUser[uid].eventLunch += de;
+        if (dataEventPrice) byUser[uid].eventPrice = dataEventPrice;
+        if (dl > 0 || dd > 0 || de > 0) byUser[uid].dateBreakdown[ds] = { lunch: dl, salad: dd, eventLunch: de };
       });
     });
 
@@ -3439,7 +3460,7 @@ async function loadSettlements() {
       });
 
     const rows = Object.values(byUser)
-      .map(row => ({ ...row, amount: row.lunch * row.lunchPrice + row.salad * row.saladPrice }))
+      .map(row => ({ ...row, amount: row.lunch * row.lunchPrice + row.salad * row.saladPrice + (row.eventLunch || 0) * (row.eventPrice || row.lunchPrice || 0) }))
       .concat(manualRows)
       .filter(row => row.lunch > 0 || row.salad > 0 || row.eventLunch > 0)
       .sort((a, b) => (a.user.businessName || '').localeCompare(b.user.businessName || '', 'ko'));
@@ -4544,11 +4565,13 @@ function renderOrderStats() {
     const rows = cachedDeliveryRecords[d];
     let dayLunch = 0, daySalad = 0;
     Object.values(rows).forEach(r => {
+      if (r?.deleted || r?.orderDeleted) return;
       const l = parseInt(r.lunchCount,10)||0, s = parseInt(r.saladCount,10)||0;
       if (l === 0 && s === 0) return;
       dayLunch += l; daySalad += s;
     });
     Object.entries(rows).forEach(([uid, r]) => {
+      if (r?.deleted || r?.orderDeleted) return;
       const l = parseInt(r.lunchCount,10)||0;
       if (l > 0) vendorLunch[uid] = (vendorLunch[uid]||0) + l;
     });
@@ -4604,7 +4627,7 @@ function renderOrderStats() {
   const mLabels = months.map(m => { const [,mon]=m.split('-'); return `${parseInt(mon)}월`; });
   const mLunch = months.map(m => {
     return Object.keys(cachedDeliveryRecords).filter(d=>d.startsWith(m))
-      .reduce((s,d)=>s+Object.values(cachedDeliveryRecords[d]).reduce((ss,r)=>ss+(parseInt(r.lunchCount,10)||0),0),0);
+      .reduce((s,d)=>s+Object.values(cachedDeliveryRecords[d]).reduce((ss,r)=>r?.deleted || r?.orderDeleted ? ss : ss+(parseInt(r.lunchCount,10)||0),0),0);
   });
   if (statsMonthlyChart) statsMonthlyChart.destroy();
   const mc = document.getElementById('stats-monthly-chart').getContext('2d');
