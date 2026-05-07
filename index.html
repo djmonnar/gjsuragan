@@ -135,8 +135,20 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
     <!-- 내일 배송 예정 -->
     <div>
       <div class="sh"><div class="st"><div class="std" style="background:var(--info)"></div>내일 배송 예정</div></div>
+      <div id="dash-tomorrow-direct-wrap" style="display:none;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:700;color:var(--danger);padding:6px 12px;background:rgba(215,58,73,.06);border-radius:6px;margin-bottom:6px;">
+          🚗 직배송
+        </div>
+        <div class="card">
+          <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
+          <tbody id="dTomorrowDirect"></tbody></table>
+        </div>
+      </div>
       <div class="card">
-        <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th></tr></thead>
+        <div style="font-size:11px;font-weight:700;color:var(--info);padding:6px 12px;border-bottom:1px solid var(--border-l);" id="dash-tomorrow-courier-label">
+          📦 택배
+        </div>
+        <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
         <tbody id="dLow"></tbody></table>
       </div>
     </div>

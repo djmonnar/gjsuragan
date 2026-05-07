@@ -10,6 +10,19 @@ window.addEventListener('resize', ()=>{
   _resizeTimer = setTimeout(()=>{ renderToday(); renderCust(); }, 200);
 });
 
+function dashDeliveryRow(c, showGauge = true){
+  return `<tr>
+    <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
+    <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
+    <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
+    <td>${c.phone||'-'}</td>
+    ${showGauge ? `<td>${gauge(c)}</td>` : ''}
+  </tr>`;
+}
+function dashEmptyRow(colspan, icon, text){
+  return `<tr><td colspan="${colspan}"><div class="empty"><div class="ei">${icon}</div><div>${text}</div></div></td></tr>`;
+}
+
 function renderDash(){
   const ds=document.getElementById('dashDate').value||todayStr();
   updateDashDisp();
@@ -18,6 +31,8 @@ function renderDash(){
   // 내일 배송 목록
   const tmrStr = addDays(todayStr(), 1);
   const tmrList = listFor(tmrStr);
+  const tmrDirectList = tmrList.filter(c=>c.isDirect);
+  const tmrCourierList = tmrList.filter(c=>!c.isDirect);
   s('s0',custs.length); s('s1',custs.filter(c=>c.orderType==='sub'&&c.status==='active').length);
   s('s2',tl.length); s('s3',wk); s('s4',tmrList.length);
   s('sA',tl.filter(c=>(c.productId||c.set)==='A').length);
@@ -45,28 +60,27 @@ function renderDash(){
 
   // 택배 섹션 라벨
   const courierLabel = document.getElementById('dash-courier-label');
-  if(courierLabel) courierLabel.style.display = directList.length ? '' : 'none';
+  if(courierLabel) courierLabel.style.display = (directList.length || courierList.length) ? '' : 'none';
 
   const dt=document.getElementById('dToday');
   dt.innerHTML=!courierList.length
-    ?`<tr><td colspan="6"><div class="empty"><div class="ei">📦</div><div>택배 없음</div></div></td></tr>`
-    :courierList.slice(0,8).map(c=>`<tr>
-      <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-      <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-      <td>${c.phone}</td>
-      <td>${gauge(c)}</td>
-    </tr>`).join('');
+    ? dashEmptyRow(5, '📦', '택배 없음')
+    : courierList.slice(0,8).map(c=>dashDeliveryRow(c)).join('');
 
+  const tmrDirectWrap = document.getElementById('dash-tomorrow-direct-wrap');
+  const dTomorrowDirect = document.getElementById('dTomorrowDirect');
+  if(tmrDirectWrap && dTomorrowDirect){
+    tmrDirectWrap.style.display = tmrDirectList.length ? '' : 'none';
+    dTomorrowDirect.innerHTML = tmrDirectList.slice(0,8).map(c=>dashDeliveryRow(c)).join('');
+  }
+  const tmrCourierLabel = document.getElementById('dash-tomorrow-courier-label');
+  if(tmrCourierLabel) tmrCourierLabel.style.display = (tmrDirectList.length || tmrCourierList.length) ? '' : 'none';
   const dl=document.getElementById('dLow');
   dl.innerHTML=!tmrList.length
-    ?`<tr><td colspan="4"><div class="empty"><div class="ei">📭</div><div>내일 배송 없음</div></div></td></tr>`
-    :tmrList.map(c=>`<tr>
-      <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-      <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-      <td>${c.phone}</td>
-    </tr>`).join('');
+    ? dashEmptyRow(5, '📭', '내일 배송 없음')
+    : !tmrCourierList.length
+    ? dashEmptyRow(5, '📦', '내일 택배 없음')
+    : tmrCourierList.slice(0,8).map(c=>dashDeliveryRow(c)).join('');
 }
 
 function renderToday(){
