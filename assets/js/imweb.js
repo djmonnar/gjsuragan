@@ -622,7 +622,8 @@ function exportCSV(){
     c.scheduleName||'',
     c.total||'', c.remain||'',
     c.startDate||'', c.onceDate||'',
-    c.status==='active' ? (c.orderType==='sub'?'구독중':'주문중')
+    c.status==='active' ? (c.orderType==='sub'?'구독중':'진행중')
+      : c.status==='end' && c.orderType!=='sub' ? '—'
       : ({pause:'일시정지',end:'종료'}[c.status]||c.status||''),
     c.createdAt?c.createdAt.slice(0,10):'',
     (c.memo||'').replace(/\r?\n/g,' ')

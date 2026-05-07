@@ -33,8 +33,9 @@ function copyLozen(id){
 }
 function statusLabel(c){
   if(!c) return '';
-  if(c.status==='active') return c.orderType==='sub' ? '구독중' : '주문중';
+  if(c.status==='active') return c.orderType==='sub' ? '구독중' : '진행중';
   if(c.status==='pause') return c.orderType==='sub' ? '정지' : '보류';
+  if(c.status==='end' && c.orderType!=='sub') return '—';
   return SL[c.status] || c.status || '';
 }
 function s(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
