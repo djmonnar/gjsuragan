@@ -31,6 +31,12 @@ function copyLozen(id){
   const parts=[c.name||'', c.phone||'', c.addr||'', c.door||''];
   navigator.clipboard.writeText(parts.join('\t')).then(()=>toast('로젠택배 형식으로 복사됨!','ok'));
 }
+function statusLabel(c){
+  if(!c) return '';
+  if(c.status==='active') return c.orderType==='sub' ? '구독중' : '주문중';
+  if(c.status==='pause') return c.orderType==='sub' ? '정지' : '보류';
+  return SL[c.status] || c.status || '';
+}
 function s(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 function g(id){return document.getElementById(id)?.value.trim()||'';}
 function g2(id,v){const el=document.getElementById(id);if(el)el.value=v||'';}

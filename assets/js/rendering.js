@@ -18,7 +18,7 @@ function renderDash(){
   // 내일 배송 목록
   const tmrStr = addDays(todayStr(), 1);
   const tmrList = listFor(tmrStr);
-  s('s0',custs.length); s('s1',custs.filter(c=>c.status==='active').length);
+  s('s0',custs.length); s('s1',custs.filter(c=>c.orderType==='sub'&&c.status==='active').length);
   s('s2',tl.length); s('s3',wk); s('s4',tmrList.length);
   s('sA',tl.filter(c=>(c.productId||c.set)==='A').length);
   s('sB',tl.filter(c=>(c.productId||c.set)==='B').length);
@@ -398,7 +398,7 @@ function renderCust(){
               <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span>
               ${c.isDirect?'<span class="badge b-direct">직배</span>':''}
             </div>
-            <span class="badge b-${c.status}">${SL[c.status]}</span>
+            <span class="badge b-${c.status}">${statusLabel(c)}</span>
           </div>
           <div style="font-size:12px;color:var(--text2);margin-bottom:3px;">📞 ${c.phone}</div>
           <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">${scheduleDisp(c)}</div>
@@ -425,7 +425,7 @@ function renderCust(){
       <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${scheduleDisp(c)}</td>
       <td>${c.isDirect?'<span class="badge b-direct">직배송</span>':'<span style="font-size:11px;color:var(--text3);">택배</span>'}</td>
       <td>${gauge(c)}</td>
-      <td><span class="badge b-${c.status}">${SL[c.status]}</span></td>
+      <td><span class="badge b-${c.status}">${statusLabel(c)}</span></td>
       <td style="display:flex;gap:4px;flex-wrap:wrap;">
         <button class="btn btn-g sm" onclick="event.stopPropagation();openEdit('${c.id}')">수정</button>
         ${c.orderType==='sub'?`<button class="btn sm" style="background:rgba(3,102,214,.1);color:#0366d6;border:1px solid rgba(3,102,214,.3);" onclick="event.stopPropagation();chargeRemain('${c.id}')">충전</button>`:''}
@@ -460,7 +460,7 @@ function showDet(id){
       <div class="dph">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <div style="font-size:16px;font-weight:700;">${c.name}</div>
-          <span class="badge b-${c.status}">${SL[c.status]}</span>
+          <span class="badge b-${c.status}">${statusLabel(c)}</span>
         </div>
         <div style="display:flex;gap:6px;">
           <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
