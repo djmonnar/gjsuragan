@@ -969,7 +969,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 </div>
 
 <!-- 회원 수정 모달 -->
-<div class="modal-overlay" id="member-modal" onclick="closeMemberModal(event)">
+<div class="modal-overlay" id="member-modal">
   <div class="modal-box">
     <div class="modal-header">
       <div class="modal-title">회원정보 수정</div>
@@ -1044,7 +1044,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 </div>
 
 <!-- 수동 배송 입력 모달 -->
-<div class="modal-overlay" id="manual-order-modal" onclick="closeManualOrderModal(event)">
+<div class="modal-overlay" id="manual-order-modal">
   <div class="modal-box">
     <div class="modal-header">
       <div class="modal-title" id="manual-modal-title">수동 배송 입력</div>
@@ -1095,7 +1095,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 </div>
 
 <!-- 일괄 배송 입력 모달 -->
-<div class="modal-overlay" id="batch-modal" onclick="closeBatchModal(event)">
+<div class="modal-overlay" id="batch-modal">
   <div class="modal-box" style="max-width:620px;max-height:90vh;overflow-y:auto">
     <div class="modal-header">
       <div class="modal-title">📋 일괄 배송 입력</div>
@@ -1122,7 +1122,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 </div>
 
 <!-- 정산표 미리보기 모달 -->
-<div class="modal-overlay" id="sheet-modal" onclick="closeSheetModal(event)">
+<div class="modal-overlay" id="sheet-modal">
   <div class="sheet-modal-box">
     <div class="modal-header">
       <div class="modal-title">📄 월별 정산표</div>
@@ -1156,7 +1156,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 </div>
 
 <!-- 정산 수정 모달 (개편) -->
-<div class="modal-overlay" id="settlement-modal" onclick="closeSettlementModal(event)">
+<div class="modal-overlay" id="settlement-modal">
   <div class="modal-box" style="max-width:600px;max-height:90vh;overflow-y:auto">
     <div class="modal-header">
       <div class="modal-title" id="settlement-modal-title">정산 수정</div>
@@ -2453,7 +2453,7 @@ async function openBatchEntry() {
 }
 
 function closeBatchModal(e) {
-  if (e && e.target !== document.getElementById('batch-modal')) return;
+  if (e) return;
   document.getElementById('batch-modal').classList.remove('open');
 }
 
@@ -2623,9 +2623,8 @@ function syncManualBiznameByUser() {
 }
 
 function closeManualOrderModal(e) {
-  if (!e || e.target === document.getElementById('manual-order-modal')) {
-    document.getElementById('manual-order-modal').classList.remove('open');
-  }
+  if (e) return;
+  document.getElementById('manual-order-modal').classList.remove('open');
 }
 
 async function saveManualOrder() {
@@ -2738,9 +2737,8 @@ async function deleteManualOrder(uid = '') {
 }
 
 function closeMemberModal(e) {
-  if (!e || e.target === document.getElementById('member-modal')) {
-    document.getElementById('member-modal').classList.remove('open');
-  }
+  if (e) return;
+  document.getElementById('member-modal').classList.remove('open');
 }
 
 async function saveMember() {
@@ -3965,7 +3963,7 @@ function openSheetModal(uid) {
 }
 
 function closeSheetModal(e) {
-  if (e && e.target !== document.getElementById('sheet-modal')) return;
+  if (e) return;
   document.getElementById('sheet-modal').classList.remove('open');
 }
 
@@ -4162,7 +4160,7 @@ function openSettlementEdit(uid) {
 }
 
 function closeSettlementModal(e) {
-  if (e && e.target !== document.getElementById('settlement-modal')) return;
+  if (e) return;
   document.getElementById('settlement-modal').classList.remove('open');
 }
 
