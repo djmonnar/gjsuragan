@@ -151,7 +151,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .sheet-preview-area .sh-note{margin-top:14px;border:1px solid #888;padding:10px;font-size:12px}
 .sheet-preview-area .sh-note-label{font-weight:700;margin-bottom:4px}
 .settle-check{width:16px;height:16px;cursor:pointer}
-.receipt-item-row{display:grid;grid-template-columns:1.8fr .8fr 1fr 42px;gap:8px;align-items:end;margin-bottom:8px}
+.receipt-item-row{display:grid;grid-template-columns:1.5fr .7fr .85fr .95fr 42px;gap:8px;align-items:end;margin-bottom:8px}
 .receipt-item-row .form-input{margin-bottom:0}
 .copy-box{width:100%;min-height:180px;padding:12px;border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:13px;line-height:1.6;resize:vertical;background:#fafafa}
 .order-table{width:100%;background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border);border-collapse:separate;border-spacing:0}
@@ -656,7 +656,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <div class="receipt-layout">
       <div class="panel">
         <label class="form-label">업체</label>
-        <select class="form-input" id="receipt-user"></select>
+        <select class="form-input" id="receipt-user" onchange="syncReceiptReceiver()"></select>
+        <label class="form-label">공급받는 자</label>
+        <input class="form-input" type="text" id="receipt-buyer-name" placeholder="공급받는 자 상호/이름" oninput="renderReceipt()">
+        <label class="form-label">연락처</label>
+        <input class="form-input" type="text" id="receipt-buyer-phone" placeholder="연락처" oninput="renderReceipt()">
         <label class="form-label">영수일자</label>
         <input class="form-input" type="date" id="receipt-date">
         <div class="inline-actions" style="margin-bottom:12px">
@@ -1928,6 +1932,9 @@ const GJS_BUSINESS_INFO = {
 };
 function receiptItemRow(item = {}, removable = true) {
   const id = `receipt_item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const count = item.count ?? 1;
+  const price = item.price ?? 0;
+  const amount = item.amount ?? (count * price);
   return `
     <div class="receipt-item-row" data-receipt-row id="${id}">
       <div>
@@ -1936,11 +1943,15 @@ function receiptItemRow(item = {}, removable = true) {
       </div>
       <div>
         <label class="form-label">수량</label>
-        <input class="form-input receipt-item-count" type="number" min="0" value="${item.count ?? 1}">
+        <input class="form-input receipt-item-count" type="number" min="0" value="${count}" oninput="updateReceiptRowAmount(this)">
       </div>
       <div>
         <label class="form-label">단가</label>
-        <input class="form-input receipt-item-price" type="number" min="0" value="${item.price ?? 0}">
+        <input class="form-input receipt-item-price" type="number" min="0" value="${price}" oninput="updateReceiptRowAmount(this)">
+      </div>
+      <div>
+        <label class="form-label">공급대가(금액)</label>
+        <input class="form-input receipt-item-amount" type="number" min="0" value="${amount}" oninput="renderReceipt()">
       </div>
       <button class="danger-btn" type="button" onclick="removeReceiptItem('${id}')" ${removable ? '' : 'disabled'}>삭제</button>
     </div>
@@ -3658,7 +3669,26 @@ function makeSettlementReceipt(uid) {
   } else {
     delete document.getElementById('receipt-note').dataset.eventUser;
   }
+  syncReceiptReceiver();
   document.getElementById('receipt-note').value = `정산상태: ${row.status}`;
+  renderReceipt();
+}
+
+function receiptSelectedUser() {
+  const uid = document.getElementById('receipt-user')?.value || '';
+  const eventUser = document.getElementById('receipt-note')?.dataset.eventUser;
+  if (eventUser) {
+    try { return JSON.parse(eventUser); } catch(e) {}
+  }
+  return allUsers[uid] || {};
+}
+
+function syncReceiptReceiver() {
+  const user = receiptSelectedUser();
+  const nameEl = document.getElementById('receipt-buyer-name');
+  const phoneEl = document.getElementById('receipt-buyer-phone');
+  if (nameEl) nameEl.value = user.businessName || user.name || '';
+  if (phoneEl) phoneEl.value = user.phone || user.email || '';
   renderReceipt();
 }
 
@@ -3676,6 +3706,9 @@ function initReceiptForm() {
   if (!document.querySelector('[data-receipt-row]')) {
     setReceiptItems([{ name: '월식 도시락', count: 1, price: 0 }]);
   }
+  if (!document.getElementById('receipt-buyer-name')?.value && !document.getElementById('receipt-buyer-phone')?.value) {
+    syncReceiptReceiver();
+  }
 }
 
 function setReceiptItems(items) {
@@ -3688,6 +3721,16 @@ function setReceiptItems(items) {
 function addReceiptItem(item = {}) {
   const wrap = document.getElementById('receipt-items');
   wrap.insertAdjacentHTML('beforeend', receiptItemRow(item, true));
+  renderReceipt();
+}
+
+function updateReceiptRowAmount(el) {
+  const row = el.closest('[data-receipt-row]');
+  if (!row) return;
+  const count = parseInt(row.querySelector('.receipt-item-count')?.value, 10) || 0;
+  const price = parseInt(row.querySelector('.receipt-item-price')?.value, 10) || 0;
+  const amountEl = row.querySelector('.receipt-item-amount');
+  if (amountEl) amountEl.value = count * price;
   renderReceipt();
 }
 
@@ -3716,6 +3759,7 @@ async function loadReceiptOrder() {
     const salad = orderSaladQty(order);
     const eventLunch = orderEventLunchQty(order);
     const user = allUsers[uid] || {};
+    syncReceiptReceiver();
     setReceiptItems([
       { name: '도시락', count: lunch, price: orderLunchPrice(order, user) },
       { name: '샐러드', count: salad, price: orderSaladPrice(order, user) },
@@ -3736,11 +3780,13 @@ function getReceiptData() {
     const name = row.querySelector('.receipt-item-name').value.trim() || '월식 도시락';
     const count = parseInt(row.querySelector('.receipt-item-count').value, 10) || 0;
     const price = parseInt(row.querySelector('.receipt-item-price').value, 10) || 0;
-    return { name, count, price, amount: count * price };
-  }).filter(item => item.count > 0 || item.price > 0);
+    const amountEl = row.querySelector('.receipt-item-amount');
+    const amount = amountEl ? (parseInt(amountEl.value, 10) || 0) : (count * price);
+    return { name, count, price, amount };
+  }).filter(item => item.count > 0 || item.price > 0 || item.amount > 0);
   return {
-    businessName: user.businessName || '',
-    phone: user.phone || user.email || '',
+    businessName: document.getElementById('receipt-buyer-name')?.value.trim() || user.businessName || '',
+    phone: document.getElementById('receipt-buyer-phone')?.value.trim() || user.phone || user.email || '',
     date: document.getElementById('receipt-date').value || dateStr(getKST()),
     items,
     note: document.getElementById('receipt-note').value.trim(),
