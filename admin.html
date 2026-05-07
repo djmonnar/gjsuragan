@@ -4478,6 +4478,11 @@ async function renderSettlementCharts() {
 // ── 주문 통계 대시보드 ──
 let statsDailyChart = null, statsVendorChart = null, statsMonthlyChart = null;
 let currentStatsPeriod = 1;
+function isStatsCountableRecord(uid, row) {
+  if (!row || row.deleted || row.orderDeleted) return false;
+  if (allUsers[uid]) return true;
+  return Boolean(row.adminManual || row.source === 'adminManual');
+}
 
 // ── 설정 탭: 커스텀 휴무일 관리 ─────────────────────────────
 function renderSettingsTab() {
@@ -4576,14 +4581,14 @@ function renderOrderStats() {
   allDates.forEach(d => {
     const rows = cachedDeliveryRecords[d];
     let dayLunch = 0, daySalad = 0;
-    Object.values(rows).forEach(r => {
-      if (r?.deleted || r?.orderDeleted) return;
+    Object.entries(rows).forEach(([uid, r]) => {
+      if (!isStatsCountableRecord(uid, r)) return;
       const l = parseInt(r.lunchCount,10)||0, s = parseInt(r.saladCount,10)||0;
       if (l === 0 && s === 0) return;
       dayLunch += l; daySalad += s;
     });
     Object.entries(rows).forEach(([uid, r]) => {
-      if (r?.deleted || r?.orderDeleted) return;
+      if (!isStatsCountableRecord(uid, r)) return;
       const l = parseInt(r.lunchCount,10)||0;
       if (l > 0) vendorLunch[uid] = (vendorLunch[uid]||0) + l;
     });
@@ -4639,7 +4644,7 @@ function renderOrderStats() {
   const mLabels = months.map(m => { const [,mon]=m.split('-'); return `${parseInt(mon)}월`; });
   const mLunch = months.map(m => {
     return Object.keys(cachedDeliveryRecords).filter(d=>d.startsWith(m))
-      .reduce((s,d)=>s+Object.values(cachedDeliveryRecords[d]).reduce((ss,r)=>r?.deleted || r?.orderDeleted ? ss : ss+(parseInt(r.lunchCount,10)||0),0),0);
+      .reduce((s,d)=>s+Object.entries(cachedDeliveryRecords[d]).reduce((ss,[uid,r])=>isStatsCountableRecord(uid, r) ? ss+(parseInt(r.lunchCount,10)||0) : ss,0),0);
   });
   if (statsMonthlyChart) statsMonthlyChart.destroy();
   const mc = document.getElementById('stats-monthly-chart').getContext('2d');
