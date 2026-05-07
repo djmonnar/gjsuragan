@@ -79,6 +79,12 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .receipt-layout{display:grid;grid-template-columns:minmax(260px,380px) 1fr;gap:16px}
 .receipt-preview{background:#fff;border:1px solid #d8d8d8;border-radius:8px;padding:24px;min-height:420px;color:#111}
 .receipt-title{text-align:center;font-size:28px;font-weight:800;letter-spacing:2px;margin-bottom:22px}
+.receipt-business{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid #333;border-bottom:0;margin-bottom:16px;font-size:13px}
+.receipt-business div{display:grid;grid-template-columns:112px 1fr;border-bottom:1px solid #333}
+.receipt-business div:nth-child(odd){border-right:1px solid #333}
+.receipt-business .wide{grid-column:1/-1;border-right:0}
+.receipt-business strong{background:#f8fafc;border-right:1px solid #333;padding:8px 9px}
+.receipt-business span{padding:8px 9px}
 .receipt-meta{display:grid;grid-template-columns:90px 1fr;gap:8px 10px;font-size:14px;margin-bottom:18px}
 .receipt-table{width:100%;border-collapse:collapse;margin:18px 0}
 .receipt-table th,.receipt-table td{border:1px solid #333;padding:10px;font-size:14px;text-align:left}
@@ -1911,6 +1917,15 @@ function mergeNested(target, source) {
   });
   return target;
 }
+const GJS_BUSINESS_INFO = {
+  registrationNo: '3261701933',
+  businessName: '궁중수라간',
+  address: '경상남도 진주시 동진로107번길 8 2층 궁중수라간',
+  businessType: '제조업, 소매업, 일반음식점',
+  businessItem: '즉석조리식품, 전자상거래 소매업, 한식',
+  representative: '주상훈',
+  phone: '01035071278'
+};
 function receiptItemRow(item = {}, removable = true) {
   const id = `receipt_item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   return `
@@ -3697,12 +3712,14 @@ async function loadReceiptOrder() {
       return;
     }
     const order = doc.data();
-    const lunch = order.lunchCount || 0;
-    const salad = order.saladCount || 0;
+    const lunch = orderLunchQty(order);
+    const salad = orderSaladQty(order);
+    const eventLunch = orderEventLunchQty(order);
     const user = allUsers[uid] || {};
     setReceiptItems([
-      { name: '도시락', count: lunch, price: userLunchPrice(user) },
-      { name: '샐러드', count: salad, price: userSaladPrice(user) }
+      { name: '도시락', count: lunch, price: orderLunchPrice(order, user) },
+      { name: '샐러드', count: salad, price: orderSaladPrice(order, user) },
+      { name: '행사도시락', count: eventLunch, price: orderEventLunchPrice(order) || orderLunchPrice(order, user) }
     ].filter(item => item.count > 0));
     document.getElementById('receipt-note').value = order.note || '';
     renderReceipt();
@@ -3731,19 +3748,41 @@ function getReceiptData() {
   };
 }
 
+function formatReceiptMonthDay(dateValue) {
+  const ds = String(dateValue || '').slice(0, 10);
+  const parts = ds.split('-');
+  if (parts.length === 3) return `${parseInt(parts[1], 10)}월 ${parseInt(parts[2], 10)}일`;
+  return ds || '-';
+}
+function businessInfoHtml() {
+  const info = GJS_BUSINESS_INFO;
+  return `
+    <div class="receipt-business">
+      <div><strong>사업자등록번호</strong><span>${escapeHtml(info.registrationNo)}</span></div>
+      <div><strong>상호</strong><span>${escapeHtml(info.businessName)}</span></div>
+      <div><strong>대표자명</strong><span>${escapeHtml(info.representative)}</span></div>
+      <div><strong>전화번호</strong><span>${escapeHtml(info.phone)}</span></div>
+      <div class="wide"><strong>사업장 소재지</strong><span>${escapeHtml(info.address)}</span></div>
+      <div class="wide"><strong>업태</strong><span>${escapeHtml(info.businessType)}</span></div>
+      <div class="wide"><strong>업종</strong><span>${escapeHtml(info.businessItem)}</span></div>
+    </div>
+  `;
+}
 function receiptHtml(data) {
   return `
     <div class="receipt-title">간이영수증</div>
+    ${businessInfoHtml()}
     <div class="receipt-meta">
-      <div>상호</div><div>${escapeHtml(data.businessName || '-')}</div>
+      <div>공급받는 자</div><div>${escapeHtml(data.businessName || '-')}</div>
       <div>연락처</div><div>${escapeHtml(data.phone || '-')}</div>
       <div>영수일자</div><div>${escapeHtml(data.date)}</div>
     </div>
     <table class="receipt-table">
-      <thead><tr><th>품목</th><th>수량</th><th>단가</th><th>금액</th></tr></thead>
+      <thead><tr><th>월일</th><th>품목</th><th>수량</th><th>단가</th><th>공급대가(금액)</th></tr></thead>
       <tbody>
         ${(data.items.length ? data.items : [{ name: '-', count: 0, price: 0, amount: 0 }]).map(item => `
           <tr>
+            <td>${formatReceiptMonthDay(item.date || data.date)}</td>
             <td>${escapeHtml(item.name)}</td>
             <td>${item.count}</td>
             <td>${formatMoney(item.price)}</td>
@@ -3775,6 +3814,12 @@ function printReceipt() {
     <style>
       body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;padding:32px;color:#111}
       .receipt-title{text-align:center;font-size:30px;font-weight:800;letter-spacing:2px;margin-bottom:28px}
+      .receipt-business{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid #333;border-bottom:0;margin-bottom:18px;font-size:14px}
+      .receipt-business div{display:grid;grid-template-columns:118px 1fr;border-bottom:1px solid #333}
+      .receipt-business div:nth-child(odd){border-right:1px solid #333}
+      .receipt-business .wide{grid-column:1/-1;border-right:0}
+      .receipt-business strong{background:#f8fafc;border-right:1px solid #333;padding:9px 10px}
+      .receipt-business span{padding:9px 10px}
       .receipt-meta{display:grid;grid-template-columns:90px 1fr;gap:8px 10px;font-size:15px;margin-bottom:18px}
       .receipt-table{width:100%;border-collapse:collapse;margin:20px 0}
       .receipt-table th,.receipt-table td{border:1px solid #333;padding:11px;text-align:left;font-size:15px}
