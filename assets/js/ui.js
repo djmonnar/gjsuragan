@@ -251,20 +251,20 @@ function isDashAbcSet(c){
   return ['A','B','C'].includes(dashProductKey(c));
 }
 
-function isActiveAbcSubscription(c){
-  return !!(c && c.orderType === 'sub' && c.status === 'active' && Number(c.remain) > 0 && isDashAbcSet(c));
+function isActiveSubscription(c){
+  return !!(c && c.orderType === 'sub' && c.status === 'active' && Number(c.remain) > 0);
 }
 
-function isPendingActiveAbcDelivery(c, ds){
-  if(!isActiveAbcSubscription(c) || isDeliveredOnDate(c, ds)) return false;
+function isPendingAbcDelivery(c, ds){
+  if(!c || !isDashAbcSet(c) || isDeliveredOnDate(c, ds)) return false;
   return typeof isDeliv === 'function' ? isDeliv(c, ds) : false;
 }
 
 function applyDashboardActiveSetStats(){
   if(!Array.isArray(custs)) return;
   const ds = document.getElementById('dashDate')?.value || (typeof todayStr === 'function' ? todayStr() : '');
-  const activeSubs = custs.filter(isActiveAbcSubscription);
-  const pendingList = ds ? custs.filter(c=>isPendingActiveAbcDelivery(c, ds)) : [];
+  const activeSubs = custs.filter(isActiveSubscription);
+  const pendingList = ds ? custs.filter(c=>isPendingAbcDelivery(c, ds)) : [];
 
   s('s1', activeSubs.length);
   s('sA', pendingList.filter(c=>dashProductKey(c)==='A').length);
