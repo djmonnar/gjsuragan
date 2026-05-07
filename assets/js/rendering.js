@@ -20,9 +20,9 @@ function renderDash(){
   const tmrList = listFor(tmrStr);
   s('s0',custs.length); s('s1',custs.filter(c=>c.status==='active').length);
   s('s2',tl.length); s('s3',wk); s('s4',tmrList.length);
-  s('sA',custs.filter(c=>c.set==='A'&&c.status==='active').length);
-  s('sB',custs.filter(c=>c.set==='B'&&c.status==='active').length);
-  s('sC',custs.filter(c=>c.set==='C'&&c.status==='active').length);
+  s('sA',tl.filter(c=>(c.productId||c.set)==='A').length);
+  s('sB',tl.filter(c=>(c.productId||c.set)==='B').length);
+  s('sC',tl.filter(c=>(c.productId||c.set)==='C').length);
   s('nBadge',listFor(todayStr()).length);
 
   // 직배송/택배 분리
