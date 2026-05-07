@@ -3058,7 +3058,12 @@ function cleanOcrLine(text) {
 function isOcrNoiseLine(text) {
   const s = cleanOcrLine(text);
   if (!s) return true;
-  return /궁중수라간|식단표|보다\s*신선|재료상황|유동적|전날\s*6시|부탁드립|주문\s*및\s*변경|^[-_=]+$/.test(s);
+  return /궁중수라간|식단표|보다\s*신선|재료\s*상황|유동적|운영됩|전날\s*6\s*시|6\s*시\s*이전|부탁\s*드립|주문\s*및\s*변경|변경은|선한\s*식사|^[-_=]+$/.test(s);
+}
+
+function isOcrHolidayText(text) {
+  const s = cleanOcrLine(text).replace(/\s+/g, '');
+  return /어린이날|공휴일|휴무|휴일/.test(s) || /어.*린.*이.*날/.test(s);
 }
 
 function getOcrBox(item = {}) {
@@ -3266,15 +3271,19 @@ function buildFallbackOcrWeekColumns(lineUnits, wordUnits, baseDate) {
   });
 }
 
-function splitOcrMenuColumn(lines) {
+function splitOcrMenuColumn(lines, date = '') {
+  if (date && isNoDeliveryDate(date)) {
+    return { lunchItems: [], saladItems: [], note: holidayName(date) || '휴일' };
+  }
+
   const menuLines = lines
     .map(line => ({ ...line, text: normalizeOcrMenuItem(line.text) }))
     .filter(line => line.text && !isOcrNoiseLine(line.text))
     .filter(line => !parseOcrMenuDate(line.text, getKST().getFullYear()));
 
-  const holidayLine = menuLines.find(line => /어린이날|공휴일|휴무|휴일/.test(line.text));
+  const holidayLine = menuLines.find(line => isOcrHolidayText(line.text));
   const foodLines = menuLines
-    .filter(line => !/어린이날|공휴일|휴무|휴일/.test(line.text))
+    .filter(line => !isOcrHolidayText(line.text))
     .sort((a, b) => a.centerY - b.centerY);
 
   if (foodLines.length === 0) {
@@ -3343,7 +3352,7 @@ async function runMealImageOcr() {
     let dateLines = extractOcrDateAnchors(rawLines, rawWords, fallbackYear);
     let usedWeekFallback = false;
 
-    if (dateLines.length < 4) {
+    if (dateLines.length < 5) {
       const fallbackColumns = buildFallbackOcrWeekColumns(lineUnits, wordUnits, baseDate);
       if (fallbackColumns.length === 5) {
         dateLines = fallbackColumns;
@@ -3363,7 +3372,17 @@ async function runMealImageOcr() {
       return { dateLine, date: dateLine.date, left, right };
     });
 
+    let skippedNoDeliveryCount = 0;
     const candidates = columns.map(column => {
+      if (isNoDeliveryDate(column.date)) {
+        skippedNoDeliveryCount++;
+        return {
+          date: column.date,
+          lunchItems: [],
+          saladItems: [],
+          note: holidayName(column.date) || '휴일'
+        };
+      }
       const columnWords = wordUnits.filter(word =>
         !parseOcrMenuDate(word.text, fallbackYear) &&
         word.centerX >= column.left &&
@@ -3377,7 +3396,7 @@ async function runMealImageOcr() {
         line.centerY > column.dateLine.centerY + 35
       );
       const columnLines = columnWords.length ? groupOcrWordsAsLines(columnWords) : fallbackLines;
-      const split = splitOcrMenuColumn(columnLines);
+      const split = splitOcrMenuColumn(columnLines, column.date);
       return {
         date: column.date,
         lunchItems: split.lunchItems,
@@ -3394,7 +3413,8 @@ async function runMealImageOcr() {
     renderMealPdfCandidates();
     const monthSet = [...new Set(candidates.map(c => c.date.slice(0, 7)))].join(', ');
     const fallbackMsg = usedWeekFallback ? ' 날짜는 식단 날짜 입력칸 기준 월~금으로 자동 배정했습니다.' : '';
-    showCodeStatus(`✅ OCR로 ${candidates.length}일치 식단을 읽었습니다 (${monthSet}).${fallbackMsg} 내용 확인 후 [전체 저장]을 눌러주세요.`);
+    const skipMsg = skippedNoDeliveryCount ? ` 휴일 ${skippedNoDeliveryCount}일은 제외했습니다.` : '';
+    showCodeStatus(`✅ OCR로 ${candidates.length}일치 식단을 읽었습니다 (${monthSet}).${fallbackMsg}${skipMsg} 내용 확인 후 [전체 저장]을 눌러주세요.`);
   } catch(e) {
     showCodeStatus('OCR 실패: ' + (e.message || e), true);
   }
