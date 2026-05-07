@@ -1612,6 +1612,13 @@ function adminEventsFromData(data = {}) {
   });
   return events;
 }
+function mergeDeliveryRecord(existing, next) {
+  if (!existing) return next;
+  if (!next) return existing;
+  if (existing.deleted || existing.orderDeleted) return existing;
+  if (next.deleted || next.orderDeleted) return next;
+  return { ...existing, ...next };
+}
 function deliveryRecordsFromData(data = {}) {
   const records = {};
   Object.entries(data).forEach(([key, value]) => {
@@ -1620,10 +1627,14 @@ function deliveryRecordsFromData(data = {}) {
     const date = rest.slice(0, 10);
     const uid = rest.slice(11);
     if (!date || !uid) return;
-    records[date] = { ...(records[date] || {}), [uid]: value };
+    records[date] = records[date] || {};
+    records[date][uid] = mergeDeliveryRecord(records[date][uid], value);
   });
   Object.entries(data.deliveryRecords || {}).forEach(([date, rows]) => {
-    records[date] = { ...(records[date] || {}), ...(rows || {}) };
+    records[date] = records[date] || {};
+    Object.entries(rows || {}).forEach(([uid, value]) => {
+      records[date][uid] = mergeDeliveryRecord(records[date][uid], value);
+    });
   });
   Object.entries(records).forEach(([date, rows]) => {
     Object.entries(rows || {}).forEach(([uid, value]) => {
