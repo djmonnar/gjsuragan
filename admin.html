@@ -3080,7 +3080,7 @@ function normalizeOcrMenuItem(text) {
 
 function parseOcrMenuDate(text, fallbackYear) {
   const s = cleanOcrLine(text);
-  const m = s.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+  const m = s.match(/(\d{1,2})\s*[월욀윌]\s*(\d{1,2})\s*[일1lI]/);
   if (!m) return null;
   const month = Number(m[1]);
   const day = Number(m[2]);
@@ -3128,7 +3128,7 @@ function extractOcrDateAnchors(rawLines, rawWords, fallbackYear) {
   const lineAnchors = [];
   (rawLines || []).forEach(line => {
     const text = cleanOcrLine(line.text);
-    const matches = [...text.matchAll(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/g)];
+    const matches = [...text.matchAll(/(\d{1,2})\s*[월욀윌]\s*(\d{1,2})\s*[일1lI]/g)];
     if (matches.length !== 1) return;
     const anchor = buildOcrDateAnchor(matches[0][1], matches[0][2], fallbackYear, getOcrBox(line), 'line');
     if (anchor) lineAnchors.push(anchor);
@@ -3149,20 +3149,20 @@ function extractOcrDateAnchors(rawLines, rawWords, fallbackYear) {
 
   const wordAnchors = [];
   words.forEach((word, idx) => {
-    const direct = word.text.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+    const direct = word.text.match(/(\d{1,2})\s*[월욀윌]\s*(\d{1,2})\s*[일1lI]/);
     if (direct) {
       const anchor = buildOcrDateAnchor(direct[1], direct[2], fallbackYear, word, 'word');
       if (anchor) wordAnchors.push(anchor);
       return;
     }
 
-    const monthMatch = word.text.match(/(\d{1,2})\s*월/);
+    const monthMatch = word.text.match(/(\d{1,2})\s*[월욀윌]/);
     if (!monthMatch) return;
     const dayWord = words.slice(idx + 1, idx + 8).find(next => {
-      const dayMatch = next.text.match(/(\d{1,2})\s*일/);
+      const dayMatch = next.text.match(/(\d{1,2})\s*[일1lI]/);
       return dayMatch && Math.abs(next.centerY - word.centerY) < 42 && next.centerX > word.centerX && next.centerX - word.centerX < 190;
     });
-    const dayMatch = dayWord?.text.match(/(\d{1,2})\s*일/);
+    const dayMatch = dayWord?.text.match(/(\d{1,2})\s*[일1lI]/);
     if (!dayMatch) return;
     const box = {
       x0: Math.min(word.x0, dayWord.x0),
@@ -3226,6 +3226,44 @@ function groupOcrWordsAsLines(words) {
       height: Math.max(0, y1 - y0)
     };
   }).filter(line => line.text);
+}
+
+function mealOcrWeekdayDates(baseDate) {
+  const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(baseDate || '') ? baseDate : dateStr(getKST());
+  const dt = new Date(`${safeDate}T00:00:00+09:00`);
+  const day = dt.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = addDays(safeDate, mondayOffset);
+  return [0, 1, 2, 3, 4].map(offset => addDays(monday, offset));
+}
+
+function buildFallbackOcrWeekColumns(lineUnits, wordUnits, baseDate) {
+  const units = (wordUnits && wordUnits.length ? wordUnits : lineUnits).filter(unit => unit.x1 > unit.x0 && unit.y1 > unit.y0);
+  if (units.length === 0) return [];
+  const minX = Math.min(...units.map(unit => unit.x0));
+  const maxX = Math.max(...units.map(unit => unit.x1));
+  const minY = Math.min(...units.map(unit => unit.y0));
+  const maxY = Math.max(...units.map(unit => unit.y1));
+  const width = Math.max(1, maxX - minX);
+  const height = Math.max(1, maxY - minY);
+  const dates = mealOcrWeekdayDates(baseDate);
+  const headerY = minY + height * 0.18;
+  return dates.map((date, idx) => {
+    const left = minX + width * (idx / 5);
+    const right = minX + width * ((idx + 1) / 5);
+    return {
+      date,
+      source: 'fallback-week',
+      x0: left,
+      x1: right,
+      y0: headerY - 12,
+      y1: headerY + 12,
+      centerX: (left + right) / 2,
+      centerY: headerY,
+      height: 24,
+      text: date
+    };
+  });
 }
 
 function splitOcrMenuColumn(lines) {
@@ -3302,10 +3340,19 @@ async function runMealImageOcr() {
     const rawWords = result?.data?.words || [];
     const lineUnits = buildOcrUnits(rawLines);
     const wordUnits = buildOcrUnits(rawWords);
-    const dateLines = extractOcrDateAnchors(rawLines, rawWords, fallbackYear);
+    let dateLines = extractOcrDateAnchors(rawLines, rawWords, fallbackYear);
+    let usedWeekFallback = false;
+
+    if (dateLines.length < 4) {
+      const fallbackColumns = buildFallbackOcrWeekColumns(lineUnits, wordUnits, baseDate);
+      if (fallbackColumns.length === 5) {
+        dateLines = fallbackColumns;
+        usedWeekFallback = true;
+      }
+    }
 
     if (dateLines.length === 0) {
-      throw new Error('날짜를 찾지 못했습니다. 식단표 상단 날짜가 잘 보이도록 이미지를 다시 올려주세요.');
+      throw new Error('날짜와 표 위치를 찾지 못했습니다. 식단 날짜를 해당 주 날짜로 맞춘 뒤 다시 시도해주세요.');
     }
 
     const columns = dateLines.map((dateLine, idx) => {
@@ -3346,7 +3393,8 @@ async function runMealImageOcr() {
     mealPdfCandidates = candidates;
     renderMealPdfCandidates();
     const monthSet = [...new Set(candidates.map(c => c.date.slice(0, 7)))].join(', ');
-    showCodeStatus(`✅ OCR로 ${candidates.length}일치 식단을 읽었습니다 (${monthSet}). 내용 확인 후 [전체 저장]을 눌러주세요.`);
+    const fallbackMsg = usedWeekFallback ? ' 날짜는 식단 날짜 입력칸 기준 월~금으로 자동 배정했습니다.' : '';
+    showCodeStatus(`✅ OCR로 ${candidates.length}일치 식단을 읽었습니다 (${monthSet}).${fallbackMsg} 내용 확인 후 [전체 저장]을 눌러주세요.`);
   } catch(e) {
     showCodeStatus('OCR 실패: ' + (e.message || e), true);
   }
