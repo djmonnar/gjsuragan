@@ -622,11 +622,16 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="error-msg" id="menu-error"></div>
       <div id="menu-preview" class="menu-preview-card"></div>
       <div class="code-import-box">
-        <div style="font-size:14px;font-weight:800;color:var(--primary);margin-bottom:6px">🖼 식단표 이미지 OCR 가져오기</div>
-        <div style="font-size:12px;color:var(--sub);margin-bottom:8px">미리캔버스 식단표 이미지를 업로드하면 날짜별 도시락/샐러드 메뉴를 읽어옵니다. 인식 후 내용을 확인하고 전체 저장하세요.</div>
+        <div style="font-size:14px;font-weight:800;color:var(--primary);margin-bottom:6px">🖼 식단표 이미지 AI 가져오기</div>
+        <div style="font-size:12px;color:var(--sub);margin-bottom:8px">미리캔버스 식단표 이미지를 업로드하면 Gemini가 날짜별 도시락/샐러드/휴일을 읽어옵니다. 인식 후 내용을 확인하고 전체 저장하세요.</div>
+        <div style="display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:8px;align-items:center;margin-bottom:8px">
+          <input class="form-input" type="password" id="menu-gemini-key" placeholder="Gemini API 키 (이 브라우저에만 저장)" autocomplete="off" style="margin:0">
+          <a class="secondary-btn" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="text-decoration:none;white-space:nowrap">API 키 발급</a>
+        </div>
         <input class="form-input" type="file" id="menu-ocr-file" accept="image/*">
         <div class="inline-actions" style="margin-top:8px">
-          <button class="secondary-btn" onclick="runMealImageOcr()">이미지 읽기</button>
+          <button class="secondary-btn" onclick="runMealGeminiImport()">Gemini로 읽기</button>
+          <button class="secondary-btn" onclick="runMealImageOcr()">기존 OCR로 읽기</button>
           <button class="secondary-btn" onclick="addBlankMealPdfCandidate()">행 추가</button>
           <button class="save-btn" style="width:auto" onclick="saveMealPdfCandidates()">전체 저장</button>
         </div>
@@ -2890,6 +2895,8 @@ function initMenuForm() {
   const dateEl = document.getElementById('menu-date');
   if (!dateEl) return;
   if (!dateEl.value) dateEl.value = dateStr(getKST());
+  const geminiKeyEl = document.getElementById('menu-gemini-key');
+  if (geminiKeyEl && !geminiKeyEl.value) geminiKeyEl.value = localStorage.getItem('gjsuraganGeminiApiKey') || '';
   renderMenuPreview();
 }
 
@@ -3318,8 +3325,166 @@ function splitOcrMenuColumn(lines, date = '') {
   };
 }
 
+function mealImageFile() {
+  return document.getElementById('menu-ocr-file')?.files?.[0] || null;
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+    reader.onerror = () => reject(reader.error || new Error('파일을 읽지 못했습니다.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function selectedMealMonthHolidays(baseDate) {
+  const month = String(baseDate || dateStr(getKST())).slice(0, 7);
+  const dates = [];
+  const [year, mon] = month.split('-').map(Number);
+  if (!year || !mon) return '';
+  const last = new Date(Date.UTC(year, mon, 0)).getUTCDate();
+  for (let day = 1; day <= last; day++) {
+    const ds = `${year}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const name = holidayName(ds);
+    if (name) dates.push(`${ds} ${name}`);
+  }
+  return dates.join(', ');
+}
+
+function mealGeminiSchema() {
+  return {
+    type: 'ARRAY',
+    items: {
+      type: 'OBJECT',
+      properties: {
+        date: { type: 'STRING', description: 'YYYY-MM-DD' },
+        isHoliday: { type: 'BOOLEAN' },
+        holidayName: { type: 'STRING' },
+        lunchItems: { type: 'ARRAY', items: { type: 'STRING' } },
+        saladItems: { type: 'ARRAY', items: { type: 'STRING' } },
+        note: { type: 'STRING' }
+      },
+      required: ['date', 'isHoliday', 'lunchItems', 'saladItems']
+    }
+  };
+}
+
+function extractGeminiText(data) {
+  return (data?.candidates || [])
+    .flatMap(candidate => candidate?.content?.parts || [])
+    .map(part => part.text || '')
+    .join('\n')
+    .trim();
+}
+
+function parseGeminiJson(text) {
+  const cleaned = String(text || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  return JSON.parse(cleaned);
+}
+
+function cleanGeminiMenuItems(items) {
+  return normalizeMealItems(items || [])
+    .map(item => normalizeOcrMenuItem(item))
+    .filter(item => item && item !== '&' && !isOcrNoiseLine(item) && !isOcrHolidayText(item));
+}
+
+function normalizeGeminiMealRows(rows) {
+  return (Array.isArray(rows) ? rows : []).map(row => {
+    const date = String(row.date || '').trim();
+    const isHoliday = Boolean(row.isHoliday) || isOcrHolidayText(row.holidayName || row.note || '') || isNoDeliveryDate(date);
+    return {
+      date,
+      lunchItems: isHoliday ? [] : cleanGeminiMenuItems(row.lunchItems),
+      saladItems: isHoliday ? [] : cleanGeminiMenuItems(row.saladItems),
+      note: isHoliday ? (row.holidayName || holidayName(date) || '휴일') : (row.note || '')
+    };
+  }).filter(row =>
+    /^\d{4}-\d{2}-\d{2}$/.test(row.date) &&
+    !isNoDeliveryDate(row.date) &&
+    !isOcrHolidayText(row.note) &&
+    (row.lunchItems.length > 0 || row.saladItems.length > 0)
+  ).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+async function runMealGeminiImport() {
+  const file = mealImageFile();
+  const candidateWrap = document.getElementById('menu-pdf-candidates');
+  if (candidateWrap) candidateWrap.innerHTML = '';
+  mealPdfCandidates = [];
+
+  if (!file) {
+    showCodeStatus('식단표 이미지 파일을 먼저 선택해주세요.', true);
+    return;
+  }
+  const keyEl = document.getElementById('menu-gemini-key');
+  const apiKey = keyEl?.value.trim() || '';
+  if (!apiKey) {
+    showCodeStatus('Gemini API 키를 입력해주세요. [API 키 발급] 버튼에서 만들 수 있습니다.', true);
+    return;
+  }
+  localStorage.setItem('gjsuraganGeminiApiKey', apiKey);
+
+  const baseDate = document.getElementById('menu-date')?.value || dateStr(getKST());
+  const fallbackYear = String(baseDate).slice(0, 4) || String(getKST().getFullYear());
+  const holidays = selectedMealMonthHolidays(baseDate) || '없음';
+  showCodeStatus('Gemini가 식단표 이미지를 분석 중입니다.');
+
+  try {
+    const imageBase64 = await fileToBase64(file);
+    const prompt = [
+      '궁중수라간 주간 식단표 이미지에서 날짜별 메뉴를 추출하세요.',
+      `기준 날짜는 ${baseDate}이고, 이미지 날짜에 연도가 없으면 ${fallbackYear}년으로 해석하세요.`,
+      `이 달의 공휴일 참고: ${holidays}. 공휴일/휴무/어린이날 칸은 isHoliday=true로 표시하고 메뉴 배열은 비우세요.`,
+      '도시락 영역과 샐러드 영역을 구분하세요. 도시락에는 밥, 국, 반찬을 줄별로 넣고 샐러드에는 샐러드명과 드레싱만 넣으세요.',
+      '하단 안내 문구, 브랜드명, 제목, “보다 신선한 식사”, “재료상황”, “전날 6시” 같은 공지는 절대 메뉴에 넣지 마세요.',
+      '오타가 있으면 자연스러운 한글 메뉴명으로 보정하되, 없는 메뉴를 새로 만들지 마세요.',
+      '반드시 스키마에 맞는 JSON만 반환하세요.'
+    ].join('\n');
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: file.type || 'image/png', data: imageBase64 } }
+          ]
+        }],
+        generationConfig: {
+          temperature: 0,
+          responseMimeType: 'application/json',
+          responseSchema: mealGeminiSchema()
+        }
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = data?.error?.message || `${response.status} ${response.statusText}`;
+      throw new Error(message);
+    }
+
+    const text = extractGeminiText(data);
+    const parsed = parseGeminiJson(text);
+    const candidates = normalizeGeminiMealRows(parsed);
+    if (candidates.length === 0) {
+      throw new Error('저장할 메뉴를 찾지 못했습니다. 이미지 날짜와 메뉴 영역을 확인해주세요.');
+    }
+
+    mealPdfCandidates = candidates;
+    renderMealPdfCandidates();
+    const monthSet = [...new Set(candidates.map(c => c.date.slice(0, 7)))].join(', ');
+    showCodeStatus(`✅ Gemini로 ${candidates.length}일치 식단을 읽었습니다 (${monthSet}). 휴일은 제외했습니다. 내용 확인 후 [전체 저장]을 눌러주세요.`);
+  } catch(e) {
+    showCodeStatus('Gemini 분석 실패: ' + (e.message || e), true);
+  }
+}
+
 async function runMealImageOcr() {
-  const file = document.getElementById('menu-ocr-file')?.files?.[0];
+  const file = mealImageFile();
   const candidateWrap = document.getElementById('menu-pdf-candidates');
   if (candidateWrap) candidateWrap.innerHTML = '';
   mealPdfCandidates = [];
