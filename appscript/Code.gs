@@ -16,7 +16,7 @@ const CONFIG = {
 
 // 아임웹 주문 상태 코드
 const CANCEL_STATUS = ['order_cancel', 'pay_cancel', 'refund_req', 'refund_done'];
-const ALLOW_STATUS  = ['pay_done', 'delivery_ready', 'delivery', 'complete'];
+const ALLOW_STATUS  = ['pay_done', 'delivery_ready', 'delivery', 'complete', 'STANDBY'];
 
 const SINGLE_PROD_MAP = {
   'pork_rib' : '수제 돼지양념갈비',
