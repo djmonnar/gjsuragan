@@ -49,7 +49,7 @@ function renderDash(){
   const dTodayDirect = document.getElementById('dTodayDirect');
   if(dDirectWrap && dTodayDirect){
     dDirectWrap.style.display = directList.length ? '' : 'none';
-    dTodayDirect.innerHTML = directList.slice(0,5).map(c=>`<tr>
+    dTodayDirect.innerHTML = directList.map(c=>`<tr>
       <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
       <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
@@ -65,7 +65,7 @@ function renderDash(){
   const dt=document.getElementById('dToday');
   dt.innerHTML=!courierList.length
     ? dashEmptyRow(5, '📦', '택배 없음')
-    : courierList.slice(0,8).map(c=>dashDeliveryRow(c)).join('');
+    : courierList.map(c=>dashDeliveryRow(c)).join('');
 
   const tmrDirectWrap = document.getElementById('dash-tomorrow-direct-wrap');
   const dTomorrowDirect = document.getElementById('dTomorrowDirect');
