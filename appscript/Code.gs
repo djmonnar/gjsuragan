@@ -75,7 +75,10 @@ function syncImwebOrders() {
 
       if (isSub) {
         const syncKey = orderNo;
-        if (existingMap[syncKey]) { skipped++; continue; }
+        if (existingMap[syncKey]) {
+          Logger.log('⏭ 이미등록(정기): ' + syncKey);
+          skipped++; continue;
+        }
         const parsed = parseSubOrder(order, allItems, orderNo, syncKey);
         if (!parsed) { skipped++; continue; }
         saveToFirestore(parsed);
@@ -87,7 +90,10 @@ function syncImwebOrders() {
           const item = allItems[ii];
           itemIdx++;
           const syncKey = buildSyncKey(orderNo, itemIdx);
-          if (existingMap[syncKey]) { skipped++; continue; }
+          if (existingMap[syncKey]) {
+            Logger.log('⏭ 이미등록(선택): ' + syncKey);
+            skipped++; continue;
+          }
 
           const parsed = parseOnceItem(order, item, itemIdx, orderNo, syncKey);
           if (!parsed) { skipped++; continue; }
