@@ -108,8 +108,15 @@ function syncImwebOrders() {
 function getOptionValues(item) {
   const vals = [];
   (item.options || []).forEach(function(og) {
-    (og || []).forEach(function(opt) {
-      (opt.value_name_list || []).forEach(function(v) { vals.push(String(v)); });
+    // Imweb API는 배열-of-배열 또는 배열-of-객체 두 가지 구조로 올 수 있음
+    const optList = Array.isArray(og) ? og : [og];
+    optList.forEach(function(opt) {
+      if (!opt) return;
+      if (Array.isArray(opt.value_name_list) && opt.value_name_list.length) {
+        opt.value_name_list.forEach(function(v) { vals.push(String(v)); });
+      } else if (opt.value_name) {
+        vals.push(String(opt.value_name));
+      }
     });
   });
   return vals;
@@ -233,8 +240,9 @@ function parseSubOrder(order, items, actualOrderNum, syncKey) {
     const optText = optVals.join(' ');
     const combined = prodNames + ' ' + optText;
 
+    Logger.log('  [정기] 상품명: ' + prodNames + ' / 옵션값: ' + optText.slice(0,80));
     let prod = parseProd(combined);
-    if (!prod) { Logger.log('⚠ 정기 상품 미인식: ' + prodNames); return null; }
+    if (!prod) { Logger.log('⚠ 정기 상품 미인식: "' + prodNames + '" | 옵션: "' + optText.slice(0,100) + '"'); return null; }
 
     const door = parseDoor([memo, optText].filter(Boolean).join(' '));
 
