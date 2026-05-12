@@ -178,6 +178,7 @@ textarea.inp{resize:vertical;min-height:80px;line-height:1.6;}
 .al-d{background:rgba(215,58,73,.07);border-color:rgba(215,58,73,.2);color:var(--danger);}
 
 .cancel-notice{background:rgba(227,98,9,.07);border:1px solid rgba(227,98,9,.22);border-radius:var(--r);overflow:hidden;}
+.cancel-notice.is-visible{display:block!important;}
 .cancel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(227,98,9,.18);}
 .cancel-title{font-size:14px;font-weight:800;color:var(--warn);}
 .cancel-sub{font-size:12px;color:var(--text2);margin-top:2px;}

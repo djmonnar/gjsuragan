@@ -95,7 +95,8 @@ function renderCancelLogs(){
 
   if(cancelLogsError){
     count.textContent = '!';
-    wrap.style.display = '';
+    wrap.style.display = 'block';
+    wrap.classList.add('is-visible');
     body.innerHTML = `<tr><td colspan="5" style="color:var(--danger);">
       취소삭제 로그를 읽을 수 없습니다. Firestore rules에 imwebCancelLogs 읽기 권한을 배포해야 합니다.
     </td></tr>`;
@@ -103,7 +104,8 @@ function renderCancelLogs(){
   }
 
   count.textContent = unread.length;
-  wrap.style.display = unread.length ? '' : 'none';
+  wrap.style.display = unread.length ? 'block' : 'none';
+  wrap.classList.toggle('is-visible', !!unread.length);
   if(!unread.length){
     body.innerHTML = '';
     return;

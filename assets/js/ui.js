@@ -158,6 +158,10 @@ function goTab(name){
   document.querySelectorAll('.ni').forEach((t,i)=>t.classList.toggle('on',tabs[i]===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.getElementById('page-'+name).classList.add('on');
+  if(name==='dash'){
+    if(typeof renderDash === 'function') renderDash();
+    if(typeof renderCancelLogs === 'function') renderCancelLogs();
+  }
   if(name==='customers') renderCust();
   if(name==='report') renderReport();
 }
