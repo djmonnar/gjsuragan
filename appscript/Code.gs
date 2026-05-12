@@ -712,3 +712,18 @@ function testRun() {
   Logger.log('=== 테스트 실행 ===');
   syncImwebOrders();
 }
+
+function installFiveMinuteSyncTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction && trigger.getHandlerFunction() === 'syncImwebOrders') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('syncImwebOrders')
+    .timeBased()
+    .everyMinutes(5)
+    .create();
+
+  Logger.log('syncImwebOrders 5분 자동 동기화 트리거 설치 완료');
+}
