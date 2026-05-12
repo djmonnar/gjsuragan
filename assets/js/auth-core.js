@@ -77,6 +77,27 @@ function stopFirestore(){
   _fbInitDone = false;
 }
 
+function setCancelLogs(nextLogs, errorMessage){
+  cancelLogsError = errorMessage || '';
+  cancelLogs = Array.isArray(nextLogs) ? nextLogs : [];
+  if(typeof renderCancelLogs === 'function') renderCancelLogs();
+}
+
+async function loadCancelLogsOnce(){
+  if(!window.__DB) return;
+  try{
+    const snap = await window.__DB.collection('imwebCancelLogs')
+      .orderBy('createdAt', 'desc')
+      .limit(20)
+      .get();
+    setCancelLogs(snap.docs.map(d => ({ id:d.id, ...d.data() })), '');
+  } catch(err){
+    setCancelLogs(cancelLogs, err.message || '취소삭제 로그를 읽을 수 없습니다');
+    toast('취소삭제 로그 읽기 오류: ' + cancelLogsError, 'er');
+    console.warn('imwebCancelLogs get 오류:', err.message);
+  }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   if(!window.__AUTH){
     const loading = document.getElementById('loading');
@@ -306,22 +327,22 @@ function initFirestore(){
     .limit(20)
     .onSnapshot(
       snap => {
-        cancelLogsError = '';
-        cancelLogs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+        setCancelLogs(snap.docs.map(d => ({ id:d.id, ...d.data() })), '');
         const unread = cancelLogs.filter(l => !l.acknowledged);
         if(_cancelLogsReady && unread.length){
           toast(`아임웹 취소삭제 ${unread.length}건 확인 필요`, 'info');
         }
         _cancelLogsReady = true;
-        if(typeof renderCancelLogs === 'function') renderCancelLogs();
       },
       err => {
-        cancelLogsError = err.message || '취소삭제 로그를 읽을 수 없습니다';
-        if(typeof renderCancelLogs === 'function') renderCancelLogs();
+        setCancelLogs(cancelLogs, err.message || '취소삭제 로그를 읽을 수 없습니다');
         toast('취소삭제 로그 읽기 오류: ' + cancelLogsError, 'er');
         console.warn('imwebCancelLogs 오류:', err.message);
       }
     );
+
+  loadCancelLogsOnce();
+  setTimeout(loadCancelLogsOnce, 1500);
 }
 
 // 로그인 판정이 오래 걸리는 상황 대비

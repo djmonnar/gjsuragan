@@ -89,6 +89,8 @@ async function ackCancelLogs(){
   }
 }
 
+window.renderCancelLogs = renderCancelLogs;
+
 function renderDash(){
   const ds=document.getElementById('dashDate').value||todayStr();
   updateDashDisp();
