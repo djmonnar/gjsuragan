@@ -91,10 +91,13 @@ function closeCancelPopover(){
 function renderCancelLogs(){
   const wrap = document.getElementById('cancelNotice');
   const body = document.getElementById('cancelLogBody');
+  const cards = document.getElementById('cancelLogCards');
   const count = document.getElementById('cancelNoticeCount');
   const pillWrap = document.getElementById('cancelPillWrap');
   const pillCount = document.getElementById('cancelPillCount');
   if(!wrap || !body || !count) return;
+  const tableWrap = wrap.querySelector('.tw');
+  if(tableWrap && cards) tableWrap.style.display = 'none';
 
   const unread = (cancelLogs || []).filter(log => !log.acknowledged);
   renderCancelPopover(unread);
@@ -110,6 +113,10 @@ function renderCancelLogs(){
     body.innerHTML = `<tr><td colspan="6" style="color:var(--danger);">
       취소삭제 로그를 읽을 수 없습니다. Firestore rules에 imwebCancelLogs 읽기 권한을 배포해야 합니다.
     </td></tr>`;
+    if(cards){
+      cards.style.display = 'block';
+      cards.innerHTML = `<div class="cancel-log-card"><div class="cancel-log-card-top">읽기 오류</div><div class="cancel-log-card-meta">${escHtml(cancelLogsError)}</div></div>`;
+    }
     return;
   }
 
@@ -118,21 +125,37 @@ function renderCancelLogs(){
   wrap.classList.toggle('is-visible', !!unread.length);
   if(!unread.length){
     body.innerHTML = '';
+    if(cards) cards.innerHTML = '';
     return;
   }
 
-  body.innerHTML = unread.slice(0,8).map(log => {
+  const rows = unread.slice(0,8).map(log => {
     const names = Array.isArray(log.customerNames) ? log.customerNames.filter(Boolean).join(', ') : '';
     const reason = cancelReasonText(log);
-    return `<tr>
+    return {log, names, reason};
+  });
+
+  body.innerHTML = rows.map(({log, names, reason}) => `<tr>
       <td style="white-space:nowrap;">${cancelLogTime(log)}</td>
       <td style="font-family:monospace;font-size:12px;">${escHtml(log.orderNo || '')}</td>
       <td>${escHtml(names || '이름 없음')}</td>
       <td><span class="badge b-end">${escHtml(log.cancelStatus || '취소')}</span></td>
       <td style="max-width:260px;white-space:normal;">${escHtml(reason || '-')}</td>
       <td>${Number(log.deletedCount || 0)}건</td>
-    </tr>`;
-  }).join('');
+    </tr>`).join('');
+
+  if(cards){
+    cards.innerHTML = rows.map(({log, names, reason}) => `
+      <div class="cancel-log-card">
+        <div class="cancel-log-card-top">
+          <span>${escHtml(names || '이름 없음')}</span>
+          <span class="badge b-end">${escHtml(log.cancelStatus || '취소')}</span>
+        </div>
+        <div class="cancel-log-card-meta">#${escHtml(log.orderNo || '')} · ${Number(log.deletedCount || 0)}건 삭제 · ${cancelLogTime(log)}</div>
+        <div class="cancel-log-card-meta"><b>사유:</b> ${escHtml(reason || '-')}</div>
+      </div>
+    `).join('');
+  }
 }
 
 async function ackCancelLogs(){
