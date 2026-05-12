@@ -17,7 +17,7 @@ const CONFIG = {
 // 아임웹 주문 상태 코드
 const CANCEL_STATUS = [
   'order_cancel', 'pay_cancel', 'refund_req', 'refund_done',
-  'cancel_req', 'cancel_request', 'cancel_done',
+  'cancel_req', 'cancel_request', 'cancel_done', 'CANCEL_REQUEST', 'CANCEL',
   '취소접수', '취소요청', '취소완료', '환불요청', '환불완료'
 ];
 const ALLOW_STATUS  = ['pay_done', 'delivery_ready', 'delivery', 'complete', 'STANDBY'];
@@ -50,13 +50,17 @@ function getImwebOrderStatuses(order, prodOrders) {
     order && order.payment_status,
     order && order.status_text,
     order && order.status_name,
-    order && order.order_status_text
+    order && order.order_status_text,
+    order && order.claim_status,
+    order && order.claim_type
   ];
 
   (prodOrders || []).forEach(function(po) {
     statuses.push(po && po.status);
     statuses.push(po && po.status_text);
     statuses.push(po && po.status_name);
+    statuses.push(po && po.claim_status);
+    statuses.push(po && po.claim_type);
   });
 
   return statuses.filter(function(status) { return status !== null && status !== undefined && status !== ''; });

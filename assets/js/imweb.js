@@ -6,7 +6,7 @@ let iwOrders = []; // 불러온 주문 목록
 
 const IW_CANCEL_STATUSES = [
   'order_cancel', 'pay_cancel', 'refund_req', 'refund_done',
-  'cancel_req', 'cancel_request', 'cancel_done',
+  'cancel_req', 'cancel_request', 'cancel_done', 'CANCEL_REQUEST', 'CANCEL',
   '취소접수', '취소요청', '취소완료', '환불요청', '환불완료'
 ];
 
@@ -24,10 +24,11 @@ function imwebIsCancelStatus(status){
 function imwebOrderStatuses(order){
   const vals = [
     order?.status, order?.order_status, order?.payment_status,
-    order?.status_text, order?.status_name, order?.order_status_text
+    order?.status_text, order?.status_name, order?.order_status_text,
+    order?.claim_status, order?.claim_type
   ];
   (order?.product_list || []).forEach(item => {
-    vals.push(item?.status, item?.status_text, item?.status_name);
+    vals.push(item?.status, item?.status_text, item?.status_name, item?.claim_status, item?.claim_type);
   });
   return vals.filter(Boolean);
 }
