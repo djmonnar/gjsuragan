@@ -43,6 +43,15 @@ function renderCancelLogs(){
   if(!wrap || !body || !count) return;
 
   const unread = (cancelLogs || []).filter(log => !log.acknowledged);
+  if(cancelLogsError){
+    count.textContent = '!';
+    wrap.style.display = '';
+    body.innerHTML = `<tr><td colspan="5" style="color:var(--danger);">
+      취소삭제 로그를 읽을 수 없습니다. Firestore rules에 imwebCancelLogs 읽기 권한을 배포해야 합니다.
+    </td></tr>`;
+    return;
+  }
+
   count.textContent = unread.length;
   wrap.style.display = unread.length ? '' : 'none';
   if(!unread.length){

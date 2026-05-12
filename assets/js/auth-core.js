@@ -14,6 +14,7 @@ let APP_BOOTED = false;
 let _customersUnsub = null;
 let _cancelLogsUnsub = null;
 let _cancelLogsReady = false;
+let cancelLogsError = '';
 
 function showLoginScreen(){
   const loading = document.getElementById('loading');
@@ -305,6 +306,7 @@ function initFirestore(){
     .limit(20)
     .onSnapshot(
       snap => {
+        cancelLogsError = '';
         cancelLogs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
         const unread = cancelLogs.filter(l => !l.acknowledged);
         if(_cancelLogsReady && unread.length){
@@ -314,6 +316,9 @@ function initFirestore(){
         if(typeof renderCancelLogs === 'function') renderCancelLogs();
       },
       err => {
+        cancelLogsError = err.message || '취소삭제 로그를 읽을 수 없습니다';
+        if(typeof renderCancelLogs === 'function') renderCancelLogs();
+        toast('취소삭제 로그 읽기 오류: ' + cancelLogsError, 'er');
         console.warn('imwebCancelLogs 오류:', err.message);
       }
     );
