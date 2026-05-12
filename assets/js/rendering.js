@@ -40,9 +40,16 @@ function renderCancelLogs(){
   const wrap = document.getElementById('cancelNotice');
   const body = document.getElementById('cancelLogBody');
   const count = document.getElementById('cancelNoticeCount');
+  const pill = document.getElementById('cancelPill');
+  const pillCount = document.getElementById('cancelPillCount');
   if(!wrap || !body || !count) return;
 
   const unread = (cancelLogs || []).filter(log => !log.acknowledged);
+  if(pill && pillCount){
+    pill.style.display = unread.length || cancelLogsError ? 'flex' : 'none';
+    pillCount.textContent = cancelLogsError ? '!' : unread.length;
+  }
+
   if(cancelLogsError){
     count.textContent = '!';
     wrap.style.display = '';
