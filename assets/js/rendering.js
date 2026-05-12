@@ -36,17 +36,60 @@ function cancelLogTime(log){
   return d.toLocaleString('ko-KR', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
 }
 
+function renderCancelPopover(unread){
+  const list = document.getElementById('cancelPopoverList');
+  if(!list) return;
+
+  if(cancelLogsError){
+    list.innerHTML = `<div class="cancel-pop-item">
+      <div class="cancel-pop-main"><span class="cancel-pop-name">읽기 오류</span><span class="cancel-pop-status">확인필요</span></div>
+      <div class="cancel-pop-meta">${escHtml(cancelLogsError)}</div>
+    </div>`;
+    return;
+  }
+
+  if(!unread.length){
+    list.innerHTML = `<div class="cancel-pop-item">
+      <div class="cancel-pop-meta">확인할 취소삭제 내역이 없습니다.</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = unread.slice(0,6).map(log => {
+    const names = Array.isArray(log.customerNames) ? log.customerNames.filter(Boolean).join(', ') : '';
+    const orderNo = log.orderNo ? '#' + log.orderNo : '주문번호 없음';
+    const deletedCount = Number(log.deletedCount || 0);
+    return `<div class="cancel-pop-item">
+      <div class="cancel-pop-main">
+        <span class="cancel-pop-name">${escHtml(names || '이름 없음')}</span>
+        <span class="cancel-pop-status">${escHtml(log.cancelStatus || '취소')}</span>
+      </div>
+      <div class="cancel-pop-meta">${escHtml(orderNo)} · ${deletedCount}건 삭제 · ${cancelLogTime(log)}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCancelPopover(event){
+  if(event) event.stopPropagation();
+  document.getElementById('cancelPopover')?.classList.toggle('on');
+}
+
+function closeCancelPopover(){
+  document.getElementById('cancelPopover')?.classList.remove('on');
+}
+
 function renderCancelLogs(){
   const wrap = document.getElementById('cancelNotice');
   const body = document.getElementById('cancelLogBody');
   const count = document.getElementById('cancelNoticeCount');
-  const pill = document.getElementById('cancelPill');
+  const pillWrap = document.getElementById('cancelPillWrap');
   const pillCount = document.getElementById('cancelPillCount');
   if(!wrap || !body || !count) return;
 
   const unread = (cancelLogs || []).filter(log => !log.acknowledged);
-  if(pill && pillCount){
-    pill.style.display = unread.length || cancelLogsError ? 'flex' : 'none';
+  renderCancelPopover(unread);
+  if(pillWrap && pillCount){
+    pillWrap.style.display = unread.length || cancelLogsError ? 'flex' : 'none';
     pillCount.textContent = cancelLogsError ? '!' : unread.length;
   }
 
@@ -97,6 +140,12 @@ async function ackCancelLogs(){
 }
 
 window.renderCancelLogs = renderCancelLogs;
+window.toggleCancelPopover = toggleCancelPopover;
+window.closeCancelPopover = closeCancelPopover;
+document.addEventListener('click', closeCancelPopover);
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('cancelPopover')?.addEventListener('click', event => event.stopPropagation());
+});
 
 function renderDash(){
   const ds=document.getElementById('dashDate').value||todayStr();

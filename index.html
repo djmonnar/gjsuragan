@@ -26,7 +26,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<link rel="stylesheet" href="assets/css/index.css?v=20260512-1">
+<link rel="stylesheet" href="assets/css/index.css?v=20260512-2">
 
 
 </head>
@@ -67,8 +67,15 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
   </div>
   <div class="header-right">
     <div class="fb-dot"><div class="dot" id="fbDot"></div><span id="fbTxt">연결 중</span></div>
-    <div class="cancel-pill" id="cancelPill" style="display:none;" onclick="goTab('dash');document.getElementById('cancelNotice')?.scrollIntoView({behavior:'smooth',block:'center'});">
-      취소삭제 <span id="cancelPillCount">0</span>
+    <div class="cancel-pill-wrap" id="cancelPillWrap" style="display:none;">
+      <div class="cancel-pill" id="cancelPill" onclick="toggleCancelPopover(event)">
+        취소삭제 <span id="cancelPillCount">0</span>
+      </div>
+      <div class="cancel-popover" id="cancelPopover">
+        <div class="cancel-pop-title">아임웹 취소삭제 내역</div>
+        <div class="cancel-pop-list" id="cancelPopoverList"></div>
+        <button class="btn btn-g sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="goTab('dash');closeCancelPopover();document.getElementById('cancelNotice')?.scrollIntoView({behavior:'smooth',block:'center'});">대시보드에서 보기</button>
+      </div>
     </div>
     <div class="tbtn" onclick="toggleTheme()" id="themeBtn" title="테마 전환">🌙</div>
     <button class="btn btn-g sm" onclick="doLogout()">로그아웃</button>
@@ -738,7 +745,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 <script src="assets/js/auth-core.js?v=20260512-4" defer></script>
 <script src="assets/js/imweb.js?v=20260512-1" defer></script>
 <script src="assets/js/schedule-report.js?v=20260507-3" defer></script>
-<script src="assets/js/rendering.js?v=20260512-4" defer></script>
+<script src="assets/js/rendering.js?v=20260512-5" defer></script>
 <script src="assets/js/import-export.js?v=20260507-3" defer></script>
 <script src="assets/js/ui.js?v=20260507-3" defer></script>
 
