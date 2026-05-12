@@ -15,7 +15,11 @@ const CONFIG = {
 };
 
 // 아임웹 주문 상태 코드
-const CANCEL_STATUS = ['order_cancel', 'pay_cancel', 'refund_req', 'refund_done'];
+const CANCEL_STATUS = [
+  'order_cancel', 'pay_cancel', 'refund_req', 'refund_done',
+  'cancel_req', 'cancel_request', 'cancel_done',
+  '취소접수', '취소요청', '취소완료', '환불요청', '환불완료'
+];
 const ALLOW_STATUS  = ['pay_done', 'delivery_ready', 'delivery', 'complete', 'STANDBY'];
 
 const SINGLE_PROD_MAP = {
@@ -23,6 +27,40 @@ const SINGLE_PROD_MAP = {
   'beef_la'  : '양념 LA갈비',
   'beef_soup': '소고기무국',
 };
+
+function normalizeOrderStatus(status) {
+  return String(status || '').replace(/\s+/g, '').toLowerCase();
+}
+
+function isCancelStatus(status) {
+  const normalized = normalizeOrderStatus(status);
+  if (!normalized) return false;
+
+  for (var i = 0; i < CANCEL_STATUS.length; i++) {
+    if (normalizeOrderStatus(CANCEL_STATUS[i]) === normalized) return true;
+  }
+
+  return /cancel|refund|취소|환불/.test(normalized);
+}
+
+function getImwebOrderStatuses(order, prodOrders) {
+  const statuses = [
+    order && order.status,
+    order && order.order_status,
+    order && order.payment_status,
+    order && order.status_text,
+    order && order.status_name,
+    order && order.order_status_text
+  ];
+
+  (prodOrders || []).forEach(function(po) {
+    statuses.push(po && po.status);
+    statuses.push(po && po.status_text);
+    statuses.push(po && po.status_name);
+  });
+
+  return statuses.filter(function(status) { return status !== null && status !== undefined && status !== ''; });
+}
 
 function syncImwebOrders() {
   try {
@@ -41,18 +79,27 @@ function syncImwebOrders() {
       const prodOrders = getOrderProdOrders(token, orderNo);
       if (!prodOrders || !prodOrders.length) { skipped++; continue; }
 
-      const status = prodOrders[0].status || '';
+      const statuses = getImwebOrderStatuses(order, prodOrders);
+      const status = statuses[0] || '';
 
-      if (CANCEL_STATUS.indexOf(status) !== -1) {
-        let deletedAny = false;
+      if (statuses.some(isCancelStatus)) {
+        const recordsToDelete = [];
         Object.keys(existingMap).forEach(function(key) {
           if (key === orderNo || key.indexOf(orderNo + '-') === 0) {
-            deleteFromFirestore(existingMap[key]);
-            deletedAny = true;
-            deleted++;
+            const records = Array.isArray(existingMap[key]) ? existingMap[key] : [existingMap[key]];
+            records.forEach(function(record) {
+              recordsToDelete.push(record);
+            });
           }
         });
-        if (deletedAny) Logger.log('🗑 취소 삭제: ' + orderNo);
+        if (recordsToDelete.length) {
+          recordImwebCancel(orderNo, status, recordsToDelete);
+          recordsToDelete.forEach(function(record) {
+            deleteFromFirestore(record.id || record);
+            deleted++;
+          });
+          Logger.log('🗑 취소 삭제: ' + orderNo);
+        }
         continue;
       }
 
@@ -499,9 +546,10 @@ function getFirebaseToken() {
   return JSON.parse(res.getContentText()).access_token;
 }
 
-function saveToFirestore(data) {
+function saveToFirestore(data, collectionName) {
   const token = getFirebaseToken();
-  const url = 'https://firestore.googleapis.com/v1/projects/'+CONFIG.PROJECT_ID+'/databases/(default)/documents/customers';
+  const collection = collectionName || 'customers';
+  const url = 'https://firestore.googleapis.com/v1/projects/'+CONFIG.PROJECT_ID+'/databases/(default)/documents/'+collection;
   function toFsValue(v) {
     if (v===null||v===undefined) return {nullValue:null};
     if (typeof v==='boolean') return {booleanValue:v};
@@ -519,6 +567,24 @@ function saveToFirestore(data) {
   });
   const json = JSON.parse(res.getContentText());
   if (json.error) Logger.log('Firestore 오류: '+JSON.stringify(json.error));
+}
+
+function recordImwebCancel(orderNo, status, records) {
+  const list = records || [];
+  const log = {
+    orderNo:String(orderNo || ''),
+    cancelStatus:String(status || ''),
+    source:'apps_script',
+    deletedCount:list.length,
+    deletedDocIds:list.map(function(r){ return String((r && r.id) || r || ''); }),
+    customerNames:list.map(function(r){ return String((r && r.name) || ''); }),
+    customerPhones:list.map(function(r){ return String((r && r.phone) || ''); }),
+    products:list.map(function(r){ return String((r && r.product) || ''); }),
+    schedules:list.map(function(r){ return String((r && r.schedule) || ''); }),
+    createdAt:new Date().toISOString(),
+    acknowledged:false,
+  };
+  saveToFirestore(log, 'imwebCancelLogs');
 }
 
 function deleteFromFirestore(docId) {
@@ -547,7 +613,14 @@ function getExistingOrders() {
       const key = (f.syncKey && f.syncKey.stringValue) || (f.orderNum && f.orderNum.stringValue) || '';
       if (key) {
         const parts = doc.name.split('/');
-        map[key] = parts[parts.length-1];
+        if (!map[key]) map[key] = [];
+        map[key].push({
+          id:parts[parts.length-1],
+          name:(f.name && f.name.stringValue) || '',
+          phone:(f.phone && f.phone.stringValue) || '',
+          product:(f.productId && f.productId.stringValue) || (f.set && f.set.stringValue) || '',
+          schedule:(f.scheduleName && f.scheduleName.stringValue) || (f.onceDate && f.onceDate.stringValue) || '',
+        });
       }
     });
 

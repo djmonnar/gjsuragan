@@ -4,6 +4,73 @@
 const IW_KEY_STORE = 'iw_keys';
 let iwOrders = []; // 불러온 주문 목록
 
+const IW_CANCEL_STATUSES = [
+  'order_cancel', 'pay_cancel', 'refund_req', 'refund_done',
+  'cancel_req', 'cancel_request', 'cancel_done',
+  '취소접수', '취소요청', '취소완료', '환불요청', '환불완료'
+];
+
+function imwebNormalizeStatus(status){
+  return String(status || '').replace(/\s+/g, '').toLowerCase();
+}
+
+function imwebIsCancelStatus(status){
+  const normalized = imwebNormalizeStatus(status);
+  if(!normalized) return false;
+  if(IW_CANCEL_STATUSES.some(s => imwebNormalizeStatus(s) === normalized)) return true;
+  return /cancel|refund|취소|환불/.test(normalized);
+}
+
+function imwebOrderStatuses(order){
+  const vals = [
+    order?.status, order?.order_status, order?.payment_status,
+    order?.status_text, order?.status_name, order?.order_status_text
+  ];
+  (order?.product_list || []).forEach(item => {
+    vals.push(item?.status, item?.status_text, item?.status_name);
+  });
+  return vals.filter(Boolean);
+}
+
+function imwebCancelStatusForOrder(order){
+  return imwebOrderStatuses(order).find(imwebIsCancelStatus) || '';
+}
+
+async function imwebCreateCancelLog(orderNo, cancelStatus, targets, source='manual_fetch'){
+  if(!window.__DB || !targets.length) return;
+  const uniqueTargets = [...new Map(targets.filter(c => c.id).map(c => [c.id, c])).values()];
+  await window.__DB.collection('imwebCancelLogs').add({
+    orderNo:String(orderNo || ''),
+    cancelStatus:String(cancelStatus || ''),
+    source,
+    deletedCount:uniqueTargets.length,
+    deletedDocIds:uniqueTargets.map(c => c.id),
+    customerNames:uniqueTargets.map(c => c.name || ''),
+    customerPhones:uniqueTargets.map(c => c.phone || ''),
+    products:uniqueTargets.map(c => c.productId || c.set || ''),
+    schedules:uniqueTargets.map(c => c.scheduleName || c.onceDate || ''),
+    createdAt:new Date().toISOString(),
+    acknowledged:false,
+  });
+}
+
+async function imwebDeleteLocalOrder(orderNo, cancelStatus='', source='manual_fetch'){
+  const no = String(orderNo || '').trim();
+  if(!no) return 0;
+
+  const targets = custs.filter(c => {
+    const orderNum = String(c.orderNum || '');
+    const syncKey  = String(c.syncKey || '');
+    return orderNum === no || syncKey === no || syncKey.startsWith(no + '-');
+  });
+  const uniqueIds = [...new Set(targets.map(c => c.id).filter(Boolean))];
+  if(!uniqueIds.length) return 0;
+
+  await imwebCreateCancelLog(no, cancelStatus, targets, source);
+  await Promise.all(uniqueIds.map(id => window.__DB.collection('customers').doc(id).delete()));
+  return uniqueIds.length;
+}
+
 function imwebSaveKeys(){
   const ak = document.getElementById('iw-apikey').value.trim();
   const sk = document.getElementById('iw-secret').value.trim();
@@ -105,13 +172,25 @@ async function imwebFetch(){
     if(data.code !== 200) throw new Error(data.msg || '조회 오류');
 
     const orders = data.data?.list || [];
-    // 이미 등록된 주문번호 제외
-    iwOrders = orders.filter(o => !existingOrderNums.has(String(o.order_no)));
+    let deleted = 0;
+    const activeOrders = [];
+    for(const order of orders){
+      const cancelStatus = imwebCancelStatusForOrder(order);
+      if(cancelStatus){
+        deleted += await imwebDeleteLocalOrder(order.order_no, cancelStatus, 'manual_fetch');
+      } else {
+        activeOrders.push(order);
+      }
+    }
 
-    document.getElementById('iw-cnt').textContent = `${iwOrders.length}건 (전체 ${orders.length}건 중 미등록)`;
+    // 이미 등록된 주문번호 제외
+    iwOrders = activeOrders.filter(o => !existingOrderNums.has(String(o.order_no)));
+
+    document.getElementById('iw-cnt').textContent =
+      `${iwOrders.length}건 (전체 ${activeOrders.length}건 중 미등록${deleted ? ` / 취소삭제 ${deleted}건` : ''})`;
     renderImwebOrders();
     document.getElementById('iw-result-wrap').style.display = 'block';
-    toast(`${iwOrders.length}건 불러옴 (기등록 ${orders.length - iwOrders.length}건 제외)`,'info');
+    toast(`${iwOrders.length}건 불러옴 (기등록 ${activeOrders.length - iwOrders.length}건 제외${deleted ? `, 취소삭제 ${deleted}건` : ''})`,'info');
 
   } catch(e){
     toast('오류: '+e.message,'er');

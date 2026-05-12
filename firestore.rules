@@ -15,6 +15,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // 아임웹 취소삭제 알림 로그
+    match /imwebCancelLogs/{document=**} {
+      allow read, write: if true;
+    }
+
     // 월식 앱 — 회원 정보
     match /users/{userId} {
       allow read, write: if isOwner(userId) || isAdmin();

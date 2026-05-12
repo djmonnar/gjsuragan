@@ -165,6 +165,13 @@ textarea.inp{resize:vertical;min-height:80px;line-height:1.6;}
 .al-w{background:rgba(227,98,9,.07);border-color:rgba(227,98,9,.2);color:var(--warn);}
 .al-d{background:rgba(215,58,73,.07);border-color:rgba(215,58,73,.2);color:var(--danger);}
 
+.cancel-notice{background:rgba(227,98,9,.07);border:1px solid rgba(227,98,9,.22);border-radius:var(--r);overflow:hidden;}
+.cancel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(227,98,9,.18);}
+.cancel-title{font-size:14px;font-weight:800;color:var(--warn);}
+.cancel-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+.cancel-notice table thead tr{background:rgba(227,98,9,.06);}
+.cancel-notice td,.cancel-notice th{border-bottom-color:rgba(227,98,9,.12);}
+
 /* ── 모달 ── */
 .mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(2px);}
 .mbg.on{display:flex;animation:fi .15s ease;}

@@ -12,6 +12,8 @@ let loginAttempts = 0;
 const MAX_ATTEMPTS = 5;
 let APP_BOOTED = false;
 let _customersUnsub = null;
+let _cancelLogsUnsub = null;
+let _cancelLogsReady = false;
 
 function showLoginScreen(){
   const loading = document.getElementById('loading');
@@ -65,7 +67,12 @@ function stopFirestore(){
   if(typeof _customersUnsub === 'function'){
     _customersUnsub();
   }
+  if(typeof _cancelLogsUnsub === 'function'){
+    _cancelLogsUnsub();
+  }
   _customersUnsub = null;
+  _cancelLogsUnsub = null;
+  _cancelLogsReady = false;
   _fbInitDone = false;
 }
 
@@ -243,6 +250,7 @@ const SL = { active:'구독중', pause:'정지', end:'종료' };
 // 상태
 // ════════════════════════════════════════
 let custs = [];
+let cancelLogs = [];
 let editId = null;
 let orderType = 'sub';
 let parsedData = null;
@@ -291,6 +299,24 @@ function initFirestore(){
       if(loading) loading.style.display = 'none';
     }
   );
+
+  _cancelLogsUnsub = window.__DB.collection('imwebCancelLogs')
+    .orderBy('createdAt', 'desc')
+    .limit(20)
+    .onSnapshot(
+      snap => {
+        cancelLogs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+        const unread = cancelLogs.filter(l => !l.acknowledged);
+        if(_cancelLogsReady && unread.length){
+          toast(`아임웹 취소삭제 ${unread.length}건 확인 필요`, 'info');
+        }
+        _cancelLogsReady = true;
+        if(typeof renderCancelLogs === 'function') renderCancelLogs();
+      },
+      err => {
+        console.warn('imwebCancelLogs 오류:', err.message);
+      }
+    );
 }
 
 // 로그인 판정이 오래 걸리는 상황 대비

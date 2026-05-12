@@ -26,7 +26,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<link rel="stylesheet" href="assets/css/index.css">
+<link rel="stylesheet" href="assets/css/index.css?v=20260512-1">
 
 
 </head>
@@ -104,7 +104,21 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
     <div class="sc cw"><div class="sl">내일 배송</div><div class="sv" id="s4">0</div><div class="ss">건 예정</div></div>
   </div>
 
-  <!-- warnBanner 제거됨 -->
+  <div class="cancel-notice" id="cancelNotice" style="display:none;">
+    <div class="cancel-head">
+      <div>
+        <div class="cancel-title">아임웹 취소삭제 <span id="cancelNoticeCount">0</span>건</div>
+        <div class="cancel-sub">확인 전까지 대시보드에 표시됩니다.</div>
+      </div>
+      <button class="btn btn-g sm" onclick="ackCancelLogs()">확인 완료</button>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>시간</th><th>주문번호</th><th>고객</th><th>상태</th><th>삭제</th></tr></thead>
+        <tbody id="cancelLogBody"></tbody>
+      </table>
+    </div>
+  </div>
 
   <div class="g2">
     <!-- 선택 날짜 배송 목록 -->
@@ -718,10 +732,10 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 </div>
 
 
-<script src="assets/js/auth-core.js?v=20260507-3" defer></script>
-<script src="assets/js/imweb.js?v=20260507-3" defer></script>
+<script src="assets/js/auth-core.js?v=20260512-1" defer></script>
+<script src="assets/js/imweb.js?v=20260512-1" defer></script>
 <script src="assets/js/schedule-report.js?v=20260507-3" defer></script>
-<script src="assets/js/rendering.js?v=20260507-3" defer></script>
+<script src="assets/js/rendering.js?v=20260512-1" defer></script>
 <script src="assets/js/import-export.js?v=20260507-3" defer></script>
 <script src="assets/js/ui.js?v=20260507-3" defer></script>
 

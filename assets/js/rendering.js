@@ -1,7 +1,7 @@
 // ════════════════════════════════════════
 // 렌더링 통합
 // ════════════════════════════════════════
-function refreshAll(){ renderDash(); renderToday(); renderCust(); renderReport(); }
+function refreshAll(){ renderDash(); renderToday(); renderCust(); renderReport(); renderCancelLogs(); }
 
 // 화면 크기 변경 시 재렌더링 (모바일↔PC 전환)
 let _resizeTimer;
@@ -21,6 +21,63 @@ function dashDeliveryRow(c, showGauge = true){
 }
 function dashEmptyRow(colspan, icon, text){
   return `<tr><td colspan="${colspan}"><div class="empty"><div class="ei">${icon}</div><div>${text}</div></div></td></tr>`;
+}
+
+function escHtml(v){
+  return String(v ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+}
+
+function cancelLogTime(log){
+  const raw = log.createdAt || '';
+  const d = raw ? new Date(raw) : null;
+  if(!d || Number.isNaN(d.getTime())) return escHtml(raw);
+  return d.toLocaleString('ko-KR', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+}
+
+function renderCancelLogs(){
+  const wrap = document.getElementById('cancelNotice');
+  const body = document.getElementById('cancelLogBody');
+  const count = document.getElementById('cancelNoticeCount');
+  if(!wrap || !body || !count) return;
+
+  const unread = (cancelLogs || []).filter(log => !log.acknowledged);
+  count.textContent = unread.length;
+  wrap.style.display = unread.length ? '' : 'none';
+  if(!unread.length){
+    body.innerHTML = '';
+    return;
+  }
+
+  body.innerHTML = unread.slice(0,8).map(log => {
+    const names = Array.isArray(log.customerNames) ? log.customerNames.filter(Boolean).join(', ') : '';
+    return `<tr>
+      <td style="white-space:nowrap;">${cancelLogTime(log)}</td>
+      <td style="font-family:monospace;font-size:12px;">${escHtml(log.orderNo || '')}</td>
+      <td>${escHtml(names || '이름 없음')}</td>
+      <td><span class="badge b-end">${escHtml(log.cancelStatus || '취소')}</span></td>
+      <td>${Number(log.deletedCount || 0)}건</td>
+    </tr>`;
+  }).join('');
+}
+
+async function ackCancelLogs(){
+  const unread = (cancelLogs || []).filter(log => !log.acknowledged && log.id);
+  if(!unread.length) return;
+  try{
+    const batch = window.__DB.batch();
+    unread.forEach(log => {
+      batch.update(window.__DB.collection('imwebCancelLogs').doc(log.id), {
+        acknowledged:true,
+        acknowledgedAt:new Date().toISOString(),
+      });
+    });
+    await batch.commit();
+    toast('취소삭제 알림 확인 완료', 'ok');
+  } catch(e){
+    toast('알림 확인 처리 오류: ' + e.message, 'er');
+  }
 }
 
 function renderDash(){
