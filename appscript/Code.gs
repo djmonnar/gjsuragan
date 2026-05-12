@@ -22,9 +22,9 @@ const CANCEL_STATUS = [
 ];
 const ALLOW_STATUS  = [
   'pay_done', 'pay_complete', 'payment_complete',
-  'delivery_ready', 'delivery', 'complete', 'standby',
+  'delivery_ready', 'delivery', 'delivering', 'delivered', 'complete', 'standby',
   'PAY_DONE', 'PAY_COMPLETE', 'PAYMENT_COMPLETE',
-  'DELIVERY_READY', 'DELIVERY', 'COMPLETE', 'STANDBY'
+  'DELIVERY_READY', 'DELIVERY', 'DELIVERING', 'DELIVERED', 'COMPLETE', 'STANDBY'
 ];
 
 const SINGLE_PROD_MAP = {
@@ -56,7 +56,7 @@ function isAllowStatus(status) {
     if (normalizeOrderStatus(ALLOW_STATUS[i]) === normalized) return true;
   }
 
-  return /complete|paydone|paycomplete|delivery|standby|결제완료|배송준비|배송중|배송완료/.test(normalized);
+  return /complete|paydone|paycomplete|delivery|delivering|delivered|standby|결제완료|배송준비|배송중|배송완료/.test(normalized);
 }
 
 function getImwebOrderStatuses(order, prodOrders) {
