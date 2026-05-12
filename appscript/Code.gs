@@ -20,7 +20,12 @@ const CANCEL_STATUS = [
   'cancel_req', 'cancel_request', 'cancel_done', 'CANCEL_REQUEST', 'CANCEL',
   '취소접수', '취소요청', '취소완료', '환불요청', '환불완료'
 ];
-const ALLOW_STATUS  = ['pay_done', 'delivery_ready', 'delivery', 'complete', 'STANDBY'];
+const ALLOW_STATUS  = [
+  'pay_done', 'pay_complete', 'payment_complete',
+  'delivery_ready', 'delivery', 'complete', 'standby',
+  'PAY_DONE', 'PAY_COMPLETE', 'PAYMENT_COMPLETE',
+  'DELIVERY_READY', 'DELIVERY', 'COMPLETE', 'STANDBY'
+];
 
 const SINGLE_PROD_MAP = {
   'pork_rib' : '수제 돼지양념갈비',
@@ -41,6 +46,17 @@ function isCancelStatus(status) {
   }
 
   return /cancel|refund|취소|환불/.test(normalized);
+}
+
+function isAllowStatus(status) {
+  const normalized = normalizeOrderStatus(status);
+  if (!normalized) return false;
+
+  for (var i = 0; i < ALLOW_STATUS.length; i++) {
+    if (normalizeOrderStatus(ALLOW_STATUS[i]) === normalized) return true;
+  }
+
+  return /complete|paydone|paycomplete|delivery|standby|결제완료|배송준비|배송중|배송완료/.test(normalized);
 }
 
 function getImwebOrderStatuses(order, prodOrders) {
@@ -172,7 +188,7 @@ function syncImwebOrders() {
         continue;
       }
 
-      if (ALLOW_STATUS.indexOf(status) === -1) {
+      if (!statuses.some(isAllowStatus)) {
         Logger.log('⏸ 건너뜀: ' + orderNo + ' (' + status + ')');
         skipped++;
         continue;
