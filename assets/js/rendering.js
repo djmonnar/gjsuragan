@@ -44,6 +44,54 @@ function cancelReasonText(log){
   return parts[0] || '';
 }
 
+function ensureCancelInlineNotice(){
+  let el = document.getElementById('cancelInlineNotice');
+  if(el) return el;
+  const stats = document.querySelector('#page-dash .stat-grid');
+  if(!stats || !stats.parentNode) return null;
+  el = document.createElement('div');
+  el.id = 'cancelInlineNotice';
+  el.className = 'cancel-inline-notice';
+  stats.parentNode.insertBefore(el, stats.nextSibling);
+  return el;
+}
+
+function renderCancelInlineNotice(unread){
+  const el = ensureCancelInlineNotice();
+  if(!el) return;
+
+  if(cancelLogsError){
+    el.style.display = 'flex';
+    el.innerHTML = `<div><div class="cancel-inline-title">아임웹 취소삭제 로그 읽기 오류</div><div class="cancel-inline-meta">${escHtml(cancelLogsError)}</div></div>`;
+    return;
+  }
+
+  if(!unread.length){
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+
+  const log = unread[0];
+  const names = Array.isArray(log.customerNames) ? log.customerNames.filter(Boolean).join(', ') : '';
+  const reason = cancelReasonText(log);
+  const extra = unread.length > 1 ? ` 외 ${unread.length - 1}건` : '';
+  el.style.display = 'flex';
+  el.innerHTML = `
+    <div style="min-width:0;">
+      <div class="cancel-inline-title">아임웹 취소삭제 ${unread.length}건</div>
+      <div class="cancel-inline-meta">
+        <b>${escHtml(names || '이름 없음')}${extra}</b>
+        <span>#${escHtml(log.orderNo || '')}</span>
+        <span>${Number(log.deletedCount || 0)}건 삭제</span>
+        <span>${cancelLogTime(log)}</span>
+        <span>사유: ${escHtml(reason || '-')}</span>
+      </div>
+    </div>
+    <button class="btn btn-g sm" onclick="ackCancelLogs()">확인 완료</button>
+  `;
+}
+
 function renderCancelPopover(unread){
   const list = document.getElementById('cancelPopoverList');
   if(!list) return;
@@ -101,6 +149,7 @@ function renderCancelLogs(){
   if(tableWrap && cards) tableWrap.style.display = 'none';
 
   const unread = (cancelLogs || []).filter(log => !log.acknowledged);
+  renderCancelInlineNotice(unread);
   renderCancelPopover(unread);
   if(pillWrap && pillCount){
     pillWrap.style.display = unread.length || cancelLogsError ? 'flex' : 'none';
