@@ -36,6 +36,14 @@ function cancelLogTime(log){
   return d.toLocaleString('ko-KR', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
 }
 
+function cancelReasonText(log){
+  const parts = [
+    log.cancelReasonText,
+    [log.cancelReason, log.cancelReasonDetail].filter(Boolean).join(' / ')
+  ].filter(Boolean);
+  return parts[0] || '';
+}
+
 function renderCancelPopover(unread){
   const list = document.getElementById('cancelPopoverList');
   if(!list) return;
@@ -59,12 +67,14 @@ function renderCancelPopover(unread){
     const names = Array.isArray(log.customerNames) ? log.customerNames.filter(Boolean).join(', ') : '';
     const orderNo = log.orderNo ? '#' + log.orderNo : '주문번호 없음';
     const deletedCount = Number(log.deletedCount || 0);
+    const reason = cancelReasonText(log);
     return `<div class="cancel-pop-item">
       <div class="cancel-pop-main">
         <span class="cancel-pop-name">${escHtml(names || '이름 없음')}</span>
         <span class="cancel-pop-status">${escHtml(log.cancelStatus || '취소')}</span>
       </div>
       <div class="cancel-pop-meta">${escHtml(orderNo)} · ${deletedCount}건 삭제 · ${cancelLogTime(log)}</div>
+      ${reason ? `<div class="cancel-pop-meta"><b>사유:</b> ${escHtml(reason)}</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -97,7 +107,7 @@ function renderCancelLogs(){
     count.textContent = '!';
     wrap.style.display = 'block';
     wrap.classList.add('is-visible');
-    body.innerHTML = `<tr><td colspan="5" style="color:var(--danger);">
+    body.innerHTML = `<tr><td colspan="6" style="color:var(--danger);">
       취소삭제 로그를 읽을 수 없습니다. Firestore rules에 imwebCancelLogs 읽기 권한을 배포해야 합니다.
     </td></tr>`;
     return;
@@ -113,11 +123,13 @@ function renderCancelLogs(){
 
   body.innerHTML = unread.slice(0,8).map(log => {
     const names = Array.isArray(log.customerNames) ? log.customerNames.filter(Boolean).join(', ') : '';
+    const reason = cancelReasonText(log);
     return `<tr>
       <td style="white-space:nowrap;">${cancelLogTime(log)}</td>
       <td style="font-family:monospace;font-size:12px;">${escHtml(log.orderNo || '')}</td>
       <td>${escHtml(names || '이름 없음')}</td>
       <td><span class="badge b-end">${escHtml(log.cancelStatus || '취소')}</span></td>
+      <td style="max-width:260px;white-space:normal;">${escHtml(reason || '-')}</td>
       <td>${Number(log.deletedCount || 0)}건</td>
     </tr>`;
   }).join('');

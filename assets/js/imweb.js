@@ -37,12 +37,71 @@ function imwebCancelStatusForOrder(order){
   return imwebOrderStatuses(order).find(imwebIsCancelStatus) || '';
 }
 
-async function imwebCreateCancelLog(orderNo, cancelStatus, targets, source='manual_fetch'){
+function imwebAddCancelInfoText(out, value){
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  if(!text || text.length > 200) return;
+  if(imwebIsCancelStatus(text)) return;
+  if(/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(text)) return;
+  if(out.seen.has(text)) return;
+  out.seen.add(text);
+  out.texts.push(text);
+}
+
+function imwebAddCancelInfoTime(out, value){
+  const text = String(value ?? '').trim();
+  if(!text || out.timeSeen.has(text)) return;
+  out.timeSeen.add(text);
+  out.times.push(text);
+}
+
+function imwebCollectCancelInfo(node, out, path='', depth=0){
+  if(!node || depth > 5) return;
+  if(Array.isArray(node)){
+    node.forEach((item, idx) => imwebCollectCancelInfo(item, out, `${path}[${idx}]`, depth + 1));
+    return;
+  }
+  if(typeof node !== 'object') return;
+
+  Object.entries(node).forEach(([key, value]) => {
+    const keyLower = String(key || '').toLowerCase();
+    const nextPath = path ? `${path}.${key}` : String(key || '');
+    const pathLower = nextPath.toLowerCase();
+    const isClaimPath = /claim|cancel|refund|return|exchange|취소|환불|반품|교환|클레임/.test(pathLower);
+    const isReasonKey = /reason|cause|사유/.test(keyLower);
+    const isDetailKey = /memo|message|msg|comment|content|detail|description|title|name|text|메모|내용|상세/.test(keyLower);
+    const isTimeKey = /time|date|at|일시|시간|날짜/.test(keyLower);
+
+    if(value && typeof value === 'object'){
+      imwebCollectCancelInfo(value, out, nextPath, depth + 1);
+      return;
+    }
+
+    if(isReasonKey || (isClaimPath && isDetailKey)) imwebAddCancelInfoText(out, value);
+    if(isClaimPath && isTimeKey) imwebAddCancelInfoTime(out, value);
+  });
+}
+
+function imwebCancelInfoForOrder(order){
+  const out = {texts:[], times:[], seen:new Set(), timeSeen:new Set()};
+  imwebCollectCancelInfo(order, out, 'order');
+  return {
+    cancelReason:out.texts[0] || '',
+    cancelReasonDetail:out.texts.slice(1, 4).join(' / '),
+    cancelReasonText:out.texts.slice(0, 4).join(' / '),
+    cancelRequestedAt:out.times[0] || '',
+  };
+}
+
+async function imwebCreateCancelLog(orderNo, cancelStatus, targets, source='manual_fetch', cancelInfo={}){
   if(!window.__DB || !targets.length) return;
   const uniqueTargets = [...new Map(targets.filter(c => c.id).map(c => [c.id, c])).values()];
   await window.__DB.collection('imwebCancelLogs').add({
     orderNo:String(orderNo || ''),
     cancelStatus:String(cancelStatus || ''),
+    cancelReason:String(cancelInfo.cancelReason || ''),
+    cancelReasonDetail:String(cancelInfo.cancelReasonDetail || ''),
+    cancelReasonText:String(cancelInfo.cancelReasonText || ''),
+    cancelRequestedAt:String(cancelInfo.cancelRequestedAt || ''),
     source,
     deletedCount:uniqueTargets.length,
     deletedDocIds:uniqueTargets.map(c => c.id),
@@ -55,7 +114,7 @@ async function imwebCreateCancelLog(orderNo, cancelStatus, targets, source='manu
   });
 }
 
-async function imwebDeleteLocalOrder(orderNo, cancelStatus='', source='manual_fetch'){
+async function imwebDeleteLocalOrder(orderNo, cancelStatus='', source='manual_fetch', cancelInfo={}){
   const no = String(orderNo || '').trim();
   if(!no) return 0;
 
@@ -67,7 +126,7 @@ async function imwebDeleteLocalOrder(orderNo, cancelStatus='', source='manual_fe
   const uniqueIds = [...new Set(targets.map(c => c.id).filter(Boolean))];
   if(!uniqueIds.length) return 0;
 
-  await imwebCreateCancelLog(no, cancelStatus, targets, source);
+  await imwebCreateCancelLog(no, cancelStatus, targets, source, cancelInfo);
   await Promise.all(uniqueIds.map(id => window.__DB.collection('customers').doc(id).delete()));
   return uniqueIds.length;
 }
@@ -178,7 +237,7 @@ async function imwebFetch(){
     for(const order of orders){
       const cancelStatus = imwebCancelStatusForOrder(order);
       if(cancelStatus){
-        deleted += await imwebDeleteLocalOrder(order.order_no, cancelStatus, 'manual_fetch');
+        deleted += await imwebDeleteLocalOrder(order.order_no, cancelStatus, 'manual_fetch', imwebCancelInfoForOrder(order));
       } else {
         activeOrders.push(order);
       }

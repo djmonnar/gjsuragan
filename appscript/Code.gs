@@ -66,6 +66,70 @@ function getImwebOrderStatuses(order, prodOrders) {
   return statuses.filter(function(status) { return status !== null && status !== undefined && status !== ''; });
 }
 
+function addImwebCancelInfoText(out, value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text || text.length > 200) return;
+  if (isCancelStatus(text)) return;
+  if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(text)) return;
+  if (out.seen[text]) return;
+  out.seen[text] = true;
+  out.texts.push(text);
+}
+
+function addImwebCancelInfoTime(out, value) {
+  const text = String(value || '').trim();
+  if (!text || out.timeSeen[text]) return;
+  out.timeSeen[text] = true;
+  out.times.push(text);
+}
+
+function collectImwebCancelInfo(node, out, path, depth) {
+  if (!node || depth > 5) return;
+  if (Array.isArray(node)) {
+    node.forEach(function(item, idx) {
+      collectImwebCancelInfo(item, out, path + '[' + idx + ']', depth + 1);
+    });
+    return;
+  }
+  if (typeof node !== 'object') return;
+
+  Object.keys(node).forEach(function(key) {
+    const value = node[key];
+    const keyText = String(key || '');
+    const keyLower = keyText.toLowerCase();
+    const nextPath = path ? path + '.' + keyText : keyText;
+    const pathLower = nextPath.toLowerCase();
+    const isClaimPath = /claim|cancel|refund|return|exchange|취소|환불|반품|교환|클레임/.test(pathLower);
+    const isReasonKey = /reason|cause|사유/.test(keyLower);
+    const isDetailKey = /memo|message|msg|comment|content|detail|description|title|name|text|메모|내용|상세/.test(keyLower);
+    const isTimeKey = /time|date|at|일시|시간|날짜/.test(keyLower);
+
+    if (value !== null && typeof value === 'object') {
+      collectImwebCancelInfo(value, out, nextPath, depth + 1);
+      return;
+    }
+
+    if (isReasonKey || (isClaimPath && isDetailKey)) {
+      addImwebCancelInfoText(out, value);
+    }
+    if (isClaimPath && isTimeKey) {
+      addImwebCancelInfoTime(out, value);
+    }
+  });
+}
+
+function getImwebCancelInfo(order, prodOrders) {
+  const out = {texts:[], times:[], seen:{}, timeSeen:{}};
+  collectImwebCancelInfo(order, out, 'order', 0);
+  collectImwebCancelInfo(prodOrders || [], out, 'prodOrders', 0);
+  return {
+    cancelReason:out.texts[0] || '',
+    cancelReasonDetail:out.texts.slice(1, 4).join(' / '),
+    cancelReasonText:out.texts.slice(0, 4).join(' / '),
+    cancelRequestedAt:out.times[0] || '',
+  };
+}
+
 function syncImwebOrders() {
   try {
     Logger.log('=== 아임웹 주문 동기화 시작 ===');
@@ -87,6 +151,7 @@ function syncImwebOrders() {
       const status = statuses[0] || '';
 
       if (statuses.some(isCancelStatus)) {
+        const cancelInfo = getImwebCancelInfo(order, prodOrders);
         const recordsToDelete = [];
         Object.keys(existingMap).forEach(function(key) {
           if (key === orderNo || key.indexOf(orderNo + '-') === 0) {
@@ -97,12 +162,12 @@ function syncImwebOrders() {
           }
         });
         if (recordsToDelete.length) {
-          recordImwebCancel(orderNo, status, recordsToDelete);
+          recordImwebCancel(orderNo, status, recordsToDelete, cancelInfo);
           recordsToDelete.forEach(function(record) {
             deleteFromFirestore(record.id || record);
             deleted++;
           });
-          Logger.log('🗑 취소 삭제: ' + orderNo);
+          Logger.log('🗑 취소 삭제: ' + orderNo + (cancelInfo.cancelReasonText ? ' / 사유: ' + cancelInfo.cancelReasonText : ''));
         }
         continue;
       }
@@ -573,11 +638,16 @@ function saveToFirestore(data, collectionName) {
   if (json.error) Logger.log('Firestore 오류: '+JSON.stringify(json.error));
 }
 
-function recordImwebCancel(orderNo, status, records) {
+function recordImwebCancel(orderNo, status, records, cancelInfo) {
   const list = records || [];
+  const info = cancelInfo || {};
   const log = {
     orderNo:String(orderNo || ''),
     cancelStatus:String(status || ''),
+    cancelReason:String(info.cancelReason || ''),
+    cancelReasonDetail:String(info.cancelReasonDetail || ''),
+    cancelReasonText:String(info.cancelReasonText || ''),
+    cancelRequestedAt:String(info.cancelRequestedAt || ''),
     source:'apps_script',
     deletedCount:list.length,
     deletedDocIds:list.map(function(r){ return String((r && r.id) || r || ''); }),
