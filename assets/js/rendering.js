@@ -92,6 +92,7 @@ function renderCancelLogs(){
   const wrap = document.getElementById('cancelNotice');
   const body = document.getElementById('cancelLogBody');
   const cards = document.getElementById('cancelLogCards');
+  const summary = document.getElementById('cancelNoticeSummary');
   const count = document.getElementById('cancelNoticeCount');
   const pillWrap = document.getElementById('cancelPillWrap');
   const pillCount = document.getElementById('cancelPillCount');
@@ -114,9 +115,9 @@ function renderCancelLogs(){
       취소삭제 로그를 읽을 수 없습니다. Firestore rules에 imwebCancelLogs 읽기 권한을 배포해야 합니다.
     </td></tr>`;
     if(cards){
-      cards.style.display = 'block';
-      cards.innerHTML = `<div class="cancel-log-card"><div class="cancel-log-card-top">읽기 오류</div><div class="cancel-log-card-meta">${escHtml(cancelLogsError)}</div></div>`;
+      cards.innerHTML = '';
     }
+    if(summary) summary.innerHTML = `<span><b>읽기 오류:</b> ${escHtml(cancelLogsError)}</span>`;
     return;
   }
 
@@ -126,6 +127,7 @@ function renderCancelLogs(){
   if(!unread.length){
     body.innerHTML = '';
     if(cards) cards.innerHTML = '';
+    if(summary) summary.innerHTML = '';
     return;
   }
 
@@ -144,17 +146,17 @@ function renderCancelLogs(){
       <td>${Number(log.deletedCount || 0)}건</td>
     </tr>`).join('');
 
-  if(cards){
-    cards.innerHTML = rows.map(({log, names, reason}) => `
-      <div class="cancel-log-card">
-        <div class="cancel-log-card-top">
-          <span>${escHtml(names || '이름 없음')}</span>
-          <span class="badge b-end">${escHtml(log.cancelStatus || '취소')}</span>
-        </div>
-        <div class="cancel-log-card-meta">#${escHtml(log.orderNo || '')} · ${Number(log.deletedCount || 0)}건 삭제 · ${cancelLogTime(log)}</div>
-        <div class="cancel-log-card-meta"><b>사유:</b> ${escHtml(reason || '-')}</div>
-      </div>
-    `).join('');
+  if(cards) cards.innerHTML = '';
+  if(summary){
+    const first = rows[0];
+    const extra = rows.length > 1 ? ` 외 ${rows.length - 1}건` : '';
+    summary.innerHTML = `
+      <span><b>${escHtml(first.names || '이름 없음')}${extra}</b></span>
+      <span>#${escHtml(first.log.orderNo || '')}</span>
+      <span>${Number(first.log.deletedCount || 0)}건 삭제</span>
+      <span>${cancelLogTime(first.log)}</span>
+      <span>사유: ${escHtml(first.reason || '-')}</span>
+    `;
   }
 }
 
