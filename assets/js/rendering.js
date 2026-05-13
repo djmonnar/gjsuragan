@@ -545,6 +545,81 @@ function printDirectList(){
 }
 
 // 직배송 전체 완료
+function filteredDirectPrintList(ds){
+  const list = listFor(ds).filter(c=>c.isDirect);
+  const checkedVals = Array.from(document.querySelectorAll('.direct-filter-ck:checked')).map(el=>el.value);
+  const SINGLE_PRODS = ['pork_rib','beef_la','beef_soup'];
+  return list.filter(c=>{
+    const prod = c.productId||c.set||'';
+    return SINGLE_PRODS.indexOf(prod)!==-1 ? checkedVals.indexOf('single')!==-1 : checkedVals.indexOf(prod)!==-1;
+  });
+}
+
+function filteredCourierPrintList(ds){
+  const list = listFor(ds).filter(c=>!c.isDirect);
+  const checkedVals = Array.from(document.querySelectorAll('.today-filter-ck:checked')).map(el=>el.value);
+  const SINGLE_PRODS = ['pork_rib','beef_la','beef_soup'];
+  return list.filter(c=>{
+    const prod = c.productId||c.set||'';
+    return SINGLE_PRODS.indexOf(prod)!==-1 ? checkedVals.indexOf('single')!==-1 : checkedVals.indexOf(prod)!==-1;
+  });
+}
+
+function deliveryPrintRows(list){
+  return list.map((c,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td><strong>${c.name}</strong></td>
+      <td>${c.phone||''}</td>
+      <td>${c.addr||''}</td>
+      <td>${c.door||''}</td>
+      <td>${productLabel(c.productId||c.set)}</td>
+      <td>${c.orderType==='once'?'선택':'정기'}</td>
+      <td>${scheduleDisp(c)}</td>
+      <td>${c.request||''}</td>
+    </tr>`).join('');
+}
+
+function deliveryPrintSection(title, list){
+  const empty = `<tr><td colspan="9" style="text-align:center;color:#777;padding:14px;">없음</td></tr>`;
+  return `
+    <h3>${title} (${list.length}건)</h3>
+    <table>
+      <thead><tr><th>#</th><th>이름</th><th>연락처</th><th>주소</th><th>현관번호</th><th>상품</th><th>유형</th><th>배송일정</th><th>요청사항</th></tr></thead>
+      <tbody>${list.length ? deliveryPrintRows(list) : empty}</tbody>
+    </table>`;
+}
+
+function printAllDeliveryList(){
+  const ds = document.getElementById('todayDate').value || todayStr();
+  const directList = filteredDirectPrintList(ds);
+  const courierList = filteredCourierPrintList(ds);
+  if(!directList.length && !courierList.length){ toast('출력할 내용 없음','er'); return; }
+
+  const win = window.open('','_blank');
+  win.document.write(`
+    <html><head><title>배송목록 ${ds}</title>
+    <style>
+      body{font-family:sans-serif;font-size:12px;padding:20px;color:#111;}
+      h2{margin:0 0 6px;}
+      .meta{margin-bottom:16px;color:#555;}
+      h3{margin:20px 0 8px;font-size:15px;}
+      table{border-collapse:collapse;width:100%;margin-bottom:18px;page-break-inside:auto;}
+      th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top;}
+      th{background:#f0f0f0;font-weight:700;}
+      tr{page-break-inside:avoid;page-break-after:auto;}
+      @media print{button{display:none;} h3{page-break-after:avoid;}}
+    </style></head>
+    <body>
+    <h2>배송목록 · ${ds}</h2>
+    <div class="meta">직배송 ${directList.length}건 / 택배 ${courierList.length}건 / 총 ${directList.length + courierList.length}건</div>
+    <button onclick="window.print()" style="margin-bottom:12px;padding:6px 16px;background:#1a6b3c;color:#fff;border:none;border-radius:6px;cursor:pointer;">인쇄</button>
+    ${deliveryPrintSection('직배송', directList)}
+    ${deliveryPrintSection('택배', courierList)}
+    </body></html>`);
+  win.document.close();
+}
+
 async function markAllDirect(){
   const ds = document.getElementById('todayDate').value || todayStr();
   const list = listFor(ds).filter(c=>c.isDirect);
