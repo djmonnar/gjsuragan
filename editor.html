@@ -171,6 +171,23 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 @keyframes spin{to{transform:rotate(360deg);}}
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#1F2937;color:#fff;padding:10px 22px;border-radius:99px;font-size:13px;font-weight:600;z-index:3000;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis;}
 #toast.on{transform:translateX(-50%) translateY(0);}
+.firebase-auth-screen{display:none;position:fixed;inset:0;z-index:2500;background:linear-gradient(135deg,#2D2A26 0%,#5C3A21 52%,#9A3412 100%);align-items:center;justify-content:center;padding:24px;}
+.firebase-auth-screen.on{display:flex;}
+.firebase-auth-card{width:min(420px,100%);background:#FFFCF8;border:1px solid #FED7AA;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.28);padding:26px;}
+.firebase-auth-topline{font-size:12px;font-weight:900;color:#EA580C;letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px;}
+.firebase-auth-card h2{font-size:22px;color:#2D2A26;margin-bottom:6px;}
+.firebase-auth-card p{font-size:13px;color:#6B5A4E;line-height:1.65;margin-bottom:18px;}
+.firebase-auth-card .fg input{padding:11px 12px;border-radius:10px;font-size:14px;background:#fff;}
+.firebase-auth-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+.firebase-auth-actions .btn-pri,.firebase-auth-actions .btn-sec{padding:11px 14px;font-size:14px;}
+.firebase-remember{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#5C3A21;margin-top:6px;cursor:pointer;}
+.firebase-remember input{accent-color:#EA580C;}
+.firebase-status-box{border:1px solid #E5E7EB;background:#F9FAFB;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:700;color:#6B7280;line-height:1.55;margin-top:10px;}
+.firebase-status-box.good{border-color:#BBF7D0;background:#F0FDF4;color:#166534;}
+.firebase-status-box.warn{border-color:#FDE68A;background:#FFFBEB;color:#92400E;}
+.firebase-status-box.error{border-color:#FECACA;background:#FEF2F2;color:#991B1B;}
+.firebase-user-badge{display:none;margin-top:10px;padding:7px 10px;border-radius:999px;background:rgba(234,88,12,.16);color:#FED7AA;border:1px solid rgba(254,215,170,.28);font-size:11px;font-weight:800;width:max-content;max-width:100%;}
+.firebase-user-badge.on{display:block;}
 
 #proof-summary{font-size:13px;font-weight:700;color:#374151;margin-bottom:12px;}
 #proof-list{display:flex;flex-direction:column;gap:8px;}
@@ -237,10 +254,27 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 </style>
 </head>
 <body>
+<div id="firebase-auth-screen" class="firebase-auth-screen on">
+  <div class="firebase-auth-card">
+    <div class="firebase-auth-topline">Firebase Login</div>
+    <h2>궁중수라간 편집기 로그인</h2>
+    <p>식단표와 AI 월식 결과를 클라우드에 안전하게 저장하려면 관리자 계정으로 로그인해주세요. 이미 로그인된 기기라면 자동으로 편집기 화면으로 넘어갑니다.</p>
+    <div class="fg"><label>관리자 이메일</label><input type="email" id="fb-login-email" placeholder="sun1562@naver.com"></div>
+    <div class="fg"><label>비밀번호</label><input type="password" id="fb-login-password" placeholder="Firebase 로그인 비밀번호" onkeydown="if(event.key==='Enter')firebaseLogin()"></div>
+    <label class="firebase-remember"><input type="checkbox" id="fb-remember" checked> 이 기기에서 자동 로그인 유지</label>
+    <div class="firebase-auth-actions">
+      <button class="btn-pri" onclick="firebaseLogin()">로그인</button>
+      <button class="btn-sec" onclick="hideFirebaseAuthScreen()">오프라인으로 계속</button>
+    </div>
+    <div id="firebase-login-status" class="firebase-status-box warn">로그인 상태를 확인하는 중입니다...</div>
+  </div>
+</div>
+
 <div id="sidebar">
   <div id="sidebar-header">
     <h1>🍲 궁중수라간 멀티월 식단표 편집기</h1>
     <p>월 추가·삭제 / 선택한 월 편집 / 스크린샷 인식 / 오타 검수 / 아임웹용 2개월 탭 코드 복사</p>
+    <div id="firebase-user-badge" class="firebase-user-badge">Firebase 로그인 확인 중</div>
   </div>
 
   <div id="month-toolbar">
@@ -474,14 +508,14 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
       <h3>Firebase 클라우드 저장</h3>
       <div class="tip-box">관리자 계정으로 로그인하면 현재 식단표와 AI 월식 결과를 Firestore에 저장하고 다른 기기에서 불러올 수 있습니다.</div>
       <div class="fg"><label>관리자 이메일</label><input type="email" id="fb-email" placeholder="sun1562@naver.com"></div>
-      <div class="fg"><label>비밀번호</label><input type="password" id="fb-password" placeholder="Firebase 로그인 비밀번호"></div>
+      <div class="fg"><label>비밀번호</label><input type="password" id="fb-password" placeholder="Firebase 로그인 비밀번호" onkeydown="if(event.key==='Enter')firebaseLogin()"></div>
       <div class="ai-result-actions">
         <button class="btn-pri" onclick="firebaseLogin()">Firebase 로그인</button>
         <button class="btn-sec" onclick="firebaseLogout()">로그아웃</button>
         <button class="btn-sec" onclick="saveEditorToFirebase()">Firebase 저장</button>
         <button class="btn-sec" onclick="loadEditorFromFirebase()">Firebase 불러오기</button>
       </div>
-      <div id="firebase-status" class="mini-help" style="margin-top:10px;">로그인 전입니다.</div>
+      <div id="firebase-status" class="firebase-status-box warn">로그인 전입니다.</div>
     </div>
   </div>
 </div>
@@ -637,6 +671,8 @@ const FIREBASE_CONFIG = {
 let fbAuth = null;
 let fbDb = null;
 let fbUser = null;
+let fbAuthResolved = false;
+let fbAuthScreenDismissed = false;
 
 function getAutoMonthTitle(year, month){
   return year + '년 ' + month + '월 식단표';
@@ -769,7 +805,7 @@ function cleanForFirestore(value){
 
 function initFirebase(){
   if(typeof firebase === 'undefined'){
-    setFirebaseStatus('Firebase SDK를 불러오지 못했습니다.');
+    setFirebaseStatus('Firebase SDK를 불러오지 못했습니다.', 'error');
     return;
   }
   try{
@@ -781,28 +817,68 @@ function initFirebase(){
     fbAuth.setPersistence('local').catch(()=>{});
     fbAuth.onAuthStateChanged(user=>{
       fbUser = user || null;
+      fbAuthResolved = true;
       updateFirebaseAuthUI();
     });
   }catch(err){
     console.warn(err);
-    setFirebaseStatus('Firebase 초기화 오류: ' + (err.message || err.code || err));
+    setFirebaseStatus('Firebase 초기화 오류: ' + (err.message || err.code || err), 'error');
   }
 }
 
-function setFirebaseStatus(message){
-  const el = document.getElementById('firebase-status');
-  if(el) el.textContent = message;
+function setFirebaseStatus(message, type){
+  const statusType = type || 'warn';
+  ['firebase-status','firebase-login-status'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.textContent = message;
+    el.className = 'firebase-status-box ' + statusType;
+  });
+}
+
+function syncFirebaseLoginInputs(value){
+  const email = normalizeSpaces(value || FIREBASE_ADMIN_EMAIL);
+  ['fb-email','fb-login-email'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el && !el.value) el.value = email;
+  });
+}
+
+function showFirebaseAuthScreen(){
+  const screen = document.getElementById('firebase-auth-screen');
+  if(screen) screen.classList.add('on');
+}
+
+function hideFirebaseAuthScreen(){
+  fbAuthScreenDismissed = true;
+  const screen = document.getElementById('firebase-auth-screen');
+  if(screen) screen.classList.remove('on');
 }
 
 function updateFirebaseAuthUI(){
-  const emailEl = document.getElementById('fb-email');
-  if(emailEl && !emailEl.value) emailEl.value = FIREBASE_ADMIN_EMAIL;
+  syncFirebaseLoginInputs(fbUser?.email || FIREBASE_ADMIN_EMAIL);
+  const badge = document.getElementById('firebase-user-badge');
   if(!fbUser){
-    setFirebaseStatus('로그인 전입니다.');
+    setFirebaseStatus(fbAuthResolved ? '로그인 전입니다. Firebase 저장/불러오기를 쓰려면 로그인해주세요.' : '로그인 상태를 확인하는 중입니다...', 'warn');
+    if(badge){
+      badge.classList.remove('on');
+      badge.textContent = 'Firebase 로그인 전';
+    }
+    if(!fbAuthScreenDismissed) showFirebaseAuthScreen();
     return;
   }
   const adminText = fbUser.email === FIREBASE_ADMIN_EMAIL ? '관리자 로그인 완료' : '관리자 계정이 아닙니다';
-  setFirebaseStatus(adminText + ': ' + (fbUser.email || '이메일 없음'));
+  const type = fbUser.email === FIREBASE_ADMIN_EMAIL ? 'good' : 'error';
+  setFirebaseStatus(adminText + ': ' + (fbUser.email || '이메일 없음'), type);
+  if(badge){
+    badge.classList.add('on');
+    badge.textContent = adminText + ' · ' + (fbUser.email || '');
+  }
+  if(fbUser.email === FIREBASE_ADMIN_EMAIL){
+    hideFirebaseAuthScreen();
+  } else {
+    showFirebaseAuthScreen();
+  }
 }
 
 function requireFirebaseAdmin(){
@@ -818,19 +894,33 @@ async function firebaseLogin(){
     toast('Firebase를 사용할 수 없습니다');
     return;
   }
-  const email = normalizeSpaces(document.getElementById('fb-email')?.value || FIREBASE_ADMIN_EMAIL);
-  const password = document.getElementById('fb-password')?.value || '';
+  const settingsPassword = document.getElementById('fb-password')?.value || '';
+  const loginPassword = document.getElementById('fb-login-password')?.value || '';
+  const password = settingsPassword || loginPassword;
+  const email = normalizeSpaces(settingsPassword
+    ? (document.getElementById('fb-email')?.value || FIREBASE_ADMIN_EMAIL)
+    : (document.getElementById('fb-login-email')?.value || document.getElementById('fb-email')?.value || FIREBASE_ADMIN_EMAIL));
   if(!email || !password){
+    setFirebaseStatus('Firebase 이메일과 비밀번호를 입력해주세요.', 'error');
     toast('Firebase 이메일과 비밀번호를 입력해주세요');
     return;
   }
+  const remember = document.getElementById('fb-remember')?.checked !== false;
   showLoad('Firebase 로그인 중입니다...', email);
   try{
+    const persistence = remember ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION;
+    await fbAuth.setPersistence(persistence);
+    syncFirebaseLoginInputs(email);
     await fbAuth.signInWithEmailAndPassword(email, password);
-    const pw = document.getElementById('fb-password');
-    if(pw) pw.value = '';
+    ['fb-password','fb-login-password'].forEach(id=>{
+      const pw = document.getElementById(id);
+      if(pw) pw.value = '';
+    });
+    fbAuthScreenDismissed = false;
+    setFirebaseStatus('관리자 로그인 완료: ' + email, 'good');
     toast('Firebase 로그인 완료 ✓');
   }catch(err){
+    setFirebaseStatus('Firebase 로그인 실패: ' + (err.message || err.code || '알 수 없는 오류'), 'error');
     toast('Firebase 로그인 실패: ' + (err.message || err.code || '알 수 없는 오류'));
   }finally{
     hideLoad();
@@ -843,6 +933,9 @@ async function firebaseLogout(){
     return;
   }
   await fbAuth.signOut();
+  fbAuthScreenDismissed = false;
+  showFirebaseAuthScreen();
+  setFirebaseStatus('로그아웃했습니다. 다시 로그인해주세요.', 'warn');
   toast('Firebase 로그아웃 완료');
 }
 
@@ -896,7 +989,7 @@ async function saveEditorToFirebase(){
       }, {merge:true});
     }
     await batch.commit();
-    setFirebaseStatus('마지막 저장: 방금 전 · ' + fbUser.email);
+    setFirebaseStatus('마지막 저장: 방금 전 · ' + fbUser.email, 'good');
     toast('Firebase 저장 완료 ✓');
   }catch(err){
     console.error(err);
@@ -947,7 +1040,7 @@ async function loadEditorFromFirebase(){
     }
 
     renderAll();
-    setFirebaseStatus('마지막 불러오기: 방금 전 · ' + fbUser.email);
+    setFirebaseStatus('마지막 불러오기: 방금 전 · ' + fbUser.email, 'good');
     toast('Firebase 불러오기 완료 ✓');
   }catch(err){
     console.error(err);
