@@ -220,6 +220,12 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 .ksura-ai-side-list{display:flex;flex-direction:column;gap:3px;min-width:120px;}
 .ksura-ai-note{background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:12px 14px;font-family:'Pretendard',system-ui,sans-serif;font-size:12px;line-height:1.65;color:#9A3412;margin-bottom:14px;}
 .ksura-ai-empty{background:#fff;border:1px dashed #FDBA74;border-radius:14px;padding:24px;text-align:center;font-family:'Pretendard',system-ui,sans-serif;color:#9A3412;line-height:1.7;}
+.ksura-ai-edit-tools{display:flex;justify-content:flex-end;gap:8px;margin:0 0 12px;}
+.ksura-ai-save-btn{padding:8px 14px;border:none;border-radius:8px;background:#EA580C;color:#fff;font-family:'Pretendard',system-ui,sans-serif;font-size:12px;font-weight:800;cursor:pointer;}
+.ksura-ai-save-btn:hover{background:#C2410C;}
+.ksura-ai-input{width:100%;min-width:86px;border:1px solid #E5E7EB;border-radius:7px;background:#fff;padding:6px 7px;font-family:'Pretendard',system-ui,sans-serif;font-size:12px;color:#374151;outline:none;}
+.ksura-ai-input:focus{border-color:#EA580C;box-shadow:0 0 0 2px rgba(234,88,12,.1);}
+.ksura-ai-side-list .ksura-ai-input{min-width:130px;}
 ::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:#f1f1f1;}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px;}
 </style>
 </head>
@@ -1242,6 +1248,10 @@ function getSaladByDate(entries){
   });
   return map;
 }
+function aiEditInput(type, idx, field, value, sideIdx){
+  const sideAttr = Number.isFinite(sideIdx) ? ' data-side="' + sideIdx + '"' : '';
+  return '<input class="ksura-ai-input" data-ai-edit="' + type + '" data-index="' + idx + '" data-field="' + field + '"' + sideAttr + ' value="' + escapeAttr(value || '') + '">';
+}
 function renderAiMonthlyPreview(){
   setPreviewTitle('AI 생성 미리보기');
   const area = document.getElementById('ksura-render-area');
@@ -1260,25 +1270,25 @@ function renderAiMonthlyPreview(){
   const banchanEntries = raw.banchanDeliveryEntries || [];
   const lunchboxEntries = cache.lunchboxEntries || [];
   const saladByDate = getSaladByDate(cache.saladLunchboxEntries || []);
-  const lunchRows = lunchboxEntries.map(entry=>`
+  const lunchRows = lunchboxEntries.map((entry, idx)=>`
     <tr>
-      <td>${escapeHtml(entry.date)}</td>
-      <td>${escapeHtml(entry.weekday)}</td>
-      <td>${escapeHtml(entry.rice)}</td>
-      <td>${escapeHtml(entry.soup)}</td>
-      <td><b>${escapeHtml(entry.main)}</b></td>
-      <td><div class="ksura-ai-side-list">${(entry.sides || []).map(side=>'<span>· ' + escapeHtml(side) + '</span>').join('')}</div></td>
-      <td>${IC.leaf} ${escapeHtml(saladByDate.get(entry.date) || '')}</td>
-      <td>${escapeHtml(entry.price || 8000)}원</td>
+      <td>${aiEditInput('lunch', idx, 'date', entry.date)}</td>
+      <td>${aiEditInput('lunch', idx, 'weekday', entry.weekday)}</td>
+      <td>${aiEditInput('lunch', idx, 'rice', entry.rice)}</td>
+      <td>${aiEditInput('lunch', idx, 'soup', entry.soup)}</td>
+      <td>${aiEditInput('lunch', idx, 'main', entry.main)}</td>
+      <td><div class="ksura-ai-side-list">${[0,1,2,3].map(i=>aiEditInput('lunch', idx, 'sides', (entry.sides || [])[i] || '', i)).join('')}</div></td>
+      <td>${aiEditInput('salad', idx, 'salad', saladByDate.get(entry.date) || '')}</td>
+      <td>${aiEditInput('lunch', idx, 'price', entry.price || 8000)}</td>
     </tr>`).join('');
-  const banchanRows = banchanEntries.map(entry=>`
+  const banchanRows = banchanEntries.map((entry, idx)=>`
     <tr>
-      <td>${escapeHtml(entry.date)}</td>
-      <td>${escapeHtml(entry.arrival || '')}</td>
-      <td><b>${escapeHtml(entry.main || '')}</b></td>
-      <td>${escapeHtml(entry.soup || '')}</td>
-      <td><div class="ksura-ai-side-list">${(entry.sides || []).map(side=>'<span>· ' + escapeHtml(side) + '</span>').join('')}</div></td>
-      <td>${IC.leaf} ${escapeHtml(entry.salad || '')}</td>
+      <td>${aiEditInput('banchan', idx, 'date', entry.date)}</td>
+      <td>${aiEditInput('banchan', idx, 'arrival', entry.arrival || '')}</td>
+      <td>${aiEditInput('banchan', idx, 'main', entry.main || '')}</td>
+      <td>${aiEditInput('banchan', idx, 'soup', entry.soup || '')}</td>
+      <td><div class="ksura-ai-side-list">${[0,1,2,3].map(i=>aiEditInput('banchan', idx, 'sides', (entry.sides || [])[i] || '', i)).join('')}</div></td>
+      <td>${aiEditInput('banchan', idx, 'salad', entry.salad || '')}</td>
       <td>39,000원: 국+반찬4+메인+샐러드<br>32,900원: 국+반찬4+메인<br>25,900원: 반찬4+메인</td>
     </tr>`).join('');
 
@@ -1286,6 +1296,7 @@ function renderAiMonthlyPreview(){
     <div class="ksura-ai-preview">
       <h3>${escapeHtml(cache.year)}년 ${escapeHtml(cache.month)}월 AI 월간 식단</h3>
       <div class="sub">월식도시락, 샐러드도시락, 반찬배송 식단을 한 화면에서 확인합니다.</div>
+      <div class="ksura-ai-edit-tools"><button class="ksura-ai-save-btn" onclick="saveAiPreviewEdits()">미리보기 수정 저장</button></div>
       <div class="ksura-ai-note">
         샐러드도시락은 별도 표로 분리하지 않고 월식도시락의 샐러드 칸에 함께 표시했습니다.
         반찬배송 식단표에는 같은 날짜의 샐러드가 포함되며, 3개 상품은 메뉴 품질 차이가 아니라 포함 품목 차이입니다.
@@ -2621,6 +2632,68 @@ function applyAiBanchanDelivery(){
   mergeEntriesIntoMonths(raw.banchanDeliveryEntries, selected.year, selected.month);
   renderAll();
   toast('반찬배송 식단표에 반영했습니다 ✓');
+}
+function saveAiPreviewEdits(){
+  const cache = aiMonthlyResultCache;
+  if(!cache || !cache.rawResult){
+    toast('저장할 AI 미리보기 결과가 없습니다');
+    return;
+  }
+  const raw = cache.rawResult;
+  const getVal = (type, idx, field, sideIdx)=>{
+    const sideSel = Number.isFinite(sideIdx) ? '[data-side="' + sideIdx + '"]' : ':not([data-side])';
+    const el = document.querySelector('[data-ai-edit="' + type + '"][data-index="' + idx + '"][data-field="' + field + '"]' + sideSel);
+    return el ? normalizeSpaces(el.value) : '';
+  };
+
+  const lunchboxEntries = (cache.lunchboxEntries || []).map((entry, idx)=>({
+    year: entry.year || cache.year,
+    month: entry.month || cache.month,
+    date: getVal('lunch', idx, 'date') || entry.date,
+    weekday: getVal('lunch', idx, 'weekday') || entry.weekday,
+    rice: getVal('lunch', idx, 'rice'),
+    soup: getVal('lunch', idx, 'soup'),
+    main: getVal('lunch', idx, 'main'),
+    sides: [0,1,2,3].map(i=>getVal('lunch', idx, 'sides', i)).filter(Boolean),
+    price: Number(getVal('lunch', idx, 'price')) || 8000
+  }));
+  const saladLunchboxEntries = lunchboxEntries.map((entry, idx)=>({
+    year: entry.year,
+    month: entry.month,
+    date: entry.date,
+    weekday: entry.weekday,
+    salad: getVal('salad', idx, 'salad'),
+    price: entry.price
+  }));
+  const saladByDate = getSaladByDate(saladLunchboxEntries);
+  const banchanDeliveryEntries = (raw.banchanDeliveryEntries || []).map((entry, idx)=>{
+    const date = getVal('banchan', idx, 'date') || entry.date;
+    return {
+      year: entry.year || cache.year,
+      month: entry.month || cache.month,
+      date,
+      arrival: getVal('banchan', idx, 'arrival') || entry.arrival,
+      main: getVal('banchan', idx, 'main'),
+      soup: getVal('banchan', idx, 'soup'),
+      sides: [0,1,2,3].map(i=>getVal('banchan', idx, 'sides', i)).filter(Boolean),
+      salad: saladByDate.get(date) || getVal('banchan', idx, 'salad')
+    };
+  });
+
+  raw.lunchboxEntries = lunchboxEntries;
+  raw.saladLunchboxEntries = saladLunchboxEntries;
+  raw.banchanDeliveryEntries = banchanDeliveryEntries;
+  const validation = validateAiMonthlyResult(raw, cache.year, cache.month);
+  raw.warnings = Array.from(new Set([...(raw.warnings || []).filter(text=>!String(text).startsWith('오류:')), ...validation.warnings, ...validation.errors.map(v=>'오류: ' + v)]));
+  cache.lunchboxEntries = lunchboxEntries;
+  cache.saladLunchboxEntries = saladLunchboxEntries;
+  cache.warnings = raw.warnings;
+  cache.validationErrors = validation.errors;
+  cache.rawResult = raw;
+  persistLunchboxResult();
+  renderAiMonthlyResult();
+  renderPreview();
+  toast(validation.errors.length ? '수정 저장 완료: 검수 오류를 확인해주세요' : '미리보기 수정 내용을 저장했습니다 ✓');
 }
 function renderAiTable(tableId, headers, rows){
   const table = document.getElementById(tableId);
