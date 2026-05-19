@@ -310,6 +310,10 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
       <h3>🤖 AI 월간 식단 생성</h3>
       <p>기존 Gemini API 키를 사용해 반찬배송 식단과 월식도시락을 한 번에 생성합니다. 반찬배송만 기존 식단표에 반영할 수 있습니다.</p>
       <div class="tip-box">반찬배송 39,000원 / 32,900원 / 25,900원 상품은 같은 식단을 기반으로 하며, 차이는 품질이 아니라 포함 품목입니다.</div>
+      <div class="key-wrap" style="margin-bottom:10px;">
+        <label>Gemini API 키 <a href="https://aistudio.google.com/app/apikey" target="_blank">발급받기 →</a></label>
+        <input type="password" id="ai-gemini-key" placeholder="API 키 입력 (가져오기 탭과 공유)" />
+      </div>
 
       <div class="fg-row">
         <div class="fg"><label>생성할 년도</label><input type="number" id="ai-year" min="2020" max="2100"></div>
@@ -1691,8 +1695,19 @@ document.getElementById('excel-input').addEventListener('change', function(e){
   reader.readAsArrayBuffer(file);
 });
 const geminiKeyEl = document.getElementById('gemini-key');
-geminiKeyEl.value = localStorage.getItem('ksura_gkey') || '';
-geminiKeyEl.addEventListener('input', ()=>localStorage.setItem('ksura_gkey', geminiKeyEl.value.trim()));
+const aiGeminiKeyEl = document.getElementById('ai-gemini-key');
+function syncGeminiKeyInputs(value){
+  if(geminiKeyEl && geminiKeyEl.value !== value) geminiKeyEl.value = value;
+  if(aiGeminiKeyEl && aiGeminiKeyEl.value !== value) aiGeminiKeyEl.value = value;
+}
+function saveGeminiKey(value){
+  const key = normalizeSpaces(value);
+  localStorage.setItem('ksura_gkey', key);
+  syncGeminiKeyInputs(key);
+}
+syncGeminiKeyInputs(localStorage.getItem('ksura_gkey') || '');
+geminiKeyEl.addEventListener('input', ()=>saveGeminiKey(geminiKeyEl.value));
+aiGeminiKeyEl.addEventListener('input', ()=>saveGeminiKey(aiGeminiKeyEl.value));
 
 document.getElementById('img-input').addEventListener('change', async function(e){
   const file = e.target.files[0];
