@@ -1,45 +1,55 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'sun1562@naver.com';
+      return request.auth != null
+        && request.auth.token.email == 'sun1562@naver.com';
     }
 
-    function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
-    }
-
-    // index.html 배송 관리 (Firebase Auth 미사용, 비밀번호 자체 인증)
     match /customers/{document=**} {
-      allow read, write: if true;
+      allow read, write: if isAdmin();
     }
 
-    // 아임웹 취소삭제 알림 로그
     match /imwebCancelLogs/{document=**} {
-      allow read, write: if true;
+      allow read, write: if isAdmin();
     }
 
-    // 월식 앱 — 회원 정보
     match /users/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow read, write: if request.auth != null &&
+        (request.auth.uid == userId || isAdmin());
     }
 
-    // 주문 데이터
     match /orders/{date}/items/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow read, write: if request.auth != null &&
+        (request.auth.uid == userId || isAdmin());
     }
 
-    // 고객앱 식단
     match /mealMenus/{date} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
 
-    // 앱 설정 (커스텀 휴무일 등)
     match /config/{docId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
+    }
+
+    match /editorStates/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /monthlyMenus/{monthId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /lunchboxMenus/{monthId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /aiMenuDrafts/{monthId} {
+      allow read, write: if isAdmin();
     }
   }
 }

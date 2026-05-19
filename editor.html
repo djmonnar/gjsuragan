@@ -469,6 +469,20 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
     <div class="set-sec">
       <button class="btn-pri" onclick="saveSharedSettings()" style="width:100%;">공통 설정 저장</button>
     </div>
+
+    <div class="set-sec">
+      <h3>Firebase 클라우드 저장</h3>
+      <div class="tip-box">관리자 계정으로 로그인하면 현재 식단표와 AI 월식 결과를 Firestore에 저장하고 다른 기기에서 불러올 수 있습니다.</div>
+      <div class="fg"><label>관리자 이메일</label><input type="email" id="fb-email" placeholder="sun1562@naver.com"></div>
+      <div class="fg"><label>비밀번호</label><input type="password" id="fb-password" placeholder="Firebase 로그인 비밀번호"></div>
+      <div class="ai-result-actions">
+        <button class="btn-pri" onclick="firebaseLogin()">Firebase 로그인</button>
+        <button class="btn-sec" onclick="firebaseLogout()">로그아웃</button>
+        <button class="btn-sec" onclick="saveEditorToFirebase()">Firebase 저장</button>
+        <button class="btn-sec" onclick="loadEditorFromFirebase()">Firebase 불러오기</button>
+      </div>
+      <div id="firebase-status" class="mini-help" style="margin-top:10px;">로그인 전입니다.</div>
+    </div>
   </div>
 </div>
 
@@ -588,6 +602,9 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 
 <div id="toast"></div>
 
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const IC = {
@@ -603,9 +620,23 @@ const IC = {
 const STORAGE_KEY = 'ksura_multi_month_editor_v3';
 const LUNCHBOX_STORAGE_KEY = 'ksura_lunchbox_menu_v1';
 const AI_PROMPT_PRESET_KEY = 'ksura_ai_prompt_preset_v1';
+const FIREBASE_ADMIN_EMAIL = 'sun1562@naver.com';
+const FIREBASE_EDITOR_DOC_ID = 'current';
 const MAX_MONTHS = 2;
 const DOW_KO = ['일','월','화','수','목','금','토'];
 const DAY = ['월','화','수','목','금'];
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A',
+  authDomain: 'gjsuragan-60505.firebaseapp.com',
+  projectId: 'gjsuragan-60505',
+  storageBucket: 'gjsuragan-60505.firebasestorage.app',
+  messagingSenderId: '1009198450175',
+  appId: '1:1009198450175:web:4a55da7c2092dba42613ca'
+};
+
+let fbAuth = null;
+let fbDb = null;
+let fbUser = null;
 
 function getAutoMonthTitle(year, month){
   return year + '년 ' + month + '월 식단표';
@@ -666,6 +697,35 @@ function buildDefaultState(){
   };
 }
 
+function normalizeLoadedState(parsed){
+  try{
+    if(!parsed || !Array.isArray(parsed.months) || !parsed.months.length) return null;
+    const next = clone(parsed);
+    next.sharedSettings = Object.assign(clone(DEFAULT_SHARED_SETTINGS), next.sharedSettings || {});
+    next.months = next.months.map(month => {
+      const year = parseInt(month.year,10);
+      const monthNumber = parseInt(month.month,10);
+      return {
+        id: month.id || makeMonthId(year, monthNumber),
+        year,
+        month: monthNumber,
+        title: month.title || getAutoMonthTitle(year, monthNumber),
+        menuData: Array.isArray(month.menuData) ? month.menuData.map(item => normalizeEntry(item, year, monthNumber)) : []
+      };
+    }).filter(m => Number.isFinite(m.year) && Number.isFinite(m.month));
+    if(!next.months.length) return null;
+    next.months.sort((a,b)=> a.year === b.year ? a.month - b.month : a.year - b.year);
+    next.months.forEach(month => sortMonthData(month));
+    if(!next.months.find(m => m.id === next.activeMonthId)){
+      next.activeMonthId = next.months[0].id;
+    }
+    return next;
+  }catch(err){
+    console.warn(err);
+    return null;
+  }
+}
+
 let state = loadState();
 let activeEntryId = null;
 let activeEntryMonthId = null;
@@ -677,21 +737,7 @@ function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     if(!raw) return buildDefaultState();
-    const parsed = JSON.parse(raw);
-    if(!parsed || !Array.isArray(parsed.months) || !parsed.months.length) return buildDefaultState();
-    parsed.sharedSettings = Object.assign(clone(DEFAULT_SHARED_SETTINGS), parsed.sharedSettings || {});
-    parsed.months = parsed.months.map(month => ({
-      id: month.id || makeMonthId(month.year, month.month),
-      year: parseInt(month.year,10),
-      month: parseInt(month.month,10),
-      title: month.title || getAutoMonthTitle(parseInt(month.year,10), parseInt(month.month,10)),
-      menuData: Array.isArray(month.menuData) ? month.menuData.map(item => normalizeEntry(item, parseInt(month.year,10), parseInt(month.month,10))) : []
-    })).filter(m => Number.isFinite(m.year) && Number.isFinite(m.month));
-    sortMonths();
-    if(!parsed.months.find(m => m.id === parsed.activeMonthId)){
-      parsed.activeMonthId = parsed.months[0].id;
-    }
-    return parsed;
+    return normalizeLoadedState(JSON.parse(raw)) || buildDefaultState();
   }catch(err){
     console.error(err);
     return buildDefaultState();
@@ -700,6 +746,215 @@ function loadState(){
 
 function persist(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function monthDocId(monthObj){
+  const month = monthObj || getSelectedMonth();
+  return month.year + '-' + String(month.month).padStart(2,'0');
+}
+
+function cleanForFirestore(value){
+  if(value === undefined || typeof value === 'function') return null;
+  if(value === null || typeof value !== 'object') return value;
+  if(Array.isArray(value)){
+    return value.map(cleanForFirestore).filter(v => v !== undefined);
+  }
+  const out = {};
+  Object.keys(value).forEach(key=>{
+    const cleaned = cleanForFirestore(value[key]);
+    if(cleaned !== undefined) out[key] = cleaned;
+  });
+  return out;
+}
+
+function initFirebase(){
+  if(typeof firebase === 'undefined'){
+    setFirebaseStatus('Firebase SDK를 불러오지 못했습니다.');
+    return;
+  }
+  try{
+    if(!firebase.apps.length){
+      firebase.initializeApp(FIREBASE_CONFIG);
+    }
+    fbAuth = firebase.auth();
+    fbDb = firebase.firestore();
+    fbAuth.setPersistence('local').catch(()=>{});
+    fbAuth.onAuthStateChanged(user=>{
+      fbUser = user || null;
+      updateFirebaseAuthUI();
+    });
+  }catch(err){
+    console.warn(err);
+    setFirebaseStatus('Firebase 초기화 오류: ' + (err.message || err.code || err));
+  }
+}
+
+function setFirebaseStatus(message){
+  const el = document.getElementById('firebase-status');
+  if(el) el.textContent = message;
+}
+
+function updateFirebaseAuthUI(){
+  const emailEl = document.getElementById('fb-email');
+  if(emailEl && !emailEl.value) emailEl.value = FIREBASE_ADMIN_EMAIL;
+  if(!fbUser){
+    setFirebaseStatus('로그인 전입니다.');
+    return;
+  }
+  const adminText = fbUser.email === FIREBASE_ADMIN_EMAIL ? '관리자 로그인 완료' : '관리자 계정이 아닙니다';
+  setFirebaseStatus(adminText + ': ' + (fbUser.email || '이메일 없음'));
+}
+
+function requireFirebaseAdmin(){
+  if(!fbAuth || !fbDb) throw new Error('Firebase가 아직 준비되지 않았습니다');
+  if(!fbUser) throw new Error('Firebase 로그인이 필요합니다');
+  if(fbUser.email !== FIREBASE_ADMIN_EMAIL) throw new Error('관리자 이메일로 로그인해주세요');
+  return true;
+}
+
+async function firebaseLogin(){
+  if(!fbAuth) initFirebase();
+  if(!fbAuth){
+    toast('Firebase를 사용할 수 없습니다');
+    return;
+  }
+  const email = normalizeSpaces(document.getElementById('fb-email')?.value || FIREBASE_ADMIN_EMAIL);
+  const password = document.getElementById('fb-password')?.value || '';
+  if(!email || !password){
+    toast('Firebase 이메일과 비밀번호를 입력해주세요');
+    return;
+  }
+  showLoad('Firebase 로그인 중입니다...', email);
+  try{
+    await fbAuth.signInWithEmailAndPassword(email, password);
+    const pw = document.getElementById('fb-password');
+    if(pw) pw.value = '';
+    toast('Firebase 로그인 완료 ✓');
+  }catch(err){
+    toast('Firebase 로그인 실패: ' + (err.message || err.code || '알 수 없는 오류'));
+  }finally{
+    hideLoad();
+  }
+}
+
+async function firebaseLogout(){
+  if(!fbAuth){
+    toast('Firebase가 준비되지 않았습니다');
+    return;
+  }
+  await fbAuth.signOut();
+  toast('Firebase 로그아웃 완료');
+}
+
+async function saveEditorToFirebase(){
+  try{
+    requireFirebaseAdmin();
+  }catch(err){
+    toast(err.message);
+    return;
+  }
+  showLoad('Firebase에 식단표를 저장 중입니다...', '로컬 식단표와 AI 월식 결과를 클라우드에 백업합니다.');
+  try{
+    const batch = fbDb.batch();
+    const stamp = firebase.firestore.FieldValue.serverTimestamp();
+    batch.set(fbDb.collection('editorStates').doc(FIREBASE_EDITOR_DOC_ID), {
+      state: cleanForFirestore(state),
+      activeMonthId: state.activeMonthId,
+      updatedAt: stamp,
+      updatedBy: fbUser.email
+    }, {merge:true});
+    state.months.forEach(month=>{
+      batch.set(fbDb.collection('monthlyMenus').doc(monthDocId(month)), {
+        year: month.year,
+        month: month.month,
+        title: month.title || getAutoMonthTitle(month.year, month.month),
+        menuData: cleanForFirestore(month.menuData || []),
+        updatedAt: stamp,
+        updatedBy: fbUser.email
+      }, {merge:true});
+    });
+    if(aiMonthlyResultCache){
+      const aiMonthId = aiMonthlyResultCache.year + '-' + String(aiMonthlyResultCache.month).padStart(2,'0');
+      batch.set(fbDb.collection('lunchboxMenus').doc(aiMonthId), {
+        year: aiMonthlyResultCache.year,
+        month: aiMonthlyResultCache.month,
+        lunchboxEntries: cleanForFirestore(aiMonthlyResultCache.lunchboxEntries || []),
+        saladLunchboxEntries: cleanForFirestore(aiMonthlyResultCache.saladLunchboxEntries || []),
+        sharedIngredientPlan: cleanForFirestore(aiMonthlyResultCache.sharedIngredientPlan || []),
+        warnings: cleanForFirestore(aiMonthlyResultCache.warnings || []),
+        updatedAt: stamp,
+        updatedBy: fbUser.email
+      }, {merge:true});
+      batch.set(fbDb.collection('aiMenuDrafts').doc(aiMonthId), {
+        year: aiMonthlyResultCache.year,
+        month: aiMonthlyResultCache.month,
+        rawResult: cleanForFirestore(aiMonthlyResultCache.rawResult || {}),
+        validationErrors: cleanForFirestore(aiMonthlyResultCache.validationErrors || []),
+        warnings: cleanForFirestore(aiMonthlyResultCache.warnings || []),
+        updatedAt: stamp,
+        updatedBy: fbUser.email
+      }, {merge:true});
+    }
+    await batch.commit();
+    setFirebaseStatus('마지막 저장: 방금 전 · ' + fbUser.email);
+    toast('Firebase 저장 완료 ✓');
+  }catch(err){
+    console.error(err);
+    toast('Firebase 저장 실패: ' + (err.message || err.code || '알 수 없는 오류'));
+  }finally{
+    hideLoad();
+  }
+}
+
+async function loadEditorFromFirebase(){
+  try{
+    requireFirebaseAdmin();
+  }catch(err){
+    toast(err.message);
+    return;
+  }
+  showLoad('Firebase에서 식단표를 불러오는 중입니다...', '클라우드에 저장된 최신 편집 상태를 적용합니다.');
+  try{
+    const editorSnap = await fbDb.collection('editorStates').doc(FIREBASE_EDITOR_DOC_ID).get();
+    if(!editorSnap.exists) throw new Error('저장된 editorStates/current 문서가 없습니다');
+    const editorData = editorSnap.data() || {};
+    const loadedState = normalizeLoadedState(editorData.state);
+    if(!loadedState) throw new Error('Firebase 식단표 구조를 인식하지 못했습니다');
+    state = loadedState;
+    persist();
+
+    const selected = getSelectedMonth();
+    const selectedId = monthDocId(selected);
+    const lunchSnap = await fbDb.collection('lunchboxMenus').doc(selectedId).get();
+    const draftSnap = await fbDb.collection('aiMenuDrafts').doc(selectedId).get();
+    if(lunchSnap.exists || draftSnap.exists){
+      const lunchData = lunchSnap.exists ? lunchSnap.data() : {};
+      const draftData = draftSnap.exists ? draftSnap.data() : {};
+      aiMonthlyResultCache = normalizeLunchboxResult({
+        year: lunchData.year || draftData.year || selected.year,
+        month: lunchData.month || draftData.month || selected.month,
+        lunchboxEntries: lunchData.lunchboxEntries || [],
+        saladLunchboxEntries: lunchData.saladLunchboxEntries || [],
+        sharedIngredientPlan: lunchData.sharedIngredientPlan || [],
+        warnings: draftData.warnings || lunchData.warnings || [],
+        rawResult: draftData.rawResult || {},
+        validationErrors: draftData.validationErrors || []
+      });
+      persistLunchboxResult();
+    } else {
+      aiMonthlyResultCache = null;
+      localStorage.removeItem(LUNCHBOX_STORAGE_KEY);
+    }
+
+    renderAll();
+    setFirebaseStatus('마지막 불러오기: 방금 전 · ' + fbUser.email);
+    toast('Firebase 불러오기 완료 ✓');
+  }catch(err){
+    console.error(err);
+    toast('Firebase 불러오기 실패: ' + (err.message || err.code || '알 수 없는 오류'));
+  }finally{
+    hideLoad();
+  }
 }
 
 function sortMonths(){
@@ -909,6 +1164,9 @@ function loadSettingsUI(){
   document.getElementById('m-title').value = month.title || getAutoMonthTitle(month.year, month.month);
   document.getElementById('s-tel').value = state.sharedSettings.tel || '';
   document.getElementById('s-footer').value = state.sharedSettings.footerText || '';
+  const fbEmailEl = document.getElementById('fb-email');
+  if(fbEmailEl && !fbEmailEl.value) fbEmailEl.value = FIREBASE_ADMIN_EMAIL;
+  updateFirebaseAuthUI();
   renderOriginRows();
 }
 
@@ -2285,19 +2543,23 @@ function applySafeAutofix(){
   toast('안전한 자동 정리를 적용했습니다 ✓');
 }
 
+function normalizeLunchboxResult(parsed){
+  if(!parsed || !parsed.year || !parsed.month) return null;
+  const next = clone(parsed);
+  next.lunchboxEntries = Array.isArray(next.lunchboxEntries) ? next.lunchboxEntries : [];
+  next.saladLunchboxEntries = Array.isArray(next.saladLunchboxEntries) ? next.saladLunchboxEntries : [];
+  next.sharedIngredientPlan = Array.isArray(next.sharedIngredientPlan) ? next.sharedIngredientPlan : [];
+  next.warnings = Array.isArray(next.warnings) ? next.warnings : [];
+  next.rawResult = next.rawResult || {};
+  next.validationErrors = Array.isArray(next.validationErrors) ? next.validationErrors : [];
+  return next;
+}
+
 function loadLunchboxResult(){
   try{
     const raw = localStorage.getItem(LUNCHBOX_STORAGE_KEY);
     if(!raw) return null;
-    const parsed = JSON.parse(raw);
-    if(!parsed || !parsed.year || !parsed.month) return null;
-    parsed.lunchboxEntries = Array.isArray(parsed.lunchboxEntries) ? parsed.lunchboxEntries : [];
-    parsed.saladLunchboxEntries = Array.isArray(parsed.saladLunchboxEntries) ? parsed.saladLunchboxEntries : [];
-    parsed.sharedIngredientPlan = Array.isArray(parsed.sharedIngredientPlan) ? parsed.sharedIngredientPlan : [];
-    parsed.warnings = Array.isArray(parsed.warnings) ? parsed.warnings : [];
-    parsed.rawResult = parsed.rawResult || {};
-    parsed.validationErrors = Array.isArray(parsed.validationErrors) ? parsed.validationErrors : [];
-    return parsed;
+    return normalizeLunchboxResult(JSON.parse(raw));
   }catch(err){
     console.warn(err);
     return null;
@@ -3137,6 +3399,7 @@ function renderAll(){
 renderExcelMonthGrid();
 setExcelImportMode(getExcelImportMode());
 loadAiPromptPreset(false);
+initFirebase();
 renderAll();
 </script>
 </body>
