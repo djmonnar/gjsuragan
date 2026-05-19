@@ -186,6 +186,10 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 .firebase-status-box.good{border-color:#BBF7D0;background:#F0FDF4;color:#166534;}
 .firebase-status-box.warn{border-color:#FDE68A;background:#FFFBEB;color:#92400E;}
 .firebase-status-box.error{border-color:#FECACA;background:#FEF2F2;color:#991B1B;}
+.firebase-summary-box{border:1px solid #E5E7EB;background:#fff;border-radius:12px;padding:11px 12px;margin-top:10px;font-size:12px;line-height:1.7;color:#374151;}
+.firebase-summary-box b{color:#9A3412;}
+.firebase-summary-box .muted{color:#9CA3AF;font-weight:600;}
+.firebase-summary-grid{display:grid;grid-template-columns:84px 1fr;gap:4px 10px;}
 .firebase-user-badge{display:none;margin-top:10px;padding:7px 10px;border-radius:999px;background:rgba(234,88,12,.16);color:#FED7AA;border:1px solid rgba(254,215,170,.28);font-size:11px;font-weight:800;width:max-content;max-width:100%;}
 .firebase-user-badge.on{display:block;}
 
@@ -517,10 +521,12 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
       <div class="ai-result-actions">
         <button class="btn-pri" onclick="firebaseLogin()">Firebase 로그인</button>
         <button class="btn-sec" onclick="firebaseLogout()">로그아웃</button>
-        <button class="btn-sec" onclick="saveEditorToFirebase()">Firebase 저장</button>
-        <button class="btn-sec" onclick="loadEditorFromFirebase()">Firebase 불러오기</button>
+        <button class="btn-sec" onclick="refreshFirebaseBackupSummary(true)">저장본 확인</button>
+        <button class="btn-sec" onclick="saveEditorToFirebase()">현재 작업 클라우드 저장</button>
+        <button class="btn-sec" onclick="loadEditorFromFirebase()">확인한 저장본 불러오기</button>
       </div>
       <div id="firebase-status" class="firebase-status-box warn">로그인 전입니다.</div>
+      <div id="firebase-summary" class="firebase-summary-box"><span class="muted">아직 저장본 정보를 조회하지 않았습니다.</span></div>
     </div>
   </div>
 </div>
@@ -678,6 +684,7 @@ let fbDb = null;
 let fbUser = null;
 let fbAuthResolved = false;
 let fbAuthScreenDismissed = false;
+let firebaseBackupSummaryCache = null;
 
 function getAutoMonthTitle(year, month){
   return year + '년 ' + month + '월 식단표';
@@ -841,6 +848,113 @@ function setFirebaseStatus(message, type){
   });
 }
 
+function formatFirebaseTime(value){
+  if(!value) return '기록 없음';
+  let date = null;
+  if(value.toDate) date = value.toDate();
+  else if(value.seconds) date = new Date(value.seconds * 1000);
+  else if(typeof value === 'string' || typeof value === 'number') date = new Date(value);
+  if(!date || Number.isNaN(date.getTime())) return '기록 없음';
+  return date.getFullYear() + '-' + String(date.getMonth()+1).padStart(2,'0') + '-' + String(date.getDate()).padStart(2,'0') + ' ' + String(date.getHours()).padStart(2,'0') + ':' + String(date.getMinutes()).padStart(2,'0');
+}
+
+function getStateMonthLabels(targetState){
+  return ((targetState && targetState.months) || []).map(month=>month.year + '년 ' + month.month + '월');
+}
+
+function getLocalBackupSummary(){
+  const ai = aiMonthlyResultCache ? aiMonthlyResultCache.year + '년 ' + aiMonthlyResultCache.month + '월' : '없음';
+  return {
+    updatedAtText:'현재 화면',
+    updatedBy:fbUser?.email || '로그인 사용자',
+    monthLabels:getStateMonthLabels(state),
+    activeMonthLabel:(getSelectedMonth()?.year || '') + '년 ' + (getSelectedMonth()?.month || '') + '월',
+    aiMonthLabel:ai,
+    lunchboxCount:aiMonthlyResultCache?.lunchboxEntries?.length || 0,
+    banchanCount:(state.months || []).reduce((sum, month)=>sum + ((month.menuData || []).length), 0)
+  };
+}
+
+function renderFirebaseSummary(summary, mode){
+  const el = document.getElementById('firebase-summary');
+  if(!el) return;
+  if(!summary){
+    el.innerHTML = '<span class="muted">저장본 정보가 없습니다. 먼저 저장본 확인을 눌러주세요.</span>';
+    return;
+  }
+  const label = mode === 'local' ? '저장할 현재 작업' : '불러올 클라우드 저장본';
+  el.innerHTML = '<div><b>' + escapeHtml(label) + '</b></div>' +
+    '<div class="firebase-summary-grid">' +
+    '<span class="muted">시간</span><span>' + escapeHtml(summary.updatedAtText || '기록 없음') + '</span>' +
+    '<span class="muted">저장자</span><span>' + escapeHtml(summary.updatedBy || '기록 없음') + '</span>' +
+    '<span class="muted">포함 월</span><span>' + escapeHtml((summary.monthLabels || []).join(', ') || '없음') + '</span>' +
+    '<span class="muted">선택 월</span><span>' + escapeHtml(summary.activeMonthLabel || '없음') + '</span>' +
+    '<span class="muted">AI 월식</span><span>' + escapeHtml(summary.aiMonthLabel || '없음') + (summary.lunchboxCount ? ' · ' + summary.lunchboxCount + '개' : '') + '</span>' +
+    '<span class="muted">반찬배송</span><span>' + escapeHtml(String(summary.banchanCount || 0)) + '개 항목</span>' +
+    '</div>';
+}
+
+function buildFirebaseSummaryFromData(editorData, lunchData, draftData){
+  const loadedState = normalizeLoadedState(editorData?.state);
+  const monthLabels = getStateMonthLabels(loadedState);
+  const active = loadedState ? (loadedState.months.find(m=>m.id === loadedState.activeMonthId) || loadedState.months[0]) : null;
+  const aiYear = lunchData?.year || draftData?.year;
+  const aiMonth = lunchData?.month || draftData?.month;
+  return {
+    updatedAtText: formatFirebaseTime(editorData?.updatedAt),
+    updatedBy: editorData?.updatedBy || '기록 없음',
+    monthLabels,
+    activeMonthLabel: active ? active.year + '년 ' + active.month + '월' : '없음',
+    aiMonthLabel: aiYear && aiMonth ? aiYear + '년 ' + aiMonth + '월' : '없음',
+    lunchboxCount: Array.isArray(lunchData?.lunchboxEntries) ? lunchData.lunchboxEntries.length : 0,
+    banchanCount: loadedState ? loadedState.months.reduce((sum, month)=>sum + ((month.menuData || []).length), 0) : 0,
+    state: loadedState,
+    editorData,
+    lunchData:lunchData || null,
+    draftData:draftData || null
+  };
+}
+
+async function fetchFirebaseBackupSummary(){
+  requireFirebaseAdmin();
+  const editorSnap = await fbDb.collection('editorStates').doc(FIREBASE_EDITOR_DOC_ID).get();
+  if(!editorSnap.exists) throw new Error('저장된 editorStates/current 문서가 없습니다');
+  const editorData = editorSnap.data() || {};
+  const loadedState = normalizeLoadedState(editorData.state);
+  if(!loadedState) throw new Error('Firebase 식단표 구조를 인식하지 못했습니다');
+  const active = loadedState.months.find(m=>m.id === loadedState.activeMonthId) || loadedState.months[0];
+  const selectedId = monthDocId(active);
+  const lunchSnap = await fbDb.collection('lunchboxMenus').doc(selectedId).get();
+  const draftSnap = await fbDb.collection('aiMenuDrafts').doc(selectedId).get();
+  const summary = buildFirebaseSummaryFromData(editorData, lunchSnap.exists ? lunchSnap.data() : null, draftSnap.exists ? draftSnap.data() : null);
+  firebaseBackupSummaryCache = summary;
+  return summary;
+}
+
+async function refreshFirebaseBackupSummary(showToast){
+  try{
+    requireFirebaseAdmin();
+  }catch(err){
+    toast(err.message);
+    return;
+  }
+  showLoad('Firebase 저장본 정보를 확인 중입니다...', '불러오기 전에 저장 시각과 포함 월을 조회합니다.');
+  try{
+    const summary = await fetchFirebaseBackupSummary();
+    renderFirebaseSummary(summary, 'remote');
+    setFirebaseStatus('저장본 확인 완료: ' + (summary.updatedAtText || '기록 없음'), 'good');
+    if(showToast) toast('Firebase 저장본 정보를 확인했습니다 ✓');
+  }catch(err){
+    console.error(err);
+    firebaseBackupSummaryCache = null;
+    renderFirebaseSummary(null);
+    setFirebaseStatus('저장본 확인 실패: ' + (err.message || err.code || '알 수 없는 오류'), 'error');
+    toast('저장본 확인 실패: ' + (err.message || err.code || '알 수 없는 오류'));
+  }finally{
+    hideLoad();
+  }
+}
+
 function syncFirebaseLoginInputs(value){
   const email = normalizeSpaces(value || FIREBASE_ADMIN_EMAIL);
   ['fb-email','fb-login-email'].forEach(id=>{
@@ -937,8 +1051,10 @@ async function firebaseLogout(){
     toast('Firebase가 준비되지 않았습니다');
     return;
   }
-  await fbAuth.signOut();
+    await fbAuth.signOut();
   fbAuthScreenDismissed = false;
+  firebaseBackupSummaryCache = null;
+  renderFirebaseSummary(null);
   showFirebaseAuthScreen();
   setFirebaseStatus('로그아웃했습니다. 다시 로그인해주세요.', 'warn');
   toast('Firebase 로그아웃 완료');
@@ -951,6 +1067,11 @@ async function saveEditorToFirebase(){
     toast(err.message);
     return;
   }
+  const localSummary = getLocalBackupSummary();
+  renderFirebaseSummary(localSummary, 'local');
+  if(!confirm('현재 작업을 클라우드에 저장할까요?\n\n포함 월: ' + (localSummary.monthLabels.join(', ') || '없음') + '\nAI 월식: ' + localSummary.aiMonthLabel + '\n반찬배송 항목: ' + localSummary.banchanCount + '개')){
+    return;
+  }
   showLoad('Firebase에 식단표를 저장 중입니다...', '로컬 식단표와 AI 월식 결과를 클라우드에 백업합니다.');
   try{
     const batch = fbDb.batch();
@@ -958,6 +1079,11 @@ async function saveEditorToFirebase(){
     batch.set(fbDb.collection('editorStates').doc(FIREBASE_EDITOR_DOC_ID), {
       state: cleanForFirestore(state),
       activeMonthId: state.activeMonthId,
+      monthLabels: localSummary.monthLabels,
+      activeMonthLabel: localSummary.activeMonthLabel,
+      aiMonthLabel: localSummary.aiMonthLabel,
+      lunchboxCount: localSummary.lunchboxCount,
+      banchanCount: localSummary.banchanCount,
       updatedAt: stamp,
       updatedBy: fbUser.email
     }, {merge:true});
@@ -995,6 +1121,8 @@ async function saveEditorToFirebase(){
     }
     await batch.commit();
     setFirebaseStatus('마지막 저장: 방금 전 · ' + fbUser.email, 'good');
+    firebaseBackupSummaryCache = Object.assign({}, localSummary, {updatedAtText:'방금 전', updatedBy:fbUser.email});
+    renderFirebaseSummary(firebaseBackupSummaryCache, 'remote');
     toast('Firebase 저장 완료 ✓');
   }catch(err){
     console.error(err);
@@ -1013,21 +1141,22 @@ async function loadEditorFromFirebase(){
   }
   showLoad('Firebase에서 식단표를 불러오는 중입니다...', '클라우드에 저장된 최신 편집 상태를 적용합니다.');
   try{
-    const editorSnap = await fbDb.collection('editorStates').doc(FIREBASE_EDITOR_DOC_ID).get();
-    if(!editorSnap.exists) throw new Error('저장된 editorStates/current 문서가 없습니다');
-    const editorData = editorSnap.data() || {};
-    const loadedState = normalizeLoadedState(editorData.state);
+    const summary = firebaseBackupSummaryCache || await fetchFirebaseBackupSummary();
+    renderFirebaseSummary(summary, 'remote');
+    hideLoad();
+    if(!confirm('이 클라우드 저장본을 불러올까요?\n\n저장 시간: ' + (summary.updatedAtText || '기록 없음') + '\n저장자: ' + (summary.updatedBy || '기록 없음') + '\n포함 월: ' + ((summary.monthLabels || []).join(', ') || '없음') + '\nAI 월식: ' + (summary.aiMonthLabel || '없음') + '\n\n현재 화면의 로컬 작업은 이 저장본으로 교체됩니다.')){
+      return;
+    }
+    showLoad('Firebase 저장본을 적용 중입니다...', '확인한 클라우드 저장본을 현재 화면에 반영합니다.');
+    const loadedState = summary.state || normalizeLoadedState(summary.editorData?.state);
     if(!loadedState) throw new Error('Firebase 식단표 구조를 인식하지 못했습니다');
     state = loadedState;
     persist();
 
     const selected = getSelectedMonth();
-    const selectedId = monthDocId(selected);
-    const lunchSnap = await fbDb.collection('lunchboxMenus').doc(selectedId).get();
-    const draftSnap = await fbDb.collection('aiMenuDrafts').doc(selectedId).get();
-    if(lunchSnap.exists || draftSnap.exists){
-      const lunchData = lunchSnap.exists ? lunchSnap.data() : {};
-      const draftData = draftSnap.exists ? draftSnap.data() : {};
+    if(summary.lunchData || summary.draftData){
+      const lunchData = summary.lunchData || {};
+      const draftData = summary.draftData || {};
       aiMonthlyResultCache = normalizeLunchboxResult({
         year: lunchData.year || draftData.year || selected.year,
         month: lunchData.month || draftData.month || selected.month,
@@ -1046,6 +1175,7 @@ async function loadEditorFromFirebase(){
 
     renderAll();
     setFirebaseStatus('마지막 불러오기: 방금 전 · ' + fbUser.email, 'good');
+    renderFirebaseSummary(summary, 'remote');
     toast('Firebase 불러오기 완료 ✓');
   }catch(err){
     console.error(err);
@@ -1319,6 +1449,7 @@ function loadSettingsUI(){
   const fbEmailEl = document.getElementById('fb-email');
   if(fbEmailEl && !fbEmailEl.value) fbEmailEl.value = FIREBASE_ADMIN_EMAIL;
   updateFirebaseAuthUI();
+  renderFirebaseSummary(firebaseBackupSummaryCache);
   renderOriginRows();
 }
 
