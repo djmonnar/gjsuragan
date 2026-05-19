@@ -2754,6 +2754,62 @@ function getDatesForWeekdays(year, month, weekdays, excludeDates){
   }
   return dates;
 }
+
+const KSURA_LUNCH_STYLE = {
+  mains:[
+    '직화 제육볶음','지코바식 닭볶음','돈찹스테이크','돈까스 & 양배추','김치제육','간장 제육볶음','돼지고기숙주볶음',
+    '치즈닭갈비','순살안동찜닭','깻잎순살찜닭','순살간장치킨','불닭마요참치','파채치킨까스','닭고기카레',
+    '소불고기','된장파채불고기','우삼겹숙주볶음','굴소스우삼겹볶음','규동','짜장고기범벅',
+    '마파두부','참치두부짜글이','스팸참치짜글이','돼지고기감자짜글이','돈육두부조림',
+    '코다리무조림','코다리콩나물찜','김치탕수육','쭈꾸미볶음','낙고새+소면','수육&겉절이'
+  ],
+  subMains:[
+    '계란말이','급식달걀찜','분홍소세지부침','해물동그랑땡','해물부추전','애호박전','김치전','부추전',
+    '감자야채고로케','꼬마돈까스','생선까스','새우튀김','야채튀김','모듬튀김','야채춘권','탕수육',
+    '메추리알 장조림','비엔나메추리알조림','어묵메추리알조림','두부부침 + 양념장','매콤두부조림','두부김치',
+    '햄떡볶이','매콤떡볶이','야채비빔만두','물만두(간장)','닭강정','잡채','비빔국수','미트볼스파게티'
+  ],
+  soups:[
+    '미역국','팽이유부된장국','애호박된장국','얼갈이된장국','배추된장국','시래기국','맑은콩나물국','얼큰콩나물국',
+    '파송송계란탕','부추계란탕','감자계란국','어묵탕','김치어묵탕','유부장국','우동장국','무맑은국',
+    '순두부계란탕','바지락순두부찌개','의정부부대찌개','고추장찌개','짬뽕탕','황태국','육개장','닭곰탕'
+  ],
+  sides:[
+    '어묵볶음','매콤어묵볶음','달콤어묵볶음','감자조림','달콤감자조림','감자채볶음','버터알감자',
+    '멸치볶음','견과류멸치볶음','건새우볶음','명엽채볶음','진미채무침','진미채간장볶음','쥐포무침',
+    '콩나물무침','숙주나물무침','시금치나물','제철나물','참나물무침','얼갈이된장무침','애호박볶음','가지나물',
+    '오이무침','새콤오이무침','오이부추무침','무생채','무말랭이','도토리묵무침','연근조림','우엉조림',
+    '마늘쫑볶음','궁채장아찌','알마늘장아찌','오이지무침','콘샐러드','단호박샐러드','고구마맛탕'
+  ],
+  fixed:[
+    '백미밥','흑미밥','잡곡밥','강황밥','김자반밥',
+    '배추김치','백김치','깍두기','볶음김치','단무지','쌈무','무피클','오이피클'
+  ],
+  forbidden:[
+    '트러플','수비드','라구','콩피','바질크림','고르곤졸라','라따뚜이','부라타','퀴노아','샥슈카','파히타','프로방스','브루스케타'
+  ]
+};
+
+function buildKsuraLunchStyleGuide(){
+  return [
+    '궁중수라간 월식 실무 모드:',
+    '- 새롭고 화려한 메뉴보다 기존 주방이 바로 이해하고 조리할 수 있는 월식 메뉴를 우선한다.',
+    '- 메뉴 구성 비율은 기존 월식 메뉴/익숙한 급식 메뉴 70%, 기존 메뉴의 가벼운 변형 20%, 완전 신규 메뉴 10% 이하로 한다.',
+    '- 한 날짜에는 메인 1개와 사이드 메인 1개만 중심 메뉴 역할을 하고, 반찬4는 밑반찬/나물/무침/조림/샐러드성 반찬으로 받쳐준다.',
+    '- 메인이 고기볶음/찜처럼 무거우면 사이드 메인은 계란찜, 전, 고로케, 두부부침처럼 익숙한 메뉴로 낮춘다.',
+    '- 사이드 메인이 튀김/전이면 반찬4에는 튀김과 전을 추가로 반복하지 않는다.',
+    '- 국은 된장국, 미역국, 콩나물국, 어묵탕, 계란탕, 유부장국, 부대찌개, 짬뽕탕처럼 현장 조리가 익숙한 계열을 우선한다.',
+    '- 반찬명은 주방 이모들이 바로 이해하는 이름으로 작성한다. 호텔식/양식/과한 퓨전 표현은 월식도시락에서 쓰지 않는다.',
+    '- 월식도시락 금지 톤: ' + KSURA_LUNCH_STYLE.forbidden.join(', '),
+    '- 월식 메인 참고 풀: ' + KSURA_LUNCH_STYLE.mains.join(', '),
+    '- 월식 사이드 메인 참고 풀: ' + KSURA_LUNCH_STYLE.subMains.join(', '),
+    '- 월식 국 참고 풀: ' + KSURA_LUNCH_STYLE.soups.join(', '),
+    '- 월식 밑반찬 참고 풀: ' + KSURA_LUNCH_STYLE.sides.join(', '),
+    '- 밥/김치/고정 반찬 참고 풀: ' + KSURA_LUNCH_STYLE.fixed.join(', '),
+    '- 참고 풀에 없는 메뉴를 쓰더라도 이름과 조리법은 위 메뉴들과 같은 난이도와 말투여야 한다.'
+  ];
+}
+
 function buildAiMonthlyPrompt(form){
   const excluded = parseAiExcludeDates(form.excludeDates, form.year, form.month);
   const lunchDates = getDatesForWeekdays(form.year, form.month, form.lunchDays, excluded);
@@ -2788,6 +2844,8 @@ function buildAiMonthlyPrompt(form){
     '- 매일 먹기 좋은 현실적인 가정식/단체급식 스타일',
     '- 너무 고급 메뉴만 넣지 말 것',
     '- 밥, 국, 메인, 사이드 메인, 반찬 구성이 균형 있어야 함',
+    '',
+    ...buildKsuraLunchStyleGuide(),
     '',
     '샐러드도시락:',
     '- 8,000원 단가',
@@ -3108,6 +3166,21 @@ function getCookingTags(entry){
   const text = getMenuText(entry);
   return ['볶음','조림','무침','전','구이','튀김','찜','국','샐러드'].filter(tag=>text.includes(tag));
 }
+function pushLunchPracticalWarnings(entries, warnings){
+  const forbidden = KSURA_LUNCH_STYLE.forbidden;
+  (entries || []).forEach(entry=>{
+    const text = getMenuText(entry);
+    const found = forbidden.filter(word=>text.includes(word));
+    if(found.length){
+      warnings.push('월식도시락 ' + entry.date + ': 실무 모드 금지 톤(' + found.join(', ') + ')이 포함되어 있습니다.');
+    }
+    const sideText = (entry.sides || []).join(' ');
+    const heavySideCount = ['튀김','까스','돈까스','전','강정','탕수육','고로케'].filter(word=>sideText.includes(word)).length;
+    if(/튀김|까스|전|강정|탕수육|고로케/.test(entry.subMain || '') && heavySideCount >= 2){
+      warnings.push('월식도시락 ' + entry.date + ': 사이드 메인과 반찬4에 튀김/전류가 많이 겹칩니다.');
+    }
+  });
+}
 function renderTags(tags){
   return '<div class="ai-tag-row">' + (tags || []).map(tag=>'<span class="ai-tag">' + escapeHtml(tag) + '</span>').join('') + '</div>';
 }
@@ -3179,6 +3252,7 @@ function validateAiMonthlyResult(result, year, month){
   if(!(result.saladLunchboxEntries || []).length) warnings.push('샐러드도시락 생성 결과가 비어 있습니다.');
   pushSequenceWarnings(result.banchanDeliveryEntries || [], '반찬배송', warnings);
   pushSequenceWarnings(result.lunchboxEntries || [], '월식도시락', warnings);
+  pushLunchPracticalWarnings(result.lunchboxEntries || [], warnings);
   return {errors, warnings};
 }
 async function runAiMonthlyGenerate(){
