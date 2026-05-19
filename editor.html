@@ -1314,6 +1314,7 @@ function renderAiMonthlyPreview(){
       <td>${aiEditInput('lunch', idx, 'rice', entry.rice)}</td>
       <td>${aiEditInput('lunch', idx, 'soup', entry.soup)}</td>
       <td>${aiEditInput('lunch', idx, 'main', entry.main)}</td>
+      <td>${aiEditInput('lunch', idx, 'subMain', entry.subMain || '')}</td>
       <td><div class="ksura-ai-side-list">${[0,1,2,3].map(i=>aiEditInput('lunch', idx, 'sides', (entry.sides || [])[i] || '', i)).join('')}</div></td>
       <td>${aiEditInput('salad', idx, 'salad', saladByDate.get(entry.date) || '')}</td>
       <td>${aiEditInput('lunch', idx, 'price', entry.price || 8000)}</td>
@@ -1344,8 +1345,8 @@ function renderAiMonthlyPreview(){
       <div class="section-title">${IC.main} 월식도시락 + 샐러드도시락</div>
       <div class="ksura-ai-preview-table-wrap">
         <table class="ksura-ai-preview-table">
-          <thead><tr><th>날짜</th><th>요일</th><th>밥</th><th>국</th><th>메인</th><th>반찬4</th><th>샐러드도시락</th><th>가격</th><th>태그</th></tr></thead>
-          <tbody>${lunchRows || '<tr><td colspan="9">월식도시락 결과가 없습니다.</td></tr>'}</tbody>
+          <thead><tr><th>날짜</th><th>요일</th><th>밥</th><th>국</th><th>메인</th><th>사이드 메인</th><th>반찬4</th><th>샐러드도시락</th><th>가격</th><th>태그</th></tr></thead>
+          <tbody>${lunchRows || '<tr><td colspan="10">월식도시락 결과가 없습니다.</td></tr>'}</tbody>
         </table>
       </div>
 
@@ -2425,10 +2426,13 @@ function buildAiMonthlyPrompt(form){
     '',
     '월식도시락:',
     '- 8,000원 단가',
-    '- 반찬4 + 메인1 + 밥 + 국',
+    '- 밥 + 국 + 메인1 + 사이드 메인1 + 반찬4',
+    '- 사이드 메인은 메인보다 약하지만 일반 반찬보다 존재감 있는 메뉴다. 예: 동그랑땡, 생선까스, 탕수육, 떡갈비, 계란말이, 닭강정, 전류, 튀김류, 두부조림, 장조림류.',
+    '- 기존 월식도시락에서 사이드 메인은 메추리알 장조림, 두부김치, 햄떡볶이, 생선까스, 탕수육, 닭강정, 해물완자전, 소시지야채볶음처럼 두 번째 중심 메뉴 역할을 했다.',
+    '- 실제 궁중수라간 월식도시락은 밥, 국, 메인, 사이드 메인, 반찬 4개 순서로 구성된다.',
     '- 매일 먹기 좋은 현실적인 가정식/단체급식 스타일',
     '- 너무 고급 메뉴만 넣지 말 것',
-    '- 밥, 국, 메인, 반찬 구성이 균형 있어야 함',
+    '- 밥, 국, 메인, 사이드 메인, 반찬 구성이 균형 있어야 함',
     '',
     '샐러드도시락:',
     '- 8,000원 단가',
@@ -2487,10 +2491,11 @@ function buildAiMonthlySchema(){
       rice:{type:'STRING'},
       soup:{type:'STRING'},
       main:{type:'STRING'},
+      subMain:{type:'STRING'},
       sides:{type:'ARRAY', items:{type:'STRING'}},
       price:{type:'NUMBER'}
     },
-    required:['year','month','date','weekday','rice','soup','main','sides','price']
+    required:['year','month','date','weekday','rice','soup','main','subMain','sides','price']
   };
   return {
     type:'OBJECT',
@@ -2691,17 +2696,22 @@ function normalizeAiMonthlyResult(result, form){
     sides: Array.isArray(entry.sides) ? entry.sides.map(normalizeSpaces).filter(Boolean) : [],
     salad: normalizeSpaces(entry.salad)
   })) : [];
-  raw.lunchboxEntries = Array.isArray(raw.lunchboxEntries) ? raw.lunchboxEntries.map(entry=>({
-    year: entry.year || form.year,
-    month: entry.month || form.month,
-    date: normalizeSpaces(entry.date),
-    weekday: normalizeSpaces(entry.weekday),
-    rice: normalizeSpaces(entry.rice),
-    soup: normalizeSpaces(entry.soup),
-    main: normalizeSpaces(entry.main),
-    sides: Array.isArray(entry.sides) ? entry.sides.map(normalizeSpaces).filter(Boolean) : [],
-    price: Number(entry.price) || 8000
-  })) : [];
+  raw.lunchboxEntries = Array.isArray(raw.lunchboxEntries) ? raw.lunchboxEntries.map(entry=>{
+    const sideList = Array.isArray(entry.sides) ? entry.sides.map(normalizeSpaces).filter(Boolean) : [];
+    const subMain = normalizeSpaces(entry.subMain || entry.sideMain || entry.secondaryMain || '');
+    return {
+      year: entry.year || form.year,
+      month: entry.month || form.month,
+      date: normalizeSpaces(entry.date),
+      weekday: normalizeSpaces(entry.weekday),
+      rice: normalizeSpaces(entry.rice),
+      soup: normalizeSpaces(entry.soup),
+      main: normalizeSpaces(entry.main),
+      subMain: subMain || sideList.shift() || '',
+      sides: sideList,
+      price: Number(entry.price) || 8000
+    };
+  }) : [];
   raw.saladLunchboxEntries = Array.isArray(raw.saladLunchboxEntries) ? raw.saladLunchboxEntries.map(entry=>({
     year: entry.year || form.year,
     month: entry.month || form.month,
@@ -2721,7 +2731,7 @@ function normalizeAiMonthlyResult(result, form){
   return raw;
 }
 function getMenuText(entry){
-  return [entry.main, entry.soup, entry.salad, ...(entry.sides || [])].join(' ');
+  return [entry.main, entry.subMain, entry.soup, entry.salad, ...(entry.sides || [])].join(' ');
 }
 function getIngredientTags(entry){
   const text = getMenuText(entry);
@@ -2804,6 +2814,7 @@ function validateAiMonthlyResult(result, year, month){
   (result.lunchboxEntries || []).forEach(entry=>{
     const tag = entry.date || '월식도시락 항목';
     if(!parseDateParts(entry.date, year, month)) errors.push(tag + ': 월식도시락 날짜 형식을 인식하지 못했습니다.');
+    if(!normalizeSpaces(entry.subMain)) errors.push(tag + ': 월식도시락 사이드 메인이 비어 있습니다.');
     if(!Array.isArray(entry.sides) || entry.sides.length !== 4){
       errors.push(tag + ': 월식도시락 반찬은 반드시 4개여야 합니다.');
     }
@@ -2903,6 +2914,7 @@ function saveAiPreviewEdits(){
     rice: getVal('lunch', idx, 'rice'),
     soup: getVal('lunch', idx, 'soup'),
     main: getVal('lunch', idx, 'main'),
+    subMain: getVal('lunch', idx, 'subMain'),
     sides: [0,1,2,3].map(i=>getVal('lunch', idx, 'sides', i)).filter(Boolean),
     price: Number(getVal('lunch', idx, 'price')) || 8000
   }));
@@ -2989,9 +3001,9 @@ function renderAiMonthlyResult(){
   }
   summary.textContent = cache.year + '년 ' + cache.month + '월 · 월식도시락 ' + cache.lunchboxEntries.length + '개 / 샐러드도시락 ' + cache.saladLunchboxEntries.length + '개';
   renderAiTable('ai-lunchbox-table',
-    ['날짜','요일','밥','국','메인','반찬1','반찬2','반찬3','반찬4','가격'],
+    ['날짜','요일','밥','국','메인','사이드 메인','반찬1','반찬2','반찬3','반찬4','가격'],
     cache.lunchboxEntries.map(entry=>[
-      entry.date, entry.weekday, entry.rice, entry.soup, entry.main,
+      entry.date, entry.weekday, entry.rice, entry.soup, entry.main, entry.subMain || '',
       (entry.sides || [])[0] || '', (entry.sides || [])[1] || '', (entry.sides || [])[2] || '', (entry.sides || [])[3] || '',
       String(entry.price || 8000)
     ])
@@ -3040,7 +3052,7 @@ function downloadLunchboxExcel(){
   }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cache.lunchboxEntries.map(entry=>({
-    날짜:entry.date, 요일:entry.weekday, 밥:entry.rice, 국:entry.soup, 메인:entry.main,
+    날짜:entry.date, 요일:entry.weekday, 밥:entry.rice, 국:entry.soup, 메인:entry.main, 사이드메인:entry.subMain || '',
     반찬1:(entry.sides||[])[0]||'', 반찬2:(entry.sides||[])[1]||'', 반찬3:(entry.sides||[])[2]||'', 반찬4:(entry.sides||[])[3]||'', 가격:entry.price || 8000
   }))), '월식도시락');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cache.saladLunchboxEntries.map(entry=>({
@@ -3063,13 +3075,13 @@ function printLunchboxMenu(){
   const rows = cache.lunchboxEntries.map(entry=>`
     <tr>
       <td>${escapeHtml(entry.date)}</td><td>${escapeHtml(entry.weekday)}</td><td>${escapeHtml(entry.rice)}</td>
-      <td>${escapeHtml(entry.soup)}</td><td>${escapeHtml(entry.main)}</td>
+      <td>${escapeHtml(entry.soup)}</td><td>${escapeHtml(entry.main)}</td><td>${escapeHtml(entry.subMain || '')}</td>
       <td>${(entry.sides || []).map(side=>'· ' + escapeHtml(side)).join('<br>')}</td>
       <td>${escapeHtml(saladByDate.get(entry.date) || '')}</td><td>${escapeHtml(entry.price || 8000)}원</td>
     </tr>`).join('');
   const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>궁중수라간 월식도시락</title>
     <style>body{font-family:Arial,'Malgun Gothic',sans-serif;margin:24px;color:#333;}h1{text-align:center;font-size:22px;}table{width:100%;border-collapse:collapse;font-size:12px;}th,td{border:1px solid #ddd;padding:8px;vertical-align:top;}th{background:#fff3e8;color:#9a3412;}@media print{@page{size:A4 landscape;margin:10mm;}}</style>
-    </head><body><h1>궁중수라간 ${cache.year}년 ${cache.month}월 월식도시락</h1><table><thead><tr><th>날짜</th><th>요일</th><th>밥</th><th>국</th><th>메인</th><th>반찬4</th><th>샐러드</th><th>가격</th></tr></thead><tbody>${rows}</tbody></table><script>window.print();<\/script></body></html>`;
+    </head><body><h1>궁중수라간 ${cache.year}년 ${cache.month}월 월식도시락</h1><table><thead><tr><th>날짜</th><th>요일</th><th>밥</th><th>국</th><th>메인</th><th>사이드 메인</th><th>반찬4</th><th>샐러드</th><th>가격</th></tr></thead><tbody>${rows}</tbody></table><script>window.print();<\/script></body></html>`;
   const win = window.open('', '_blank');
   if(!win){ toast('팝업 차단을 해제해주세요'); return; }
   win.document.open();
