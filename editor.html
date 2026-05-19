@@ -208,6 +208,18 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 .ksura-footer{text-align:center;margin-top:32px;font-size:15px;color:#8C7E72;}
 .ksura-line{width:50px;height:4px;background:#FED7AA;margin:14px auto;border-radius:4px;}
 .ksura-tel{font-size:20px;font-weight:bold;color:#4A3B32;margin-top:6px;}
+.ksura-ai-preview{font-family:'Gowun Batang',serif;color:#4A3B32;}
+.ksura-ai-preview h3{font-size:22px;text-align:center;margin:0 0 8px;color:#5C3A21;}
+.ksura-ai-preview .sub{text-align:center;font-size:14px;color:#8C7E72;margin-bottom:18px;}
+.ksura-ai-preview .section-title{font-size:17px;font-weight:bold;color:#5C3A21;margin:24px 0 10px;display:flex;align-items:center;gap:8px;}
+.ksura-ai-preview-table-wrap{overflow-x:auto;border:1px solid #E8E1DA;border-radius:12px;background:#fff;}
+.ksura-ai-preview-table{width:100%;border-collapse:collapse;min-width:880px;font-family:'Pretendard',system-ui,sans-serif;font-size:12px;color:#374151;}
+.ksura-ai-preview-table th{background:#FFF7ED;color:#9A3412;font-weight:800;border-bottom:1px solid #FED7AA;padding:9px 10px;text-align:left;white-space:nowrap;}
+.ksura-ai-preview-table td{border-bottom:1px solid #F3F4F6;padding:8px 10px;vertical-align:top;line-height:1.45;}
+.ksura-ai-preview-table tr:last-child td{border-bottom:none;}
+.ksura-ai-side-list{display:flex;flex-direction:column;gap:3px;min-width:120px;}
+.ksura-ai-note{background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:12px 14px;font-family:'Pretendard',system-ui,sans-serif;font-size:12px;line-height:1.65;color:#9A3412;margin-bottom:14px;}
+.ksura-ai-empty{background:#fff;border:1px dashed #FDBA74;border-radius:14px;padding:24px;text-align:center;font-family:'Pretendard',system-ui,sans-serif;color:#9A3412;line-height:1.7;}
 ::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:#f1f1f1;}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px;}
 </style>
 </head>
@@ -783,6 +795,7 @@ function switchTab(name, btn){
     syncAiFormDefaults();
     renderAiMonthlyResult();
   }
+  renderPreview();
 }
 
 function renderMonthChips(){
@@ -1214,7 +1227,94 @@ function buildMonthCards(monthObj){
   return html;
 }
 
+function isAiTabActive(){
+  const tab = document.getElementById('tab-ai');
+  return !!(tab && tab.classList.contains('on'));
+}
+function setPreviewTitle(text){
+  const title = document.querySelector('#prev-bar h2');
+  if(title) title.textContent = text;
+}
+function getSaladByDate(entries){
+  const map = new Map();
+  (entries || []).forEach(entry=>{
+    if(entry.date) map.set(normalizeSpaces(entry.date), normalizeSpaces(entry.salad));
+  });
+  return map;
+}
+function renderAiMonthlyPreview(){
+  setPreviewTitle('AI 생성 미리보기');
+  const area = document.getElementById('ksura-render-area');
+  const cache = aiMonthlyResultCache;
+  if(!cache || !cache.rawResult){
+    area.innerHTML = `
+      <div class="ksura-ai-preview">
+        <h3>AI 월간 식단 미리보기</h3>
+        <div class="sub">AI 생성 후 월식도시락과 반찬배송 식단표가 이곳에 함께 표시됩니다.</div>
+        <div class="ksura-ai-empty">왼쪽 AI 생성 탭에서 Gemini API 키와 조건을 입력한 뒤<br>AI 월간 식단 생성을 실행해주세요.</div>
+      </div>`;
+    return;
+  }
+
+  const raw = cache.rawResult || {};
+  const banchanEntries = raw.banchanDeliveryEntries || [];
+  const lunchboxEntries = cache.lunchboxEntries || [];
+  const saladByDate = getSaladByDate(cache.saladLunchboxEntries || []);
+  const lunchRows = lunchboxEntries.map(entry=>`
+    <tr>
+      <td>${escapeHtml(entry.date)}</td>
+      <td>${escapeHtml(entry.weekday)}</td>
+      <td>${escapeHtml(entry.rice)}</td>
+      <td>${escapeHtml(entry.soup)}</td>
+      <td><b>${escapeHtml(entry.main)}</b></td>
+      <td><div class="ksura-ai-side-list">${(entry.sides || []).map(side=>'<span>· ' + escapeHtml(side) + '</span>').join('')}</div></td>
+      <td>${IC.leaf} ${escapeHtml(saladByDate.get(entry.date) || '')}</td>
+      <td>${escapeHtml(entry.price || 8000)}원</td>
+    </tr>`).join('');
+  const banchanRows = banchanEntries.map(entry=>`
+    <tr>
+      <td>${escapeHtml(entry.date)}</td>
+      <td>${escapeHtml(entry.arrival || '')}</td>
+      <td><b>${escapeHtml(entry.main || '')}</b></td>
+      <td>${escapeHtml(entry.soup || '')}</td>
+      <td><div class="ksura-ai-side-list">${(entry.sides || []).map(side=>'<span>· ' + escapeHtml(side) + '</span>').join('')}</div></td>
+      <td>${IC.leaf} ${escapeHtml(entry.salad || '')}</td>
+      <td>39,000원: 국+반찬4+메인+샐러드<br>32,900원: 국+반찬4+메인<br>25,900원: 반찬4+메인</td>
+    </tr>`).join('');
+
+  area.innerHTML = `
+    <div class="ksura-ai-preview">
+      <h3>${escapeHtml(cache.year)}년 ${escapeHtml(cache.month)}월 AI 월간 식단</h3>
+      <div class="sub">월식도시락, 샐러드도시락, 반찬배송 식단을 한 화면에서 확인합니다.</div>
+      <div class="ksura-ai-note">
+        샐러드도시락은 별도 표로 분리하지 않고 월식도시락의 샐러드 칸에 함께 표시했습니다.
+        반찬배송 식단표에는 같은 날짜의 샐러드가 포함되며, 3개 상품은 메뉴 품질 차이가 아니라 포함 품목 차이입니다.
+      </div>
+
+      <div class="section-title">${IC.main} 월식도시락 + 샐러드도시락</div>
+      <div class="ksura-ai-preview-table-wrap">
+        <table class="ksura-ai-preview-table">
+          <thead><tr><th>날짜</th><th>요일</th><th>밥</th><th>국</th><th>메인</th><th>반찬4</th><th>샐러드도시락</th><th>가격</th></tr></thead>
+          <tbody>${lunchRows || '<tr><td colspan="8">월식도시락 결과가 없습니다.</td></tr>'}</tbody>
+        </table>
+      </div>
+
+      <div class="section-title">${IC.truck} 반찬배송 식단표</div>
+      <div class="ksura-ai-preview-table-wrap">
+        <table class="ksura-ai-preview-table">
+          <thead><tr><th>출고일</th><th>도착일</th><th>메인</th><th>국</th><th>반찬4</th><th>샐러드</th><th>상품 구성</th></tr></thead>
+          <tbody>${banchanRows || '<tr><td colspan="7">반찬배송 결과가 없습니다.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 function renderPreview(){
+  if(isAiTabActive()){
+    renderAiMonthlyPreview();
+    return;
+  }
+  setPreviewTitle('실시간 미리보기');
   const selected = getSelectedMonth();
   const tabs = state.months.length > 1
     ? '<div class="ksura-month-tabs">' + state.months.map(month => `<button class="ksura-month-tab${month.id===selected.id?' on':''}" onclick="selectMonth('${month.id}')">${monthShortLabel(month)}</button>`).join('') + '</div>'
@@ -2568,6 +2668,7 @@ function renderAiMonthlyResult(){
     ? warnings.map(text=>'<div class="proof-item ' + (String(text).startsWith('오류:') ? 'error' : 'warn') + '">' + escapeHtml(text) + '</div>').join('')
     : '<div class="proof-item good">검수 주의사항이 없습니다.</div>';
   jsonEl.value = JSON.stringify(cache.rawResult || cache, null, 2);
+  if(isAiTabActive()) renderPreview();
 }
 function copyAiMonthlyJson(){
   const json = document.getElementById('ai-json-output').value || (aiMonthlyResultCache ? JSON.stringify(aiMonthlyResultCache.rawResult || aiMonthlyResultCache, null, 2) : '');
