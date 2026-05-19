@@ -499,6 +499,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
       <div class="tip-box">관리자 계정으로 로그인하면 현재 식단표와 AI 월식 결과를 Firestore에 저장하고 다른 기기에서 불러올 수 있습니다.</div>
       <div class="fg"><label>관리자 이메일</label><input type="email" id="fb-email" placeholder="sun1562@naver.com"></div>
       <div class="fg"><label>비밀번호</label><input type="password" id="fb-password" placeholder="Firebase 로그인 비밀번호" onkeydown="if(event.key==='Enter')firebaseLogin()"></div>
+      <label class="firebase-remember"><input type="checkbox" id="fb-realtime-sync" onchange="toggleFirebaseRealtimeSync(this.checked)"> 실시간 화면 동기화</label>
       <div class="ai-result-actions">
         <button class="btn-pri" onclick="firebaseLogin()">Firebase 로그인</button>
         <button class="btn-sec" onclick="firebaseLogout()">로그아웃</button>
@@ -507,6 +508,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
         <button class="btn-sec" onclick="loadEditorFromFirebase()">확인한 저장본 불러오기</button>
       </div>
       <div id="firebase-status" class="firebase-status-box warn">로그인 전입니다.</div>
+      <div id="firebase-realtime-status" class="firebase-status-box warn">실시간 동기화 꺼짐</div>
       <div id="firebase-summary" class="firebase-summary-box"><span class="muted">아직 저장본 정보를 조회하지 않았습니다.</span></div>
     </div>
   </div>
@@ -681,6 +683,15 @@ const LUNCHBOX_STORAGE_KEY = 'ksura_lunchbox_menu_v1';
 const AI_PROMPT_PRESET_KEY = 'ksura_ai_prompt_preset_v1';
 const FIREBASE_ADMIN_EMAIL = 'sun1562@naver.com';
 const FIREBASE_EDITOR_DOC_ID = 'current';
+const FIREBASE_REALTIME_KEY = 'ksura_firebase_realtime_sync_v1';
+const FIREBASE_CLIENT_ID = (() => {
+  let id = sessionStorage.getItem('ksura_firebase_client_id');
+  if(!id){
+    id = 'client-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+    sessionStorage.setItem('ksura_firebase_client_id', id);
+  }
+  return id;
+})();
 const MAX_MONTHS = 2;
 const DOW_KO = ['일','월','화','수','목','금','토'];
 const DAY = ['월','화','수','목','금'];
@@ -699,6 +710,11 @@ let fbUser = null;
 let fbAuthResolved = false;
 let fbAuthScreenDismissed = false;
 let firebaseBackupSummaryCache = null;
+let firebaseRealtimeEnabled = localStorage.getItem(FIREBASE_REALTIME_KEY) === '1';
+let firebaseRealtimeUnsub = null;
+let firebaseRealtimeTimer = null;
+let firebaseApplyingRealtime = false;
+let currentTabName = 'list';
 
 function getAutoMonthTitle(year, month){
   return year + '년 ' + month + '월 식단표';
@@ -808,6 +824,7 @@ function loadState(){
 
 function persist(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  queueFirebaseRealtimeSync('식단표 변경');
 }
 
 function monthDocId(monthObj){
@@ -860,6 +877,25 @@ function setFirebaseStatus(message, type){
     el.textContent = message;
     el.className = 'firebase-status-box ' + statusType;
   });
+}
+
+function setFirebaseRealtimeStatus(message, type){
+  const el = document.getElementById('firebase-realtime-status');
+  if(!el) return;
+  el.textContent = message;
+  el.className = 'firebase-status-box ' + (type || 'warn');
+}
+
+function syncFirebaseRealtimeUI(){
+  const toggle = document.getElementById('fb-realtime-sync');
+  if(toggle) toggle.checked = firebaseRealtimeEnabled;
+  if(!firebaseRealtimeEnabled){
+    setFirebaseRealtimeStatus('실시간 동기화 꺼짐', 'warn');
+  } else if(firebaseRealtimeUnsub){
+    setFirebaseRealtimeStatus('실시간 동기화 켜짐 · 다른 직원 화면과 자동으로 맞춥니다', 'good');
+  } else {
+    setFirebaseRealtimeStatus('실시간 동기화 대기 중 · 관리자 로그인 후 시작됩니다', 'warn');
+  }
 }
 
 function formatFirebaseTime(value){
@@ -927,6 +963,172 @@ function buildFirebaseSummaryFromData(editorData, lunchData, draftData){
     lunchData:lunchData || null,
     draftData:draftData || null
   };
+}
+
+function getCurrentTabName(){
+  const activePane = document.querySelector('.tab-pane.on');
+  return currentTabName || (activePane ? activePane.id.replace('tab-','') : 'list');
+}
+
+async function writeEditorSnapshotToFirebase(options){
+  requireFirebaseAdmin();
+  const opts = options || {};
+  const localSummary = getLocalBackupSummary();
+  const batch = fbDb.batch();
+  const stamp = firebase.firestore.FieldValue.serverTimestamp();
+  batch.set(fbDb.collection('editorStates').doc(FIREBASE_EDITOR_DOC_ID), {
+    state: cleanForFirestore(state),
+    activeMonthId: state.activeMonthId,
+    monthLabels: localSummary.monthLabels,
+    activeMonthLabel: localSummary.activeMonthLabel,
+    aiMonthLabel: localSummary.aiMonthLabel,
+    lunchboxCount: localSummary.lunchboxCount,
+    banchanCount: localSummary.banchanCount,
+    viewState:{
+      activeTab:getCurrentTabName(),
+      activeMonthId:state.activeMonthId
+    },
+    clientId:FIREBASE_CLIENT_ID,
+    syncReason:opts.reason || 'manual',
+    updatedAt: stamp,
+    updatedBy: fbUser.email
+  }, {merge:true});
+  state.months.forEach(month=>{
+    batch.set(fbDb.collection('monthlyMenus').doc(monthDocId(month)), {
+      year: month.year,
+      month: month.month,
+      title: month.title || getAutoMonthTitle(month.year, month.month),
+      menuData: cleanForFirestore(month.menuData || []),
+      updatedAt: stamp,
+      updatedBy: fbUser.email
+    }, {merge:true});
+  });
+  if(aiMonthlyResultCache){
+    const aiMonthId = aiMonthlyResultCache.year + '-' + String(aiMonthlyResultCache.month).padStart(2,'0');
+    batch.set(fbDb.collection('lunchboxMenus').doc(aiMonthId), {
+      year: aiMonthlyResultCache.year,
+      month: aiMonthlyResultCache.month,
+      lunchboxEntries: cleanForFirestore(aiMonthlyResultCache.lunchboxEntries || []),
+      saladLunchboxEntries: cleanForFirestore(aiMonthlyResultCache.saladLunchboxEntries || []),
+      sharedIngredientPlan: cleanForFirestore(aiMonthlyResultCache.sharedIngredientPlan || []),
+      warnings: cleanForFirestore(aiMonthlyResultCache.warnings || []),
+      updatedAt: stamp,
+      updatedBy: fbUser.email
+    }, {merge:true});
+    batch.set(fbDb.collection('aiMenuDrafts').doc(aiMonthId), {
+      year: aiMonthlyResultCache.year,
+      month: aiMonthlyResultCache.month,
+      rawResult: cleanForFirestore(aiMonthlyResultCache.rawResult || {}),
+      validationErrors: cleanForFirestore(aiMonthlyResultCache.validationErrors || []),
+      warnings: cleanForFirestore(aiMonthlyResultCache.warnings || []),
+      updatedAt: stamp,
+      updatedBy: fbUser.email
+    }, {merge:true});
+  }
+  await batch.commit();
+  return localSummary;
+}
+
+function stopFirebaseRealtimeSync(){
+  if(firebaseRealtimeUnsub){
+    firebaseRealtimeUnsub();
+    firebaseRealtimeUnsub = null;
+  }
+  if(firebaseRealtimeTimer){
+    clearTimeout(firebaseRealtimeTimer);
+    firebaseRealtimeTimer = null;
+  }
+  syncFirebaseRealtimeUI();
+}
+
+function startFirebaseRealtimeSync(){
+  if(!firebaseRealtimeEnabled){
+    stopFirebaseRealtimeSync();
+    return;
+  }
+  if(!fbDb || !fbUser || fbUser.email !== FIREBASE_ADMIN_EMAIL){
+    syncFirebaseRealtimeUI();
+    return;
+  }
+  if(firebaseRealtimeUnsub) return;
+  firebaseRealtimeUnsub = fbDb.collection('editorStates').doc(FIREBASE_EDITOR_DOC_ID).onSnapshot(async snap=>{
+    if(!snap.exists) return;
+    const data = snap.data() || {};
+    if(data.clientId === FIREBASE_CLIENT_ID || snap.metadata?.hasPendingWrites) return;
+    await applyRealtimeFirebaseSnapshot(data);
+  }, err=>{
+    console.error(err);
+    setFirebaseRealtimeStatus('실시간 동기화 오류: ' + (err.message || err.code || '알 수 없는 오류'), 'error');
+  });
+  syncFirebaseRealtimeUI();
+}
+
+function toggleFirebaseRealtimeSync(checked){
+  firebaseRealtimeEnabled = !!checked;
+  localStorage.setItem(FIREBASE_REALTIME_KEY, firebaseRealtimeEnabled ? '1' : '0');
+  if(firebaseRealtimeEnabled){
+    startFirebaseRealtimeSync();
+    queueFirebaseRealtimeSync('실시간 동기화 시작');
+  } else {
+    stopFirebaseRealtimeSync();
+  }
+}
+
+function queueFirebaseRealtimeSync(reason){
+  if(firebaseApplyingRealtime || !firebaseRealtimeEnabled) return;
+  if(!fbDb || !fbUser || fbUser.email !== FIREBASE_ADMIN_EMAIL) return;
+  if(firebaseRealtimeTimer) clearTimeout(firebaseRealtimeTimer);
+  firebaseRealtimeTimer = setTimeout(()=>syncFirebaseRealtimeNow(reason || '자동 동기화'), 1200);
+}
+
+async function syncFirebaseRealtimeNow(reason){
+  if(firebaseApplyingRealtime || !firebaseRealtimeEnabled) return;
+  try{
+    await writeEditorSnapshotToFirebase({reason:reason || '자동 동기화'});
+    setFirebaseRealtimeStatus('실시간 동기화 완료: 방금 전 · ' + (fbUser?.email || ''), 'good');
+  }catch(err){
+    console.error(err);
+    setFirebaseRealtimeStatus('실시간 동기화 실패: ' + (err.message || err.code || '알 수 없는 오류'), 'error');
+  }
+}
+
+async function applyRealtimeFirebaseSnapshot(editorData){
+  const loadedState = normalizeLoadedState(editorData?.state);
+  if(!loadedState) return;
+  firebaseApplyingRealtime = true;
+  try{
+    state = loadedState;
+    persist();
+    const active = getSelectedMonth();
+    const selectedId = monthDocId(active);
+    const lunchSnap = await fbDb.collection('lunchboxMenus').doc(selectedId).get();
+    const draftSnap = await fbDb.collection('aiMenuDrafts').doc(selectedId).get();
+    if(lunchSnap.exists || draftSnap.exists){
+      const lunchData = lunchSnap.exists ? lunchSnap.data() : {};
+      const draftData = draftSnap.exists ? draftSnap.data() : {};
+      aiMonthlyResultCache = normalizeLunchboxResult({
+        year: lunchData.year || draftData.year || active.year,
+        month: lunchData.month || draftData.month || active.month,
+        lunchboxEntries: lunchData.lunchboxEntries || [],
+        saladLunchboxEntries: lunchData.saladLunchboxEntries || [],
+        sharedIngredientPlan: lunchData.sharedIngredientPlan || [],
+        warnings: draftData.warnings || lunchData.warnings || [],
+        rawResult: draftData.rawResult || {},
+        validationErrors: draftData.validationErrors || []
+      });
+      persistLunchboxResult();
+    }
+    renderAll();
+    applySyncedTab(editorData.viewState?.activeTab || getCurrentTabName());
+    firebaseBackupSummaryCache = buildFirebaseSummaryFromData(editorData, lunchSnap.exists ? lunchSnap.data() : null, draftSnap.exists ? draftSnap.data() : null);
+    renderFirebaseSummary(firebaseBackupSummaryCache, 'remote');
+    setFirebaseRealtimeStatus('다른 직원의 변경사항 반영: ' + (editorData.updatedBy || '알 수 없음'), 'good');
+  }catch(err){
+    console.error(err);
+    setFirebaseRealtimeStatus('실시간 반영 실패: ' + (err.message || err.code || '알 수 없는 오류'), 'error');
+  }finally{
+    firebaseApplyingRealtime = false;
+  }
 }
 
 async function fetchFirebaseBackupSummary(){
@@ -997,6 +1199,7 @@ function updateFirebaseAuthUI(){
       badge.classList.remove('on');
       badge.textContent = 'Firebase 로그인 전';
     }
+    stopFirebaseRealtimeSync();
     if(!fbAuthScreenDismissed) showFirebaseAuthScreen();
     return;
   }
@@ -1009,7 +1212,9 @@ function updateFirebaseAuthUI(){
   }
   if(fbUser.email === FIREBASE_ADMIN_EMAIL){
     hideFirebaseAuthScreen();
+    startFirebaseRealtimeSync();
   } else {
+    stopFirebaseRealtimeSync();
     showFirebaseAuthScreen();
   }
 }
@@ -1065,7 +1270,8 @@ async function firebaseLogout(){
     toast('Firebase가 준비되지 않았습니다');
     return;
   }
-    await fbAuth.signOut();
+  stopFirebaseRealtimeSync();
+  await fbAuth.signOut();
   fbAuthScreenDismissed = false;
   firebaseBackupSummaryCache = null;
   renderFirebaseSummary(null);
@@ -1088,52 +1294,7 @@ async function saveEditorToFirebase(){
   }
   showLoad('Firebase에 식단표를 저장 중입니다...', '로컬 식단표와 AI 월식 결과를 클라우드에 백업합니다.');
   try{
-    const batch = fbDb.batch();
-    const stamp = firebase.firestore.FieldValue.serverTimestamp();
-    batch.set(fbDb.collection('editorStates').doc(FIREBASE_EDITOR_DOC_ID), {
-      state: cleanForFirestore(state),
-      activeMonthId: state.activeMonthId,
-      monthLabels: localSummary.monthLabels,
-      activeMonthLabel: localSummary.activeMonthLabel,
-      aiMonthLabel: localSummary.aiMonthLabel,
-      lunchboxCount: localSummary.lunchboxCount,
-      banchanCount: localSummary.banchanCount,
-      updatedAt: stamp,
-      updatedBy: fbUser.email
-    }, {merge:true});
-    state.months.forEach(month=>{
-      batch.set(fbDb.collection('monthlyMenus').doc(monthDocId(month)), {
-        year: month.year,
-        month: month.month,
-        title: month.title || getAutoMonthTitle(month.year, month.month),
-        menuData: cleanForFirestore(month.menuData || []),
-        updatedAt: stamp,
-        updatedBy: fbUser.email
-      }, {merge:true});
-    });
-    if(aiMonthlyResultCache){
-      const aiMonthId = aiMonthlyResultCache.year + '-' + String(aiMonthlyResultCache.month).padStart(2,'0');
-      batch.set(fbDb.collection('lunchboxMenus').doc(aiMonthId), {
-        year: aiMonthlyResultCache.year,
-        month: aiMonthlyResultCache.month,
-        lunchboxEntries: cleanForFirestore(aiMonthlyResultCache.lunchboxEntries || []),
-        saladLunchboxEntries: cleanForFirestore(aiMonthlyResultCache.saladLunchboxEntries || []),
-        sharedIngredientPlan: cleanForFirestore(aiMonthlyResultCache.sharedIngredientPlan || []),
-        warnings: cleanForFirestore(aiMonthlyResultCache.warnings || []),
-        updatedAt: stamp,
-        updatedBy: fbUser.email
-      }, {merge:true});
-      batch.set(fbDb.collection('aiMenuDrafts').doc(aiMonthId), {
-        year: aiMonthlyResultCache.year,
-        month: aiMonthlyResultCache.month,
-        rawResult: cleanForFirestore(aiMonthlyResultCache.rawResult || {}),
-        validationErrors: cleanForFirestore(aiMonthlyResultCache.validationErrors || []),
-        warnings: cleanForFirestore(aiMonthlyResultCache.warnings || []),
-        updatedAt: stamp,
-        updatedBy: fbUser.email
-      }, {merge:true});
-    }
-    await batch.commit();
+    await writeEditorSnapshotToFirebase({reason:'수동 저장'});
     setFirebaseStatus('마지막 저장: 방금 전 · ' + fbUser.email, 'good');
     firebaseBackupSummaryCache = Object.assign({}, localSummary, {updatedAtText:'방금 전', updatedBy:fbUser.email});
     renderFirebaseSummary(firebaseBackupSummaryCache, 'remote');
@@ -1378,17 +1539,32 @@ function sortMonthData(monthObj){
   });
 }
 
-function switchTab(name, btn){
+function setActiveTab(name, btn){
+  currentTabName = name || 'list';
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
+  if(!btn){
+    btn = Array.from(document.querySelectorAll('.tab-btn')).find(el=>(el.getAttribute('onclick') || '').includes("'" + currentTabName + "'"));
+  }
+  if(btn) btn.classList.add('on');
   document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('on'));
-  document.getElementById('tab-'+name).classList.add('on');
-  if(name === 'settings') loadSettingsUI();
-  if(name === 'import') updateImportTip();
-  if(name === 'ai'){
+  document.getElementById('tab-'+currentTabName)?.classList.add('on');
+  if(currentTabName === 'settings') loadSettingsUI();
+  if(currentTabName === 'import') updateImportTip();
+  if(currentTabName === 'ai'){
     syncAiFormDefaults();
     renderAiMonthlyResult();
   }
+}
+
+function switchTab(name, btn){
+  setActiveTab(name, btn);
+  queueFirebaseRealtimeSync('탭 이동');
+  renderPreview();
+}
+
+function applySyncedTab(name){
+  const safeName = ['list','import','ai','settings'].includes(name) ? name : 'list';
+  setActiveTab(safeName, null);
   renderPreview();
 }
 
@@ -1463,6 +1639,7 @@ function loadSettingsUI(){
   const fbEmailEl = document.getElementById('fb-email');
   if(fbEmailEl && !fbEmailEl.value) fbEmailEl.value = FIREBASE_ADMIN_EMAIL;
   updateFirebaseAuthUI();
+  syncFirebaseRealtimeUI();
   renderFirebaseSummary(firebaseBackupSummaryCache);
   renderOriginRows();
 }
@@ -2967,6 +3144,7 @@ function loadLunchboxResult(){
 function persistLunchboxResult(){
   if(aiMonthlyResultCache){
     localStorage.setItem(LUNCHBOX_STORAGE_KEY, JSON.stringify(aiMonthlyResultCache));
+    queueFirebaseRealtimeSync('AI 월식 결과 변경');
   }
 }
 function syncAiFormDefaults(){
