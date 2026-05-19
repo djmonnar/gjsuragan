@@ -1124,6 +1124,37 @@ function parseDateParts(str, fallbackYear, fallbackMonth){
 function formatDateObj(dt){
   return (dt.getMonth()+1) + '/' + dt.getDate() + ' (' + DOW_KO[dt.getDay()] + ')';
 }
+function getDateKey(dt){
+  return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+}
+function getParsedDateKey(parsed){
+  return parsed ? getDateKey(parsed.date) : '';
+}
+function isFixedBusinessClosedDate(dt){
+  const md = String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+  return ['01-01','03-01','05-01','05-05','06-06','08-15','10-03','10-09','12-25'].includes(md);
+}
+function isKnownBusinessClosedDate(dt){
+  const key = getDateKey(dt);
+  const known = new Set([
+    '2026-02-16','2026-02-17','2026-02-18',
+    '2026-03-02',
+    '2026-05-25',
+    '2026-06-03'
+  ]);
+  return known.has(key);
+}
+function isBusinessClosedDate(dt){
+  return isFixedBusinessClosedDate(dt) || isKnownBusinessClosedDate(dt);
+}
+function looksLikeHolidayEntry(entry){
+  const text = [entry?.main, entry?.soup, entry?.salad, ...(entry?.sides || [])].map(normalizeSpaces).join(' ');
+  return /공휴일|휴무|휴일|어린이날|부처님|석가탄신|현충일|광복절|개천절|한글날|성탄절|크리스마스|설날|추석|선거일|근로자의날|노동절/.test(text);
+}
+function shouldSkipMenuEntry(entry, fallbackYear, fallbackMonth){
+  const parsed = parseDateParts(entry?.date, entry?.year || fallbackYear, entry?.month || fallbackMonth);
+  return (parsed && isBusinessClosedDate(parsed.date)) || looksLikeHolidayEntry(entry || {});
+}
 function nextDay(dateStr, fallbackYear, fallbackMonth){
   const p = parseDateParts(dateStr, fallbackYear, fallbackMonth);
   if(!p) return '';
@@ -1588,20 +1619,27 @@ function cleanupPastEntries(){
 }
 
 function getLeadingDummies(monthObj){
-  if(!monthObj.menuData.length) return 0;
-  const first = parseDateParts(monthObj.menuData[0].date, monthObj.year, monthObj.month);
+  const firstEntry = (monthObj.menuData || []).find(entry=>!shouldSkipMenuEntry(entry, monthObj.year, monthObj.month) && parseDateParts(entry.date, monthObj.year, monthObj.month));
+  if(!firstEntry) return 0;
+  const first = parseDateParts(firstEntry.date, monthObj.year, monthObj.month);
   if(!first) return 0;
   const day = first.date.getDay();
   if(day === 0 || day === 6) return 0;
   return day - 1; // 월요일 시작
 }
 
-function buildMonthCards(monthObj){
-  let html = '';
-  const dummies = getLeadingDummies(monthObj);
-  for(let i=0;i<dummies;i++) html += '<div class="ksura-dummy"></div>';
-  monthObj.menuData.forEach(day=>{
-    html += `<div class="ksura-card">
+function getCalendarGridStart(date){
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = start.getDay();
+  start.setDate(start.getDate() - (day === 0 ? 6 : day - 1));
+  return start;
+}
+function isWeekdayDate(dt){
+  const day = dt.getDay();
+  return day >= 1 && day <= 5;
+}
+function buildMenuCard(day){
+  return `<div class="ksura-card">
       <div class="ksura-card-head">
         <span class="ksura-date">${escapeHtml(day.date)}</span>
         <div class="ksura-badge">${IC.truck} ${escapeHtml(day.arrival || '')} 도착</div>
@@ -1617,7 +1655,25 @@ function buildMonthCards(monthObj){
         <div class="ksura-salad">${IC.leaf}<span>${escapeHtml(day.salad || '')}</span></div>
       </div>
     </div>`;
-  });
+}
+function buildMonthCards(monthObj){
+  const valid = (monthObj.menuData || []).filter(entry=>!shouldSkipMenuEntry(entry, monthObj.year, monthObj.month));
+  const parsedItems = valid.map(entry=>({entry, parsed:parseDateParts(entry.date, monthObj.year, monthObj.month)})).filter(item=>item.parsed);
+  const unparsed = valid.filter(entry=>!parseDateParts(entry.date, monthObj.year, monthObj.month));
+  if(!parsedItems.length){
+    return unparsed.map(buildMenuCard).join('');
+  }
+  parsedItems.sort((a,b)=>a.parsed.date - b.parsed.date);
+  const byDate = new Map(parsedItems.map(item=>[getParsedDateKey(item.parsed), item.entry]));
+  const start = getCalendarGridStart(parsedItems[0].parsed.date);
+  const end = parsedItems[parsedItems.length - 1].parsed.date;
+  let html = '';
+  for(let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate()+1)){
+    if(!isWeekdayDate(cursor)) continue;
+    const entry = byDate.get(getDateKey(cursor));
+    html += entry ? buildMenuCard(entry) : '<div class="ksura-dummy"></div>';
+  }
+  html += unparsed.map(buildMenuCard).join('');
   return html;
 }
 
@@ -1866,9 +1922,39 @@ function parseDateParts(str, fallbackYear, fallbackMonth){
   if(dt.getFullYear() !== year || dt.getMonth() !== month-1 || dt.getDate() !== day) return null;
   return {year, month, day, date:dt};
 }
+function getDateKey(dt){
+  return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+}
+function isFixedBusinessClosedDate(dt){
+  const md = String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+  return ['01-01','03-01','05-01','05-05','06-06','08-15','10-03','10-09','12-25'].includes(md);
+}
+function isKnownBusinessClosedDate(dt){
+  return ['2026-02-16','2026-02-17','2026-02-18','2026-03-02','2026-05-25','2026-06-03'].includes(getDateKey(dt));
+}
+function isBusinessClosedDate(dt){ return isFixedBusinessClosedDate(dt) || isKnownBusinessClosedDate(dt); }
+function looksLikeHolidayEntry(entry){
+  const text = [entry && entry.main, entry && entry.soup, entry && entry.salad].concat((entry && entry.sides) || []).join(' ');
+  return /공휴일|휴무|휴일|어린이날|부처님|석가탄신|현충일|광복절|개천절|한글날|성탄절|크리스마스|설날|추석|선거일|근로자의날|노동절/.test(text);
+}
+function shouldSkipMenuEntry(entry, fallbackYear, fallbackMonth){
+  const parsed = parseDateParts(entry && entry.date, fallbackYear, fallbackMonth);
+  return (parsed && isBusinessClosedDate(parsed.date)) || looksLikeHolidayEntry(entry || {});
+}
+function getCalendarGridStart(date){
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = start.getDay();
+  start.setDate(start.getDate() - (day === 0 ? 6 : day - 1));
+  return start;
+}
+function isWeekdayDate(dt){
+  const day = dt.getDay();
+  return day >= 1 && day <= 5;
+}
 function getLeadingDummies(monthObj){
-  if(!monthObj.menuData.length) return 0;
-  const first = parseDateParts(monthObj.menuData[0].date, monthObj.year, monthObj.month);
+  const firstEntry = (monthObj.menuData || []).find(entry=>!shouldSkipMenuEntry(entry, monthObj.year, monthObj.month) && parseDateParts(entry.date, monthObj.year, monthObj.month));
+  if(!firstEntry) return 0;
+  const first = parseDateParts(firstEntry.date, monthObj.year, monthObj.month);
   if(!first) return 0;
   const day = first.date.getDay();
   if(day===0 || day===6) return 0;
@@ -1882,11 +1968,24 @@ function render(){
     ? '<div class="ksura-month-tabs">' + payload.months.map(month => '<button class="ksura-month-tab' + (month.id===selected.id?' on':'') + '" onclick="selectMonth(\\'' + month.id + '\\')">' + monthShortLabel(month) + '</button>').join('') + '</div>'
     : '';
   let cards = '';
-  const dummies = getLeadingDummies(selected);
-  for(let i=0;i<dummies;i++) cards += '<div class="ksura-dummy"></div>';
-  selected.menuData.forEach(day=>{
-    cards += '<div class="ksura-card"><div class="ksura-card-head"><span class="ksura-date">' + escapeHtml(day.date) + '</span><div class="ksura-badge">' + IC.truck + ' ' + escapeHtml(day.arrival || '') + ' 도착</div></div><div class="ksura-card-body"><div><div class="ksura-main">' + IC.main + '<span>' + escapeHtml(day.main || '') + '</span></div><div class="ksura-menu-list"><div class="ksura-menu-item">' + IC.soup + '<div class="ksura-soup">' + escapeHtml(day.soup || '') + '</div></div><div class="ksura-menu-item">' + IC.dot + '<div class="ksura-sides">' + (day.sides || []).map(s => '<span>· ' + escapeHtml(s) + '</span>').join('') + '</div></div></div></div><div class="ksura-salad">' + IC.leaf + '<span>' + escapeHtml(day.salad || '') + '</span></div></div></div>';
-  });
+  const valid = (selected.menuData || []).filter(day=>!shouldSkipMenuEntry(day, selected.year, selected.month));
+  const parsedItems = valid.map(day=>({day:day, parsed:parseDateParts(day.date, selected.year, selected.month)})).filter(item=>item.parsed);
+  const unparsed = valid.filter(day=>!parseDateParts(day.date, selected.year, selected.month));
+  const renderCard = day => '<div class="ksura-card"><div class="ksura-card-head"><span class="ksura-date">' + escapeHtml(day.date) + '</span><div class="ksura-badge">' + IC.truck + ' ' + escapeHtml(day.arrival || '') + ' 도착</div></div><div class="ksura-card-body"><div><div class="ksura-main">' + IC.main + '<span>' + escapeHtml(day.main || '') + '</span></div><div class="ksura-menu-list"><div class="ksura-menu-item">' + IC.soup + '<div class="ksura-soup">' + escapeHtml(day.soup || '') + '</div></div><div class="ksura-menu-item">' + IC.dot + '<div class="ksura-sides">' + (day.sides || []).map(s => '<span>· ' + escapeHtml(s) + '</span>').join('') + '</div></div></div></div><div class="ksura-salad">' + IC.leaf + '<span>' + escapeHtml(day.salad || '') + '</span></div></div></div>';
+  if(parsedItems.length){
+    parsedItems.sort((a,b)=>a.parsed.date - b.parsed.date);
+    const byDate = new Map(parsedItems.map(item=>[getDateKey(item.parsed.date), item.day]));
+    const start = getCalendarGridStart(parsedItems[0].parsed.date);
+    const end = parsedItems[parsedItems.length - 1].parsed.date;
+    for(let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate()+1)){
+      if(!isWeekdayDate(cursor)) continue;
+      const entry = byDate.get(getDateKey(cursor));
+      cards += entry ? renderCard(entry) : '<div class="ksura-dummy"></div>';
+    }
+    cards += unparsed.map(renderCard).join('');
+  } else {
+    cards = unparsed.map(renderCard).join('');
+  }
 
   const origin = (payload.sharedSettings.originItems || []).length
     ? '<div class="ksura-origin-box"><div class="ksura-origin-title">' + IC.info + ' 원산지 표기 안내</div><div class="ksura-origin-list">' + (payload.sharedSettings.originItems || []).map(o => '<div class="ksura-origin-item"><span class="ksura-origin-label">' + escapeHtml(o.label) + '</span><span>' + escapeHtml(o.value) + '</span></div>').join('') + '</div></div>'
@@ -1947,6 +2046,7 @@ function mergeEntriesIntoMonths(entries, fallbackYear, fallbackMonth){
     const targetYear = parsed ? parsed.year : (raw.year || fallbackYear);
     const targetMonthNum = parsed ? parsed.month : (raw.month || fallbackMonth);
     if(!targetYear || !targetMonthNum){ skippedCount++; return; }
+    if(shouldSkipMenuEntry(raw, targetYear, targetMonthNum)){ skippedCount++; return; }
 
     let targetMonth = findMonth(targetYear, targetMonthNum);
     if(!targetMonth){
@@ -1972,6 +2072,13 @@ function mergeEntriesIntoMonths(entries, fallbackYear, fallbackMonth){
   });
 
   if(importedMonths.length){
+    importedMonths.forEach(monthId=>{
+      const month = state.months.find(m => m.id === monthId);
+      if(month){
+        month.menuData = month.menuData.filter(item=>!shouldSkipMenuEntry(item, month.year, month.month));
+        sortMonthData(month);
+      }
+    });
     state.activeMonthId = importedMonths[0];
   }
   persist();
@@ -2739,6 +2846,25 @@ function parseAiExcludeDates(raw, year, month){
     return parsed ? formatDateObj(parsed.date) : v;
   });
 }
+function getAutoClosedDates(year, month, weekdays){
+  const allowed = new Set(weekdays || DAY);
+  const dates = [];
+  const last = new Date(year, month, 0).getDate();
+  for(let day=1; day<=last; day++){
+    const dt = new Date(year, month - 1, day);
+    const dow = DOW_KO[dt.getDay()];
+    if(allowed.has(dow) && isBusinessClosedDate(dt)){
+      dates.push(formatDateObj(dt));
+    }
+  }
+  return dates;
+}
+function getAiExcludedDates(form){
+  return Array.from(new Set([
+    ...parseAiExcludeDates(form.excludeDates, form.year, form.month),
+    ...getAutoClosedDates(form.year, form.month, Array.from(new Set([...(form.lunchDays || []), ...(form.banchanDays || [])])))
+  ]));
+}
 function getDatesForWeekdays(year, month, weekdays, excludeDates){
   const allowed = new Set(weekdays || []);
   const excluded = new Set(excludeDates || []);
@@ -2748,7 +2874,7 @@ function getDatesForWeekdays(year, month, weekdays, excludeDates){
     const dt = new Date(year, month - 1, day);
     const dow = DOW_KO[dt.getDay()];
     const formatted = formatDateObj(dt);
-    if(allowed.has(dow) && !excluded.has(formatted)){
+    if(allowed.has(dow) && !excluded.has(formatted) && !isBusinessClosedDate(dt)){
       dates.push(formatted);
     }
   }
@@ -2811,7 +2937,7 @@ function buildKsuraLunchStyleGuide(){
 }
 
 function buildAiMonthlyPrompt(form){
-  const excluded = parseAiExcludeDates(form.excludeDates, form.year, form.month);
+  const excluded = getAiExcludedDates(form);
   const lunchDates = getDatesForWeekdays(form.year, form.month, form.lunchDays, excluded);
   const banchanDates = getDatesForWeekdays(form.year, form.month, form.banchanDays, excluded);
   return [
@@ -2826,6 +2952,7 @@ function buildAiMonthlyPrompt(form){
     '반찬배송 생성 날짜(date, 조리/출고일): ' + banchanDates.join(', '),
     '반찬배송 arrival은 date의 다음 날짜로 작성한다.',
     '제외 날짜: ' + (excluded.length ? excluded.join(', ') : '없음'),
+    '공휴일/휴무일/제외 날짜는 어떤 배열에도 절대 생성하지 않는다.',
     '이번 달 계절 재료: ' + (form.seasonal || '자율'),
     '제외할 재료: ' + (form.excludeIngredients || '없음'),
     '꼭 넣고 싶은 메뉴: ' + (form.mustMenus || '없음'),
@@ -3221,6 +3348,8 @@ function validateAiMonthlyResult(result, year, month){
     const parsed = parseDateParts(entry.date, year, month);
     const parsedArrival = entry.arrival ? parseDateParts(entry.arrival, year, month) : null;
     if(!parsed) errors.push(tag + ': 반찬배송 날짜 형식을 인식하지 못했습니다.');
+    if(parsed && isBusinessClosedDate(parsed.date)) warnings.push(tag + ': 공휴일/휴무일 항목이라 식단표 반영 시 제외됩니다.');
+    if(looksLikeHolidayEntry(entry)) warnings.push(tag + ': 휴무일로 보이는 메뉴명이 있어 식단표 반영 시 제외됩니다.');
     if(entry.arrival && !parsedArrival) warnings.push(tag + ': 반찬배송 도착 날짜 형식을 확인해주세요.');
     if(!normalizeSpaces(entry.main) || !normalizeSpaces(entry.soup) || !normalizeSpaces(entry.salad)){
       errors.push(tag + ': 반찬배송 메인/국/샐러드 중 빈 항목이 있습니다.');
@@ -3241,7 +3370,10 @@ function validateAiMonthlyResult(result, year, month){
   });
   (result.lunchboxEntries || []).forEach(entry=>{
     const tag = entry.date || '월식도시락 항목';
-    if(!parseDateParts(entry.date, year, month)) errors.push(tag + ': 월식도시락 날짜 형식을 인식하지 못했습니다.');
+    const parsed = parseDateParts(entry.date, year, month);
+    if(!parsed) errors.push(tag + ': 월식도시락 날짜 형식을 인식하지 못했습니다.');
+    if(parsed && isBusinessClosedDate(parsed.date)) warnings.push(tag + ': 공휴일/휴무일 항목입니다. 월식도시락 운영일에서 제외해주세요.');
+    if(looksLikeHolidayEntry(entry)) warnings.push(tag + ': 휴무일로 보이는 메뉴명이 포함되어 있습니다.');
     if(!normalizeSpaces(entry.subMain)) errors.push(tag + ': 월식도시락 사이드 메인이 비어 있습니다.');
     if(!Array.isArray(entry.sides) || entry.sides.length !== 4){
       errors.push(tag + ': 월식도시락 반찬은 반드시 4개여야 합니다.');
