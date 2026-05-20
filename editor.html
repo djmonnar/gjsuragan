@@ -122,7 +122,38 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 .ai-tag{display:inline-flex;align-items:center;padding:2px 6px;border-radius:999px;background:#FFF7ED;color:#9A3412;border:1px solid #FED7AA;font-size:10px;font-weight:800;white-space:nowrap;}
 .ai-compare-old{color:#6B7280;font-size:11px;line-height:1.45;}
 .ai-compare-new{color:#5C3A21;font-size:11px;line-height:1.45;font-weight:700;}
-@media(max-width:768px){.ai-check-grid{grid-template-columns:repeat(3,1fr);}.ai-result-actions{grid-template-columns:1fr;}.ai-table{min-width:680px;}}
+.ai-start-card{padding:18px 16px;border-bottom:1px solid #F3F4F6;background:#FFFCF8;}
+.ai-start-visual{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:center;margin-bottom:14px;}
+.ai-start-visual h3{font-size:18px;color:#2D2A26;margin-bottom:4px;}
+.ai-start-visual p{font-size:12px;color:#6B7280;line-height:1.6;}
+.ai-bowl-illust{width:64px;height:64px;border-radius:18px;background:#FFF7ED;border:1px solid #FED7AA;position:relative;box-shadow:inset 0 -8px 0 rgba(234,88,12,.08);}
+.ai-bowl-illust:before{content:'';position:absolute;left:12px;right:12px;bottom:13px;height:22px;border-radius:0 0 22px 22px;background:#EA580C;}
+.ai-bowl-illust:after{content:'';position:absolute;left:18px;top:14px;width:28px;height:22px;border-radius:50%;background:#fff;border:5px solid #FBBF24;box-shadow:18px 15px 0 -6px #16A34A,-15px 18px 0 -7px #A16207;}
+.ai-simple-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ai-big-btn{padding:14px 16px;border:none;border-radius:12px;background:#EA580C;color:#fff;font-family:inherit;font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 8px 20px rgba(234,88,12,.22);}
+.ai-big-btn:hover{background:#C2410C;}
+.ai-advanced{display:block;border-bottom:1px solid #F3F4F6;background:#fff;}
+.ai-advanced summary{list-style:none;padding:12px 16px;cursor:pointer;font-size:12px;font-weight:900;color:#9A3412;display:flex;justify-content:space-between;align-items:center;}
+.ai-advanced summary::-webkit-details-marker{display:none;}
+.ai-advanced summary:after{content:'열기';font-size:10px;color:#9CA3AF;}
+.ai-advanced[open] summary:after{content:'닫기';}
+.ai-create-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.ai-create-step{border:1px solid #F3E4D6;background:#FFFCF8;border-radius:14px;padding:14px;margin-bottom:12px;}
+.ai-create-step h4{font-size:12px;color:#9A3412;margin-bottom:10px;}
+.ai-choice-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.ai-choice-card{border:1px solid #E5E7EB;background:#fff;border-radius:12px;padding:11px 8px;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit;}
+.ai-choice-card.on{border-color:#EA580C;background:#FFF7ED;box-shadow:0 0 0 2px rgba(234,88,12,.12);}
+.ai-choice-card b{display:block;font-size:12px;color:#374151;margin-top:6px;}
+.ai-choice-card small{display:block;font-size:10px;color:#9CA3AF;line-height:1.4;margin-top:2px;}
+.ai-choice-illust{width:42px;height:42px;border-radius:14px;margin:0 auto;background:#FFF7ED;border:1px solid #FED7AA;position:relative;overflow:hidden;}
+.ai-choice-illust.lunch:before{content:'';position:absolute;left:8px;right:8px;bottom:8px;height:15px;border-radius:5px;background:#EAB308;box-shadow:0 -11px 0 -3px #fff,14px -7px 0 -5px #16A34A,-14px -7px 0 -5px #EA580C;}
+.ai-choice-illust.banchan:before{content:'';position:absolute;inset:9px;border-radius:8px;background:#EA580C;box-shadow:14px 0 0 -5px #FBBF24,-14px 0 0 -5px #16A34A,0 14px 0 -5px #A16207;}
+.ai-choice-illust.both:before{content:'';position:absolute;left:7px;top:10px;width:14px;height:22px;border-radius:6px;background:#EA580C;box-shadow:16px 0 0 #FBBF24,8px 16px 0 -4px #16A34A;}
+.ai-modal-days{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
+.ai-modal-days label{display:flex;justify-content:center;gap:4px;align-items:center;border:1px solid #E5E7EB;border-radius:8px;padding:8px 4px;background:#fff;font-size:12px;font-weight:800;}
+.ai-modal-days input{accent-color:#EA580C;}
+.ai-modal-key{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:12px;margin-bottom:12px;}
+@media(max-width:768px){.ai-check-grid{grid-template-columns:repeat(3,1fr);}.ai-result-actions,.ai-simple-actions,.ai-create-grid,.ai-choice-grid{grid-template-columns:1fr;}.ai-table{min-width:680px;}.ai-start-visual{grid-template-columns:1fr;text-align:center;}.ai-bowl-illust{margin:0 auto;}.ai-modal-days{grid-template-columns:repeat(3,1fr);}}
 
 #preview-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;}
 #prev-bar{background:#fff;border-bottom:1px solid #E5E7EB;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px;}
@@ -374,6 +405,22 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
   </div>
 
   <div id="tab-ai" class="tab-pane">
+    <div class="ai-start-card">
+      <div class="ai-start-visual">
+        <div class="ai-bowl-illust"></div>
+        <div>
+          <h3>AI 식단 만들기</h3>
+          <p>년도와 월, 휴무일, 원하는 분위기만 고르면 월식도시락과 반찬배송 식단을 한 번에 만들고 오른쪽 미리보기에서 바로 확인합니다.</p>
+        </div>
+      </div>
+      <div class="ai-simple-actions">
+        <button class="ai-big-btn" onclick="openAiCreateModal()">AI 식단 만들기</button>
+        <button class="btn-sec" onclick="openExportExcelModal()">엑셀 다운로드</button>
+      </div>
+    </div>
+
+    <details class="ai-advanced">
+      <summary>고급 AI 설정</summary>
     <div class="imp-sec">
       <h3>🤖 AI 월간 식단 생성</h3>
       <p>기존 Gemini API 키를 사용해 반찬배송 식단과 월식도시락을 한 번에 생성합니다. 반찬배송만 기존 식단표에 반영할 수 있습니다.</p>
@@ -416,6 +463,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
       <div class="fg"><label>꼭 넣고 싶은 메뉴</label><input type="text" id="ai-must-menus" placeholder="예: 제육볶음, 닭갈비, 유자 샐러드"></div>
       <div class="fg"><label>브랜드 톤 프리셋</label>
         <select id="ai-tone">
+          <option>실무 주방 안정형</option>
           <option>고급 반찬세트</option>
           <option>가정식</option>
           <option>아이들도 먹기 좋은</option>
@@ -451,6 +499,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
         <button class="btn-sec" onclick="runAiPartialRegenerate()" style="width:100%;">선택 범위만 다시 생성</button>
       </div>
     </div>
+    </details>
 
     <div class="imp-sec">
       <h3>🔗 재료 공유 / 검수 주의사항</h3>
@@ -458,10 +507,13 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
       <div id="ai-warnings" style="margin-top:10px;"></div>
     </div>
 
-    <div class="imp-sec">
-      <h3>🧾 전체 결과 JSON</h3>
-      <textarea id="ai-json-output" class="ai-json-box" readonly placeholder="AI 생성 결과가 여기에 표시됩니다."></textarea>
-    </div>
+    <details class="ai-advanced">
+      <summary>문제 확인용 JSON</summary>
+      <div class="imp-sec">
+        <h3>🧾 전체 결과 JSON</h3>
+        <textarea id="ai-json-output" class="ai-json-box" readonly placeholder="AI 생성 결과가 여기에 표시됩니다."></textarea>
+      </div>
+    </details>
   </div>
 
   <div id="tab-settings" class="tab-pane">
@@ -517,7 +569,8 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 <div id="preview-panel">
   <div id="prev-bar">
     <h2>실시간 미리보기</h2>
-    <div class="preview-actions">
+  <div class="preview-actions">
+      <button class="copy-btn" onclick="openAiCreateModal()">AI 식단 만들기</button>
       <button class="copy-btn alt" onclick="openProofModal()">오타 검수</button>
       <button class="copy-btn" id="copy-btn" onclick="copyCode()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -528,6 +581,69 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
   <div id="prev-wrap">
     <div id="prev-inner">
       <div id="ksura-wrap"><div id="ksura-render-area"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="ai-create-modal" onclick="if(event.target===this)closeAiCreateModal()">
+  <div class="modal" style="width:min(760px,94vw);">
+    <div class="mh">
+      <h3>AI 식단 만들기</h3>
+      <button class="mx" onclick="closeAiCreateModal()">✕</button>
+    </div>
+    <div class="mb">
+      <div class="ai-modal-key">
+        <div class="mf" style="margin-bottom:0;"><label>AI 연결 키</label><input type="password" id="ai-modal-key" placeholder="Gemini API 키"></div>
+        <div class="mini-help" style="margin:8px 0 0;">처음 한 번만 입력하면 이 기기에 저장됩니다. 가져오기 탭의 Gemini API 키와 함께 사용합니다.</div>
+      </div>
+
+      <div class="ai-create-step">
+        <h4>1. 무엇을 만들까요?</h4>
+        <div class="ai-choice-grid">
+          <button class="ai-choice-card on" type="button" data-ai-target="both" onclick="setAiCreateTarget('both')"><div class="ai-choice-illust both"></div><b>둘 다 만들기</b><small>월식 + 반찬배송</small></button>
+          <button class="ai-choice-card" type="button" data-ai-target="lunchbox" onclick="setAiCreateTarget('lunchbox')"><div class="ai-choice-illust lunch"></div><b>월식도시락</b><small>점심 식단 중심</small></button>
+          <button class="ai-choice-card" type="button" data-ai-target="banchan" onclick="setAiCreateTarget('banchan')"><div class="ai-choice-illust banchan"></div><b>반찬배송</b><small>배송 식단 중심</small></button>
+        </div>
+      </div>
+
+      <div class="ai-create-step">
+        <h4>2. 언제 식단인가요?</h4>
+        <div class="ai-create-grid">
+          <div class="mf"><label>년도</label><input type="number" id="ai-modal-year" min="2020" max="2100"></div>
+          <div class="mf"><label>월</label><select id="ai-modal-month"></select></div>
+        </div>
+        <div class="ai-create-grid">
+          <div class="mf"><label>월식도시락 운영 요일</label><div class="ai-modal-days" id="ai-modal-lunch-days"></div></div>
+          <div class="mf"><label>반찬배송 출고 요일</label><div class="ai-modal-days" id="ai-modal-banchan-days"></div></div>
+        </div>
+        <div class="mf"><label>휴무일 / 제외 날짜</label><input type="text" id="ai-modal-exclude-dates" placeholder="예: 5/5, 5/6"></div>
+      </div>
+
+      <div class="ai-create-step">
+        <h4>3. 어떤 느낌으로 만들까요?</h4>
+        <div class="ai-create-grid">
+          <div class="mf"><label>식단 분위기</label><select id="ai-modal-tone"><option>실무 주방 안정형</option><option>고급 반찬세트</option><option>가정식</option><option>아이들도 먹기 좋은</option><option>어르신 선호</option><option>다이어트/담백</option><option>계절 재료 강조</option></select></div>
+          <div class="mf"><label>반찬배송 고급도</label><select id="ai-modal-premium"><option>고급</option><option>기본</option><option>프리미엄</option></select></div>
+        </div>
+        <div class="ai-create-grid">
+          <div class="mf"><label>매운맛 비율</label><select id="ai-modal-spicy"><option>보통</option><option>낮음</option><option>높음</option></select></div>
+          <div class="mf"><label>재료 공유 강도</label><select id="ai-modal-share"><option>보통</option><option>낮음</option><option>높음</option></select></div>
+        </div>
+      </div>
+
+      <div class="ai-create-step">
+        <h4>4. 세부 요청</h4>
+        <div class="ai-create-grid">
+          <div class="mf"><label>계절 재료</label><input type="text" id="ai-modal-seasonal" placeholder="예: 봄나물, 햇감자"></div>
+          <div class="mf"><label>제외할 재료</label><input type="text" id="ai-modal-exclude-ingredients" placeholder="예: 고수, 홍어"></div>
+        </div>
+        <div class="mf"><label>꼭 넣고 싶은 메뉴</label><input type="text" id="ai-modal-must-menus" placeholder="예: 제육볶음, 닭갈비, 유자 샐러드"></div>
+        <div class="mf"><label>기타 요청사항</label><textarea id="ai-modal-extra" rows="3" placeholder="예: 생선은 주 1회만, 너무 낯선 메뉴는 피해주세요"></textarea></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn-sec" onclick="closeAiCreateModal()">취소</button>
+      <button class="btn-pri" onclick="runAiCreateFromModal()">생성하고 미리보기</button>
     </div>
   </div>
 </div>
@@ -1633,6 +1749,20 @@ function loadMonthSelectOptions(selectId){
 loadMonthSelectOptions('m-month');
 loadMonthSelectOptions('nm-month');
 loadMonthSelectOptions('ai-month');
+loadMonthSelectOptions('ai-modal-month');
+
+function renderAiModalDayChecks(){
+  const targets = [
+    ['ai-modal-lunch-days','ai-modal-lunch-day'],
+    ['ai-modal-banchan-days','ai-modal-banchan-day']
+  ];
+  targets.forEach(([id, cls])=>{
+    const wrap = document.getElementById(id);
+    if(!wrap) return;
+    wrap.innerHTML = DAY.map(day=>'<label><input type="checkbox" class="' + cls + '" value="' + day + '" checked> ' + day + '</label>').join('');
+  });
+}
+renderAiModalDayChecks();
 
 function loadSettingsUI(){
   const month = getSelectedMonth();
@@ -2074,7 +2204,7 @@ function renderAiMonthlyPreview(){
       <div class="ksura-ai-preview">
         <h3>AI 월간 식단 미리보기</h3>
         <div class="sub">AI 생성 후 월식도시락과 반찬배송 식단표가 이곳에 함께 표시됩니다.</div>
-        <div class="ksura-ai-empty">왼쪽 AI 생성 탭에서 Gemini API 키와 조건을 입력한 뒤<br>AI 월간 식단 생성을 실행해주세요.</div>
+        <div class="ksura-ai-empty">상단의 AI 식단 만들기 버튼을 누르면<br>조건 입력부터 미리보기까지 한 번에 진행됩니다.</div>
       </div>`;
     return;
   }
@@ -3165,6 +3295,73 @@ function syncAiFormDefaults(){
   }
   if(yearEl && !yearEl.value) yearEl.value = month.year;
       if(monthEl && !monthEl.value) monthEl.value = month.month;
+}
+function openAiCreateModal(){
+  syncAiFormDefaults();
+  syncAiCreateModalDefaults();
+  document.getElementById('ai-create-modal')?.classList.add('on');
+}
+function closeAiCreateModal(){
+  document.getElementById('ai-create-modal')?.classList.remove('on');
+}
+function setAiCreateTarget(target){
+  document.querySelectorAll('[data-ai-target]').forEach(card=>card.classList.toggle('on', card.dataset.aiTarget === target));
+}
+function getAiCreateTarget(){
+  return document.querySelector('[data-ai-target].on')?.dataset.aiTarget || 'both';
+}
+function setInputValue(id, value){
+  const el = document.getElementById(id);
+  if(el) el.value = value == null ? '' : value;
+}
+function copyCheckedValues(fromSelector, toSelector){
+  const values = getCheckedValues(fromSelector);
+  document.querySelectorAll(toSelector).forEach(el=>{ el.checked = values.includes(el.value); });
+}
+function syncAiCreateModalDefaults(){
+  const selected = getSelectedMonth();
+  setInputValue('ai-modal-key', localStorage.getItem('ksura_gkey') || '');
+  setInputValue('ai-modal-year', document.getElementById('ai-year')?.value || selected.year);
+  setInputValue('ai-modal-month', document.getElementById('ai-month')?.value || selected.month);
+  setInputValue('ai-modal-exclude-dates', document.getElementById('ai-exclude-dates')?.value || '');
+  setInputValue('ai-modal-seasonal', document.getElementById('ai-seasonal')?.value || '');
+  setInputValue('ai-modal-exclude-ingredients', document.getElementById('ai-exclude-ingredients')?.value || '');
+  setInputValue('ai-modal-must-menus', document.getElementById('ai-must-menus')?.value || '');
+  setInputValue('ai-modal-tone', document.getElementById('ai-tone')?.value || '실무 주방 안정형');
+  setInputValue('ai-modal-spicy', document.getElementById('ai-spicy')?.value || '보통');
+  setInputValue('ai-modal-share', document.getElementById('ai-share')?.value || '보통');
+  setInputValue('ai-modal-premium', document.getElementById('ai-premium')?.value || '고급');
+  setInputValue('ai-modal-extra', document.getElementById('ai-extra')?.value || '');
+  copyCheckedValues('.ai-lunch-day', '.ai-modal-lunch-day');
+  copyCheckedValues('.ai-banchan-day', '.ai-modal-banchan-day');
+}
+function applyAiCreateModalToForm(){
+  const key = normalizeSpaces(document.getElementById('ai-modal-key')?.value || '');
+  if(key) saveGeminiKey(key);
+  setInputValue('ai-year', document.getElementById('ai-modal-year')?.value || '');
+  setInputValue('ai-month', document.getElementById('ai-modal-month')?.value || '');
+  setInputValue('ai-exclude-dates', document.getElementById('ai-modal-exclude-dates')?.value || '');
+  setInputValue('ai-seasonal', document.getElementById('ai-modal-seasonal')?.value || '');
+  setInputValue('ai-exclude-ingredients', document.getElementById('ai-modal-exclude-ingredients')?.value || '');
+  setInputValue('ai-must-menus', document.getElementById('ai-modal-must-menus')?.value || '');
+  setInputValue('ai-tone', document.getElementById('ai-modal-tone')?.value || '실무 주방 안정형');
+  setInputValue('ai-spicy', document.getElementById('ai-modal-spicy')?.value || '보통');
+  setInputValue('ai-share', document.getElementById('ai-modal-share')?.value || '보통');
+  setInputValue('ai-premium', document.getElementById('ai-modal-premium')?.value || '고급');
+  const target = getAiCreateTarget();
+  const targetText = target === 'lunchbox' ? '이번 생성은 월식도시락 실무 식단 확인을 가장 우선한다.' : target === 'banchan' ? '이번 생성은 반찬배송 식단표 반영을 가장 우선한다.' : '월식도시락과 반찬배송을 함께 실무에 쓰기 좋게 균형 있게 만든다.';
+  const extra = normalizeSpaces(document.getElementById('ai-modal-extra')?.value || '');
+  setInputValue('ai-extra', [targetText, extra].filter(Boolean).join(' '));
+  const lunchValues = getCheckedValues('.ai-modal-lunch-day');
+  const banchanValues = getCheckedValues('.ai-modal-banchan-day');
+  document.querySelectorAll('.ai-lunch-day').forEach(el=>{ el.checked = lunchValues.includes(el.value); });
+  document.querySelectorAll('.ai-banchan-day').forEach(el=>{ el.checked = banchanValues.includes(el.value); });
+}
+async function runAiCreateFromModal(){
+  applyAiCreateModalToForm();
+  closeAiCreateModal();
+  applySyncedTab('ai');
+  await runAiMonthlyGenerate();
 }
 function getCheckedValues(selector){
   return Array.from(document.querySelectorAll(selector + ':checked')).map(el=>el.value);
