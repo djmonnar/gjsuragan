@@ -58,7 +58,8 @@
     --error: #C0392B;
     --closed: #9E9E9E;
     --shadow: 0 2px 10px rgba(15,23,42,0.06);
-    --radius: 14px;
+    --shadow-strong: 0 8px 24px rgba(15,23,42,0.10);
+    --radius: 8px;
     --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
@@ -121,22 +122,27 @@
   .app-header {
     background: white;
     color: var(--text);
-    padding: 10px 14px;
+    padding: 10px 14px 12px;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;
     position: sticky; top: 0; z-index: 100;
-    min-height: 48px;
+    min-height: 64px;
+    gap: 12px;
   }
   .header-title {
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    font-size: 16px;
+    font-size: 18px;
     color: var(--primary);
-    letter-spacing: 1px;
+    letter-spacing: 0;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
   .header-biz {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-sub);
     text-align: right;
     max-width: 150px;
@@ -144,30 +150,73 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .btn-logout {
-    background: none;
+  .app-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    color: var(--primary);
+    background: var(--gold-light);
+    border-radius: 8px;
+    padding: 6px;
+    flex: 0 0 auto;
+  }
+  .gj-icon {
+    width: 22px;
+    height: 22px;
+    display: inline-block;
+    vertical-align: middle;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .icon-sprite {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
     border: 1px solid var(--border);
-    color: var(--text-sub);
-    padding: 4px 9px;
-    border-radius: 20px;
-    font-size: 12px;
+    background: #fff;
+    color: var(--primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
+    font-family: inherit;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .icon-btn:hover { background: var(--gold-light); }
+  .icon-btn:active { transform: scale(0.98); }
+  .btn-logout {
+    color: var(--text-sub);
   }
 
   /* ── 탭 ── */
   .tab-bar {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
     background: white;
-    border-bottom: 2px solid var(--border);
+    border-bottom: 1px solid var(--border);
     position: sticky;
-    top: 48px;
+    top: 64px;
     z-index: 99;
   }
   .tab-btn {
-    flex: 1;
-    padding: 10px 8px;
-    font-size: 13px;
-    font-weight: 500;
+    min-height: 62px;
+    padding: 8px 4px 9px;
+    font-size: 12px;
+    font-weight: 700;
     color: var(--text-sub);
     background: none;
     border: none;
@@ -175,54 +224,75 @@
     border-bottom: 3px solid transparent;
     margin-bottom: -2px;
     transition: color 0.2s var(--ease-spring), border-color 0.2s var(--ease-spring);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    -webkit-tap-highlight-color: transparent;
   }
+  .tab-btn .gj-icon { width: 23px; height: 23px; }
   .tab-btn.active {
     color: var(--primary);
     border-bottom-color: var(--primary);
-    font-weight: 600;
+    font-weight: 800;
+    background: #fffaf5;
   }
 
   /* ── 콘텐츠 ── */
   .content-area {
-    padding: 12px 12px 88px;
+    padding: 14px 12px 92px;
   }
 
   /* ── 날짜 배지 ── */
   .date-badge {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     background: var(--gold-light);
     color: var(--primary);
-    padding: 5px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 600;
-    margin-bottom: 10px;
+    padding: 11px 12px;
+    border-radius: var(--radius);
+    font-size: 16px;
+    font-weight: 800;
+    margin-bottom: 12px;
+    border: 1px solid #ead8bb;
   }
+  .date-badge .gj-icon { width: 24px; height: 24px; }
 
   /* ── 마감 안내 배너 ── */
   .closed-banner {
     background: #FFF3CD;
     border: 1px solid #FFCC80;
     border-radius: var(--radius);
-    padding: 10px 12px;
+    padding: 13px 14px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-    font-size: 13px;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 15px;
     color: #7D5500;
   }
-  .closed-banner .icon { font-size: 18px; }
+  .closed-banner .icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.7);
+    color: #9a6500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+  }
+  .closed-banner .icon .gj-icon { width: 24px; height: 24px; }
 
   /* ── 주문 카드 ── */
   .order-card {
     background: var(--card);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 14px 14px;
-    margin-bottom: 10px;
+    box-shadow: var(--shadow-strong);
+    padding: 16px;
+    margin-bottom: 12px;
     border: 1px solid var(--border);
     transition: transform 0.3s var(--ease-spring), box-shadow 0.3s var(--ease-spring);
   }
@@ -254,7 +324,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 0;
+    gap: 12px;
+    padding: 14px 0;
     border-bottom: 1px solid var(--border);
   }
   .qty-row:last-of-type { border-bottom: none; }
@@ -262,25 +333,29 @@
   .qty-label {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    min-width: 0;
   }
   .qty-icon {
-    width: 34px; height: 34px;
+    width: 44px; height: 44px;
     background: var(--gold-light);
-    border-radius: 10px;
+    color: var(--primary);
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    flex: 0 0 auto;
   }
+  .qty-icon .gj-icon { width: 28px; height: 28px; }
   .qty-name {
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 18px;
+    font-weight: 800;
     color: var(--text);
   }
   .qty-unit {
-    font-size: 12px;
+    font-size: 14px;
     color: var(--text-sub);
+    margin-top: 2px;
   }
 
   .qty-control {
@@ -288,14 +363,14 @@
     align-items: center;
     gap: 0;
     background: var(--bg);
-    border-radius: 12px;
+    border-radius: 8px;
     overflow: hidden;
     border: 1px solid var(--border);
   }
   .qty-btn {
-    width: 40px; height: 40px;
-    font-size: 21px;
-    font-weight: 300;
+    width: 52px; height: 52px;
+    font-size: 26px;
+    font-weight: 800;
     color: var(--primary);
     background: none;
     border: none;
@@ -309,10 +384,10 @@
   .qty-btn:active { background: var(--gold-light); transform: scale(0.82); }
   .qty-btn:disabled { color: var(--closed); cursor: default; }
   .qty-value {
-    width: 42px;
+    width: 52px;
     text-align: center;
-    font-size: 21px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 900;
     color: var(--primary);
     background: none;
     border: none;
@@ -325,15 +400,15 @@
     background: var(--primary);
     color: white;
     border: none;
-    border-radius: 12px;
-    padding: 14px;
-    font-size: 15px;
-    font-weight: 600;
+    border-radius: 8px;
+    padding: 17px 14px;
+    font-size: 18px;
+    font-weight: 800;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     cursor: pointer;
     margin-top: 14px;
     transition: all 0.3s var(--ease-spring);
-    letter-spacing: 1px;
+    letter-spacing: 0;
   }
   .submit-btn:hover { background: var(--primary-light); transform: scale(1.01); }
   .submit-btn:active { transform: scale(0.97); }
@@ -353,9 +428,9 @@
   .default-apply-notice {
     background: #fffaf5;
     border: 1px solid #f0d9c0;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 13px;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 15px;
     color: #7b3f1a;
     margin-top: 12px;
     text-align: center;
@@ -368,8 +443,8 @@
     border-radius: var(--radius);
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
-    padding: 14px;
-    margin-bottom: 10px;
+    padding: 15px;
+    margin-bottom: 12px;
   }
   .meal-card.is-empty { color: var(--text-sub); }
   .meal-card .meal-head {
@@ -380,10 +455,14 @@
     margin-bottom: 10px;
   }
   .meal-card .meal-title {
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 800;
     color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
+  .meal-card .meal-title .gj-icon { width: 22px; height: 22px; }
   .meal-card .meal-date {
     font-size: 12px;
     color: var(--text-sub);
@@ -391,7 +470,7 @@
   }
   .meal-card .meal-group {
     background: var(--bg);
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 10px 12px;
     margin-top: 8px;
   }
@@ -400,11 +479,15 @@
     font-weight: 800;
     color: var(--primary);
     margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
+  .meal-card .meal-group-title .gj-icon { width: 18px; height: 18px; }
   .meal-card .meal-items {
     margin: 0;
     padding-left: 18px;
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.7;
   }
   .meal-card .meal-note {
@@ -430,8 +513,8 @@
     justify-content: center;
     gap: 8px;
     color: var(--success);
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 800;
     margin-top: 12px;
   }
 
@@ -439,8 +522,8 @@
   .week-item {
     background: var(--card);
     border-radius: var(--radius);
-    padding: 12px 14px;
-    margin-bottom: 8px;
+    padding: 15px 14px;
+    margin-bottom: 10px;
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     display: flex;
@@ -457,8 +540,8 @@
 
   .week-date-area { flex: 1; }
   .week-day {
-    font-size: 15px;
-    font-weight: 700;
+    font-size: 17px;
+    font-weight: 800;
     color: var(--text);
   }
   .week-day.today-text { color: var(--primary); }
@@ -469,10 +552,12 @@
   }
 
   .week-status {
-    font-size: 12px;
-    font-weight: 600;
-    padding: 5px 9px;
-    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 7px 10px;
+    border-radius: 8px;
+    text-align: center;
+    max-width: 170px;
   }
   .status-pending {
     background: var(--gold-light);
@@ -510,7 +595,7 @@
     background: white;
     width: 100%;
     max-width: 480px;
-    border-radius: 24px 24px 0 0;
+    border-radius: 18px 18px 0 0;
     padding: 18px 14px 28px;
     animation: slideUp 0.3s ease;
   }
@@ -525,7 +610,7 @@
     margin: 0 auto 20px;
   }
   .modal-date {
-    font-size: 17px;
+    font-size: 19px;
     font-weight: 700;
     color: var(--primary);
     margin-bottom: 12px;
@@ -535,10 +620,10 @@
     position: absolute;
     top: 14px;
     right: 14px;
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     border: 0;
-    border-radius: 50%;
+    border-radius: 8px;
     background: #F2F2F2;
     color: var(--text);
     font-size: 20px;
@@ -578,7 +663,7 @@
 
   .auth-card {
     background: white;
-    border-radius: 20px;
+    border-radius: 8px;
     padding: 28px 24px;
     width: 100%;
     max-width: 400px;
@@ -596,17 +681,17 @@
   }
   .form-label {
     display: block;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text-sub);
     margin-bottom: 6px;
   }
   .form-input {
     width: 100%;
-    padding: 10px 12px;
+    padding: 13px 14px;
     border: 1.5px solid var(--border);
-    border-radius: 12px;
-    font-size: 16px;
+    border-radius: 8px;
+    font-size: 17px;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     color: var(--text);
     background: var(--bg);
@@ -626,7 +711,7 @@
     background: var(--primary);
     color: white;
     border: none;
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 16px;
     font-size: 17px;
     font-weight: 600;
@@ -672,7 +757,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text-main);
     margin: 6px 0 12px;
@@ -703,9 +788,9 @@
     background: #333;
     color: white;
     padding: 12px 24px;
-    border-radius: 24px;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 800;
     opacity: 0;
     transition: all 0.3s;
     z-index: 2000;
@@ -720,12 +805,16 @@
 
   /* ── 섹션 제목 ── */
   .section-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-sub);
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text);
     margin-bottom: 12px;
     padding-left: 4px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
   }
+  .section-title .gj-icon { width: 22px; height: 22px; color: var(--primary); }
 
   .no-order {
     text-align: center;
@@ -737,15 +826,17 @@
 
   /* ── 특이사항 ── */
   .note-label {
-    font-size: 12px; font-weight: 600; color: var(--text-sub);
-    margin-top: 10px; margin-bottom: 4px;
+    font-size: 15px; font-weight: 800; color: var(--text);
+    margin-top: 14px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
   }
+  .note-label .gj-icon { width: 20px; height: 20px; color: var(--primary); }
   .note-area {
-    width: 100%; padding: 9px 11px;
-    border: 1.5px solid var(--border); border-radius: 10px;
-    font-size: 13px; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    width: 100%; padding: 12px 13px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 16px; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     color: var(--text); background: var(--bg);
-    resize: none; outline: none; min-height: 54px;
+    resize: none; outline: none; min-height: 72px;
     transition: border-color 0.2s;
   }
   .note-area:focus { border-color: var(--primary); background: white; }
@@ -757,7 +848,7 @@
     border-radius: 8px; padding: 3px; margin-bottom: 14px;
   }
   .stat-toggle button {
-    flex: 1; padding: 7px; font-size: 13px; font-weight: 600;
+    flex: 1; padding: 12px 8px; font-size: 16px; font-weight: 800;
     border: none; background: none; border-radius: 6px;
     cursor: pointer; color: var(--text-sub);
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; transition: all 0.15s;
@@ -772,7 +863,8 @@
     padding: 14px; border: 1px solid var(--border);
     text-align: center; box-shadow: var(--shadow);
   }
-  .stat-card .s-label { font-size: 12px; color: var(--text-sub); margin-bottom: 6px; font-weight: 500; }
+  .stat-card .s-label { font-size: 14px; color: var(--text-sub); margin-bottom: 6px; font-weight: 700; display:flex;align-items:center;justify-content:center;gap:5px; }
+  .stat-card .s-label .gj-icon { width:18px;height:18px;color:var(--primary); }
   .stat-card .s-value { font-size: 28px; font-weight: 700; color: var(--primary); }
   .stat-card .s-unit { font-size: 12px; color: var(--text-sub); }
 
@@ -783,8 +875,8 @@
   }
   .save-btn {
     width: 100%; background: var(--primary); color: white;
-    border: none; border-radius: 10px; padding: 13px;
-    font-size: 15px; font-weight: 600;
+    border: none; border-radius: 8px; padding: 15px;
+    font-size: 17px; font-weight: 800;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     cursor: pointer; margin-top: 6px; transition: background 0.2s;
   }
@@ -792,15 +884,16 @@
 
   @media (max-width: 420px) {
     body { max-width: 100%; }
-    .header-biz { max-width: 105px; }
+    .app-header { align-items: flex-start; }
+    .header-biz { display: none; }
     .auth-logo { margin-bottom: 24px; }
     .auth-logo .kr { font-size: 24px; }
-    .auth-card { padding: 20px 18px; border-radius: 16px; }
+    .auth-card { padding: 20px 18px; border-radius: 8px; }
     .auth-title { font-size: 18px; margin-bottom: 18px; }
     .form-group { margin-bottom: 12px; }
-    .form-input { padding: 12px 13px; font-size: 15px; }
+    .form-input { padding: 12px 13px; font-size: 16px; }
     .form-row { gap: 8px; }
-    .section-title { font-size: 13px; margin-bottom: 8px; }
+    .section-title { font-size: 16px; margin-bottom: 8px; }
     .toast { bottom: 64px; font-size: 13px; padding: 10px 16px; }
   }
   .cust-invoice-card{border:1px solid var(--border);border-radius:10px;padding:16px;background:#fff;margin-bottom:12px}
@@ -813,10 +906,12 @@
   .cust-amount-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
   .cust-amount-item{background:var(--bg);border-radius:8px;padding:12px;text-align:center}
   .cust-amount-item .label{font-size:11px;color:var(--text-secondary);margin-bottom:4px;font-weight:600}
+  .cust-amount-item .label .gj-icon{width:16px;height:16px;color:var(--primary)}
   .cust-amount-item .value{font-size:18px;font-weight:800;color:var(--primary)}
   .cust-amount-item.balance .value{color:#c0392b}
   .cust-amount-item.balance.paid .value{color:#1e6e40}
   .cust-meta-row{font-size:13px;color:var(--text-secondary);margin-bottom:6px}
+  .cust-meta-row .gj-icon{width:16px;height:16px;color:var(--primary)}
   .cust-meta-row span{color:var(--text);font-weight:600}
   .cust-ph-title{font-size:12px;color:var(--text-secondary);font-weight:600;margin-bottom:6px;padding-top:10px;border-top:1px solid var(--border)}
   .cust-payment-row{display:grid;grid-template-columns:100px 1fr 2fr;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
@@ -824,38 +919,114 @@
   .cust-payment-row .p-date{color:var(--text-secondary)}
   .cust-payment-row .p-amt{font-weight:700;color:var(--primary);text-align:right}
   .cust-payment-row .p-note{color:var(--text-secondary);font-size:12px}
-.btn-call{display:inline-flex;align-items:center;gap:5px;background:#1e6e40;color:#fff;border:none;border-radius:20px;padding:7px 14px;font-size:13px;font-weight:700;text-decoration:none;cursor:pointer}
-.btn-call:hover{background:#145230}
-.tomorrow-card{border:1px dashed var(--border);border-radius:14px;padding:14px 16px;background:var(--bg);cursor:pointer;transition:transform 0.25s var(--ease-spring),box-shadow 0.25s var(--ease-spring),border-color 0.2s,border-style 0.2s}
+.btn-call{color:#1e6e40}
+.btn-call:hover{background:#e8f5e9}
+.tomorrow-card{border:1px dashed var(--border);border-radius:8px;padding:15px 16px;background:var(--bg);cursor:pointer;transition:transform 0.25s var(--ease-spring),box-shadow 0.25s var(--ease-spring),border-color 0.2s,border-style 0.2s}
 .tomorrow-card:hover{border-color:var(--primary);border-style:solid;transform:translateY(-2px);box-shadow:0 6px 18px rgba(15,23,42,0.09)}
 .tomorrow-card:hover{border-color:var(--primary);background:#fffaf5}
 .tomorrow-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.tomorrow-card-date{font-size:14px;font-weight:700;color:var(--primary)}
-.tomorrow-card-status{font-size:12px;color:var(--text-secondary)}
+.tomorrow-card-date{font-size:17px;font-weight:800;color:var(--primary)}
+.tomorrow-card-status{font-size:14px;color:var(--text-sub)}
 .tomorrow-card-status.submitted{color:#1e6e40;font-weight:700}
-.tomorrow-card-hint{font-size:12px;color:var(--text-secondary);margin-top:4px}
+.tomorrow-card-hint{font-size:14px;color:var(--text-sub);margin-top:4px}
 .tomorrow-card-status.self-holiday{color:#c0392b;font-weight:700}
 .tomorrow-card-status.default-badge{color:#1a6fa8;font-weight:700}
-.self-holiday-btn{width:100%;padding:12px;border:1.5px solid #e74c3c;background:#fff;color:#c0392b;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;transition:.15s}
+.self-holiday-btn{width:100%;padding:15px;border:1.5px solid #e74c3c;background:#fff;color:#c0392b;border-radius:8px;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:8px;transition:.15s}
 .self-holiday-btn:hover{background:#fdecea}
-.self-holiday-badge{display:inline-block;background:#fdecea;color:#c0392b;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700}
-.modal-meal-card{background:#f9f8f5;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;border:1px solid var(--border)}
-.modal-meal-title{font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px}
+.self-holiday-badge{display:inline-block;background:#fdecea;color:#c0392b;border-radius:8px;padding:3px 8px;font-size:12px;font-weight:800}
+.modal-meal-card{background:#f9f8f5;border-radius:8px;padding:13px;margin-bottom:14px;font-size:15px;border:1px solid var(--border)}
+.modal-meal-title{font-size:15px;font-weight:800;color:var(--text-sub);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.modal-meal-title .gj-icon{width:20px;height:20px;color:var(--primary)}
 .modal-meal-items{display:flex;flex-direction:column;gap:4px;color:var(--text)}
-.btn-help{background:#eef6ff;color:#1a56db;border:1px solid #dbeafe;border-radius:20px;padding:4px 9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.modal-meal-items .gj-icon{width:17px;height:17px;color:var(--primary)}
+.btn-help{color:#1a56db}
 .help-modal-sheet{max-height:86vh;overflow-y:auto;padding:18px 16px 26px}
 .help-title{text-align:center;font-size:18px;font-weight:800;color:var(--primary);margin-bottom:6px}
 .help-sub{text-align:center;font-size:13px;color:var(--text-sub);line-height:1.5;margin-bottom:16px}
-.help-section{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow)}
+.help-section{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow)}
 .help-section-title{font-size:14px;font-weight:800;color:var(--text);margin-bottom:8px}
 .help-section ol{margin:0;padding-left:18px;font-size:13px;color:var(--text);line-height:1.75}
 .help-section li::marker{font-weight:800;color:var(--primary)}
-.help-tip{background:#F8EFE2;color:#7B3F1A;border-radius:10px;padding:10px;font-size:12px;font-weight:700;line-height:1.5;margin-top:10px}
-.help-close-btn{width:100%;background:var(--primary);color:#fff;border:0;border-radius:12px;padding:13px;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer;margin-top:6px}
-@media(max-width:390px){.btn-help{padding:4px 8px}.header-biz{display:none}}
+.help-tip{background:#F8EFE2;color:#7B3F1A;border-radius:8px;padding:10px;font-size:12px;font-weight:700;line-height:1.5;margin-top:10px}
+.help-close-btn{width:100%;background:var(--primary);color:#fff;border:0;border-radius:8px;padding:15px;font-size:17px;font-weight:800;font-family:inherit;cursor:pointer;margin-top:6px}
+@media(max-width:390px){.app-actions{gap:4px}.icon-btn{width:40px;height:40px}.tab-btn{font-size:11px}.header-biz{display:none}}
 </style>
 </head>
 <body>
+<svg class="icon-sprite" aria-hidden="true" focusable="false">
+  <symbol id="gj-mark" viewBox="0 0 24 24">
+    <path d="M6 10.5c1.9-3.7 4-5.6 6-5.6s4.1 1.9 6 5.6"/>
+    <path d="M5 10.5h14l-1.2 8H6.2l-1.2-8Z"/>
+    <path d="M9 14h6"/>
+    <path d="M10 18v-3.5M14 18v-3.5"/>
+  </symbol>
+  <symbol id="gj-lunch" viewBox="0 0 24 24">
+    <rect x="4" y="6.5" width="16" height="12" rx="3"/>
+    <path d="M8 6.5V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1.5"/>
+    <path d="M8 11h8M8 15h5"/>
+  </symbol>
+  <symbol id="gj-salad" viewBox="0 0 24 24">
+    <path d="M5 11c1.4 5.2 4 8 7 8s5.6-2.8 7-8H5Z"/>
+    <path d="M8 11c.4-2.4 1.7-4 3.6-4 1 0 1.8.4 2.4 1.1"/>
+    <path d="M12.8 10.6c.3-2.8 1.7-4.8 4.2-5.6"/>
+    <path d="M9 15h6"/>
+  </symbol>
+  <symbol id="gj-calendar" viewBox="0 0 24 24">
+    <rect x="4" y="5" width="16" height="15" rx="2.5"/>
+    <path d="M8 3v4M16 3v4M4 10h16"/>
+    <path d="M8 14h3M13 14h3M8 17h3"/>
+  </symbol>
+  <symbol id="gj-meal" viewBox="0 0 24 24">
+    <path d="M6 3v8M9 3v8M6 7h3M8 11v10"/>
+    <path d="M17 3c-1.8 1.7-2.7 3.8-2.7 6.4 0 2 1 3.1 2.7 3.1V21"/>
+  </symbol>
+  <symbol id="gj-week" viewBox="0 0 24 24">
+    <rect x="4" y="5" width="16" height="15" rx="2.5"/>
+    <path d="M4 10h16"/>
+    <path d="M8 14h.1M12 14h.1M16 14h.1M8 17h.1M12 17h.1M16 17h.1"/>
+  </symbol>
+  <symbol id="gj-settlement" viewBox="0 0 24 24">
+    <path d="M7 3h10v18l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2V3Z"/>
+    <path d="M9 8h6M9 12h6M9 16h3"/>
+  </symbol>
+  <symbol id="gj-profile" viewBox="0 0 24 24">
+    <circle cx="12" cy="8" r="3.5"/>
+    <path d="M5 20c1.2-3.4 3.5-5.1 7-5.1s5.8 1.7 7 5.1"/>
+  </symbol>
+  <symbol id="gj-phone" viewBox="0 0 24 24">
+    <path d="M8 4l2.2 4-1.7 1.6c1.2 2.3 3 4.1 5.3 5.3l1.6-1.7 4 2.2-1.4 3.3c-.3.7-1 1.1-1.7 1A15.2 15.2 0 0 1 4.3 7.7c-.1-.8.3-1.5 1-1.8L8 4Z"/>
+  </symbol>
+  <symbol id="gj-help" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M9.8 9a2.4 2.4 0 1 1 3.2 2.3c-.8.4-1 .9-1 1.7"/>
+    <path d="M12 17h.1"/>
+  </symbol>
+  <symbol id="gj-logout" viewBox="0 0 24 24">
+    <path d="M10 5H6.5A2.5 2.5 0 0 0 4 7.5v9A2.5 2.5 0 0 0 6.5 19H10"/>
+    <path d="M14 8l4 4-4 4M18 12H9"/>
+  </symbol>
+  <symbol id="gj-clock" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M12 7v5l3 2"/>
+  </symbol>
+  <symbol id="gj-delivery" viewBox="0 0 24 24">
+    <path d="M4 7h10v9H4z"/>
+    <path d="M14 10h3l3 3v3h-6"/>
+    <circle cx="8" cy="18" r="1.8"/>
+    <circle cx="17" cy="18" r="1.8"/>
+  </symbol>
+  <symbol id="gj-note" viewBox="0 0 24 24">
+    <path d="M6 4h12v16H6z"/>
+    <path d="M9 8h6M9 12h6M9 16h4"/>
+  </symbol>
+  <symbol id="gj-check" viewBox="0 0 24 24">
+    <path d="M5 12.5l4.2 4.2L19 7"/>
+  </symbol>
+  <symbol id="gj-lock" viewBox="0 0 24 24">
+    <rect x="5" y="10" width="14" height="10" rx="2"/>
+    <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+  </symbol>
+</svg>
 
 <!-- 로딩 -->
 <div id="loading-screen">
@@ -961,31 +1132,31 @@
 <!-- 메인 앱 -->
 <div id="main-screen" class="screen">
   <div class="app-header">
-    <div class="header-title">궁중수라간 🍱</div>
-    <div style="display:flex;align-items:center;gap:8px">
+    <div class="header-title"><svg class="brand-mark"><use href="#gj-mark"></use></svg>궁중수라간</div>
+    <div class="app-actions">
       <div class="header-biz" id="header-bizname"></div>
-      <a class="btn-call" href="tel:01035071278">📞 전화</a>
-      <button class="btn-help" onclick="openHelpManual()">도움말</button>
-      <button class="btn-logout" onclick="doLogout()">로그아웃</button>
+      <a class="icon-btn btn-call" href="tel:01035071278" aria-label="전화" title="전화"><svg class="gj-icon"><use href="#gj-phone"></use></svg></a>
+      <button class="icon-btn btn-help" onclick="openHelpManual()" aria-label="도움말" title="도움말"><svg class="gj-icon"><use href="#gj-help"></use></svg></button>
+      <button class="icon-btn btn-logout" onclick="doLogout()" aria-label="로그아웃" title="로그아웃"><svg class="gj-icon"><use href="#gj-logout"></use></svg></button>
     </div>
   </div>
 
   <div class="tab-bar">
-    <button class="tab-btn active" id="tab-today" onclick="switchTab('today')">오늘 주문</button>
-    <button class="tab-btn" id="tab-meal" onclick="switchTab('meal')">식단</button>
-    <button class="tab-btn" id="tab-week" onclick="switchTab('week')">평일 일정</button>
-    <button class="tab-btn" id="tab-settlement" onclick="switchTab('settlement')">정산</button>
-    <button class="tab-btn" id="tab-profile" onclick="switchTab('profile')">내 정보</button>
+    <button class="tab-btn active" id="tab-today" onclick="switchTab('today')"><svg class="gj-icon"><use href="#gj-lunch"></use></svg><span>주문</span></button>
+    <button class="tab-btn" id="tab-meal" onclick="switchTab('meal')"><svg class="gj-icon"><use href="#gj-meal"></use></svg><span>식단</span></button>
+    <button class="tab-btn" id="tab-week" onclick="switchTab('week')"><svg class="gj-icon"><use href="#gj-week"></use></svg><span>일정</span></button>
+    <button class="tab-btn" id="tab-settlement" onclick="switchTab('settlement')"><svg class="gj-icon"><use href="#gj-settlement"></use></svg><span>정산</span></button>
+    <button class="tab-btn" id="tab-profile" onclick="switchTab('profile')"><svg class="gj-icon"><use href="#gj-profile"></use></svg><span>내 정보</span></button>
   </div>
 
   <!-- 오늘 주문 탭 -->
   <div id="pane-today" class="content-area">
-    <div class="date-badge" id="today-badge">📅 날짜 로딩중...</div>
+    <div class="date-badge" id="today-badge"><svg class="gj-icon"><use href="#gj-calendar"></use></svg><span>날짜 로딩중...</span></div>
 
     <div id="today-meal-card" class="meal-card is-empty">오늘 식단을 불러오는 중...</div>
 
     <div class="closed-banner" id="closed-banner" style="display:none">
-      <span class="icon">⏰</span>
+      <span class="icon"><svg class="gj-icon"><use href="#gj-clock"></use></svg></span>
       <div>
         <strong>오늘 주문이 마감되었습니다</strong><br>
         <span style="font-size:12px" id="closed-banner-time">주문 마감: 오전 9시 20분</span>
@@ -996,7 +1167,7 @@
       <!-- 수량 조절 -->
       <div class="qty-row">
         <div class="qty-label">
-          <div class="qty-icon">🍱</div>
+          <div class="qty-icon"><svg class="gj-icon"><use href="#gj-lunch"></use></svg></div>
           <div>
             <div class="qty-name">도시락</div>
             <div class="qty-unit">개</div>
@@ -1010,7 +1181,7 @@
       </div>
       <div class="qty-row">
         <div class="qty-label">
-          <div class="qty-icon">🥗</div>
+          <div class="qty-icon"><svg class="gj-icon"><use href="#gj-salad"></use></svg></div>
           <div>
             <div class="qty-name">샐러드</div>
             <div class="qty-unit">개</div>
@@ -1023,7 +1194,7 @@
         </div>
       </div>
 
-      <div class="note-label">💬 특이사항 <span style="font-weight:400;color:var(--text-sub)">(선택)</span></div>
+      <div class="note-label"><svg class="gj-icon"><use href="#gj-note"></use></svg>특이사항 <span style="font-weight:400;color:var(--text-sub)">(선택)</span></div>
       <textarea class="note-area" id="today-note" placeholder="요청사항이나 특이사항을 입력하세요..."></textarea>
 
       <button class="submit-btn" id="submit-btn" onclick="submitOrder('today')">
@@ -1031,20 +1202,20 @@
       </button>
       <div class="default-apply-notice" id="default-apply-notice" style="display:none"></div>
       <div class="submitted-badge" id="submitted-badge" style="display:none">
-        ✅ 전송 완료 · <span id="submitted-time"></span>
+        <svg class="gj-icon"><use href="#gj-check"></use></svg> 전송 완료 · <span id="submitted-time"></span>
       </div>
     </div>
 
     <!-- 내일 주문 미리 설정 -->
     <div id="tomorrow-section" style="margin-top:16px;display:none">
-      <div class="section-title" style="font-size:14px;margin-bottom:8px">📅 내일 주문 미리 설정</div>
+      <div class="section-title" style="margin-bottom:8px"><svg class="gj-icon"><use href="#gj-calendar"></use></svg>내일 주문 미리 설정</div>
       <div id="tomorrow-card" class="tomorrow-card"></div>
     </div>
   </div>
 
   <!-- 식단 탭 -->
   <div id="pane-meal" class="content-area" style="display:none">
-    <div class="section-title">🍽 식단 조회</div>
+    <div class="section-title"><svg class="gj-icon"><use href="#gj-meal"></use></svg>식단 조회</div>
     <div class="meal-search-row">
       <input class="form-input" type="date" id="meal-search-date">
       <button class="save-btn" style="margin-top:0;padding:12px 16px" onclick="searchMealMenu()">조회</button>
@@ -1060,7 +1231,7 @@
 
   <!-- 정산 탭 -->
   <div id="pane-settlement" class="content-area" style="display:none">
-    <div class="section-title">💰 월별 정산 내역</div>
+    <div class="section-title"><svg class="gj-icon"><use href="#gj-settlement"></use></svg>월별 정산 내역</div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
       <input type="month" id="settle-month-input" class="form-input" style="max-width:160px">
       <button class="save-btn" style="padding:10px 16px" onclick="loadCustomerSettlement()">조회</button>
@@ -1073,26 +1244,26 @@
   <div id="pane-profile" class="content-area" style="display:none">
 
     <!-- 주문 통계 -->
-    <div class="section-title">📊 나의 주문 통계</div>
+    <div class="section-title"><svg class="gj-icon"><use href="#gj-week"></use></svg>나의 주문 통계</div>
     <div class="stat-toggle">
       <button id="stat-week-btn" class="active" onclick="switchStat('week')">이번 주</button>
       <button id="stat-month-btn" onclick="switchStat('month')">이번 달</button>
     </div>
     <div class="stat-grid">
       <div class="stat-card">
-        <div class="s-label">🍱 도시락</div>
+        <div class="s-label"><svg class="gj-icon"><use href="#gj-lunch"></use></svg> 도시락</div>
         <div class="s-value" id="stat-lunch">-</div>
         <div class="s-unit">개</div>
       </div>
       <div class="stat-card">
-        <div class="s-label">🥗 샐러드</div>
+        <div class="s-label"><svg class="gj-icon"><use href="#gj-salad"></use></svg> 샐러드</div>
         <div class="s-value" id="stat-salad">-</div>
         <div class="s-unit">개</div>
       </div>
     </div>
 
     <!-- 회원정보 수정 -->
-    <div class="section-title">👤 회원정보 수정</div>
+    <div class="section-title"><svg class="gj-icon"><use href="#gj-profile"></use></svg>회원정보 수정</div>
     <div class="profile-block">
       <div class="form-group">
         <label class="form-label">업체명</label>
@@ -1151,7 +1322,7 @@
     </div>
 
     <!-- 비밀번호 변경 -->
-    <div class="section-title">🔒 비밀번호 변경</div>
+    <div class="section-title"><svg class="gj-icon"><use href="#gj-lock"></use></svg>비밀번호 변경</div>
     <div class="profile-block">
       <div class="form-group">
         <label class="form-label">새 비밀번호</label>
@@ -1235,9 +1406,9 @@
     <div class="modal-date" id="modal-date-text"></div>
     <div id="modal-content"></div>
     <button class="submit-btn" id="modal-submit-btn" onclick="submitOrder('modal')">주문 전송하기</button>
-    <button class="self-holiday-btn" id="modal-holiday-btn" onclick="submitSelfHoliday()" style="display:none">🚫 자체 휴무로 등록</button>
+    <button class="self-holiday-btn" id="modal-holiday-btn" onclick="submitSelfHoliday()" style="display:none">자체 휴무로 등록</button>
     <div class="submitted-badge" id="modal-submitted-badge" style="display:none">
-      ✅ 전송 완료
+      <svg class="gj-icon"><use href="#gj-check"></use></svg> 전송 완료
     </div>
   </div>
 </div>
@@ -1282,15 +1453,15 @@
   </div>
   <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px">
     <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px">
-      <div style="font-size:24px">1️⃣</div>
+      <div style="font-size:20px;font-weight:800;color:#7B3F1A">1</div>
       <div style="font-size:14px">아래 <strong>공유 버튼</strong> (□↑) 을 누르세요</div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px">
-      <div style="font-size:24px">2️⃣</div>
+      <div style="font-size:20px;font-weight:800;color:#7B3F1A">2</div>
       <div style="font-size:14px"><strong>"홈 화면에 추가"</strong> 를 선택하세요</div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px">
-      <div style="font-size:24px">3️⃣</div>
+      <div style="font-size:20px;font-weight:800;color:#7B3F1A">3</div>
       <div style="font-size:14px">오른쪽 위 <strong>"추가"</strong> 를 누르면 완료!</div>
     </div>
   </div>
@@ -1354,6 +1525,9 @@ const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
 let customHolidays = {};
 let orderDeadline = { hour: 9, minute: 20 };
+function iconSvg(name, className = 'gj-icon') {
+  return `<svg class="${className}" aria-hidden="true"><use href="#gj-${name}"></use></svg>`;
+}
 const KOREA_HOLIDAYS = {
   '2026-01-01': '신정',
   '2026-02-16': '설 연휴',
@@ -1473,7 +1647,7 @@ function renderTomorrowCard(tomorrowStr, existing) {
     : hasDefault
     ? `기본값 도시락 ${defaults.lunch}개 · 샐러드 ${defaults.salad}개 자동 적용 예정`
     : '수량을 입력해주세요';
-  const statusLabel = isSelfHoliday ? '🚫 자체 휴무' : submitted ? '✅ 입력됨' : hasDefault ? '🔄 기본값 예정' : '미입력';
+  const statusLabel = isSelfHoliday ? '자체 휴무' : submitted ? '입력됨' : hasDefault ? '기본값 예정' : '미입력';
   const statusCls = isSelfHoliday ? ' self-holiday' : submitted ? ' submitted' : hasDefault ? ' default-badge' : '';
   card.innerHTML = `
     <div class="tomorrow-card-head">
@@ -1583,15 +1757,15 @@ function renderMealMenuCard(targetId, dStr, menu) {
   el.className = 'meal-card';
   el.innerHTML = `
     <div class="meal-head">
-      <div class="meal-title">🍽 ${escapeHtml(title)}</div>
+      <div class="meal-title">${iconSvg('meal')}${escapeHtml(title)}</div>
       <div class="meal-date">${formatDateKR(dStr)}</div>
     </div>
     <div class="meal-group">
-      <div class="meal-group-title">🍱 도시락</div>
+      <div class="meal-group-title">${iconSvg('lunch')}도시락</div>
       ${mealItemsHtml(menu.lunchItems || menu.lunchMenu)}
     </div>
     <div class="meal-group">
-      <div class="meal-group-title">🥗 샐러드</div>
+      <div class="meal-group-title">${iconSvg('salad')}샐러드</div>
       ${mealItemsHtml(menu.saladItems || menu.saladMenu)}
     </div>
     ${menu.note ? `<div class="meal-note">${escapeHtml(menu.note)}</div>` : ''}
@@ -1822,7 +1996,7 @@ function renderCustomerSettlementDetail(s) {
   const paidTotal = payments.reduce((sum, p) => sum + (parseInt(p.amount, 10) || 0), 0);
   const balance = billed - paidTotal;
 
-  const statusMap = { '입금완료':'✅ 입금완료', '미정산':'⏳ 미정산', '부분입금':'🔶 부분입금', '청구완료':'📄 청구완료', '연체':'🔴 연체', '보류':'⏸ 보류', '정산완료':'✅ 정산완료' };
+  const statusMap = { '입금완료':'입금완료', '미정산':'미정산', '부분입금':'부분입금', '청구완료':'청구완료', '연체':'연체', '보류':'보류', '정산완료':'정산완료' };
   const statusLabel = statusMap[s.status] || s.status || '-';
 
   const invoiceHtml = s.invoiceNo
@@ -1857,15 +2031,15 @@ function renderCustomerSettlementDetail(s) {
       ${dueDateLine}
       <div class="cust-amount-grid">
         <div class="cust-amount-item">
-          <div class="label">💰 청구액</div>
+          <div class="label">${iconSvg('settlement')} 청구액</div>
           <div class="value">${billed.toLocaleString()}원</div>
         </div>
         <div class="cust-amount-item balance${balance <= 0 ? ' paid' : ''}">
-          <div class="label">${balance <= 0 ? '✅ 완납' : '⚠️ 잔액'}</div>
+          <div class="label">${balance <= 0 ? iconSvg('check') + ' 완납' : '잔액'}</div>
           <div class="value">${balance <= 0 ? '없음' : balance.toLocaleString() + '원'}</div>
         </div>
       </div>
-      <div class="cust-meta-row">🍱 도시락 <span>${s.lunchTotal || 0}개</span>&emsp;🥗 샐러드 <span>${s.saladTotal || 0}개</span>${s.adjust ? `&emsp;조정 <span>${s.adjust > 0 ? '+' : ''}${s.adjust.toLocaleString()}원</span>` : ''}</div>
+      <div class="cust-meta-row">${iconSvg('lunch')} 도시락 <span>${s.lunchTotal || 0}개</span>&emsp;${iconSvg('salad')} 샐러드 <span>${s.saladTotal || 0}개</span>${s.adjust ? `&emsp;조정 <span>${s.adjust > 0 ? '+' : ''}${s.adjust.toLocaleString()}원</span>` : ''}</div>
       ${paymentRows}
       ${noteHtml}
     </div>`;
@@ -1898,13 +2072,13 @@ async function renderToday() {
   const holiday = holidayName(today);
   const noDelivery = isNoDeliveryDate(today);
 
-  document.getElementById('today-badge').textContent = '📅 ' + formatDateKR(today);
+  document.getElementById('today-badge').innerHTML = `${iconSvg('calendar')}<span>${formatDateKR(today)}</span>`;
 
   const closedBanner = document.getElementById('closed-banner');
   if (noDelivery) {
     closedBanner.style.display = 'flex';
     closedBanner.innerHTML = `
-      <span class="icon">🚚</span>
+      <span class="icon">${iconSvg('delivery')}</span>
       <div>
         <strong>${holiday ? `${holiday}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다'}</strong><br>
         <span style="font-size:12px">배송일에만 주문을 입력할 수 있습니다</span>
@@ -1913,7 +2087,7 @@ async function renderToday() {
   } else if (closed) {
     closedBanner.style.display = 'flex';
     closedBanner.innerHTML = `
-      <span class="icon">⏰</span>
+      <span class="icon">${iconSvg('clock')}</span>
       <div>
         <strong>오늘 주문이 마감되었습니다</strong><br>
         <span style="font-size:12px" id="closed-banner-time">주문 마감: ${deadlineText()}</span>
@@ -1937,7 +2111,7 @@ async function renderToday() {
     if (data.selfHoliday) {
       const submitBtn = document.getElementById('submit-btn');
       submitBtn.className = 'submit-btn submitted-btn';
-      submitBtn.textContent = '🚫 자체 휴무 등록됨';
+      submitBtn.textContent = '자체 휴무 등록됨';
       submitBtn.disabled = false;
       document.getElementById('default-apply-notice').style.display = 'none';
       if (!isClosed()) setQtyDisabled(false);
@@ -1985,7 +2159,7 @@ function setCardSubmitted(yes, ts, hasDefault) {
   const notice = document.getElementById('default-apply-notice');
   if (yes) {
     submitBtn.className = 'submit-btn submitted-btn';
-    submitBtn.textContent = '✅ 전송 완료 (수량 변경 후 재전송 가능)';
+    submitBtn.textContent = '전송 완료 (수량 변경 후 재전송 가능)';
     submitBtn.disabled = false;
     badge.style.display = 'none';
     notice.style.display = 'none';
@@ -2073,7 +2247,7 @@ async function submitOrder(source) {
         uid: currentUser.uid
       });
 
-    showToast('✅ 주문이 전송되었습니다!', 'success');
+    showToast('주문이 전송되었습니다.', 'success');
 
     if (source === 'today') {
       setCardSubmitted(true, new Date());
@@ -2223,11 +2397,11 @@ function openDayModal(ds, existing) {
   document.getElementById('modal-date-text').textContent = formatDateKR(ds);
   document.getElementById('modal-content').innerHTML = `
     <div class="modal-meal-card" id="modal-meal-info">
-      <div class="modal-meal-title">🍽 식단 불러오는 중...</div>
+      <div class="modal-meal-title">${iconSvg('meal')}식단 불러오는 중...</div>
     </div>
     <div class="qty-row">
       <div class="qty-label">
-        <div class="qty-icon">🍱</div>
+        <div class="qty-icon">${iconSvg('lunch')}</div>
         <div><div class="qty-name">도시락</div></div>
       </div>
       <div class="qty-control">
@@ -2238,7 +2412,7 @@ function openDayModal(ds, existing) {
     </div>
     <div class="qty-row">
       <div class="qty-label">
-        <div class="qty-icon">🥗</div>
+        <div class="qty-icon">${iconSvg('salad')}</div>
         <div><div class="qty-name">샐러드</div></div>
       </div>
       <div class="qty-control">
@@ -2247,7 +2421,7 @@ function openDayModal(ds, existing) {
         <button class="qty-btn" onclick="changeModalQty('salad',1)">+</button>
       </div>
     </div>
-    <div class="note-label">💬 특이사항 <span style="font-weight:400;color:var(--text-sub)">(선택)</span></div>
+    <div class="note-label">${iconSvg('note')}특이사항 <span style="font-weight:400;color:var(--text-sub)">(선택)</span></div>
     <textarea class="note-area" id="modal-note" placeholder="요청사항을 입력하세요...">${existing?.note || ''}</textarea>
   `;
 
@@ -2256,9 +2430,9 @@ function openDayModal(ds, existing) {
     const el = document.getElementById('modal-meal-info');
     if (!el) return;
     if (!menu) { el.style.display = 'none'; return; }
-    const lunchList = (menu.lunchItems || []).map(i => `<div>🍱 ${escapeHtml(i)}</div>`).join('');
-    const saladList = (menu.saladItems || []).map(i => `<div>🥗 ${escapeHtml(i)}</div>`).join('');
-    el.innerHTML = `<div class="modal-meal-title">🍽 오늘 식단</div><div class="modal-meal-items">${lunchList}${saladList}</div>`;
+    const lunchList = (menu.lunchItems || []).map(i => `<div>${iconSvg('lunch')} ${escapeHtml(i)}</div>`).join('');
+    const saladList = (menu.saladItems || []).map(i => `<div>${iconSvg('salad')} ${escapeHtml(i)}</div>`).join('');
+    el.innerHTML = `<div class="modal-meal-title">${iconSvg('meal')}오늘 식단</div><div class="modal-meal-items">${lunchList}${saladList}</div>`;
   }).catch(() => {
     const el = document.getElementById('modal-meal-info');
     if (el) el.style.display = 'none';
@@ -2271,16 +2445,16 @@ function openDayModal(ds, existing) {
     submitBtn.style.display = 'block';
     submitBtn.disabled = false;
     submitBtn.className = 'submit-btn submitted-btn';
-    submitBtn.textContent = '✅ 주문으로 전환';
-    holidayBtn.textContent = '🚫 자체 휴무 해제';
+    submitBtn.textContent = '주문으로 전환';
+    holidayBtn.textContent = '자체 휴무 해제';
   } else {
     submitBtn.style.display = 'block';
     submitBtn.disabled = false;
     const modalDefaults = defaultMealsForDate(ds);
     const modalHasDefault = !existing && (modalDefaults.lunch + modalDefaults.salad) > 0;
     submitBtn.className = existing ? 'submit-btn submitted-btn' : modalHasDefault ? 'submit-btn default-btn' : 'submit-btn';
-    submitBtn.textContent = existing ? '✅ 수정 후 재전송' : modalHasDefault ? '수량 변경해서 전송' : '주문 전송하기';
-    holidayBtn.textContent = '🚫 자체 휴무로 등록';
+    submitBtn.textContent = existing ? '수정 후 재전송' : modalHasDefault ? '수량 변경해서 전송' : '주문 전송하기';
+    holidayBtn.textContent = '자체 휴무로 등록';
   }
   holidayBtn.style.display = 'block';
   document.getElementById('modal-submitted-badge').style.display = 'none';
@@ -2340,7 +2514,7 @@ async function saveProfile() {
     document.getElementById('header-bizname').textContent = bizname;
     renderToday();
     renderWeek();
-    showToast('✅ 정보가 저장되었습니다.', 'success');
+    showToast('정보가 저장되었습니다.', 'success');
   } catch(e) {
     showToast('저장 실패: ' + e.message, 'error');
   }
@@ -2357,7 +2531,7 @@ async function changePassword() {
     await currentUser.updatePassword(newPw);
     document.getElementById('new-pw').value = '';
     document.getElementById('new-pw-confirm').value = '';
-    showToast('✅ 비밀번호가 변경되었습니다.', 'success');
+    showToast('비밀번호가 변경되었습니다.', 'success');
   } catch(e) {
     if (e.code === 'auth/requires-recent-login') {
       showError('pw-error', '보안을 위해 재로그인 후 변경해주세요.');
