@@ -920,6 +920,7 @@ function getLocalBackupSummary(){
     monthLabels:getStateMonthLabels(state),
     activeMonthLabel:(getSelectedMonth()?.year || '') + '년 ' + (getSelectedMonth()?.month || '') + '월',
     aiMonthLabel:ai,
+    aiMonthId:aiMonthlyResultCache ? aiMonthlyResultCache.year + '-' + String(aiMonthlyResultCache.month).padStart(2,'0') : null,
     lunchboxCount:aiMonthlyResultCache?.lunchboxEntries?.length || 0,
     banchanCount:(state.months || []).reduce((sum, month)=>sum + ((month.menuData || []).length), 0)
   };
@@ -950,13 +951,16 @@ function buildFirebaseSummaryFromData(editorData, lunchData, draftData){
   const active = loadedState ? (loadedState.months.find(m=>m.id === loadedState.activeMonthId) || loadedState.months[0]) : null;
   const aiYear = lunchData?.year || draftData?.year;
   const aiMonth = lunchData?.month || draftData?.month;
+  const aiMonthId = editorData?.aiMonthId || (aiYear && aiMonth ? aiYear + '-' + String(aiMonth).padStart(2,'0') : null);
+  const aiMonthLabel = aiYear && aiMonth ? aiYear + '년 ' + aiMonth + '월' : (editorData?.aiMonthLabel || '없음');
   return {
     updatedAtText: formatFirebaseTime(editorData?.updatedAt),
     updatedBy: editorData?.updatedBy || '기록 없음',
     monthLabels,
     activeMonthLabel: active ? active.year + '년 ' + active.month + '월' : '없음',
-    aiMonthLabel: aiYear && aiMonth ? aiYear + '년 ' + aiMonth + '월' : '없음',
-    lunchboxCount: Array.isArray(lunchData?.lunchboxEntries) ? lunchData.lunchboxEntries.length : 0,
+    aiMonthLabel,
+    aiMonthId,
+    lunchboxCount: Array.isArray(lunchData?.lunchboxEntries) ? lunchData.lunchboxEntries.length : (editorData?.lunchboxCount || 0),
     banchanCount: loadedState ? loadedState.months.reduce((sum, month)=>sum + ((month.menuData || []).length), 0) : 0,
     state: loadedState,
     editorData,
@@ -982,6 +986,7 @@ async function writeEditorSnapshotToFirebase(options){
     monthLabels: localSummary.monthLabels,
     activeMonthLabel: localSummary.activeMonthLabel,
     aiMonthLabel: localSummary.aiMonthLabel,
+    aiMonthId: localSummary.aiMonthId,
     lunchboxCount: localSummary.lunchboxCount,
     banchanCount: localSummary.banchanCount,
     viewState:{
@@ -1100,7 +1105,7 @@ async function applyRealtimeFirebaseSnapshot(editorData){
     state = loadedState;
     persist();
     const active = getSelectedMonth();
-    const selectedId = monthDocId(active);
+    const selectedId = editorData.aiMonthId || monthDocId(active);
     const lunchSnap = await fbDb.collection('lunchboxMenus').doc(selectedId).get();
     const draftSnap = await fbDb.collection('aiMenuDrafts').doc(selectedId).get();
     if(lunchSnap.exists || draftSnap.exists){
@@ -1139,7 +1144,7 @@ async function fetchFirebaseBackupSummary(){
   const loadedState = normalizeLoadedState(editorData.state);
   if(!loadedState) throw new Error('Firebase 식단표 구조를 인식하지 못했습니다');
   const active = loadedState.months.find(m=>m.id === loadedState.activeMonthId) || loadedState.months[0];
-  const selectedId = monthDocId(active);
+  const selectedId = editorData.aiMonthId || monthDocId(active);
   const lunchSnap = await fbDb.collection('lunchboxMenus').doc(selectedId).get();
   const draftSnap = await fbDb.collection('aiMenuDrafts').doc(selectedId).get();
   const summary = buildFirebaseSummaryFromData(editorData, lunchSnap.exists ? lunchSnap.data() : null, draftSnap.exists ? draftSnap.data() : null);
