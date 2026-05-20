@@ -405,6 +405,26 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .manual-checklist .manual-card-title{grid-column:1/-1;margin-bottom:0}
 .manual-checklist label{display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid var(--border);border-radius:7px;padding:10px;font-size:13px;font-weight:700;color:#344054}
 .manual-checklist input{width:16px;height:16px}
+.admin-icon-sprite{position:absolute;width:0;height:0;overflow:hidden}
+.admin-icon{width:18px;height:18px;display:inline-flex;flex:0 0 18px;color:currentColor;vertical-align:-4px}
+.admin-brand-mark{width:30px;height:30px;color:var(--primary);flex:0 0 30px}
+.top-title{display:flex;align-items:center;gap:10px}
+.btn-logout,.tab-btn,.today-btn,.refresh-btn,.manual-btn,.secondary-btn,.danger-btn,.print-btn,.mini-btn,.export-btn,.kakao-btn,.kakao-mini-btn,.batch-apply-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.admin-tabs{overflow-x:auto;scrollbar-width:thin}
+.tab-btn{min-height:50px;white-space:nowrap}
+.tab-btn .admin-icon{width:17px;height:17px;flex-basis:17px}
+.tab-btn.active .admin-icon{color:var(--primary)}
+.action-icon{width:16px;height:16px;flex:0 0 16px}
+.nav-btn{display:inline-flex;align-items:center;justify-content:center;min-width:32px}
+.summary-label{display:flex;align-items:center;gap:6px}
+.summary-label .admin-icon{width:17px;height:17px;color:var(--primary)}
+.th-icon-label{display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.th-icon-label .admin-icon{width:16px;height:16px;color:var(--primary)}
+.member-section.admin-tab-panel{padding-top:18px;padding-bottom:36px}
+.member-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:12px}
+.member-title-wrap{display:flex;flex-direction:column;gap:4px}
+.member-hint{font-size:12px;color:var(--sub);font-weight:700}
+.member-grid{align-items:stretch}
 @media(max-width:900px){
   .summary-row{grid-template-columns:repeat(2,1fr)}
   .settle-dashboard{grid-template-columns:1fr}
@@ -423,12 +443,83 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   .summary-row{grid-template-columns:1fr}
   .summary-value{font-size:26px}
   .controls-bar{margin-top:12px}
+  .controls-bar{align-items:stretch}
+  .controls-bar>button{min-height:42px}
+  .member-toolbar{align-items:flex-start;flex-direction:column}
   .manual-grid,.manual-checklist{grid-template-columns:1fr}
   .manual-hero h2{font-size:21px}
 }
 </style>
 </head>
 <body>
+
+<svg class="admin-icon-sprite" aria-hidden="true" focusable="false">
+  <symbol id="admin-i-mark" viewBox="0 0 32 32">
+    <path d="M7 14.5h18v2.8c0 5.2-4.2 9.4-9.4 9.4h-.2C10.8 26.7 7 22.9 7 18.3v-3.8Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>
+    <path d="M10 13.6c.3-4.3 2.5-7.8 6-7.8s5.7 3.5 6 7.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M12.2 19h7.6M13.8 22h4.4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="admin-i-orders" viewBox="0 0 24 24">
+    <path d="M6 4.5h12a1.5 1.5 0 0 1 1.5 1.5v14L17 18.5 14.5 20l-2.5-1.5L9.5 20 7 18.5 4.5 20V6A1.5 1.5 0 0 1 6 4.5Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    <path d="M8 9h8M8 12.5h8M8 16h5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="admin-i-members" viewBox="0 0 24 24">
+    <path d="M9.5 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM3.8 19.5c.7-3.4 2.8-5.2 5.7-5.2s5 1.8 5.7 5.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+    <path d="M16 11.5a3 3 0 0 0 .2-5.8M17 14.5c2 .4 3.3 2 3.8 4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="admin-i-event" viewBox="0 0 24 24">
+    <path d="M5 5.5h14v14H5z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    <path d="M8 3.5v4M16 3.5v4M5 9h14M8.5 13h2M13.5 13h2M8.5 16.5h2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="admin-i-menu" viewBox="0 0 24 24">
+    <path d="M5.5 4.5h13v15h-13z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    <path d="M9 8h6M9 12h6M9 16h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="admin-i-settle" viewBox="0 0 24 24">
+    <path d="M4.5 7h15v11.5h-15z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    <path d="M7 10.5h10M7 15h4.5M15 14.2c1.5 0 2.5.6 2.5 1.5s-1 1.5-2.5 1.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="admin-i-receipt" viewBox="0 0 24 24">
+    <path d="M6 4.5h12v15l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2-2 1.2v-15Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    <path d="M9 9h6M9 12.5h6M9 16h3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="admin-i-stats" viewBox="0 0 24 24">
+    <path d="M5 19V5M5 19h14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+    <path d="M8.5 16v-4M12 16V8M15.5 16v-6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="admin-i-settings" viewBox="0 0 24 24">
+    <path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" fill="none" stroke="currentColor" stroke-width="1.9"/>
+    <path d="M18.8 13.8v-3.6l-2-.7-.8-1.8.9-1.9-3.1-1.8-1.5 1.4h-2.1L8.7 4 5.6 5.8l.9 1.9-.8 1.8-2 .7v3.6l2 .7.8 1.8-.9 1.9 3.1 1.8 1.5-1.4h2.1l1.5 1.4 3.1-1.8-.9-1.9.8-1.8 2-.7Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="admin-i-help" viewBox="0 0 24 24">
+    <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" fill="none" stroke="currentColor" stroke-width="1.9"/>
+    <path d="M9.8 9.5a2.3 2.3 0 0 1 4.4.8c0 1.8-2.1 2-2.1 3.4M12 17h.1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="admin-i-lunch" viewBox="0 0 24 24">
+    <path d="M5 10.5h14v3a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6v-3Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    <path d="M8 9c.2-2.8 1.7-5 4-5s3.8 2.2 4 5M8.5 14h7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="admin-i-salad" viewBox="0 0 24 24">
+    <path d="M5 11h14v2.5a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6V11Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    <path d="M8 10c-.3-3 2.6-4.7 4.2-2.2C13 5.5 16 5.3 17 8.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="admin-i-refresh" viewBox="0 0 24 24">
+    <path d="M18.2 8.2A7 7 0 0 0 6.4 7L5 8.5M5.8 15.8A7 7 0 0 0 17.6 17L19 15.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+    <path d="M5 4.8v3.7h3.7M19 19.2v-3.7h-3.7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="admin-i-chat" viewBox="0 0 24 24">
+    <path d="M5 5.5h14v9.2H9l-4 3.8v-13Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    <path d="M8.5 9.5h7M8.5 12.5h4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="admin-i-truck" viewBox="0 0 24 24">
+    <path d="M3.8 7h10.4v9H3.8zM14.2 10h3.3l2.7 3.1V16h-6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    <path d="M7.5 18.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM17 18.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" fill="none" stroke="currentColor" stroke-width="1.9"/>
+  </symbol>
+  <symbol id="admin-i-edit" viewBox="0 0 24 24">
+    <path d="M5 18.7l4.1-.8 9.2-9.2-3-3L6.1 15 5 18.7Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    <path d="M13.8 7.2l3 3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  </symbol>
+</svg>
 
 <!-- 로딩 -->
 <div id="loading-screen">
@@ -453,7 +544,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 <!-- 메인 -->
 <div id="main-screen">
   <div class="top-bar">
-    <div class="top-title">🍱 주문 현황</div>
+    <div class="top-title"><svg class="admin-brand-mark"><use href="#admin-i-mark"></use></svg><span>궁중수라간 관리자</span></div>
     <div class="top-right">
       <span class="admin-badge">관리자</span>
       <button class="btn-logout" onclick="doAdminLogout()">로그아웃</button>
@@ -461,14 +552,15 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   </div>
 
   <div class="admin-tabs">
-    <button class="tab-btn active" id="tab-orders" onclick="switchAdminTab('orders')">주문 현황</button>
-    <button class="tab-btn" id="tab-events" onclick="switchAdminTab('events')">행사도시락</button>
-    <button class="tab-btn" id="tab-menus" onclick="switchAdminTab('menus')">식단관리</button>
-    <button class="tab-btn" id="tab-settlements" onclick="switchAdminTab('settlements')">정산</button>
-    <button class="tab-btn" id="tab-receipts" onclick="switchAdminTab('receipts')">간이영수증</button>
-    <button class="tab-btn" id="tab-stats" onclick="switchAdminTab('stats')">📊 통계</button>
-    <button class="tab-btn" id="tab-settings" onclick="switchAdminTab('settings')">⚙️ 설정</button>
-    <button class="tab-btn" id="tab-manual" onclick="switchAdminTab('manual')">메뉴얼</button>
+    <button class="tab-btn active" id="tab-orders" onclick="switchAdminTab('orders')"><svg class="admin-icon"><use href="#admin-i-orders"></use></svg><span>주문</span></button>
+    <button class="tab-btn" id="tab-members" onclick="switchAdminTab('members')"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>회원관리</span></button>
+    <button class="tab-btn" id="tab-events" onclick="switchAdminTab('events')"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>행사도시락</span></button>
+    <button class="tab-btn" id="tab-menus" onclick="switchAdminTab('menus')"><svg class="admin-icon"><use href="#admin-i-menu"></use></svg><span>식단관리</span></button>
+    <button class="tab-btn" id="tab-settlements" onclick="switchAdminTab('settlements')"><svg class="admin-icon"><use href="#admin-i-settle"></use></svg><span>정산</span></button>
+    <button class="tab-btn" id="tab-receipts" onclick="switchAdminTab('receipts')"><svg class="admin-icon"><use href="#admin-i-receipt"></use></svg><span>간이영수증</span></button>
+    <button class="tab-btn" id="tab-stats" onclick="switchAdminTab('stats')"><svg class="admin-icon"><use href="#admin-i-stats"></use></svg><span>통계</span></button>
+    <button class="tab-btn" id="tab-settings" onclick="switchAdminTab('settings')"><svg class="admin-icon"><use href="#admin-i-settings"></use></svg><span>설정</span></button>
+    <button class="tab-btn" id="tab-manual" onclick="switchAdminTab('manual')"><svg class="admin-icon"><use href="#admin-i-help"></use></svg><span>메뉴얼</span></button>
   </div>
 
   <div class="controls-bar admin-tab-panel" data-tab="orders">
@@ -481,25 +573,24 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <button class="nav-btn" onclick="changeDate(1)">▶</button>
     </div>
     <button class="today-btn" onclick="goToday()">오늘</button>
-    <button class="refresh-btn" onclick="loadAllUsers().then(loadOrders)">🔄 새로고침</button>
-    <button class="refresh-btn" onclick="exportKakaoSummary()">💬 카톡용 복사</button>
-    <button class="today-btn" onclick="completeSelectedDeliveries()">배송 완료</button>
-    <button class="manual-btn" onclick="openManualOrderModal()">수동 배송 입력</button>
-    <button class="manual-btn" onclick="openBatchEntry()">📋 일괄 입력</button>
-    <button class="members-btn" onclick="toggleMemberSection()">👥 회원 관리</button>
+    <button class="refresh-btn" onclick="loadAllUsers().then(loadOrders)"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>새로고침</span></button>
+    <button class="refresh-btn" onclick="exportKakaoSummary()"><svg class="action-icon"><use href="#admin-i-chat"></use></svg><span>카톡용 복사</span></button>
+    <button class="today-btn" onclick="completeSelectedDeliveries()"><svg class="action-icon"><use href="#admin-i-truck"></use></svg><span>배송 완료</span></button>
+    <button class="manual-btn" onclick="openManualOrderModal()"><svg class="action-icon"><use href="#admin-i-edit"></use></svg><span>수동 배송 입력</span></button>
+    <button class="manual-btn" onclick="openBatchEntry()"><svg class="action-icon"><use href="#admin-i-orders"></use></svg><span>일괄 입력</span></button>
   </div>
 
   <div class="summary-row admin-tab-panel" data-tab="orders">
     <div class="summary-card">
-      <div class="summary-label">📋 제출 업체</div>
+      <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-orders"></use></svg><span>제출 업체</span></div>
       <div class="summary-value" id="sum-count">0<span class="summary-unit">곳</span></div>
     </div>
     <div class="summary-card">
-      <div class="summary-label">🍱 총 도시락</div>
+      <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-lunch"></use></svg><span>총 도시락</span></div>
       <div class="summary-value" id="sum-lunch">0<span class="summary-unit">개</span></div>
     </div>
     <div class="summary-card">
-      <div class="summary-label">🥗 총 샐러드</div>
+      <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-salad"></use></svg><span>총 샐러드</span></div>
       <div class="summary-value" id="sum-salad">0<span class="summary-unit">개</span></div>
     </div>
   </div>
@@ -512,9 +603,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <th style="text-align:center"><input class="select-all-check" type="checkbox" id="order-check-all" onchange="toggleAllOrders(this.checked)"></th>
           <th>#</th>
           <th>업체명</th>
-          <th style="text-align:center">🍱 도시락</th>
-          <th style="text-align:center">🥗 샐러드</th>
-          <th style="text-align:center">🎪 행사</th>
+          <th style="text-align:center"><span class="th-icon-label"><svg class="admin-icon"><use href="#admin-i-lunch"></use></svg><span>도시락</span></span></th>
+          <th style="text-align:center"><span class="th-icon-label"><svg class="admin-icon"><use href="#admin-i-salad"></use></svg><span>샐러드</span></span></th>
+          <th style="text-align:center"><span class="th-icon-label"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>행사</span></span></th>
           <th style="text-align:center">총수량</th>
           <th style="text-align:right">총금액</th>
           <th>배송</th>
@@ -534,9 +625,15 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <div class="not-submitted-list" id="not-submitted-list"></div>
   </div>
 
-  <!-- 회원 관리 섹션 (기본 숨김) -->
-  <div class="member-section" id="member-section" style="display:none">
-    <div class="section-title">👥 등록 회원 목록 <span style="font-size:12px;font-weight:400">(클릭하여 수정)</span></div>
+  <!-- 회원 관리 -->
+  <div class="member-section admin-tab-panel" data-tab="members" id="member-section" style="display:none">
+    <div class="member-toolbar">
+      <div class="member-title-wrap">
+        <div class="section-title"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>회원관리</span></div>
+        <div class="member-hint">업체 카드를 누르면 배송지, 식사 받는 시간, 요일별 기본 수량을 수정할 수 있습니다.</div>
+      </div>
+      <button class="refresh-btn" onclick="loadAllUsers().then(renderMembers)"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>회원 새로고침</span></button>
+    </div>
     <div class="member-grid" id="member-grid">불러오는 중...</div>
   </div>
 
@@ -803,7 +900,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="manual-card">
         <div class="manual-card-title">2. 회원 관리</div>
         <ol>
-          <li>주문 현황의 <b>회원 관리</b>를 눌러 업체 목록을 엽니다.</li>
+          <li>상단의 <b>회원관리</b> 탭에서 업체 목록을 엽니다.</li>
           <li>업체 카드를 클릭하면 업체명, 배송지, 식사시간, 요일별 기본 수량을 수정할 수 있습니다.</li>
           <li>매일 수량이 같으면 <b>매일 같은 수량 사용</b>을 체크합니다.</li>
           <li>요일마다 다르면 월~금 수량을 각각 입력합니다.</li>
@@ -2476,10 +2573,7 @@ async function completeSelectedDeliveries() {
 
 // ── 회원 관리 ──
 function toggleMemberSection() {
-  const sec = document.getElementById('member-section');
-  const isHidden = sec.style.display === 'none';
-  sec.style.display = isHidden ? 'block' : 'none';
-  if (isHidden) renderMembers();
+  switchAdminTab('members');
 }
 
 function renderMembers() {
@@ -3747,13 +3841,13 @@ async function saveMealPdfCandidates() {
 
 function switchAdminTab(tab) {
   activeAdminTab = tab;
-  ['orders','events','menus','settlements','receipts','stats','settings','manual'].forEach(name => {
+  ['orders','members','events','menus','settlements','receipts','stats','settings','manual'].forEach(name => {
     document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
   });
   document.querySelectorAll('.admin-tab-panel').forEach(el => {
     el.style.display = el.dataset.tab === tab ? '' : 'none';
   });
-  document.getElementById('member-section').style.display = 'none';
+  if (tab === 'members') renderMembers();
   if (tab === 'events') loadEventLunches();
   if (tab === 'menus') {
     initMenuForm();
