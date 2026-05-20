@@ -300,6 +300,8 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 .ksura-ai-edit-tools{display:flex;justify-content:flex-end;gap:8px;margin:0 0 12px;}
 .ksura-ai-save-btn{padding:8px 14px;border:none;border-radius:8px;background:#EA580C;color:#fff;font-family:'Pretendard',system-ui,sans-serif;font-size:12px;font-weight:800;cursor:pointer;}
 .ksura-ai-save-btn:hover{background:#C2410C;}
+.ksura-ai-save-btn.alt{background:#fff;color:#9A3412;border:1px solid #FED7AA;}
+.ksura-ai-save-btn.alt:hover{background:#FFF7ED;}
 .ksura-ai-input{width:100%;min-width:86px;border:1px solid #E5E7EB;border-radius:7px;background:#fff;padding:6px 7px;font-family:'Pretendard',system-ui,sans-serif;font-size:12px;color:#374151;outline:none;}
 .ksura-ai-input:focus{border-color:#EA580C;box-shadow:0 0 0 2px rgba(234,88,12,.1);}
 .ksura-ai-side-list .ksura-ai-input{min-width:130px;}
@@ -328,7 +330,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 <div id="sidebar">
   <div id="sidebar-header">
     <h1>🍲 궁중수라간 멀티월 식단표 편집기</h1>
-    <p>월 추가·삭제 / 선택한 월 편집 / 스크린샷 인식 / 오타 검수 / 아임웹용 2개월 탭 코드 복사</p>
+    <p>월 추가·삭제 / 선택한 월 편집 / 스크린샷 인식 / 오타 검수 / 아임웹용 멀티월 탭 코드 복사</p>
     <div id="firebase-user-badge" class="firebase-user-badge">Firebase 로그인 확인 중</div>
   </div>
 
@@ -336,7 +338,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
     <div class="mt-top">
       <div>
         <strong>편집할 월 선택</strong><br>
-        <span>최대 2개월까지 탭으로 노출됩니다.</span>
+        <span>최대 5개월까지 탭으로 노출됩니다.</span>
       </div>
       <div class="mt-actions">
         <button class="mt-btn" onclick="openMonthModal()">+ 월 추가</button>
@@ -758,7 +760,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
       <button class="mx" onclick="closeMonthModal()">✕</button>
     </div>
     <div class="mb">
-      <div class="note-box" style="margin-bottom:12px;">실제 출력 코드는 최대 2개월 탭까지 지원합니다.</div>
+      <div class="note-box" style="margin-bottom:12px;">실제 출력 코드는 최대 5개월 탭까지 지원합니다.</div>
       <div class="mf-row">
         <div class="mf"><label>년도</label><input type="number" id="nm-year" min="2020" max="2100"></div>
         <div class="mf"><label>월</label><select id="nm-month"></select></div>
@@ -840,7 +842,7 @@ const FIREBASE_CLIENT_ID = (() => {
   }
   return id;
 })();
-const MAX_MONTHS = 2;
+const MAX_MONTHS = 5;
 const DOW_KO = ['일','월','화','수','목','금','토'];
 const DAY = ['월','화','수','목','금'];
 const FIREBASE_CONFIG = {
@@ -1971,7 +1973,7 @@ function updateImportTip(){
 
 function openMonthModal(){
   if(state.months.length >= MAX_MONTHS){
-    toast('최대 2개월까지만 추가할 수 있습니다');
+    toast('최대 ' + MAX_MONTHS + '개월까지만 추가할 수 있습니다');
     return;
   }
   const selected = getSelectedMonth();
@@ -2000,7 +2002,7 @@ function addMonthFromModal(){
   }
   const created = ensureMonth(year, month, title);
   if(!created){
-    toast('최대 2개월까지만 추가할 수 있습니다');
+    toast('최대 ' + MAX_MONTHS + '개월까지만 추가할 수 있습니다');
     return;
   }
   created.title = title;
@@ -2353,7 +2355,10 @@ function renderAiMonthlyPreview(){
     <div class="ksura-ai-preview">
       <h3>${escapeHtml(periodLabel)} AI 식단</h3>
       <div class="sub">월식도시락, 샐러드도시락, 반찬배송 식단을 아래 카드형 미리보기에서 확인합니다.</div>
-      <div class="ksura-ai-edit-tools"><button class="ksura-ai-save-btn" onclick="saveAiPreviewEdits()">미리보기 수정 저장</button></div>
+      <div class="ksura-ai-edit-tools">
+        <button class="ksura-ai-save-btn alt" onclick="saveAiPreviewEdits()">미리보기 수정 저장</button>
+        <button class="ksura-ai-save-btn" onclick="applyAiPreviewBanchanDelivery()">반찬배송 식단표에 반영</button>
+      </div>
       <div class="ksura-ai-note">
         샐러드도시락은 별도 표로 분리하지 않고 월식도시락의 샐러드 칸에 함께 표시했습니다.
         반찬배송 식단표에는 같은 날짜의 샐러드가 포함되며, 3개 상품은 메뉴 품질 차이가 아니라 포함 품목 차이입니다.
@@ -4220,6 +4225,10 @@ function applyAiBanchanDelivery(){
   mergeEntriesIntoMonths(raw.banchanDeliveryEntries, selected.year, selected.month);
   renderAll();
   toast('반찬배송 식단표에 반영했습니다 ✓');
+}
+function applyAiPreviewBanchanDelivery(){
+  saveAiPreviewEdits();
+  applyAiBanchanDelivery();
 }
 function applySingleAiBanchan(index){
   const raw = getAiRawResult();
