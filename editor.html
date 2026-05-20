@@ -152,10 +152,12 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 .ai-modal-days{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
 .ai-modal-days label{display:flex;justify-content:center;gap:4px;align-items:center;border:1px solid #E5E7EB;border-radius:8px;padding:8px 4px;background:#fff;font-size:12px;font-weight:800;}
 .ai-modal-days input{accent-color:#EA580C;}
+.ai-range-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ai-period-range input{min-width:0;}
 .ai-modal-key{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:12px;margin-bottom:12px;}
 .ai-key-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
 .ai-key-actions a{text-decoration:none;text-align:center;}
-@media(max-width:768px){.ai-check-grid{grid-template-columns:repeat(3,1fr);}.ai-result-actions,.ai-simple-actions,.ai-create-grid,.ai-choice-grid{grid-template-columns:1fr;}.ai-table{min-width:680px;}.ai-start-visual{grid-template-columns:1fr;text-align:center;}.ai-bowl-illust{margin:0 auto;}.ai-modal-days{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:768px){.ai-check-grid{grid-template-columns:repeat(3,1fr);}.ai-result-actions,.ai-simple-actions,.ai-create-grid,.ai-choice-grid,.ai-range-inputs{grid-template-columns:1fr;}.ai-table{min-width:680px;}.ai-start-visual{grid-template-columns:1fr;text-align:center;}.ai-bowl-illust{margin:0 auto;}.ai-modal-days{grid-template-columns:repeat(3,1fr);}}
 
 #preview-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;}
 #prev-bar{background:#fff;border-bottom:1px solid #E5E7EB;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px;}
@@ -447,6 +449,9 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
         <div class="fg"><label>생성할 년도</label><input type="number" id="ai-year" min="2020" max="2100"></div>
         <div class="fg"><label>생성할 월</label><select id="ai-month"></select></div>
       </div>
+      <input type="hidden" id="ai-period-mode" value="month">
+      <input type="hidden" id="ai-start-date">
+      <input type="hidden" id="ai-end-date">
 
       <div class="fg">
         <label>월식도시락 운영 요일</label>
@@ -628,6 +633,16 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
         <div class="ai-create-grid">
           <div class="mf"><label>년도</label><input type="number" id="ai-modal-year" min="2020" max="2100"></div>
           <div class="mf"><label>월</label><select id="ai-modal-month"></select></div>
+        </div>
+        <div class="ai-create-grid">
+          <div class="mf"><label>생성 기간</label><select id="ai-modal-period" onchange="toggleAiModalPeriodFields()"><option value="month">한 달 전체</option><option value="range">시작일~끝나는 날</option></select></div>
+          <div class="mf ai-period-range" id="ai-modal-range-fields" style="display:none;">
+            <label>주/기간 선택</label>
+            <div class="ai-range-inputs">
+              <input type="text" id="ai-modal-start-date" placeholder="시작일 예: 5/4">
+              <input type="text" id="ai-modal-end-date" placeholder="끝나는 날 예: 5/8">
+            </div>
+          </div>
         </div>
         <div class="ai-create-grid">
           <div class="mf"><label>월식도시락 운영 요일</label><div class="ai-modal-days" id="ai-modal-lunch-days"></div></div>
@@ -1147,6 +1162,10 @@ async function writeEditorSnapshotToFirebase(options){
     batch.set(fbDb.collection('lunchboxMenus').doc(aiMonthId), {
       year: aiMonthlyResultCache.year,
       month: aiMonthlyResultCache.month,
+      periodMode: aiMonthlyResultCache.periodMode || 'month',
+      startDate: aiMonthlyResultCache.startDate || '',
+      endDate: aiMonthlyResultCache.endDate || '',
+      periodLabel: aiMonthlyResultCache.periodLabel || '',
       lunchboxEntries: cleanForFirestore(aiMonthlyResultCache.lunchboxEntries || []),
       saladLunchboxEntries: cleanForFirestore(aiMonthlyResultCache.saladLunchboxEntries || []),
       sharedIngredientPlan: cleanForFirestore(aiMonthlyResultCache.sharedIngredientPlan || []),
@@ -1157,6 +1176,10 @@ async function writeEditorSnapshotToFirebase(options){
     batch.set(fbDb.collection('aiMenuDrafts').doc(aiMonthId), {
       year: aiMonthlyResultCache.year,
       month: aiMonthlyResultCache.month,
+      periodMode: aiMonthlyResultCache.periodMode || 'month',
+      startDate: aiMonthlyResultCache.startDate || '',
+      endDate: aiMonthlyResultCache.endDate || '',
+      periodLabel: aiMonthlyResultCache.periodLabel || '',
       rawResult: cleanForFirestore(aiMonthlyResultCache.rawResult || {}),
       validationErrors: cleanForFirestore(aiMonthlyResultCache.validationErrors || []),
       warnings: cleanForFirestore(aiMonthlyResultCache.warnings || []),
@@ -1248,6 +1271,10 @@ async function applyRealtimeFirebaseSnapshot(editorData){
       aiMonthlyResultCache = normalizeLunchboxResult({
         year: lunchData.year || draftData.year || active.year,
         month: lunchData.month || draftData.month || active.month,
+        periodMode: lunchData.periodMode || draftData.periodMode || 'month',
+        startDate: lunchData.startDate || draftData.startDate || '',
+        endDate: lunchData.endDate || draftData.endDate || '',
+        periodLabel: lunchData.periodLabel || draftData.periodLabel || '',
         lunchboxEntries: lunchData.lunchboxEntries || [],
         saladLunchboxEntries: lunchData.saladLunchboxEntries || [],
         sharedIngredientPlan: lunchData.sharedIngredientPlan || [],
@@ -1474,6 +1501,10 @@ async function loadEditorFromFirebase(){
       aiMonthlyResultCache = normalizeLunchboxResult({
         year: lunchData.year || draftData.year || selected.year,
         month: lunchData.month || draftData.month || selected.month,
+        periodMode: lunchData.periodMode || draftData.periodMode || 'month',
+        startDate: lunchData.startDate || draftData.startDate || '',
+        endDate: lunchData.endDate || draftData.endDate || '',
+        periodLabel: lunchData.periodLabel || draftData.periodLabel || '',
         lunchboxEntries: lunchData.lunchboxEntries || [],
         saladLunchboxEntries: lunchData.saladLunchboxEntries || [],
         sharedIngredientPlan: lunchData.sharedIngredientPlan || [],
@@ -2253,7 +2284,20 @@ function renderAiLunchCard(entry, idx, salad){
     </div>
   </div>`;
 }
-function renderAiCalendarGrid(entries, year, month, cardRenderer){
+function getAiPreviewRange(cache){
+  if(cache && cache.periodMode === 'range'){
+    const startParsed = parseDateParts(cache.startDate, cache.year, cache.month);
+    const endParsed = parseDateParts(cache.endDate, cache.year, cache.month);
+    if(startParsed && endParsed && startParsed.date <= endParsed.date){
+      return {start:cloneDateOnly(startParsed.date), end:cloneDateOnly(endParsed.date), label:formatDateObj(startParsed.date) + ' ~ ' + formatDateObj(endParsed.date)};
+    }
+  }
+  const selected = getSelectedMonth();
+  const year = cache?.year || selected.year;
+  const month = cache?.month || selected.month;
+  return {start:new Date(year, month - 1, 1), end:new Date(year, month, 0), label:year + '년 ' + month + '월'};
+}
+function renderAiCalendarGrid(entries, year, month, cardRenderer, startDate, endDate){
   const parsed = [];
   const unparsed = [];
   (entries || []).forEach((entry, idx)=>{
@@ -2262,11 +2306,13 @@ function renderAiCalendarGrid(entries, year, month, cardRenderer){
     else unparsed.push({entry, idx});
   });
   const byDate = new Map(parsed.map(item=>[getDateKey(item.parsed.date), item]));
-  const first = new Date(year, month - 1, 1);
-  const last = new Date(year, month, 0);
+  const first = startDate ? cloneDateOnly(startDate) : new Date(year, month - 1, 1);
+  const last = endDate ? cloneDateOnly(endDate) : new Date(year, month, 0);
   let html = '';
-  for(let d=1; d<=last.getDate(); d++){
-    const cursor = new Date(year, month - 1, d);
+  if(isWeekdayDate(first)){
+    html += '<div class="ksura-dummy"></div>'.repeat(Math.max(0, first.getDay() - 1));
+  }
+  for(let cursor = cloneDateOnly(first); cursor <= last; cursor.setDate(cursor.getDate() + 1)){
     if(!isWeekdayDate(cursor)) continue;
     const item = byDate.get(getDateKey(cursor));
     html += item ? cardRenderer(item.entry, item.idx) : (isBusinessClosedDate(cursor) ? buildHolidayCard(cursor) : '<div class="ksura-dummy"></div>');
@@ -2292,8 +2338,10 @@ function renderAiMonthlyPreview(){
   const banchanEntries = raw.banchanDeliveryEntries || [];
   const lunchboxEntries = cache.lunchboxEntries || [];
   const saladByDate = getSaladByDate(cache.saladLunchboxEntries || []);
-  const lunchCards = renderAiCalendarGrid(lunchboxEntries, cache.year, cache.month, (entry, idx)=>renderAiLunchCard(entry, idx, saladByDate.get(entry.date) || ''));
-  const banchanCards = renderAiCalendarGrid(banchanEntries, cache.year, cache.month, renderAiBanchanCard);
+  const range = getAiPreviewRange(cache);
+  const periodLabel = cache.periodLabel || range.label;
+  const lunchCards = renderAiCalendarGrid(lunchboxEntries, cache.year, cache.month, (entry, idx)=>renderAiLunchCard(entry, idx, saladByDate.get(entry.date) || ''), range.start, range.end);
+  const banchanCards = renderAiCalendarGrid(banchanEntries, cache.year, cache.month, renderAiBanchanCard, range.start, range.end);
   const lunchSection = lunchboxEntries.length ? `
       <div class="section-title">${IC.main} 월식도시락 + 샐러드도시락</div>
       <div class="ksura-grid ksura-ai-card-grid">${lunchCards}</div>` : '';
@@ -2303,8 +2351,8 @@ function renderAiMonthlyPreview(){
 
   area.innerHTML = `
     <div class="ksura-ai-preview">
-      <h3>${escapeHtml(cache.year)}년 ${escapeHtml(cache.month)}월 AI 월간 식단</h3>
-      <div class="sub">월식도시락, 샐러드도시락, 반찬배송 식단을 한 화면에서 확인합니다.</div>
+      <h3>${escapeHtml(periodLabel)} AI 식단</h3>
+      <div class="sub">월식도시락, 샐러드도시락, 반찬배송 식단을 아래 카드형 미리보기에서 확인합니다.</div>
       <div class="ksura-ai-edit-tools"><button class="ksura-ai-save-btn" onclick="saveAiPreviewEdits()">미리보기 수정 저장</button></div>
       <div class="ksura-ai-note">
         샐러드도시락은 별도 표로 분리하지 않고 월식도시락의 샐러드 칸에 함께 표시했습니다.
@@ -3306,6 +3354,10 @@ function applySafeAutofix(){
 function normalizeLunchboxResult(parsed){
   if(!parsed || !parsed.year || !parsed.month) return null;
   const next = clone(parsed);
+  next.periodMode = next.periodMode || 'month';
+  next.startDate = next.startDate || '';
+  next.endDate = next.endDate || '';
+  next.periodLabel = next.periodLabel || '';
   next.lunchboxEntries = Array.isArray(next.lunchboxEntries) ? next.lunchboxEntries : [];
   next.saladLunchboxEntries = Array.isArray(next.saladLunchboxEntries) ? next.saladLunchboxEntries : [];
   next.sharedIngredientPlan = Array.isArray(next.sharedIngredientPlan) ? next.sharedIngredientPlan : [];
@@ -3365,6 +3417,11 @@ function loadGeminiKeyIntoAiModal(){
   setInputValue('ai-modal-key', key);
   toast(key ? '저장된 Gemini API 키를 불러왔습니다 ✓' : '저장된 Gemini API 키가 없습니다');
 }
+function toggleAiModalPeriodFields(){
+  const mode = document.getElementById('ai-modal-period')?.value || 'month';
+  const box = document.getElementById('ai-modal-range-fields');
+  if(box) box.style.display = mode === 'range' ? '' : 'none';
+}
 function setInputValue(id, value){
   const el = document.getElementById(id);
   if(el) el.value = value == null ? '' : value;
@@ -3379,6 +3436,10 @@ function syncAiCreateModalDefaults(){
   setInputValue('ai-modal-key', localStorage.getItem('ksura_gkey') || '');
   setInputValue('ai-modal-year', document.getElementById('ai-year')?.value || selected.year);
   setInputValue('ai-modal-month', document.getElementById('ai-month')?.value || selected.month);
+  setInputValue('ai-modal-period', document.getElementById('ai-period-mode')?.value || 'month');
+  setInputValue('ai-modal-start-date', document.getElementById('ai-start-date')?.value || '');
+  setInputValue('ai-modal-end-date', document.getElementById('ai-end-date')?.value || '');
+  toggleAiModalPeriodFields();
   setInputValue('ai-modal-exclude-dates', document.getElementById('ai-exclude-dates')?.value || '');
   setInputValue('ai-modal-seasonal', document.getElementById('ai-seasonal')?.value || '');
   setInputValue('ai-modal-exclude-ingredients', document.getElementById('ai-exclude-ingredients')?.value || '');
@@ -3396,6 +3457,9 @@ function applyAiCreateModalToForm(){
   if(key) saveGeminiKey(key);
   setInputValue('ai-year', document.getElementById('ai-modal-year')?.value || '');
   setInputValue('ai-month', document.getElementById('ai-modal-month')?.value || '');
+  setInputValue('ai-period-mode', document.getElementById('ai-modal-period')?.value || 'month');
+  setInputValue('ai-start-date', document.getElementById('ai-modal-start-date')?.value || '');
+  setInputValue('ai-end-date', document.getElementById('ai-modal-end-date')?.value || '');
   setInputValue('ai-exclude-dates', document.getElementById('ai-modal-exclude-dates')?.value || '');
   setInputValue('ai-seasonal', document.getElementById('ai-modal-seasonal')?.value || '');
   setInputValue('ai-exclude-ingredients', document.getElementById('ai-modal-exclude-ingredients')?.value || '');
@@ -3416,7 +3480,6 @@ function applyAiCreateModalToForm(){
 }
 async function runAiCreateFromModal(){
   applyAiCreateModalToForm();
-  closeAiCreateModal();
   applySyncedTab('ai');
   await runAiMonthlyGenerate();
 }
@@ -3428,6 +3491,9 @@ function getAiMonthlyForm(){
   return {
     year: parseInt(document.getElementById('ai-year').value, 10) || selected.year,
     month: parseInt(document.getElementById('ai-month').value, 10) || selected.month,
+    periodMode: document.getElementById('ai-period-mode')?.value || 'month',
+    startDate: normalizeSpaces(document.getElementById('ai-start-date')?.value || ''),
+    endDate: normalizeSpaces(document.getElementById('ai-end-date')?.value || ''),
     lunchDays: getCheckedValues('.ai-lunch-day'),
     banchanDays: getCheckedValues('.ai-banchan-day'),
     excludeDates: normalizeSpaces(document.getElementById('ai-exclude-dates').value),
@@ -3444,13 +3510,16 @@ function getAiMonthlyForm(){
 }
 function setAiFormFromPreset(preset){
   if(!preset) return;
-  ['excludeDates','seasonal','excludeIngredients','mustMenus','extra'].forEach(key=>{
+  ['excludeDates','seasonal','excludeIngredients','mustMenus','extra','periodMode','startDate','endDate'].forEach(key=>{
     const id = {
       excludeDates:'ai-exclude-dates',
       seasonal:'ai-seasonal',
       excludeIngredients:'ai-exclude-ingredients',
       mustMenus:'ai-must-menus',
-      extra:'ai-extra'
+      extra:'ai-extra',
+      periodMode:'ai-period-mode',
+      startDate:'ai-start-date',
+      endDate:'ai-end-date'
     }[key];
     const el = document.getElementById(id);
     if(el) el.value = preset[key] || '';
@@ -3459,6 +3528,7 @@ function setAiFormFromPreset(preset){
     const el = document.getElementById(id);
     if(el && preset[key]) el.value = preset[key];
   });
+  if(!document.getElementById('ai-period-mode')?.value) setInputValue('ai-period-mode', 'month');
 }
 function saveAiPromptPreset(){
   localStorage.setItem(AI_PROMPT_PRESET_KEY, JSON.stringify(getAiMonthlyForm()));
@@ -3483,12 +3553,41 @@ function parseAiExcludeDates(raw, year, month){
     return parsed ? formatDateObj(parsed.date) : v;
   });
 }
-function getAutoClosedDates(year, month, weekdays){
+function cloneDateOnly(dt){
+  return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
+function getAiDateRange(form){
+  const year = form.year;
+  const month = form.month;
+  if((form.periodMode || 'month') !== 'range'){
+    return {
+      mode:'month',
+      start:new Date(year, month - 1, 1),
+      end:new Date(year, month, 0),
+      label: year + '년 ' + month + '월 전체'
+    };
+  }
+  const startParsed = parseDateParts(form.startDate, year, month);
+  const endParsed = parseDateParts(form.endDate, year, month);
+  if(!startParsed || !endParsed) return null;
+  const start = cloneDateOnly(startParsed.date);
+  const end = cloneDateOnly(endParsed.date);
+  if(start > end) return null;
+  return {
+    mode:'range',
+    start,
+    end,
+    label: formatDateObj(start) + ' ~ ' + formatDateObj(end)
+  };
+}
+function getDateRangeLabel(form){
+  const range = getAiDateRange(form);
+  return range ? range.label : '기간 미확인';
+}
+function getAutoClosedDatesInRange(start, end, weekdays){
   const allowed = new Set(weekdays || DAY);
   const dates = [];
-  const last = new Date(year, month, 0).getDate();
-  for(let day=1; day<=last; day++){
-    const dt = new Date(year, month - 1, day);
+  for(let dt = cloneDateOnly(start); dt <= end; dt.setDate(dt.getDate() + 1)){
     const dow = DOW_KO[dt.getDay()];
     if(allowed.has(dow) && isBusinessClosedDate(dt)){
       dates.push(formatDateObj(dt));
@@ -3496,19 +3595,22 @@ function getAutoClosedDates(year, month, weekdays){
   }
   return dates;
 }
+function getAutoClosedDates(year, month, weekdays){
+  return getAutoClosedDatesInRange(new Date(year, month - 1, 1), new Date(year, month, 0), weekdays);
+}
 function getAiExcludedDates(form){
+  const range = getAiDateRange(form);
+  const unionDays = Array.from(new Set([...(form.lunchDays || []), ...(form.banchanDays || [])]));
   return Array.from(new Set([
     ...parseAiExcludeDates(form.excludeDates, form.year, form.month),
-    ...getAutoClosedDates(form.year, form.month, Array.from(new Set([...(form.lunchDays || []), ...(form.banchanDays || [])])))
+    ...(range ? getAutoClosedDatesInRange(range.start, range.end, unionDays) : getAutoClosedDates(form.year, form.month, unionDays))
   ]));
 }
-function getDatesForWeekdays(year, month, weekdays, excludeDates){
+function getDatesForWeekdaysInRange(start, end, weekdays, excludeDates){
   const allowed = new Set(weekdays || []);
   const excluded = new Set(excludeDates || []);
   const dates = [];
-  const last = new Date(year, month, 0).getDate();
-  for(let day=1; day<=last; day++){
-    const dt = new Date(year, month - 1, day);
+  for(let dt = cloneDateOnly(start); dt <= end; dt.setDate(dt.getDate() + 1)){
     const dow = DOW_KO[dt.getDay()];
     const formatted = formatDateObj(dt);
     if(allowed.has(dow) && !excluded.has(formatted) && !isBusinessClosedDate(dt)){
@@ -3516,6 +3618,9 @@ function getDatesForWeekdays(year, month, weekdays, excludeDates){
     }
   }
   return dates;
+}
+function getDatesForWeekdays(year, month, weekdays, excludeDates){
+  return getDatesForWeekdaysInRange(new Date(year, month - 1, 1), new Date(year, month, 0), weekdays, excludeDates);
 }
 
 const KSURA_LUNCH_STYLE = {
@@ -3574,9 +3679,12 @@ function buildKsuraLunchStyleGuide(){
 }
 
 function buildAiMonthlyPrompt(form){
+  const range = getAiDateRange(form);
   const excluded = getAiExcludedDates(form);
-  const lunchDates = getDatesForWeekdays(form.year, form.month, form.lunchDays, excluded);
-  const banchanDates = getDatesForWeekdays(form.year, form.month, form.banchanDays, excluded);
+  const start = range ? range.start : new Date(form.year, form.month - 1, 1);
+  const end = range ? range.end : new Date(form.year, form.month, 0);
+  const lunchDates = getDatesForWeekdaysInRange(start, end, form.lunchDays, excluded);
+  const banchanDates = getDatesForWeekdaysInRange(start, end, form.banchanDays, excluded);
   const target = form.target || 'both';
   const saladDates = Array.from(new Set([...(target !== 'banchan' ? lunchDates : []), ...(target !== 'lunchbox' ? banchanDates : [])]));
   const targetLabel = target === 'banchan' ? '반찬배송만' : target === 'lunchbox' ? '월식도시락만' : '월식도시락 + 반찬배송';
@@ -3586,6 +3694,7 @@ function buildAiMonthlyPrompt(form){
     '현실적으로 조리 가능한 메뉴, 고객 선호도, 원가 밸런스, 재료 공유, 반복 방지를 모두 고려한다.',
     '',
     '생성 대상: ' + form.year + '년 ' + form.month + '월',
+    '생성 기간: ' + (range ? range.label : form.year + '년 ' + form.month + '월 전체'),
     '생성 범위: ' + targetLabel,
     '월식도시락 운영 요일: ' + (target !== 'banchan' ? (form.lunchDays.length ? form.lunchDays.join(', ') : '월, 화, 수, 목, 금') : '생성하지 않음'),
     '월식도시락 생성 날짜: ' + (target !== 'banchan' ? lunchDates.join(', ') : '없음'),
@@ -4060,7 +4169,12 @@ async function runAiMonthlyGenerate(){
     toast('생성할 식단의 운영 요일을 선택해주세요');
     return;
   }
-  showLoad('AI가 월간 식단을 생성 중입니다...', form.year + '년 ' + form.month + '월 식단을 구성하고 있습니다.');
+  const range = getAiDateRange(form);
+  if(!range){
+    toast('시작일과 끝나는 날을 확인해주세요. 예: 5/4, 5/8');
+    return;
+  }
+  showLoad('AI가 식단을 생성 중입니다...', range.label + ' 식단을 구성하고 있습니다.');
   try{
     const raw = enforceAiTargetScope(normalizeAiMonthlyResult(await requestAiMonthlyMenu(form, key), form), form);
     const validation = validateAiMonthlyResult(raw, form.year, form.month, form.target);
@@ -4068,6 +4182,10 @@ async function runAiMonthlyGenerate(){
     aiMonthlyResultCache = {
       year: form.year,
       month: form.month,
+      periodMode: form.periodMode || 'month',
+      startDate: form.startDate || '',
+      endDate: form.endDate || '',
+      periodLabel: range.label,
       target: form.target || 'both',
       lunchboxEntries: raw.lunchboxEntries,
       saladLunchboxEntries: raw.saladLunchboxEntries,
@@ -4241,7 +4359,7 @@ function renderAiMonthlyResult(){
     if(jsonEl) jsonEl.value = '';
     return;
   }
-  if(summary) summary.textContent = cache.year + '년 ' + cache.month + '월 · 월식도시락 ' + cache.lunchboxEntries.length + '개 / 샐러드도시락 ' + cache.saladLunchboxEntries.length + '개';
+  if(summary) summary.textContent = (cache.periodLabel || (cache.year + '년 ' + cache.month + '월')) + ' · 월식도시락 ' + cache.lunchboxEntries.length + '개 / 샐러드도시락 ' + cache.saladLunchboxEntries.length + '개';
   renderAiTable('ai-lunchbox-table',
     ['날짜','요일','밥','국','메인','사이드 메인','반찬1','반찬2','반찬3','반찬4','가격'],
     cache.lunchboxEntries.map(entry=>[
