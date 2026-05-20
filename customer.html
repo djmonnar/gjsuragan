@@ -705,6 +705,20 @@
     gap: 10px;
   }
   .form-row .form-group { flex: 1; }
+  .meal-time-picker {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .meal-time-picker select {
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--primary) 50%), linear-gradient(135deg, var(--primary) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 34px;
+  }
+  .meal-time-hidden { display: none; }
 
   .auth-submit {
     width: 100%;
@@ -1077,7 +1091,11 @@
     </div>
     <div class="form-group">
       <label class="form-label">식사 받는 시간</label>
-      <input class="form-input" type="time" id="reg-mealtime" step="600" title="10분 단위로 선택해주세요">
+      <input class="meal-time-hidden" type="hidden" id="reg-mealtime">
+      <div class="meal-time-picker">
+        <select class="form-input" id="reg-mealtime-hour" onchange="syncMealTime('reg')"></select>
+        <select class="form-input" id="reg-mealtime-minute" onchange="syncMealTime('reg')"></select>
+      </div>
       <div class="default-hint">10분 단위로 선택해주세요. 예) 12:00, 12:10</div>
     </div>
     <div class="form-group">
@@ -1280,7 +1298,11 @@
       </div>
       <div class="form-group">
         <label class="form-label">식사 받는 시간</label>
-        <input class="form-input" type="time" id="prof-mealtime" step="600" title="10분 단위로 선택해주세요">
+        <input class="meal-time-hidden" type="hidden" id="prof-mealtime">
+        <div class="meal-time-picker">
+          <select class="form-input" id="prof-mealtime-hour" onchange="syncMealTime('prof')"></select>
+          <select class="form-input" id="prof-mealtime-minute" onchange="syncMealTime('prof')"></select>
+        </div>
         <div class="default-hint">10분 단위로 선택해주세요. 예) 12:00, 12:10</div>
       </div>
       <div class="form-row">
@@ -1498,6 +1520,10 @@ window.addEventListener('beforeinstallprompt', (e) => {
   // 로그인 후에 배너 표시
   setTimeout(showInstallBanner, 2000);
 });
+window.addEventListener('DOMContentLoaded', () => {
+  setMealTimeControls('reg', '');
+  setMealTimeControls('prof', '');
+});
 
 function showInstallBanner() {
   // 이미 설치되어 있으면 표시 안 함
@@ -1534,9 +1560,43 @@ let orderDeadline = { hour: 9, minute: 20 };
 function iconSvg(name, className = 'gj-icon') {
   return `<svg class="${className}" aria-hidden="true"><use href="#gj-${name}"></use></svg>`;
 }
+function populateMealTimeControls(scope) {
+  const hour = document.getElementById(`${scope}-mealtime-hour`);
+  const minute = document.getElementById(`${scope}-mealtime-minute`);
+  if (!hour || !minute || hour.options.length) return;
+  hour.innerHTML = '<option value="">시 선택</option>' + Array.from({ length: 24 }, (_, i) => {
+    const value = String(i).padStart(2, '0');
+    return `<option value="${value}">${value}시</option>`;
+  }).join('');
+  minute.innerHTML = '<option value="">분 선택</option>' + ['00','10','20','30','40','50']
+    .map(value => `<option value="${value}">${value}분</option>`)
+    .join('');
+}
+function syncMealTime(scope) {
+  const hidden = document.getElementById(`${scope}-mealtime`);
+  const hour = document.getElementById(`${scope}-mealtime-hour`)?.value || '';
+  const minute = document.getElementById(`${scope}-mealtime-minute`)?.value || '';
+  if (!hidden) return;
+  hidden.value = hour && minute ? `${hour}:${minute}` : '';
+}
+function setMealTimeControls(scope, value) {
+  populateMealTimeControls(scope);
+  const match = String(value || '').match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  const hour = document.getElementById(`${scope}-mealtime-hour`);
+  const minute = document.getElementById(`${scope}-mealtime-minute`);
+  if (hour) hour.value = match ? match[1] : '';
+  if (minute) minute.value = match && Number(match[2]) % 10 === 0 ? match[2] : '';
+  syncMealTime(scope);
+}
 function getTenMinuteTimeValue(inputId) {
   const value = document.getElementById(inputId)?.value?.trim() || '';
+  const scope = inputId.split('-')[0];
+  const selectedHour = document.getElementById(`${scope}-mealtime-hour`)?.value || '';
+  const selectedMinute = document.getElementById(`${scope}-mealtime-minute`)?.value || '';
   const match = value.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  if ((selectedHour || selectedMinute) && !(selectedHour && selectedMinute)) {
+    return { value: '', valid: false };
+  }
   return {
     value,
     valid: !value || (!!match && Number(match[2]) % 10 === 0)
@@ -1961,6 +2021,7 @@ function showLogin() {
 function showRegister() {
   document.getElementById('login-form').style.display = 'none';
   document.getElementById('register-form').style.display = 'block';
+  setMealTimeControls('reg', document.getElementById('reg-mealtime')?.value || '');
 }
 
 function openHelpManual() {
@@ -2505,7 +2566,7 @@ function renderProfile() {
   if (!userProfile) return;
   document.getElementById('prof-bizname').value = userProfile.businessName || '';
   document.getElementById('prof-phone').value = userProfile.phone || '';
-  document.getElementById('prof-mealtime').value = userProfile.mealTime || '';
+  setMealTimeControls('prof', userProfile.mealTime || '');
   document.getElementById('prof-lunch').value = userProfile.defaultLunch ?? 2;
   document.getElementById('prof-salad').value = userProfile.defaultSalad ?? 0;
   const meals = normalizeWeekdayMeals(userProfile, userProfile.defaultLunch ?? 2, userProfile.defaultSalad ?? 0);
