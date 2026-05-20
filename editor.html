@@ -227,6 +227,23 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 .firebase-summary-grid{display:grid;grid-template-columns:84px 1fr;gap:4px 10px;}
 .firebase-user-badge{display:none;margin-top:10px;padding:7px 10px;border-radius:999px;background:rgba(234,88,12,.16);color:#FED7AA;border:1px solid rgba(254,215,170,.28);font-size:11px;font-weight:800;width:max-content;max-width:100%;}
 .firebase-user-badge.on{display:block;}
+.program-modal{width:min(820px,94vw);background:#FFFCF8;border:1px solid #FED7AA;}
+.program-modal .mh{background:#FFFCF8;}
+.program-hero{display:grid;grid-template-columns:76px 1fr;gap:16px;align-items:center;padding:4px 0 16px;border-bottom:1px solid #F3E4D6;margin-bottom:16px;}
+.program-mark{width:76px;height:76px;border-radius:24px;background:linear-gradient(135deg,#EA580C,#FBBF24);box-shadow:0 16px 30px rgba(234,88,12,.22);position:relative;overflow:hidden;}
+.program-mark:before{content:'';position:absolute;left:16px;right:16px;bottom:18px;height:24px;border-radius:0 0 24px 24px;background:#fff;}
+.program-mark:after{content:'';position:absolute;left:24px;top:18px;width:28px;height:22px;border-radius:50%;background:#5C3A21;box-shadow:18px 18px 0 -8px #16A34A,-16px 18px 0 -8px #FDFCF8;}
+.program-hero h2{font-size:22px;color:#2D2A26;margin-bottom:5px;}
+.program-hero p{font-size:13px;color:#6B5A4E;line-height:1.6;}
+.program-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.program-card{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;text-decoration:none;background:#fff;border:1px solid #F3E4D6;border-radius:14px;padding:14px;transition:transform .15s,box-shadow .15s,border-color .15s;}
+.program-card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(92,58,33,.12);border-color:#FDBA74;}
+.program-icon{width:48px;height:48px;border-radius:16px;background:#FFF7ED;border:1px solid #FED7AA;display:flex;align-items:center;justify-content:center;color:#EA580C;font-size:20px;font-weight:900;}
+.program-card b{display:block;color:#2D2A26;font-size:14px;margin-bottom:4px;}
+.program-card span{display:block;color:#7C6A5D;font-size:12px;line-height:1.45;}
+.program-arrow{color:#EA580C;font-size:18px;font-weight:900;}
+.program-foot-note{margin-top:14px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:11px 12px;color:#9A3412;font-size:12px;line-height:1.55;}
+@media(max-width:768px){.program-hero{grid-template-columns:1fr;text-align:center;}.program-mark{margin:0 auto;}.program-grid{grid-template-columns:1fr;}.program-card{grid-template-columns:44px 1fr auto;padding:12px;}}
 
 #proof-summary{font-size:13px;font-weight:700;color:#374151;margin-bottom:12px;}
 #proof-list{display:flex;flex-direction:column;gap:8px;}
@@ -324,6 +341,56 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
       <button class="btn-sec" onclick="hideFirebaseAuthScreen()">오프라인으로 계속</button>
     </div>
     <div id="firebase-login-status" class="firebase-status-box warn">로그인 상태를 확인하는 중입니다...</div>
+  </div>
+</div>
+
+<div class="modal-bg" id="program-links-modal" onclick="if(event.target===this)closeProgramLinksPopup()">
+  <div class="modal program-modal">
+    <div class="mh">
+      <h3>궁중수라간 업무 바로가기</h3>
+      <button class="mx" onclick="closeProgramLinksPopup()">✕</button>
+    </div>
+    <div class="mb">
+      <div class="program-hero">
+        <div class="program-mark"></div>
+        <div>
+          <h2>오늘 작업할 프로그램을 바로 열어주세요</h2>
+          <p>상세페이지, 원산지, 배송관리, 식단표 전송, 일회주문 이미지 제작까지 자주 쓰는 도구를 한 곳에 모았습니다.</p>
+        </div>
+      </div>
+      <div class="program-grid">
+        <a class="program-card" href="https://djmonnar.github.io/gjsuragan/menu.html" target="_blank" rel="noopener">
+          <div class="program-icon">상</div>
+          <div><b>상세페이지 만들기</b><span>반찬배송·상품 상세페이지 제작</span></div>
+          <div class="program-arrow">›</div>
+        </a>
+        <a class="program-card" href="https://www.notion.so/2fec43094c8980818b2de393419e56a9" target="_blank" rel="noopener">
+          <div class="program-icon">원</div>
+          <div><b>원산지 상세정보</b><span>Notion 원산지 자료 확인</span></div>
+          <div class="program-arrow">›</div>
+        </a>
+        <a class="program-card" href="https://djmonnar.github.io/gjsuragan/" target="_blank" rel="noopener">
+          <div class="program-icon">배</div>
+          <div><b>배송관리시스템</b><span>주문·배송 관리 화면</span></div>
+          <div class="program-arrow">›</div>
+        </a>
+        <a class="program-card" href="https://djmonnar.github.io/gjsuraganmenu/" target="_blank" rel="noopener">
+          <div class="program-icon">식</div>
+          <div><b>식단표 원산지 자동보내기</b><span>식단표와 원산지 전송 업무</span></div>
+          <div class="program-arrow">›</div>
+        </a>
+        <a class="program-card" href="https://djmonnar.github.io/gjsuragan/%ED%85%9C%ED%94%8C%EB%A6%BF.html" target="_blank" rel="noopener">
+          <div class="program-icon">일</div>
+          <div><b>일회주문 이미지제작</b><span>일회 주문 안내 이미지 제작</span></div>
+          <div class="program-arrow">›</div>
+        </a>
+      </div>
+      <div class="program-foot-note">닫은 뒤에도 오른쪽 상단의 업무 링크 버튼으로 다시 열 수 있습니다.</div>
+    </div>
+    <div class="mfoot">
+      <button class="btn-sec" onclick="hideProgramLinksToday()">오늘 다시 보지 않기</button>
+      <button class="btn-pri" onclick="closeProgramLinksPopup()">편집 시작하기</button>
+    </div>
   </div>
 </div>
 
@@ -590,6 +657,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
   <div id="prev-bar">
     <h2>실시간 미리보기</h2>
   <div class="preview-actions">
+      <button class="copy-btn alt" onclick="showProgramLinksPopup(true)">업무 링크</button>
       <button class="copy-btn" onclick="openAiCreateModal()">AI 식단 만들기</button>
       <button class="copy-btn alt" onclick="openProofModal()">오타 검수</button>
       <button class="copy-btn" id="copy-btn" onclick="copyCode()">
@@ -834,6 +902,8 @@ const AI_PROMPT_PRESET_KEY = 'ksura_ai_prompt_preset_v1';
 const FIREBASE_ADMIN_EMAIL = 'sun1562@naver.com';
 const FIREBASE_EDITOR_DOC_ID = 'current';
 const FIREBASE_REALTIME_KEY = 'ksura_firebase_realtime_sync_v1';
+const PROGRAM_LINKS_SEEN_KEY = 'ksura_program_links_seen_session_v1';
+const PROGRAM_LINKS_HIDE_TODAY_KEY = 'ksura_program_links_hide_today_v1';
 const FIREBASE_CLIENT_ID = (() => {
   let id = sessionStorage.getItem('ksura_firebase_client_id');
   if(!id){
@@ -1352,10 +1422,38 @@ function showFirebaseAuthScreen(){
   if(screen) screen.classList.add('on');
 }
 
+function getTodayKey(){
+  const now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+}
+function showProgramLinksPopup(force){
+  const modal = document.getElementById('program-links-modal');
+  const authScreen = document.getElementById('firebase-auth-screen');
+  if(!modal) return;
+  if(authScreen?.classList.contains('on') && !force) return;
+  if(!force){
+    if(sessionStorage.getItem(PROGRAM_LINKS_SEEN_KEY) === '1') return;
+    if(localStorage.getItem(PROGRAM_LINKS_HIDE_TODAY_KEY) === getTodayKey()) return;
+    sessionStorage.setItem(PROGRAM_LINKS_SEEN_KEY, '1');
+  }
+  modal.classList.add('on');
+}
+function closeProgramLinksPopup(){
+  document.getElementById('program-links-modal')?.classList.remove('on');
+}
+function hideProgramLinksToday(){
+  localStorage.setItem(PROGRAM_LINKS_HIDE_TODAY_KEY, getTodayKey());
+  closeProgramLinksPopup();
+}
+function queueProgramLinksPopup(){
+  setTimeout(()=>showProgramLinksPopup(false), 220);
+}
+
 function hideFirebaseAuthScreen(){
   fbAuthScreenDismissed = true;
   const screen = document.getElementById('firebase-auth-screen');
   if(screen) screen.classList.remove('on');
+  queueProgramLinksPopup();
 }
 
 function updateFirebaseAuthUI(){
