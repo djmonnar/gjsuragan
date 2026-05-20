@@ -2108,7 +2108,13 @@ function addMonthFromModal(){
   persist();
   closeMonthModal();
   renderAll();
-  toast(year + '년 ' + month + '월이 추가되었습니다 ✓');
+  if(!fbUser || fbUser.email !== FIREBASE_ADMIN_EMAIL){
+    toast(year + '년 ' + month + '월이 이 기기에 저장되었습니다. 다른 주소/기기에서는 Firebase 저장이 필요합니다');
+  } else if(!firebaseRealtimeEnabled){
+    toast(year + '년 ' + month + '월이 추가되었습니다. 다른 기기와 공유하려면 Firebase 저장을 눌러주세요');
+  } else {
+    toast(year + '년 ' + month + '월이 추가되었습니다 ✓');
+  }
 }
 
 function deleteSelectedMonth(){
@@ -3771,6 +3777,7 @@ function buildKsuraLunchStyleGuide(){
     '- 사이드 메인이 튀김/전이면 반찬4에는 튀김과 전을 추가로 반복하지 않는다.',
     '- 국은 된장국, 미역국, 콩나물국, 어묵탕, 계란탕, 유부장국, 부대찌개, 짬뽕탕처럼 현장 조리가 익숙한 계열을 우선한다.',
     '- 반찬명은 주방 이모들이 바로 이해하는 이름으로 작성한다. 호텔식/양식/과한 퓨전 표현은 월식도시락에서 쓰지 않는다.',
+    '- 메뉴명에는 감성 형용사를 붙이지 말고, 재료명과 조리법을 중심으로 쓴다. 예: "구수한 된장국"보다 "시래기된장국", "담백한 두부조림"보다 "두부버섯조림".',
     '- 월식도시락 금지 톤: ' + KSURA_LUNCH_STYLE.forbidden.join(', '),
     '- 월식 메인 참고 풀: ' + KSURA_LUNCH_STYLE.mains.join(', '),
     '- 월식 사이드 메인 참고 풀: ' + KSURA_LUNCH_STYLE.subMains.join(', '),
@@ -3816,6 +3823,15 @@ function buildAiMonthlyPrompt(form){
     '반찬배송 고급도: ' + form.premium,
     '기타 요청사항: ' + (form.extra || '없음'),
     '',
+    '메뉴명 작성 원칙:',
+    '- 모든 메뉴명은 짧은 음식명으로 작성한다. 광고 문구처럼 꾸미지 않는다.',
+    '- 구수한, 담백한, 따뜻한, 시원한, 얼큰한, 고소한, 부드러운, 진한, 깔끔한, 신선한, 바삭한, 아삭한 같은 형용사를 메뉴마다 앞에 붙이지 않는다.',
+    '- 위 형용사는 특별히 메뉴 정체성을 구분해야 할 때만 아주 제한적으로 사용한다. 한 날짜 안에서 1개를 넘기지 않는다.',
+    '- 형용사 대신 주재료, 부재료, 양념, 조리법을 넣어 구체화한다.',
+    '- 좋은 예: 돼지고기고추장볶음, 우삼겹숙주볶음, 소고기무국, 애호박새우젓볶음, 두부버섯조림, 오징어브로콜리초무침, 닭살겨자냉채.',
+    '- 나쁜 예: 구수한 된장국, 담백한 닭가슴살구이, 따뜻한 미역국, 시원한 어묵탕, 얼큰한 소고기국, 고소한 나물무침.',
+    '- 반찬배송을 고급스럽게 보이게 할 때도 "정갈한/고급스러운" 같은 형용사를 붙이지 말고 재료와 조리법으로 차이를 만든다. 예: "고급스러운 소불고기"보다 "버섯소불고기", "정갈한 나물"보다 "참나물들깨무침".',
+    '',
     '월식도시락:',
     '- 8,000원 단가',
     '- 밥 + 국 + 메인1 + 사이드 메인1 + 반찬4',
@@ -3840,13 +3856,13 @@ function buildAiMonthlyPrompt(form){
     '- 32,900원은 국 + 반찬4 + 메인 구성',
     '- 25,900원은 반찬4 + 메인 구성',
     '- 반찬배송 전체 식단은 월식도시락보다 더 정갈하고 고급스럽게 느껴져야 함',
-    '- 같은 재료를 공유하더라도 반찬배송은 메뉴명과 조리법 표현을 더 고급스럽게 작성',
+    '- 같은 재료를 공유하더라도 반찬배송은 형용사 장식이 아니라 주재료, 부재료, 양념, 조리법을 더 구체화해서 고급스럽게 작성',
     '- 반찬배송 반찬4개 중 최소 1개는 사이드메뉴급 반찬으로 구성한다. 메인보다 약하지만 일반 밑반찬보다 존재감 있는 프리미엄 반찬이어야 한다. 예: 미니전, 생선까스, 탕수육, 닭강정, 떡갈비, 계란말이, 두부조림, 장조림류, 유부주머니, 해물완자전.',
     '- 가능하면 sides[0]에 사이드메뉴급 반찬을 배치하고, sides[1]~sides[3]는 균형 잡힌 밑반찬으로 구성한다.',
     '',
     '반찬배송과 월식도시락 관계:',
     '- 일부 재료를 공유해도 된다.',
-    '- 반찬배송은 같은 재료를 써도 메뉴명, 조리법, 표현, 고객 체감 퀄리티가 더 좋아 보이게 구성한다.',
+    '- 반찬배송은 같은 재료를 써도 메뉴명에 재료와 조리법을 더 구체적으로 넣어 고객 체감 퀄리티가 좋아 보이게 구성한다.',
     '- 월식도시락은 8,000원 단가에 맞는 매일 먹기 좋은 식단이다.',
     '- 반찬배송은 택배/직배송으로 주문하는 고객용 정갈한 반찬세트 느낌이어야 한다.',
     '- 같은 날짜의 banchanDeliveryEntries[].salad와 saladLunchboxEntries[].salad는 반드시 동일해야 한다.',
@@ -4129,7 +4145,7 @@ function normalizeAiMonthlyResult(result, form){
     qualityDifference: normalizeSpaces(item.qualityDifference)
   })) : [];
   raw.warnings = Array.isArray(raw.warnings) ? raw.warnings.map(normalizeSpaces).filter(Boolean) : [];
-  return raw;
+  return simplifyAiMenuTone(raw);
 }
 function enforceAiTargetScope(raw, form){
   const target = form?.target || 'both';
@@ -4139,6 +4155,36 @@ function enforceAiTargetScope(raw, form){
     raw.banchanDeliveryEntries = [];
   }
   raw.meta = Object.assign({}, raw.meta || {}, {target});
+  return raw;
+}
+function simplifyMenuNameTone(value){
+  let text = normalizeSpaces(value);
+  if(!text) return '';
+  const adjectivePattern = /^(구수한|담백한|따뜻한|시원한|얼큰한|고소한|부드러운|진한|깔끔한|신선한|바삭한|아삭한|매콤한|달큰한|개운한|정갈한|고급스러운)\s+/;
+  for(let i=0; i<3; i++){
+    const next = text.replace(adjectivePattern, '');
+    if(next === text) break;
+    text = normalizeSpaces(next);
+  }
+  return text;
+}
+function simplifyAiMenuTone(raw){
+  (raw.banchanDeliveryEntries || []).forEach(entry=>{
+    entry.main = simplifyMenuNameTone(entry.main);
+    entry.soup = simplifyMenuNameTone(entry.soup);
+    entry.sides = (entry.sides || []).map(simplifyMenuNameTone).filter(Boolean);
+    entry.salad = simplifyMenuNameTone(entry.salad);
+  });
+  (raw.lunchboxEntries || []).forEach(entry=>{
+    entry.rice = simplifyMenuNameTone(entry.rice);
+    entry.soup = simplifyMenuNameTone(entry.soup);
+    entry.main = simplifyMenuNameTone(entry.main);
+    entry.subMain = simplifyMenuNameTone(entry.subMain);
+    entry.sides = (entry.sides || []).map(simplifyMenuNameTone).filter(Boolean);
+  });
+  (raw.saladLunchboxEntries || []).forEach(entry=>{
+    entry.salad = simplifyMenuNameTone(entry.salad);
+  });
   return raw;
 }
 function getMenuText(entry){
