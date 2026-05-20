@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>궁중수라간 · 배송 관리</title>
+<link rel="icon" href="assets/img/suragan-mark.png">
 
 <!-- Firebase compat (v9 compat = 전통 방식, window 전역 사용 가능) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -38,7 +39,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 <!-- ══ 로그인 화면 ══ -->
 <div id="loginScreen">
   <div class="login-box">
-    <div class="login-logo">🍱</div>
+    <img class="login-logo-img" src="assets/img/suragan-mark.png" alt="">
     <div class="login-title">궁중수라간</div>
     <div class="login-sub">배송 관리 시스템 · 직원 전용</div>
     <div class="login-form">
@@ -61,7 +62,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 <!-- 헤더 -->
 <header class="header">
   <div class="header-left">
-    <div class="logo"><div class="logo-mark">🍱</div>궁중수라간</div>
+    <div class="logo"><img class="logo-mark-img" src="assets/img/suragan-mark.png" alt="">궁중수라간</div>
     <div class="divv"></div>
     <span class="hdate" id="hDate"></span>
   </div>
@@ -77,7 +78,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
         <button class="btn btn-g sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="goTab('dash');closeCancelPopover();document.getElementById('cancelNotice')?.scrollIntoView({behavior:'smooth',block:'center'});">대시보드에서 보기</button>
       </div>
     </div>
-    <div class="tbtn" onclick="toggleTheme()" id="themeBtn" title="테마 전환">🌙</div>
+    <div class="tbtn" onclick="toggleTheme()" id="themeBtn" title="테마 전환">다크</div>
     <button class="btn btn-g sm" onclick="doLogout()">로그아웃</button>
     <button class="btn btn-p sm" onclick="openM('addM')">＋ 신규 등록</button>
   </div>
@@ -85,12 +86,12 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 
 <!-- 탭 -->
 <nav class="nav">
-  <div class="ni on"  onclick="goTab('dash')">📊 대시보드</div>
-  <div class="ni"     onclick="goTab('today')">🚚 배송 관리 <span class="nb" id="nBadge">0</span></div>
-  <div class="ni"     onclick="goTab('report')">📈 주간 · 월간</div>
-  <div class="ni"     onclick="goTab('customers')">👥 고객 관리</div>
-  <div class="ni"     onclick="goTab('export')">📦 택배 전달</div>
-  <div class="ni"     onclick="goTab('import')">📥 일괄 등록</div>
+  <div class="ni on"  onclick="goTab('dash')"><span class="nav-ico">DB</span>대시보드</div>
+  <div class="ni"     onclick="goTab('today')"><span class="nav-ico">DV</span>배송 관리 <span class="nb" id="nBadge">0</span></div>
+  <div class="ni"     onclick="goTab('report')"><span class="nav-ico">RP</span>주간 · 월간</div>
+  <div class="ni"     onclick="goTab('customers')"><span class="nav-ico">CS</span>고객 관리</div>
+  <div class="ni"     onclick="goTab('export')"><span class="nav-ico">TX</span>택배 전달</div>
+  <div class="ni"     onclick="goTab('import')"><span class="nav-ico">IN</span>일괄 등록</div>
 </nav>
 
 <!-- ══════════ 대시보드 ══════════ -->
@@ -152,7 +153,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
       <!-- 택배 섹션 -->
       <div class="card">
         <div style="font-size:11px;font-weight:700;color:var(--info);padding:6px 12px;border-bottom:1px solid var(--border-l);" id="dash-courier-label" style="display:none;">
-          📦 택배
+          택배
         </div>
         <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
         <tbody id="dToday"></tbody></table>
@@ -172,7 +173,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
       </div>
       <div class="card">
         <div style="font-size:11px;font-weight:700;color:var(--info);padding:6px 12px;border-bottom:1px solid var(--border-l);" id="dash-tomorrow-courier-label">
-          📦 택배
+          택배
         </div>
         <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
         <tbody id="dLow"></tbody></table>
@@ -203,8 +204,8 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
     <div style="display:flex;gap:8px;align-items:center;">
       <span style="font-size:12px;color:var(--text3);" id="todayCnt"></span>
       <button class="btn btn-g sm" onclick="printAllDeliveryList()">전체 인쇄</button>
-      <button class="btn btn-s sm" onclick="markAll()">✓ 전체 완료</button>
-      <button class="btn btn-g sm" onclick="goTab('export')">📦 택배 내보내기</button>
+      <button class="btn btn-s sm" onclick="markAll()">전체 완료</button>
+      <button class="btn btn-g sm" onclick="goTab('export')">택배 내보내기</button>
     </div>
   </div>
 
@@ -225,7 +226,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="single" onchange="renderToday()" checked> 단품</label>
       </div>
       <button class="btn btn-g sm" onclick="printDirectList()">🖨 인쇄</button>
-      <button class="btn btn-s sm" onclick="markAllDirect()">✓ 직배송 전체 완료</button>
+      <button class="btn btn-s sm" onclick="markAllDirect()">직배송 전체 완료</button>
     </div>
     <div class="card"><div class="tw">
       <table>
@@ -239,12 +240,12 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
     </div></div>
   </div>
 
-  <!-- 📦 택배 섹션 -->
+  <!-- 택배 섹션 -->
   <div id="today-courier-section">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
       <div style="display:flex;align-items:center;gap:8px;flex:1;">
         <div style="width:4px;height:20px;background:var(--info);border-radius:2px;"></div>
-        <span style="font-size:15px;font-weight:700;color:var(--text);">📦 택배</span>
+        <span style="font-size:15px;font-weight:700;color:var(--text);">택배</span>
         <span id="courier-cnt" style="font-size:12px;background:rgba(3,102,214,.1);color:var(--info);border:1px solid rgba(3,102,214,.25);border-radius:20px;padding:2px 10px;font-weight:600;"></span>
       </div>
       <!-- 세트 필터 체크박스 -->
@@ -256,7 +257,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="today-filter-ck" value="single" onchange="renderToday()" checked> 단품</label>
       </div>
       <button class="btn btn-g sm" onclick="printCourierList()">🖨 인쇄</button>
-      <button class="btn btn-s sm" onclick="markAllCourier()">✓ 택배 전체 완료</button>
+      <button class="btn btn-s sm" onclick="markAllCourier()">택배 전체 완료</button>
     </div>
     <div class="card"><div class="tw">
       <table>
@@ -312,7 +313,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
   <div class="sh">
     <div class="st"><div class="std"></div>고객 목록</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <input type="text" class="inp inp-sm" placeholder="🔍  이름 · 연락처 · 주소 · 주문번호" id="srchQ" oninput="renderCust()" style="width:220px;">
+      <input type="text" class="inp inp-sm" placeholder="이름 · 연락처 · 주소 · 주문번호" id="srchQ" oninput="renderCust()" style="width:220px;">
       <select class="inp inp-sm" id="srchSet" onchange="renderCust()" style="width:110px;">
         <option value="">전체 세트</option>
         <option value="A">A세트</option>
@@ -363,13 +364,13 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
           <div class="fgrp"><div class="flab">세트</div><select class="inp" id="expSet"><option value="">전체</option><option value="A">A세트</option><option value="B">B세트</option><option value="C">C세트</option></select></div>
           <div class="fgrp"><div class="flab">유형</div><select class="inp" id="expType"><option value="">전체</option><option value="sub">정기배송</option><option value="once">선택주문</option></select></div>
         </div>
-        <button class="btn btn-p" style="width:100%;margin-top:14px;" onclick="genExport()">📋 목록 생성</button>
+        <button class="btn btn-p" style="width:100%;margin-top:14px;" onclick="genExport()">목록 생성</button>
       </div>
       <div class="card" style="padding:18px;">
         <div class="sh" style="margin-bottom:10px;">
           <div style="font-size:13px;font-weight:600;">발송 목록 (텍스트)</div>
           <div style="display:flex;gap:6px;">
-            <button class="btn btn-g sm" onclick="copyExp()">📋 복사</button>
+            <button class="btn btn-g sm" onclick="copyExp()">복사</button>
             <button class="btn btn-s sm" onclick="dlExp()">⬇ 저장</button>
           </div>
         </div>
@@ -393,9 +394,9 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
       <div class="sh"><div class="st"><div class="std"></div>주문 텍스트 붙여넣기</div></div>
       <div class="ibox"><b>사용법:</b> 스마트스토어 주문 내역을 그대로 붙여넣으면 이름·연락처·주소·세트·요청사항을 자동 인식합니다.</div>
       <textarea class="pa" id="pasteArea" placeholder="주문 내역을 여기에 붙여넣기..."></textarea>
-      <button class="btn btn-p" onclick="parseText()">🔍 자동 분석</button>
+      <button class="btn btn-p" onclick="parseText()">자동 분석</button>
       <div class="pr" id="parseResult">
-        <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:10px;">✓ 인식된 정보</div>
+        <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:10px;">인식된 정보</div>
         <div id="parseRows"></div>
         <div style="margin-top:14px;display:flex;gap:8px;">
           <button class="btn btn-p sm" onclick="regParsed()">등록하기</button>
@@ -411,7 +412,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
         세트(A·B·C)는 업로드 후 직접 선택하거나 상품명에 포함되면 자동 인식됩니다.
       </div>
       <div class="dz" id="dz" onclick="document.getElementById('xlf').click()" ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
-        <div style="font-size:32px;margin-bottom:8px;">📊</div>
+        <img class="drop-asset" src="assets/img/suragan-mark.png" alt="">
         <div style="font-size:13px;font-weight:600;color:var(--text2);">스마트스토어 주문 엑셀을 드래그하거나 클릭</div>
         <div style="font-size:11px;color:var(--text3);margin-top:4px;">.xlsx .xls 지원 · 1행 헤더 자동 건너뜀</div>
       </div>
@@ -421,7 +422,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
           <div style="font-size:13px;font-weight:600;">미리보기 <span id="xlCnt" style="color:var(--text3);font-weight:400;font-size:12px;"></span></div>
           <div style="display:flex;gap:6px;">
             <button class="btn btn-d sm" onclick="resetXl()">🗑 초기화</button>
-            <button class="btn btn-p sm" onclick="regXl()">✓ 전체 등록</button>
+            <button class="btn btn-p sm" onclick="regXl()">전체 등록</button>
           </div>
         </div>
         <div class="ibox" style="margin-bottom:8px;border-color:rgba(227,98,9,.3);background:rgba(227,98,9,.06);">
@@ -446,8 +447,8 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
       <div class="fgrp" style="margin-bottom:16px;">
         <div class="flab">주문 유형</div>
         <div class="ttabs">
-          <div class="ttab on" id="tTab-sub" onclick="setTypeTab('sub')">📦 정기배송</div>
-          <div class="ttab" id="tTab-once" onclick="setTypeTab('once')">🛍 선택주문 (1회)</div>
+          <div class="ttab on" id="tTab-sub" onclick="setTypeTab('sub')">정기배송</div>
+          <div class="ttab" id="tTab-once" onclick="setTypeTab('once')">선택주문 (1회)</div>
         </div>
       </div>
       <div class="fg">
@@ -478,8 +479,8 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
               <option value="C">C세트</option>
             </optgroup>
             <optgroup label="단품 상품">
-              <option value="pork_rib">🥩 수제 돼지양념갈비</option>
-              <option value="beef_la">🥩 양념 LA갈비</option>
+              <option value="pork_rib">수제 돼지양념갈비</option>
+              <option value="beef_la">양념 LA갈비</option>
             </optgroup>
           </select>
         </div>
@@ -522,7 +523,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 <div class="mbg" id="addrM">
   <div class="modal" style="width:480px;">
     <div class="mh">
-      <div class="mt">📦 배송지 상세</div>
+      <div class="mt">배송지 상세</div>
       <div class="mx" onclick="closeM('addrM')">✕</div>
     </div>
     <div class="mb" style="display:flex;flex-direction:column;gap:14px;">
@@ -531,7 +532,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
         <div class="flab" style="margin-bottom:6px;">고객명</div>
         <div style="display:flex;gap:8px;align-items:center;">
           <div id="am-name" style="flex:1;font-size:15px;font-weight:700;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);"></div>
-          <button class="btn btn-g sm" onclick="copyField('am-name')">📋 복사</button>
+          <button class="btn btn-g sm" onclick="copyField('am-name')">복사</button>
         </div>
       </div>
 
@@ -539,7 +540,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
         <div class="flab" style="margin-bottom:6px;">연락처</div>
         <div style="display:flex;gap:8px;align-items:center;">
           <div id="am-phone" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);"></div>
-          <button class="btn btn-g sm" onclick="copyField('am-phone')">📋 복사</button>
+          <button class="btn btn-g sm" onclick="copyField('am-phone')">복사</button>
         </div>
       </div>
 
@@ -547,7 +548,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
         <div class="flab" style="margin-bottom:6px;">배송지 주소</div>
         <div style="display:flex;gap:8px;align-items:flex-start;">
           <div id="am-addr" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);line-height:1.6;word-break:break-all;"></div>
-          <button class="btn btn-g sm" onclick="copyField('am-addr')">📋 복사</button>
+          <button class="btn btn-g sm" onclick="copyField('am-addr')">복사</button>
         </div>
       </div>
 
@@ -555,7 +556,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
         <div class="flab" style="margin-bottom:6px;">현관 비밀번호</div>
         <div style="display:flex;gap:8px;align-items:center;">
           <div id="am-door" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);"></div>
-          <button class="btn btn-g sm" onclick="copyField('am-door')">📋 복사</button>
+          <button class="btn btn-g sm" onclick="copyField('am-door')">복사</button>
         </div>
       </div>
 
@@ -563,13 +564,13 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
         <div class="flab" style="margin-bottom:6px;">요청사항</div>
         <div style="display:flex;gap:8px;align-items:flex-start;">
           <div id="am-req" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);line-height:1.6;word-break:break-all;"></div>
-          <button class="btn btn-g sm" onclick="copyField('am-req')">📋 복사</button>
+          <button class="btn btn-g sm" onclick="copyField('am-req')">복사</button>
         </div>
       </div>
 
       <!-- 전체 복사 버튼 -->
-      <button class="btn btn-p" style="width:100%;" onclick="copyAllAddr()">📋 전체 복사 (이름·연락처·주소·현관번호)</button>
-      <button class="btn btn-s" style="width:100%;margin-top:6px;" id="lozenCopyBtn" onclick="">🚚 로젠택배 복사 (탭 구분)</button>
+      <button class="btn btn-p" style="width:100%;" onclick="copyAllAddr()">전체 복사 (이름·연락처·주소·현관번호)</button>
+      <button class="btn btn-s" style="width:100%;margin-top:6px;" id="lozenCopyBtn" onclick="">로젠택배 복사 (탭 구분)</button>
 
     </div>
     <div class="mf">
@@ -597,9 +598,9 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
               <option value="C">C세트</option>
             </optgroup>
             <optgroup label="단품 상품">
-              <option value="pork_rib">🥩 수제 돼지양념갈비</option>
-              <option value="beef_la">🥩 양념 LA갈비</option>
-              <option value="beef_soup">🥣 소고기무국</option>
+              <option value="pork_rib">수제 돼지양념갈비</option>
+              <option value="beef_la">양념 LA갈비</option>
+              <option value="beef_soup">소고기무국</option>
             </optgroup>
           </select>
         </div>
@@ -672,8 +673,8 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
                 <option value="C">C세트</option>
               </optgroup>
               <optgroup label="단품 상품">
-                <option value="pork_rib">🥩 수제 돼지양념갈비</option>
-                <option value="beef_la">🥩 양념 LA갈비</option>
+                <option value="pork_rib">수제 돼지양념갈비</option>
+                <option value="beef_la">양념 LA갈비</option>
               </optgroup>
             </select>
           </div>
@@ -739,7 +740,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeM('parseM')">취소</button>
-      <button class="btn btn-p" onclick="saveParsed()">✓ 등록 완료</button>
+      <button class="btn btn-p" onclick="saveParsed()">등록 완료</button>
     </div>
   </div>
 </div>

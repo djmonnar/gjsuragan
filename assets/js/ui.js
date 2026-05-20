@@ -50,7 +50,7 @@ function updateHDate(){
 function toggleTheme(){
   const h=document.documentElement, isDark=h.getAttribute('data-theme')==='dark';
   h.setAttribute('data-theme',isDark?'light':'dark');
-  document.getElementById('themeBtn').textContent=isDark?'🌙':'☀️';
+  document.getElementById('themeBtn').textContent=isDark?'다크':'라이트';
   localStorage.setItem('theme',isDark?'light':'dark');
 }
 
@@ -119,6 +119,60 @@ function openEdit(id){
   }
 
   openM('editM');
+}
+
+function sameNumberArray(a, b){
+  const aa = (a || []).map(Number).sort((x,y)=>x-y).join(',');
+  const bb = (b || []).map(Number).sort((x,y)=>x-y).join(',');
+  return aa === bb;
+}
+
+function scheduleIndexForOrder(c, freq){
+  const options = SCH[String(freq)] || [];
+  if(c.cookDays && c.cookDays.length){
+    const idx = options.findIndex(sc => sameNumberArray(sc.c, c.cookDays));
+    if(idx >= 0) return String(idx);
+  }
+  if(c.scheduleName){
+    const idx = options.findIndex(sc => sc.l === c.scheduleName);
+    if(idx >= 0) return String(idx);
+  }
+  return options.length ? '0' : '';
+}
+
+function copyOrder(id){
+  const c = custs.find(x => x.id === id);
+  if(!c) return;
+
+  clearAdd();
+  setTypeTab(c.orderType === 'once' ? 'once' : 'sub');
+
+  g2('an', c.name || '');
+  g2('ap', c.phone || '');
+  g2('aa', c.addr || '');
+  g2('ad', c.door || '');
+  g2('ar', c.request || '');
+  g2('am', c.memo || '');
+  g2('a-ordernum', '');
+  document.getElementById('a-direct').checked = !!c.isDirect;
+
+  if(c.orderType === 'once'){
+    const prod = c.productId || c.set || '';
+    document.getElementById('aprod').value = prod;
+    document.getElementById('aqty').value = c.qty || c.total || 1;
+    document.getElementById('aod').value = (c.onceDate && c.onceDate >= todayStr()) ? c.onceDate : todayStr();
+  } else {
+    const freq = String(c.type || (c.cookDays && c.cookDays.length) || '1');
+    document.getElementById('as').value = ['A','B','C'].includes(c.productId || c.set) ? (c.productId || c.set) : (c.set || 'A');
+    document.getElementById('at').value = freq;
+    updSch();
+    document.getElementById('ach').value = scheduleIndexForOrder(c, freq);
+    document.getElementById('ato').value = c.total || c.remain || 12;
+    document.getElementById('asd').value = todayStr();
+  }
+
+  openM('addM');
+  toast('주문 정보를 복사했습니다. 일정과 수량만 확인해 주세요.', 'info');
 }
 
 // 수정 모달 배송 일정 드롭다운 업데이트

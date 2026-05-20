@@ -58,7 +58,7 @@ function bootAppOnce(){
   // 테마
   const theme = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', theme);
-  document.getElementById('themeBtn').textContent = theme === 'dark' ? '☀️' : '🌙';
+  document.getElementById('themeBtn').textContent = theme === 'dark' ? '라이트' : '다크';
 
   // 로그인 성공 후에만 Firestore 연결
   initFirestore();

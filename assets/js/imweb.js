@@ -312,8 +312,8 @@ function renderImwebOrders(){
             <option value="C" ${autoProd==='C'?'selected':''}>C세트</option>
           </optgroup>
           <optgroup label="단품">
-            <option value="pork_rib" ${autoProd==='pork_rib'?'selected':''}>🥩 돼지양념갈비</option>
-            <option value="beef_la"  ${autoProd==='beef_la' ?'selected':''}>🥩 양념LA갈비</option>
+            <option value="pork_rib" ${autoProd==='pork_rib'?'selected':''}>돼지양념갈비</option>
+            <option value="beef_la"  ${autoProd==='beef_la' ?'selected':''}>양념LA갈비</option>
           </optgroup>
         </select>
       </td>
@@ -540,8 +540,8 @@ const IW_PROD_OPTIONS = `
     <option value="C">C세트</option>
   </optgroup>
   <optgroup label="단품">
-    <option value="pork_rib">🥩 수제 돼지양념갈비</option>
-    <option value="beef_la">🥩 양념 LA갈비</option>
+    <option value="pork_rib">수제 돼지양념갈비</option>
+    <option value="beef_la">양념 LA갈비</option>
   </optgroup>`;
 
 function iwRenderXl(){

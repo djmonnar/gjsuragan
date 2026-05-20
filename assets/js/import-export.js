@@ -35,7 +35,7 @@ function genExport(){
     });
   }
   if(courierList.length){
-    txt+=`\n${'━'.repeat(40)}\n📦 택배 (${courierList.length}건)\n${'─'.repeat(40)}`;
+    txt+=`\n${'━'.repeat(40)}\n택배 (${courierList.length}건)\n${'─'.repeat(40)}`;
     courierList.forEach((c,i)=>{
       txt+=`\n[택${String(i+1).padStart(2,'0')}] ${c.name} (${c.orderType==='once'?'선택':'정기'})\n     전화: ${c.phone}\n     주소: ${c.addr}\n     상품: ${productLabel(c.productId||c.set)}`;
       if(c.qty&&c.qty>1) txt+=` x${c.qty}개`;
@@ -162,7 +162,7 @@ function parseText(){
     };
     // 미리보기
     let rowsHtml=`
-      <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;">📦 ${orders.length}건의 주문이 감지되었습니다</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;">${orders.length}건의 주문이 감지되었습니다</div>
       <div class="prr"><div class="prk">이름</div><div class="prv">${mainName||'(미인식)'}</div></div>
       <div class="prr"><div class="prk">연락처</div><div class="prv">${mainPhone||'(미인식)'}</div></div>
       <div class="prr"><div class="prk">주소</div><div class="prv">${mainAddr||'(미인식)'}</div></div>
@@ -285,8 +285,8 @@ function renderPmOrderList(orders){
               <option value="C" ${o.prodId==='C'?'selected':''}>C세트</option>
             </optgroup>
             <optgroup label="단품 상품">
-              <option value="pork_rib" ${o.prodId==='pork_rib'?'selected':''}>🥩 수제 돼지양념갈비</option>
-              <option value="beef_la"  ${o.prodId==='beef_la' ?'selected':''}>🥩 양념 LA갈비</option>
+              <option value="pork_rib" ${o.prodId==='pork_rib'?'selected':''}>수제 돼지양념갈비</option>
+              <option value="beef_la"  ${o.prodId==='beef_la' ?'selected':''}>양념 LA갈비</option>
             </optgroup>
           </select>
         </div>
@@ -330,8 +330,8 @@ function pmAddOrder(){
               <option value="A">A세트</option><option value="B">B세트</option><option value="C">C세트</option>
             </optgroup>
             <optgroup label="단품 상품">
-              <option value="pork_rib">🥩 수제 돼지양념갈비</option>
-              <option value="beef_la">🥩 양념 LA갈비</option>
+              <option value="pork_rib">수제 돼지양념갈비</option>
+              <option value="beef_la">양념 LA갈비</option>
             </optgroup>
           </select>
         </div>

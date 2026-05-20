@@ -29,6 +29,26 @@ function escHtml(v){
   }[ch]));
 }
 
+const SINGLE_PRODUCT_IDS = ['pork_rib','beef_la','beef_soup'];
+
+function productFilterKey(c){
+  const raw = String(c?.productId || c?.set || '').trim();
+  if(['A','B','C'].includes(raw)) return raw;
+  const compact = raw.replace(/\s/g, '').toUpperCase();
+  if(compact.startsWith('A세트') || compact === 'ASET' || compact === 'A-SET') return 'A';
+  if(compact.startsWith('B세트') || compact === 'BSET' || compact === 'B-SET') return 'B';
+  if(compact.startsWith('C세트') || compact === 'CSET' || compact === 'C-SET') return 'C';
+  if(SINGLE_PRODUCT_IDS.includes(raw)) return 'single';
+  return raw ? 'single' : '';
+}
+
+function filterDeliveryByProduct(list, selector){
+  const checks = Array.from(document.querySelectorAll(selector));
+  const checkedVals = checks.filter(el => el.checked).map(el => el.value);
+  if(!checks.length || checkedVals.length === 0 || checkedVals.length === checks.length) return list;
+  return list.filter(c => checkedVals.includes(productFilterKey(c)));
+}
+
 function cancelLogTime(log){
   const raw = log.createdAt || '';
   const d = raw ? new Date(raw) : null;
@@ -276,7 +296,7 @@ function renderDash(){
 
   const dt=document.getElementById('dToday');
   dt.innerHTML=!courierList.length
-    ? dashEmptyRow(5, '📦', '택배 없음')
+    ? dashEmptyRow(5, '택', '택배 없음')
     : courierList.map(c=>dashDeliveryRow(c)).join('');
 
   const tmrDirectWrap = document.getElementById('dash-tomorrow-direct-wrap');
@@ -289,9 +309,9 @@ function renderDash(){
   if(tmrCourierLabel) tmrCourierLabel.style.display = (tmrDirectList.length || tmrCourierList.length) ? '' : 'none';
   const dl=document.getElementById('dLow');
   dl.innerHTML=!tmrList.length
-    ? dashEmptyRow(5, '📭', '내일 배송 없음')
+    ? dashEmptyRow(5, '-', '내일 배송 없음')
     : !tmrCourierList.length
-    ? dashEmptyRow(5, '📦', '내일 택배 없음')
+    ? dashEmptyRow(5, '택', '내일 택배 없음')
     : tmrCourierList.slice(0,8).map(c=>dashDeliveryRow(c)).join('');
 }
 
@@ -303,23 +323,13 @@ function renderToday(){
   const courierList= allList.filter(c => !c.isDirect);
 
   s('todayCnt', allList.length + '건');
-  s('courier-cnt', courierList.length + '건');
 
   // 직배송 섹션 표시/숨김
   const dirSec = document.getElementById('today-direct-section');
   if(dirSec) dirSec.style.display = directList.length ? '' : 'none';
 
   // ── 직배송 필터 적용 ──
-  const allDirectCks = document.querySelectorAll('.direct-filter-ck');
-  const checkedDirectVals = Array.from(allDirectCks).filter(el=>el.checked).map(el=>el.value);
-  const filteredDirect = checkedDirectVals.length === allDirectCks.length
-    ? directList
-    : directList.filter(c=>{
-        const prod = c.productId || c.set || '';
-        const isSingle = ['pork_rib','beef_la','beef_soup'].indexOf(prod) !== -1;
-        if(isSingle) return checkedDirectVals.indexOf('single') !== -1;
-        return checkedDirectVals.indexOf(prod) !== -1;
-      });
+  const filteredDirect = filterDeliveryByProduct(directList, '.direct-filter-ck');
 
   s('direct-cnt', filteredDirect.length + '건');
 
@@ -327,7 +337,7 @@ function renderToday(){
   const dtb = document.getElementById('directList');
   if(dtb){
     if(!filteredDirect.length){
-      dtb.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="ei">🚗</div><div>직배송 없음</div></div></td></tr>`;
+      dtb.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="ei empty-mark">직</div><div>직배송 없음</div></div></td></tr>`;
     } else {
       const isMobile = window.innerWidth <= 768;
       if(isMobile){
@@ -346,13 +356,13 @@ function renderToday(){
                   </div>
                   ${done
                     ? '<span class="badge b-ok">완료</span>'
-                    : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${c.id}','${ds}')">✓ 완료</button>`
+                    : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${c.id}','${ds}')">완료</button>`
                   }
                 </div>
-                <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">📞 ${c.phone}</div>
-                <div style="font-size:12px;color:#c020b0;cursor:pointer;margin-bottom:4px;" onclick="showAddrModal('${c.id}')">📍 ${c.addr}</div>
-                ${c.door ? `<div style="font-size:12px;color:var(--text3);">🔑 현관: ${c.door}</div>` : ''}
-                ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">💬 ${c.request}</div>` : ''}
+                <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">연락처 ${c.phone}</div>
+                <div style="font-size:12px;color:#c020b0;cursor:pointer;margin-bottom:4px;" onclick="showAddrModal('${c.id}')">주소 ${c.addr}</div>
+                ${c.door ? `<div style="font-size:12px;color:var(--text3);">현관: ${c.door}</div>` : ''}
+                ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">요청: ${c.request}</div>` : ''}
                 <div style="font-size:11px;color:var(--text3);margin-top:4px;">${scheduleDisp(c)}</div>
                 <div style="margin-top:6px;">${gauge(c)}</div>
               </div>
@@ -374,7 +384,7 @@ function renderToday(){
             <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
             <td>${gauge(c)}</td>
             <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
-            <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓</button>`}</td>
+            <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">완료</button>`}</td>
           </tr>`;
         }).join('');
       }
@@ -382,25 +392,14 @@ function renderToday(){
   }
 
   // ── 택배 필터 체크박스 적용 ──
-  const allFilterCks = document.querySelectorAll('.today-filter-ck');
-  const checkedVals = Array.from(allFilterCks).filter(el=>el.checked).map(el=>el.value);
-  const totalCks    = allFilterCks.length;
-  const SINGLE_PRODS = ['pork_rib','beef_la','beef_soup'];
-  const filteredCourier = checkedVals.length === totalCks
-    ? courierList  // 전체 체크 → 필터 없음
-    : courierList.filter(c=>{
-        const prod = c.productId || c.set || '';
-        const isSingle = SINGLE_PRODS.indexOf(prod) !== -1;
-        if(isSingle) return checkedVals.indexOf('single') !== -1;
-        // A,B,C 세트
-        return checkedVals.indexOf(prod) !== -1;
-      });
+  const filteredCourier = filterDeliveryByProduct(courierList, '.today-filter-ck');
+  s('courier-cnt', filteredCourier.length + '건');
 
   // ── 택배 테이블 ──
   const ctb = document.getElementById('courierList');
   if(ctb){
     ctb.innerHTML = !filteredCourier.length
-      ? `<tr><td colspan="13"><div class="empty"><div class="ei">📦</div><div>택배 없음</div></div></td></tr>`
+      ? `<tr><td colspan="13"><div class="empty"><div class="ei empty-mark">택</div><div>${courierList.length ? '필터에 맞는 택배 없음' : '택배 없음'}</div></div></td></tr>`
       : (window.innerWidth <= 768
           ? filteredCourier.map(c => {
               const done = (c.deliveredDates||[]).includes(ds);
@@ -416,13 +415,13 @@ function renderToday(){
                       </div>
                       ${done
                         ? '<span class="badge b-ok">완료</span>'
-                        : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${c.id}','${ds}')">✓ 완료</button>`
+                        : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${c.id}','${ds}')">완료</button>`
                       }
                     </div>
-                    <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">📞 ${c.phone}</div>
-                    <div style="font-size:12px;color:var(--accent);cursor:pointer;margin-bottom:4px;" onclick="showAddrModal('${c.id}')">📍 ${c.addr}</div>
-                    ${c.door ? `<div style="font-size:12px;color:var(--text3);">🔑 현관: ${c.door}</div>` : ''}
-                    ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">💬 ${c.request}</div>` : ''}
+                    <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">연락처 ${c.phone}</div>
+                    <div style="font-size:12px;color:var(--accent);cursor:pointer;margin-bottom:4px;" onclick="showAddrModal('${c.id}')">주소 ${c.addr}</div>
+                    ${c.door ? `<div style="font-size:12px;color:var(--text3);">현관: ${c.door}</div>` : ''}
+                    ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">요청: ${c.request}</div>` : ''}
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
                       <div style="font-size:11px;color:var(--text3);">${c.scheduleName||''}</div>
                       <div>${gauge(c)}</div>
@@ -443,9 +442,10 @@ function renderToday(){
                 <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||''}</td>
                 <td style="font-size:12px;">${c.door||'—'}</td>
                 <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
+                <td style="font-size:12px;font-weight:700;">${c.qty || c.total || 1}</td>
                 <td>${gauge(c)}</td>
                 <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
-                <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">✓</button>`}</td>
+                <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">완료</button>`}</td>
               </tr>`;
             }).join('')
         );
@@ -456,12 +456,7 @@ function renderToday(){
 function printCourierList(){
   const ds = document.getElementById('todayDate').value || todayStr();
   const list = listFor(ds).filter(c=>!c.isDirect);
-  const SINGLE_PRODS = ['pork_rib','beef_la','beef_soup'];
-  const checkedVals = Array.from(document.querySelectorAll('.today-filter-ck:checked')).map(el=>el.value);
-  const filtered = list.filter(c=>{
-    const prod = c.productId||c.set||'';
-    return SINGLE_PRODS.indexOf(prod)!==-1 ? checkedVals.indexOf('single')!==-1 : checkedVals.indexOf(prod)!==-1;
-  });
+  const filtered = filterDeliveryByProduct(list, '.today-filter-ck');
   if(!filtered.length){ toast('출력할 내용 없음','er'); return; }
 
   const rows = filtered.map((c,i)=>`
@@ -488,7 +483,7 @@ function printCourierList(){
       @media print{button{display:none;}}
     </style></head>
     <body>
-    <h2>📦 택배 배송목록 · ${ds}</h2>
+    <h2>택배 배송목록 · ${ds}</h2>
     <button onclick="window.print()" style="margin-bottom:12px;padding:6px 16px;background:#1a6b3c;color:#fff;border:none;border-radius:6px;cursor:pointer;">🖨 인쇄</button>
     <table>
       <thead><tr><th>#</th><th>이름</th><th>연락처</th><th>주소</th><th>현관번호</th><th>세트</th><th>배송일정</th><th>요청사항</th></tr></thead>
@@ -502,12 +497,7 @@ function printCourierList(){
 function printDirectList(){
   const ds = document.getElementById('todayDate').value || todayStr();
   const list = listFor(ds).filter(c=>c.isDirect);
-  const checkedVals = Array.from(document.querySelectorAll('.direct-filter-ck:checked')).map(el=>el.value);
-  const SINGLE_PRODS = ['pork_rib','beef_la','beef_soup'];
-  const filtered = list.filter(c=>{
-    const prod = c.productId||c.set||'';
-    return SINGLE_PRODS.indexOf(prod)!==-1 ? checkedVals.indexOf('single')!==-1 : checkedVals.indexOf(prod)!==-1;
-  });
+  const filtered = filterDeliveryByProduct(list, '.direct-filter-ck');
   if(!filtered.length){ toast('출력할 내용 없음','er'); return; }
 
   const rows = filtered.map((c,i)=>`
@@ -547,22 +537,12 @@ function printDirectList(){
 // 직배송 전체 완료
 function filteredDirectPrintList(ds){
   const list = listFor(ds).filter(c=>c.isDirect);
-  const checkedVals = Array.from(document.querySelectorAll('.direct-filter-ck:checked')).map(el=>el.value);
-  const SINGLE_PRODS = ['pork_rib','beef_la','beef_soup'];
-  return list.filter(c=>{
-    const prod = c.productId||c.set||'';
-    return SINGLE_PRODS.indexOf(prod)!==-1 ? checkedVals.indexOf('single')!==-1 : checkedVals.indexOf(prod)!==-1;
-  });
+  return filterDeliveryByProduct(list, '.direct-filter-ck');
 }
 
 function filteredCourierPrintList(ds){
   const list = listFor(ds).filter(c=>!c.isDirect);
-  const checkedVals = Array.from(document.querySelectorAll('.today-filter-ck:checked')).map(el=>el.value);
-  const SINGLE_PRODS = ['pork_rib','beef_la','beef_soup'];
-  return list.filter(c=>{
-    const prod = c.productId||c.set||'';
-    return SINGLE_PRODS.indexOf(prod)!==-1 ? checkedVals.indexOf('single')!==-1 : checkedVals.indexOf(prod)!==-1;
-  });
+  return filterDeliveryByProduct(list, '.today-filter-ck');
 }
 
 function deliveryPrintRows(list){
@@ -701,7 +681,7 @@ function renderCust(){
             </div>
             <span class="badge b-${c.status}">${statusLabel(c)}</span>
           </div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:3px;">📞 ${c.phone}</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:3px;">연락처 ${c.phone}</div>
           <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">${scheduleDisp(c)}</div>
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div>${gauge(c)}</div>
@@ -774,7 +754,7 @@ function showDet(id){
         <div class="dpr"><div class="dpl">현관번호</div><div class="dpv">${c.door||'—'}</div></div>
         <div class="dpr"><div class="dpl">요청사항</div><div class="dpv" style="font-size:12px;">${c.request||'—'}</div></div>
         <div class="dpr"><div class="dpl">배송일정</div><div class="dpv" style="font-size:12px;">${c.scheduleName||'—'}</div></div>
-        <div class="dpr"><div class="dpl">배송 방식</div><div class="dpv">${c.isDirect?'<span class="badge b-direct">🚗 직배송</span>':'<span style="font-size:12px;">📦 택배</span>'}</div></div>
+        <div class="dpr"><div class="dpl">배송 방식</div><div class="dpv">${c.isDirect?'<span class="badge b-direct">직배송</span>':'<span style="font-size:12px;">택배</span>'}</div></div>
         ${c.orderNum?`<div class="dpr"><div class="dpl">주문번호</div><div class="dpv" style="font-size:12px;font-family:monospace;">${c.orderNum}</div></div>`:''}
         ${c.qty&&c.qty>1?`<div class="dpr"><div class="dpl">수량</div><div class="dpv" style="font-weight:700;color:var(--accent);">${c.qty}개</div></div>`:''}
         ${c.onceDate?`<div class="dpr"><div class="dpl">배송예정일</div><div class="dpv">${c.onceDate}</div></div>`:''}
@@ -792,15 +772,15 @@ function showDet(id){
           <div style="margin-top:4px;">
             ${(c.deliveredDates||[]).slice(-5).reverse().map(d=>`
               <div class="dhi" style="display:flex;align-items:center;justify-content:space-between;">
-                <span>✓ ${d}</span>
+                <span>${d}</span>
                 <button onclick="undoMarkDone('${c.id}','${d}')" style="border:none;background:none;color:var(--danger);cursor:pointer;font-size:11px;padding:0 2px;" title="취소">↩</button>
               </div>`).join('')||'<div style="font-size:12px;color:var(--text3);">이력 없음</div>'}
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
           <button class="btn btn-p" style="font-size:12px;" onclick="openEdit('${c.id}')">✏ 수정</button>
-          <button class="btn btn-s" style="font-size:12px;" onclick="markDone('${c.id}')">✓ 배송완료</button>
-          <button class="btn btn-g" style="font-size:12px;grid-column:1/-1;" onclick="copyLozen('${c.id}')">🚚 로젠택배 복사</button>
+          <button class="btn btn-s" style="font-size:12px;" onclick="markDone('${c.id}')">배송완료</button>
+          <button class="btn btn-g" style="font-size:12px;grid-column:1/-1;" onclick="copyLozen('${c.id}')">로젠택배 복사</button>
           ${c.orderType==='sub'?`
           <button class="btn btn-g" style="font-size:12px;" onclick="togglePause('${c.id}')">${c.status==='pause'?'▶ 재개':'⏸ 일시정지'}</button>
           <button class="btn" style="font-size:12px;background:rgba(3,102,214,.1);color:#0366d6;border-color:rgba(3,102,214,.3);" onclick="chargeRemain('${c.id}')">＋ 횟수 충전</button>
@@ -1229,6 +1209,7 @@ function customerGroupOrderSummary(c, idx){
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;">
           <button class="btn btn-p sm" onclick="openEdit('${customerJsArg(c.id)}')">수정</button>
+          <button class="btn btn-g sm" onclick="copyOrder('${customerJsArg(c.id)}')">주문 복사</button>
           <button class="btn btn-s sm" onclick="markDone('${customerJsArg(c.id)}')">배송완료</button>
           <button class="btn btn-g sm" style="grid-column:1/-1;" onclick="copyLozen('${customerJsArg(c.id)}')">택배 복사</button>
           ${c.orderType === 'sub'
