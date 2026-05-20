@@ -34,6 +34,11 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .form-label{display:block;font-size:13px;font-weight:600;color:var(--sub);margin-bottom:6px}
 .form-input{width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;outline:none;margin-bottom:14px;background:#fafafa}
 .form-input:focus{border-color:var(--primary);background:#fff}
+.meal-time-picker{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
+.meal-time-picker .form-input{margin-bottom:0}
+.meal-time-picker select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--primary) 50%),linear-gradient(135deg,var(--primary) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 12px) 50%;background-size:6px 6px,6px 6px;background-repeat:no-repeat;padding-right:34px}
+.meal-time-hidden{display:none}
+.default-hint{font-size:12px;color:var(--sub);margin:-2px 0 14px;line-height:1.5}
 .auth-btn{width:100%;background:var(--primary);color:#fff;border:0;border-radius:10px;padding:14px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer}
 .error-msg{color:var(--err);font-size:13px;margin-top:10px;display:none}
 .error-msg.show{display:block}
@@ -998,7 +1003,12 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <label class="form-label">배송지</label>
     <input class="form-input" type="text" id="edit-place" placeholder="배송지 또는 주소">
     <label class="form-label">식사 받는 시간</label>
-    <input class="form-input" type="time" id="edit-mealtime" placeholder="예) 12:00">
+    <input class="meal-time-hidden" type="hidden" id="edit-mealtime">
+    <div class="meal-time-picker">
+      <select class="form-input" id="edit-mealtime-hour" onchange="syncMealTime('edit')"></select>
+      <select class="form-input" id="edit-mealtime-minute" onchange="syncMealTime('edit')"></select>
+    </div>
+    <div class="default-hint">오전 10시 30분부터 오후 12시 30분까지 선택할 수 있습니다. 식사받는시간은 업체 사정에 따라 조율이 될 수 있습니다.</div>
     <div style="display:flex;gap:10px">
       <div style="flex:1">
         <label class="form-label">매일 도시락 수</label>
@@ -1286,6 +1296,11 @@ const SUPPLIER_INFO = {
 };
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
+const MEAL_TIME_OPTIONS = [
+  '10:30','10:40','10:50',
+  '11:00','11:10','11:20','11:30','11:40','11:50',
+  '12:00','12:10','12:20','12:30'
+];
 let customHolidays = {};
 const KOREA_HOLIDAYS = {
   '2026-01-01': '신정',
@@ -1583,6 +1598,63 @@ function defaultMealsForDate(user, dStr) {
 }
 function hasDifferentWeekdayMeals(meals, lunch, salad) {
   return WEEKDAY_KEYS.some(key => (meals[key]?.lunch ?? lunch) !== lunch || (meals[key]?.salad ?? salad) !== salad);
+}
+function formatMealHourLabel(hour) {
+  return `${Number(hour) < 12 ? '오전' : '오후'} ${Number(hour)}시`;
+}
+function populateMealTimeControls(scope) {
+  const hour = document.getElementById(`${scope}-mealtime-hour`);
+  const minute = document.getElementById(`${scope}-mealtime-minute`);
+  if (!hour || !minute || hour.options.length) return;
+  const hours = [...new Set(MEAL_TIME_OPTIONS.map(time => time.slice(0, 2)))];
+  hour.innerHTML = '<option value="">시 선택</option>' + hours
+    .map(value => `<option value="${value}">${formatMealHourLabel(value)}</option>`)
+    .join('');
+  updateMealTimeMinuteOptions(scope);
+}
+function updateMealTimeMinuteOptions(scope, preferredMinute = '') {
+  const hour = document.getElementById(`${scope}-mealtime-hour`)?.value || '';
+  const minute = document.getElementById(`${scope}-mealtime-minute`);
+  if (!minute) return;
+  const minutes = MEAL_TIME_OPTIONS
+    .filter(time => time.startsWith(`${hour}:`))
+    .map(time => time.slice(3));
+  minute.innerHTML = '<option value="">분 선택</option>' + minutes
+    .map(value => `<option value="${value}">${value}분</option>`)
+    .join('');
+  minute.value = minutes.includes(preferredMinute) ? preferredMinute : '';
+}
+function syncMealTime(scope) {
+  const hidden = document.getElementById(`${scope}-mealtime`);
+  const hour = document.getElementById(`${scope}-mealtime-hour`)?.value || '';
+  const minuteSelect = document.getElementById(`${scope}-mealtime-minute`);
+  const selectedMinute = minuteSelect?.value || '';
+  updateMealTimeMinuteOptions(scope, selectedMinute);
+  const minute = minuteSelect?.value || '';
+  if (!hidden) return;
+  hidden.value = hour && minute ? `${hour}:${minute}` : '';
+}
+function setMealTimeControls(scope, value) {
+  populateMealTimeControls(scope);
+  const match = String(value || '').match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  const hour = document.getElementById(`${scope}-mealtime-hour`);
+  if (hour) hour.value = match ? match[1] : '';
+  updateMealTimeMinuteOptions(scope, match ? match[2] : '');
+  const hidden = document.getElementById(`${scope}-mealtime`);
+  if (hidden) hidden.value = match && MEAL_TIME_OPTIONS.includes(value) ? value : '';
+}
+function getMealTimeValue(scope) {
+  const value = document.getElementById(`${scope}-mealtime`)?.value?.trim() || '';
+  const selectedHour = document.getElementById(`${scope}-mealtime-hour`)?.value || '';
+  const selectedMinute = document.getElementById(`${scope}-mealtime-minute`)?.value || '';
+  const match = value.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  if ((selectedHour || selectedMinute) && !(selectedHour && selectedMinute)) {
+    return { value: '', valid: false };
+  }
+  return {
+    value,
+    valid: !value || (!!match && MEAL_TIME_OPTIONS.includes(value))
+  };
 }
 function fillWeekdayInputs(scope, meals) {
   WEEKDAY_KEYS.forEach(key => {
@@ -2469,7 +2541,7 @@ function openMemberEdit(uid) {
   document.getElementById('edit-bizname').value = u.businessName || '';
   document.getElementById('edit-phone').value = u.phone || '';
   document.getElementById('edit-place').value = u.deliveryPlace || u.address || '';
-  document.getElementById('edit-mealtime').value = u.mealTime || '';
+  setMealTimeControls('edit', u.mealTime || '');
   document.getElementById('edit-lunch').value = u.defaultLunch ?? 2;
   document.getElementById('edit-salad').value = u.defaultSalad ?? 0;
   const meals = normalizeWeekdayMeals(u, u.defaultLunch ?? 2, u.defaultSalad ?? 0);
@@ -2812,12 +2884,19 @@ async function saveMember() {
   const salad = parseInt(document.getElementById('edit-salad').value) || 0;
   const sameDailyMeal = document.getElementById('edit-same-daily').checked;
   const weekdayMeals = readWeekdayMeals('edit', lunch, salad);
-  const mealTime = document.getElementById('edit-mealtime').value.trim();
+  const mealTimeInfo = getMealTimeValue('edit');
+  const mealTime = mealTimeInfo.value;
   const lunchPrice = parseInt(document.getElementById('edit-lunch-price').value, 10) || 0;
   const saladPrice = parseInt(document.getElementById('edit-salad-price').value, 10) || 0;
   if (!bizname) {
     const errEl = document.getElementById('edit-error');
     errEl.textContent = '업체명을 입력해주세요.';
+    errEl.classList.add('show');
+    return;
+  }
+  if (!mealTimeInfo.valid) {
+    const errEl = document.getElementById('edit-error');
+    errEl.textContent = '식사 받는 시간은 오전 10시 30분부터 오후 12시 30분까지 선택해주세요.';
     errEl.classList.add('show');
     return;
   }
