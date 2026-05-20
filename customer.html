@@ -39,7 +39,20 @@
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
-  auth.setPersistence('local').catch(()=>{});
+  const AUTO_LOGIN_STORAGE_KEY = 'gjsuragan:autoLogin';
+  function getAutoLoginEnabled() {
+    try {
+      return localStorage.getItem(AUTO_LOGIN_STORAGE_KEY) !== 'off';
+    } catch(e) {
+      return true;
+    }
+  }
+  function setAutoLoginEnabled(enabled) {
+    try {
+      localStorage.setItem(AUTO_LOGIN_STORAGE_KEY, enabled ? 'on' : 'off');
+    } catch(e) {}
+  }
+  auth.setPersistence(getAutoLoginEnabled() ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION).catch(()=>{});
 </script>
 <!-- ===================================================== -->
 
@@ -736,6 +749,42 @@
   }
   .auth-submit:hover { background: var(--primary-light); }
 
+  .auto-login-option {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0 4px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: #FFFDF9;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .auto-login-option input {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    accent-color: var(--primary);
+  }
+  .auto-login-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.35;
+  }
+  .auto-login-copy strong {
+    font-size: 16px;
+    color: var(--text);
+    font-weight: 800;
+  }
+  .auto-login-copy span {
+    font-size: 12px;
+    color: var(--text-sub);
+    font-weight: 600;
+  }
+
   .auth-toggle {
     text-align: center;
     margin-top: 16px;
@@ -1067,6 +1116,13 @@
       <label class="form-label">비밀번호</label>
       <input class="form-input" type="password" id="login-pw" placeholder="비밀번호 입력">
     </div>
+    <label class="auto-login-option" for="login-auto">
+      <input type="checkbox" id="login-auto">
+      <span class="auto-login-copy">
+        <strong>자동 로그인</strong>
+        <span>다음에도 이 기기에서 바로 로그인합니다</span>
+      </span>
+    </label>
     <div class="error-msg" id="login-error"></div>
     <button class="auth-submit" onclick="doLogin()">로그인</button>
     <div class="auth-toggle">
@@ -1523,6 +1579,11 @@ window.addEventListener('beforeinstallprompt', (e) => {
 window.addEventListener('DOMContentLoaded', () => {
   setMealTimeControls('reg', '');
   setMealTimeControls('prof', '');
+  const autoLoginEl = document.getElementById('login-auto');
+  if (autoLoginEl) {
+    autoLoginEl.checked = getAutoLoginEnabled();
+    autoLoginEl.addEventListener('change', () => setAutoLoginEnabled(autoLoginEl.checked));
+  }
 });
 
 function showInstallBanner() {
@@ -1946,9 +2007,12 @@ async function loadUserProfile() {
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pw = document.getElementById('login-pw').value;
+  const autoLogin = document.getElementById('login-auto')?.checked !== false;
   const btn = document.querySelector('#login-form .auth-submit');
   if (btn) { btn.disabled = true; btn.textContent = '로그인 중…'; }
   try {
+    setAutoLoginEnabled(autoLogin);
+    await auth.setPersistence(autoLogin ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION);
     await auth.signInWithEmailAndPassword(email, pw);
   } catch(e) {
     console.error('로그인 오류:', e.code, e.message);
