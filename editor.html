@@ -153,6 +153,8 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 .ai-modal-days label{display:flex;justify-content:center;gap:4px;align-items:center;border:1px solid #E5E7EB;border-radius:8px;padding:8px 4px;background:#fff;font-size:12px;font-weight:800;}
 .ai-modal-days input{accent-color:#EA580C;}
 .ai-modal-key{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:12px;margin-bottom:12px;}
+.ai-key-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.ai-key-actions a{text-decoration:none;text-align:center;}
 @media(max-width:768px){.ai-check-grid{grid-template-columns:repeat(3,1fr);}.ai-result-actions,.ai-simple-actions,.ai-create-grid,.ai-choice-grid{grid-template-columns:1fr;}.ai-table{min-width:680px;}.ai-start-visual{grid-template-columns:1fr;text-align:center;}.ai-bowl-illust{margin:0 auto;}.ai-modal-days{grid-template-columns:repeat(3,1fr);}}
 
 #preview-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;}
@@ -595,6 +597,10 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
       <div class="ai-modal-key">
         <div class="mf" style="margin-bottom:0;"><label>AI 연결 키</label><input type="password" id="ai-modal-key" placeholder="Gemini API 키"></div>
         <div class="mini-help" style="margin:8px 0 0;">처음 한 번만 입력하면 이 기기에 저장됩니다. 가져오기 탭의 Gemini API 키와 함께 사용합니다.</div>
+        <div class="ai-key-actions">
+          <button class="btn-sec" type="button" onclick="loadGeminiKeyIntoAiModal()">저장된 키 불러오기</button>
+          <a class="btn-sec" href="https://aistudio.google.com/app/apikey" target="_blank">API 키 발급받기</a>
+        </div>
       </div>
 
       <div class="ai-create-step">
@@ -3309,6 +3315,11 @@ function setAiCreateTarget(target){
 }
 function getAiCreateTarget(){
   return document.querySelector('[data-ai-target].on')?.dataset.aiTarget || 'both';
+}
+function loadGeminiKeyIntoAiModal(){
+  const key = localStorage.getItem('ksura_gkey') || document.getElementById('gemini-key')?.value || document.getElementById('ai-gemini-key')?.value || '';
+  setInputValue('ai-modal-key', key);
+  toast(key ? '저장된 Gemini API 키를 불러왔습니다 ✓' : '저장된 Gemini API 키가 없습니다');
 }
 function setInputValue(id, value){
   const el = document.getElementById(id);
