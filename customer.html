@@ -1096,7 +1096,7 @@
         <select class="form-input" id="reg-mealtime-hour" onchange="syncMealTime('reg')"></select>
         <select class="form-input" id="reg-mealtime-minute" onchange="syncMealTime('reg')"></select>
       </div>
-      <div class="default-hint">10분 단위로 선택해주세요. 식사받는시간은 업체 사정에 따라 조율이 될 수 있습니다.</div>
+      <div class="default-hint">오전 10시 30분부터 오후 12시 30분까지 선택할 수 있습니다. 식사받는시간은 업체 사정에 따라 조율이 될 수 있습니다.</div>
     </div>
     <div class="form-group">
       <label class="form-label">비밀번호 <span style="color:red">*</span></label>
@@ -1303,7 +1303,7 @@
           <select class="form-input" id="prof-mealtime-hour" onchange="syncMealTime('prof')"></select>
           <select class="form-input" id="prof-mealtime-minute" onchange="syncMealTime('prof')"></select>
         </div>
-        <div class="default-hint">10분 단위로 선택해주세요. 식사받는시간은 업체 사정에 따라 조율이 될 수 있습니다.</div>
+        <div class="default-hint">오전 10시 30분부터 오후 12시 30분까지 선택할 수 있습니다. 식사받는시간은 업체 사정에 따라 조율이 될 수 있습니다.</div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -1557,25 +1557,46 @@ const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
 let customHolidays = {};
 let orderDeadline = { hour: 9, minute: 20 };
+const MEAL_TIME_OPTIONS = [
+  '10:30','10:40','10:50',
+  '11:00','11:10','11:20','11:30','11:40','11:50',
+  '12:00','12:10','12:20','12:30'
+];
 function iconSvg(name, className = 'gj-icon') {
   return `<svg class="${className}" aria-hidden="true"><use href="#gj-${name}"></use></svg>`;
+}
+function formatMealHourLabel(hour) {
+  return `${Number(hour) < 12 ? '오전' : '오후'} ${Number(hour)}시`;
 }
 function populateMealTimeControls(scope) {
   const hour = document.getElementById(`${scope}-mealtime-hour`);
   const minute = document.getElementById(`${scope}-mealtime-minute`);
   if (!hour || !minute || hour.options.length) return;
-  hour.innerHTML = '<option value="">시 선택</option>' + Array.from({ length: 24 }, (_, i) => {
-    const value = String(i).padStart(2, '0');
-    return `<option value="${value}">${value}시</option>`;
-  }).join('');
-  minute.innerHTML = '<option value="">분 선택</option>' + ['00','10','20','30','40','50']
+  const hours = [...new Set(MEAL_TIME_OPTIONS.map(time => time.slice(0, 2)))];
+  hour.innerHTML = '<option value="">시 선택</option>' + hours
+    .map(value => `<option value="${value}">${formatMealHourLabel(value)}</option>`)
+    .join('');
+  updateMealTimeMinuteOptions(scope);
+}
+function updateMealTimeMinuteOptions(scope, preferredMinute = '') {
+  const hour = document.getElementById(`${scope}-mealtime-hour`)?.value || '';
+  const minute = document.getElementById(`${scope}-mealtime-minute`);
+  if (!minute) return;
+  const minutes = MEAL_TIME_OPTIONS
+    .filter(time => time.startsWith(`${hour}:`))
+    .map(time => time.slice(3));
+  minute.innerHTML = '<option value="">분 선택</option>' + minutes
     .map(value => `<option value="${value}">${value}분</option>`)
     .join('');
+  minute.value = minutes.includes(preferredMinute) ? preferredMinute : '';
 }
 function syncMealTime(scope) {
   const hidden = document.getElementById(`${scope}-mealtime`);
   const hour = document.getElementById(`${scope}-mealtime-hour`)?.value || '';
-  const minute = document.getElementById(`${scope}-mealtime-minute`)?.value || '';
+  const minuteSelect = document.getElementById(`${scope}-mealtime-minute`);
+  const selectedMinute = minuteSelect?.value || '';
+  updateMealTimeMinuteOptions(scope, selectedMinute);
+  const minute = minuteSelect?.value || '';
   if (!hidden) return;
   hidden.value = hour && minute ? `${hour}:${minute}` : '';
 }
@@ -1583,10 +1604,10 @@ function setMealTimeControls(scope, value) {
   populateMealTimeControls(scope);
   const match = String(value || '').match(/^([01]\d|2[0-3]):([0-5]\d)$/);
   const hour = document.getElementById(`${scope}-mealtime-hour`);
-  const minute = document.getElementById(`${scope}-mealtime-minute`);
   if (hour) hour.value = match ? match[1] : '';
-  if (minute) minute.value = match && Number(match[2]) % 10 === 0 ? match[2] : '';
-  syncMealTime(scope);
+  updateMealTimeMinuteOptions(scope, match ? match[2] : '');
+  const hidden = document.getElementById(`${scope}-mealtime`);
+  if (hidden) hidden.value = match && MEAL_TIME_OPTIONS.includes(value) ? value : '';
 }
 function getTenMinuteTimeValue(inputId) {
   const value = document.getElementById(inputId)?.value?.trim() || '';
@@ -1599,7 +1620,7 @@ function getTenMinuteTimeValue(inputId) {
   }
   return {
     value,
-    valid: !value || (!!match && Number(match[2]) % 10 === 0)
+    valid: !value || (!!match && MEAL_TIME_OPTIONS.includes(value))
   };
 }
 const KOREA_HOLIDAYS = {
@@ -1955,7 +1976,7 @@ async function doRegister() {
     showError('reg-error', '비밀번호는 6자리 이상이어야 합니다.'); return;
   }
   if (!mealTimeInfo.valid) {
-    showError('reg-error', '식사 받는 시간은 10분 단위로 선택해주세요. 예: 12:00, 12:10'); return;
+    showError('reg-error', '식사 받는 시간은 오전 10시 30분부터 오후 12시 30분까지 선택해주세요.'); return;
   }
   let cred = null;
   try {
@@ -2587,7 +2608,7 @@ async function saveProfile() {
   const sameDailyMeal = document.getElementById('prof-same-daily').checked;
   const weekdayMeals = readWeekdayMeals('prof', lunch, salad);
   if (!bizname) { showToast('업체명을 입력해주세요.', 'error'); return; }
-  if (!mealTimeInfo.valid) { showToast('식사 받는 시간은 10분 단위로 선택해주세요. 예: 12:00, 12:10', 'error'); return; }
+  if (!mealTimeInfo.valid) { showToast('식사 받는 시간은 오전 10시 30분부터 오후 12시 30분까지 선택해주세요.', 'error'); return; }
   try {
     await db.collection('users').doc(currentUser.uid).update({
       businessName: bizname, phone, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals
