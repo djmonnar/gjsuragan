@@ -281,6 +281,17 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 .ksura-ai-preview-table th{background:#FFF7ED;color:#9A3412;font-weight:800;border-bottom:1px solid #FED7AA;padding:9px 10px;text-align:left;white-space:nowrap;}
 .ksura-ai-preview-table td{border-bottom:1px solid #F3F4F6;padding:8px 10px;vertical-align:top;line-height:1.45;}
 .ksura-ai-preview-table tr:last-child td{border-bottom:none;}
+.ksura-ai-card-grid{margin-top:10px;}
+.ksura-ai-card-grid .ksura-card{min-height:300px;}
+.ksura-ai-card-grid .ksura-ai-input{min-width:0;background:#FFFEFC;}
+.ksura-ai-card-grid .ksura-date .ksura-ai-input{font-family:'Gowun Batang',serif;font-size:17px;font-weight:bold;padding:4px 6px;}
+.ksura-ai-card-grid .ksura-badge .ksura-ai-input{font-size:11px;padding:3px 6px;color:#C2410C;}
+.ksura-ai-field{display:flex;align-items:flex-start;gap:6px;width:100%;}
+.ksura-ai-field.stack{flex-direction:column;gap:5px;}
+.ksura-ai-field-label{font-family:'Pretendard',system-ui,sans-serif;font-size:10px;font-weight:900;color:#A16207;text-transform:uppercase;letter-spacing:.3px;}
+.ksura-ai-card-grid .ksura-sides{gap:5px;}
+.ksura-ai-price{font-family:'Pretendard',system-ui,sans-serif;font-size:12px;color:#9CA3AF;margin-top:10px;}
+.ksura-ai-product-note{font-family:'Pretendard',system-ui,sans-serif;font-size:11px;color:#9A3412;line-height:1.55;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:9px 10px;margin-top:12px;}
 .ksura-ai-side-list{display:flex;flex-direction:column;gap:3px;min-width:120px;}
 .ksura-ai-note{background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:12px 14px;font-family:'Pretendard',system-ui,sans-serif;font-size:12px;line-height:1.65;color:#9A3412;margin-bottom:14px;}
 .ksura-ai-empty{background:#fff;border:1px dashed #FDBA74;border-radius:14px;padding:24px;text-align:center;font-family:'Pretendard',system-ui,sans-serif;color:#9A3412;line-height:1.7;}
@@ -2202,6 +2213,67 @@ function aiEditInput(type, idx, field, value, sideIdx){
   const sideAttr = Number.isFinite(sideIdx) ? ' data-side="' + sideIdx + '"' : '';
   return '<input class="ksura-ai-input" data-ai-edit="' + type + '" data-index="' + idx + '" data-field="' + field + '"' + sideAttr + ' value="' + escapeAttr(value || '') + '">';
 }
+function renderAiBanchanCard(entry, idx){
+  return `<div class="ksura-card">
+    <div class="ksura-card-head">
+      <span class="ksura-date">${aiEditInput('banchan', idx, 'date', entry.date)}</span>
+      <div class="ksura-badge">${IC.truck} ${aiEditInput('banchan', idx, 'arrival', entry.arrival || '')} 도착</div>
+    </div>
+    <div class="ksura-card-body">
+      <div>
+        <div class="ksura-main">${IC.main}<span>${aiEditInput('banchan', idx, 'main', entry.main || '')}</span></div>
+        <div class="ksura-menu-list">
+          <div class="ksura-menu-item">${IC.soup}<div class="ksura-soup">${aiEditInput('banchan', idx, 'soup', entry.soup || '')}</div></div>
+          <div class="ksura-menu-item">${IC.dot}<div class="ksura-sides">${[0,1,2,3].map(i=>aiEditInput('banchan', idx, 'sides', (entry.sides || [])[i] || '', i)).join('')}</div></div>
+        </div>
+        <div class="ksura-ai-product-note">39,000원: 국+반찬4+메인+샐러드<br>32,900원: 국+반찬4+메인<br>25,900원: 반찬4+메인</div>
+      </div>
+      <div class="ksura-salad">${IC.leaf}<span>${aiEditInput('banchan', idx, 'salad', entry.salad || '')}</span></div>
+    </div>
+  </div>`;
+}
+function renderAiLunchCard(entry, idx, salad){
+  return `<div class="ksura-card">
+    <div class="ksura-card-head">
+      <span class="ksura-date">${aiEditInput('lunch', idx, 'date', entry.date)}</span>
+      <div class="ksura-badge">${aiEditInput('lunch', idx, 'weekday', entry.weekday || '')}</div>
+    </div>
+    <div class="ksura-card-body">
+      <div>
+        <div class="ksura-main">${IC.main}<span>${aiEditInput('lunch', idx, 'main', entry.main || '')}</span></div>
+        <div class="ksura-menu-list">
+          <div class="ksura-menu-item"><span class="ai-tag">밥</span><div class="ksura-soup">${aiEditInput('lunch', idx, 'rice', entry.rice || '')}</div></div>
+          <div class="ksura-menu-item">${IC.soup}<div class="ksura-soup">${aiEditInput('lunch', idx, 'soup', entry.soup || '')}</div></div>
+          <div class="ksura-menu-item"><span class="ai-tag">사이드</span><div class="ksura-soup">${aiEditInput('lunch', idx, 'subMain', entry.subMain || '')}</div></div>
+          <div class="ksura-menu-item">${IC.dot}<div class="ksura-sides">${[0,1,2,3].map(i=>aiEditInput('lunch', idx, 'sides', (entry.sides || [])[i] || '', i)).join('')}</div></div>
+        </div>
+        <div class="ksura-ai-price">가격 ${aiEditInput('lunch', idx, 'price', entry.price || 8000)}원</div>
+      </div>
+      <div class="ksura-salad">${IC.leaf}<span>${aiEditInput('salad', idx, 'salad', salad || '')}</span></div>
+    </div>
+  </div>`;
+}
+function renderAiCalendarGrid(entries, year, month, cardRenderer){
+  const parsed = [];
+  const unparsed = [];
+  (entries || []).forEach((entry, idx)=>{
+    const p = parseDateParts(entry.date, entry.year || year, entry.month || month);
+    if(p) parsed.push({entry, idx, parsed:p});
+    else unparsed.push({entry, idx});
+  });
+  const byDate = new Map(parsed.map(item=>[getDateKey(item.parsed.date), item]));
+  const first = new Date(year, month - 1, 1);
+  const last = new Date(year, month, 0);
+  let html = '';
+  for(let d=1; d<=last.getDate(); d++){
+    const cursor = new Date(year, month - 1, d);
+    if(!isWeekdayDate(cursor)) continue;
+    const item = byDate.get(getDateKey(cursor));
+    html += item ? cardRenderer(item.entry, item.idx) : (isBusinessClosedDate(cursor) ? buildHolidayCard(cursor) : '<div class="ksura-dummy"></div>');
+  }
+  html += unparsed.map(item=>cardRenderer(item.entry, item.idx)).join('');
+  return html || '<div class="ksura-ai-empty">표시할 결과가 없습니다.</div>';
+}
 function renderAiMonthlyPreview(){
   setPreviewTitle('AI 생성 미리보기');
   const area = document.getElementById('ksura-render-area');
@@ -2220,30 +2292,14 @@ function renderAiMonthlyPreview(){
   const banchanEntries = raw.banchanDeliveryEntries || [];
   const lunchboxEntries = cache.lunchboxEntries || [];
   const saladByDate = getSaladByDate(cache.saladLunchboxEntries || []);
-  const lunchRows = lunchboxEntries.map((entry, idx)=>`
-    <tr>
-      <td>${aiEditInput('lunch', idx, 'date', entry.date)}</td>
-      <td>${aiEditInput('lunch', idx, 'weekday', entry.weekday)}</td>
-      <td>${aiEditInput('lunch', idx, 'rice', entry.rice)}</td>
-      <td>${aiEditInput('lunch', idx, 'soup', entry.soup)}</td>
-      <td>${aiEditInput('lunch', idx, 'main', entry.main)}</td>
-      <td>${aiEditInput('lunch', idx, 'subMain', entry.subMain || '')}</td>
-      <td><div class="ksura-ai-side-list">${[0,1,2,3].map(i=>aiEditInput('lunch', idx, 'sides', (entry.sides || [])[i] || '', i)).join('')}</div></td>
-      <td>${aiEditInput('salad', idx, 'salad', saladByDate.get(entry.date) || '')}</td>
-      <td>${aiEditInput('lunch', idx, 'price', entry.price || 8000)}</td>
-      <td>${renderPreviewTags(entry)}</td>
-    </tr>`).join('');
-  const banchanRows = banchanEntries.map((entry, idx)=>`
-    <tr>
-      <td>${aiEditInput('banchan', idx, 'date', entry.date)}</td>
-      <td>${aiEditInput('banchan', idx, 'arrival', entry.arrival || '')}</td>
-      <td>${aiEditInput('banchan', idx, 'main', entry.main || '')}</td>
-      <td>${aiEditInput('banchan', idx, 'soup', entry.soup || '')}</td>
-      <td><div class="ksura-ai-side-list">${[0,1,2,3].map(i=>aiEditInput('banchan', idx, 'sides', (entry.sides || [])[i] || '', i)).join('')}</div></td>
-      <td>${aiEditInput('banchan', idx, 'salad', entry.salad || '')}</td>
-      <td>${renderPreviewTags(entry)}</td>
-      <td>39,000원: 국+반찬4+메인+샐러드<br>32,900원: 국+반찬4+메인<br>25,900원: 반찬4+메인</td>
-    </tr>`).join('');
+  const lunchCards = renderAiCalendarGrid(lunchboxEntries, cache.year, cache.month, (entry, idx)=>renderAiLunchCard(entry, idx, saladByDate.get(entry.date) || ''));
+  const banchanCards = renderAiCalendarGrid(banchanEntries, cache.year, cache.month, renderAiBanchanCard);
+  const lunchSection = lunchboxEntries.length ? `
+      <div class="section-title">${IC.main} 월식도시락 + 샐러드도시락</div>
+      <div class="ksura-grid ksura-ai-card-grid">${lunchCards}</div>` : '';
+  const banchanSection = banchanEntries.length ? `
+      <div class="section-title">${IC.truck} 반찬배송 식단표</div>
+      <div class="ksura-grid ksura-ai-card-grid">${banchanCards}</div>` : '';
 
   area.innerHTML = `
     <div class="ksura-ai-preview">
@@ -2254,22 +2310,8 @@ function renderAiMonthlyPreview(){
         샐러드도시락은 별도 표로 분리하지 않고 월식도시락의 샐러드 칸에 함께 표시했습니다.
         반찬배송 식단표에는 같은 날짜의 샐러드가 포함되며, 3개 상품은 메뉴 품질 차이가 아니라 포함 품목 차이입니다.
       </div>
-
-      <div class="section-title">${IC.main} 월식도시락 + 샐러드도시락</div>
-      <div class="ksura-ai-preview-table-wrap">
-        <table class="ksura-ai-preview-table">
-          <thead><tr><th>날짜</th><th>요일</th><th>밥</th><th>국</th><th>메인</th><th>사이드 메인</th><th>반찬4</th><th>샐러드도시락</th><th>가격</th><th>태그</th></tr></thead>
-          <tbody>${lunchRows || '<tr><td colspan="10">월식도시락 결과가 없습니다.</td></tr>'}</tbody>
-        </table>
-      </div>
-
-      <div class="section-title">${IC.truck} 반찬배송 식단표</div>
-      <div class="ksura-ai-preview-table-wrap">
-        <table class="ksura-ai-preview-table">
-          <thead><tr><th>출고일</th><th>도착일</th><th>메인</th><th>국</th><th>반찬4</th><th>샐러드</th><th>태그</th><th>상품 구성</th></tr></thead>
-          <tbody>${banchanRows || '<tr><td colspan="8">반찬배송 결과가 없습니다.</td></tr>'}</tbody>
-        </table>
-      </div>
+      ${lunchSection}
+      ${banchanSection}
     </div>`;
 }
 
@@ -3587,6 +3629,8 @@ function buildAiMonthlyPrompt(form){
     '- 25,900원은 반찬4 + 메인 구성',
     '- 반찬배송 전체 식단은 월식도시락보다 더 정갈하고 고급스럽게 느껴져야 함',
     '- 같은 재료를 공유하더라도 반찬배송은 메뉴명과 조리법 표현을 더 고급스럽게 작성',
+    '- 반찬배송 반찬4개 중 최소 1개는 사이드메뉴급 반찬으로 구성한다. 메인보다 약하지만 일반 밑반찬보다 존재감 있는 프리미엄 반찬이어야 한다. 예: 미니전, 생선까스, 탕수육, 닭강정, 떡갈비, 계란말이, 두부조림, 장조림류, 유부주머니, 해물완자전.',
+    '- 가능하면 sides[0]에 사이드메뉴급 반찬을 배치하고, sides[1]~sides[3]는 균형 잡힌 밑반찬으로 구성한다.',
     '',
     '반찬배송과 월식도시락 관계:',
     '- 일부 재료를 공유해도 된다.',
@@ -3597,6 +3641,8 @@ function buildAiMonthlyPrompt(form){
     '',
     '반복 방지:',
     '- 같은 메인 재료가 연속으로 반복되지 않게 한다.',
+    '- 샐러드는 한 달 동안 최대한 덜 겹치게 하고, 같은 샐러드명/드레싱 조합을 반복하지 않는다.',
+    '- 반찬은 1주일 안에서 최대한 덜 겹치게 한다. 같은 주에 동일 반찬명, 같은 주재료, 같은 조리법이 반복되지 않게 한다.',
     '- 돼지고기, 닭고기, 소고기, 생선, 두부/계란, 채소류를 균형 있게 배치한다.',
     '- 한 날짜 안에서 국, 메인, 반찬의 맛과 조리법이 과하게 겹치지 않게 한다.',
     '- 볶음, 조림, 무침, 전, 구이, 튀김, 샐러드가 균형 있게 섞이게 한다.',
@@ -4099,7 +4145,7 @@ function saveAiPreviewEdits(){
     sides: [0,1,2,3].map(i=>getVal('lunch', idx, 'sides', i)).filter(Boolean),
     price: Number(getVal('lunch', idx, 'price')) || 8000
   }));
-  const saladLunchboxEntries = lunchboxEntries.map((entry, idx)=>({
+  let saladLunchboxEntries = lunchboxEntries.map((entry, idx)=>({
     year: entry.year,
     month: entry.month,
     date: entry.date,
@@ -4121,6 +4167,19 @@ function saveAiPreviewEdits(){
       salad: saladByDate.get(date) || getVal('banchan', idx, 'salad')
     };
   });
+  if(!saladLunchboxEntries.length && banchanDeliveryEntries.length){
+    saladLunchboxEntries = banchanDeliveryEntries.map(entry=>{
+      const parsed = parseDateParts(entry.date, entry.year || cache.year, entry.month || cache.month);
+      return {
+        year: entry.year || cache.year,
+        month: entry.month || cache.month,
+        date: entry.date,
+        weekday: parsed ? DOW_KO[parsed.date.getDay()] : '',
+        salad: entry.salad,
+        price: 8000
+      };
+    });
+  }
 
   raw.lunchboxEntries = lunchboxEntries;
   raw.saladLunchboxEntries = saladLunchboxEntries;
