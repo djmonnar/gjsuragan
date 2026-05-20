@@ -1076,6 +1076,11 @@
       <input class="form-input" type="tel" id="reg-phone" placeholder="010-0000-0000">
     </div>
     <div class="form-group">
+      <label class="form-label">식사 받는 시간</label>
+      <input class="form-input" type="time" id="reg-mealtime" step="600" title="10분 단위로 선택해주세요">
+      <div class="default-hint">10분 단위로 선택해주세요. 예) 12:00, 12:10</div>
+    </div>
+    <div class="form-group">
       <label class="form-label">비밀번호 <span style="color:red">*</span></label>
       <input class="form-input" type="password" id="reg-pw" placeholder="6자리 이상">
     </div>
@@ -1275,7 +1280,8 @@
       </div>
       <div class="form-group">
         <label class="form-label">식사 받는 시간</label>
-        <input class="form-input" type="time" id="prof-mealtime">
+        <input class="form-input" type="time" id="prof-mealtime" step="600" title="10분 단위로 선택해주세요">
+        <div class="default-hint">10분 단위로 선택해주세요. 예) 12:00, 12:10</div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -1527,6 +1533,14 @@ let customHolidays = {};
 let orderDeadline = { hour: 9, minute: 20 };
 function iconSvg(name, className = 'gj-icon') {
   return `<svg class="${className}" aria-hidden="true"><use href="#gj-${name}"></use></svg>`;
+}
+function getTenMinuteTimeValue(inputId) {
+  const value = document.getElementById(inputId)?.value?.trim() || '';
+  const match = value.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  return {
+    value,
+    valid: !value || (!!match && Number(match[2]) % 10 === 0)
+  };
 }
 const KOREA_HOLIDAYS = {
   '2026-01-01': '신정',
@@ -1866,6 +1880,8 @@ async function doRegister() {
   const bizname = document.getElementById('reg-bizname').value.trim();
   const email = document.getElementById('reg-email').value.trim();
   const phone = document.getElementById('reg-phone').value.trim();
+  const mealTimeInfo = getTenMinuteTimeValue('reg-mealtime');
+  const mealTime = mealTimeInfo.value;
   const pw = document.getElementById('reg-pw').value;
   const lunch = parseInt(document.getElementById('reg-lunch').value) || 2;
   const salad = parseInt(document.getElementById('reg-salad').value) || 0;
@@ -1877,6 +1893,9 @@ async function doRegister() {
   }
   if (pw.length < 6) {
     showError('reg-error', '비밀번호는 6자리 이상이어야 합니다.'); return;
+  }
+  if (!mealTimeInfo.valid) {
+    showError('reg-error', '식사 받는 시간은 10분 단위로 선택해주세요. 예: 12:00, 12:10'); return;
   }
   let cred = null;
   try {
@@ -1891,7 +1910,7 @@ async function doRegister() {
   }
   try {
     await db.collection('users').doc(cred.user.uid).set({
-      businessName: bizname, email, phone,
+      businessName: bizname, email, phone, mealTime,
       defaultLunch: lunch, defaultSalad: salad,
       sameDailyMeal, weekdayMeals,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -2500,12 +2519,14 @@ function renderProfile() {
 async function saveProfile() {
   const bizname = document.getElementById('prof-bizname').value.trim();
   const phone = document.getElementById('prof-phone').value.trim();
-  const mealTime = document.getElementById('prof-mealtime').value.trim();
+  const mealTimeInfo = getTenMinuteTimeValue('prof-mealtime');
+  const mealTime = mealTimeInfo.value;
   const lunch = parseInt(document.getElementById('prof-lunch').value) || 0;
   const salad = parseInt(document.getElementById('prof-salad').value) || 0;
   const sameDailyMeal = document.getElementById('prof-same-daily').checked;
   const weekdayMeals = readWeekdayMeals('prof', lunch, salad);
   if (!bizname) { showToast('업체명을 입력해주세요.', 'error'); return; }
+  if (!mealTimeInfo.valid) { showToast('식사 받는 시간은 10분 단위로 선택해주세요. 예: 12:00, 12:10', 'error'); return; }
   try {
     await db.collection('users').doc(currentUser.uid).update({
       businessName: bizname, phone, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals
