@@ -587,7 +587,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
   </div>
 </div>
 
-<div class="modal-bg" id="ai-create-modal" onclick="if(event.target===this)closeAiCreateModal()">
+<div class="modal-bg" id="ai-create-modal">
   <div class="modal" style="width:min(760px,94vw);">
     <div class="mh">
       <h3>AI 식단 만들기</h3>
@@ -837,6 +837,7 @@ let firebaseRealtimeUnsub = null;
 let firebaseRealtimeTimer = null;
 let firebaseApplyingRealtime = false;
 let currentTabName = 'list';
+let aiCreateTarget = 'both';
 
 function getAutoMonthTitle(year, month){
   return year + '년 ' + month + '월 식단표';
@@ -3311,10 +3312,11 @@ function closeAiCreateModal(){
   document.getElementById('ai-create-modal')?.classList.remove('on');
 }
 function setAiCreateTarget(target){
+  aiCreateTarget = ['both','lunchbox','banchan'].includes(target) ? target : 'both';
   document.querySelectorAll('[data-ai-target]').forEach(card=>card.classList.toggle('on', card.dataset.aiTarget === target));
 }
 function getAiCreateTarget(){
-  return document.querySelector('[data-ai-target].on')?.dataset.aiTarget || 'both';
+  return document.querySelector('[data-ai-target].on')?.dataset.aiTarget || aiCreateTarget || 'both';
 }
 function loadGeminiKeyIntoAiModal(){
   const key = localStorage.getItem('ksura_gkey') || document.getElementById('gemini-key')?.value || document.getElementById('ai-gemini-key')?.value || '';
@@ -3331,6 +3333,7 @@ function copyCheckedValues(fromSelector, toSelector){
 }
 function syncAiCreateModalDefaults(){
   const selected = getSelectedMonth();
+  setAiCreateTarget(aiCreateTarget || 'both');
   setInputValue('ai-modal-key', localStorage.getItem('ksura_gkey') || '');
   setInputValue('ai-modal-year', document.getElementById('ai-year')?.value || selected.year);
   setInputValue('ai-modal-month', document.getElementById('ai-month')?.value || selected.month);
@@ -3360,7 +3363,8 @@ function applyAiCreateModalToForm(){
   setInputValue('ai-share', document.getElementById('ai-modal-share')?.value || '보통');
   setInputValue('ai-premium', document.getElementById('ai-modal-premium')?.value || '고급');
   const target = getAiCreateTarget();
-  const targetText = target === 'lunchbox' ? '이번 생성은 월식도시락 실무 식단 확인을 가장 우선한다.' : target === 'banchan' ? '이번 생성은 반찬배송 식단표 반영을 가장 우선한다.' : '월식도시락과 반찬배송을 함께 실무에 쓰기 좋게 균형 있게 만든다.';
+  aiCreateTarget = target;
+  const targetText = target === 'lunchbox' ? '이번 생성은 월식도시락과 샐러드도시락만 생성한다. 반찬배송 식단은 생성하지 않는다.' : target === 'banchan' ? '이번 생성은 반찬배송 식단표와 같은 날짜의 샐러드만 생성한다. 월식도시락 식단은 생성하지 않는다.' : '월식도시락과 반찬배송을 함께 실무에 쓰기 좋게 균형 있게 만든다.';
   const extra = normalizeSpaces(document.getElementById('ai-modal-extra')?.value || '');
   setInputValue('ai-extra', [targetText, extra].filter(Boolean).join(' '));
   const lunchValues = getCheckedValues('.ai-modal-lunch-day');
@@ -3392,6 +3396,7 @@ function getAiMonthlyForm(){
     spicy: document.getElementById('ai-spicy').value,
     share: document.getElementById('ai-share').value,
     premium: document.getElementById('ai-premium').value,
+    target: aiCreateTarget || 'both',
     extra: normalizeSpaces(document.getElementById('ai-extra').value)
   };
 }
@@ -3530,16 +3535,21 @@ function buildAiMonthlyPrompt(form){
   const excluded = getAiExcludedDates(form);
   const lunchDates = getDatesForWeekdays(form.year, form.month, form.lunchDays, excluded);
   const banchanDates = getDatesForWeekdays(form.year, form.month, form.banchanDays, excluded);
+  const target = form.target || 'both';
+  const saladDates = Array.from(new Set([...(target !== 'banchan' ? lunchDates : []), ...(target !== 'lunchbox' ? banchanDates : [])]));
+  const targetLabel = target === 'banchan' ? '반찬배송만' : target === 'lunchbox' ? '월식도시락만' : '월식도시락 + 반찬배송';
   return [
     '너는 대한민국 반찬가게, 반찬배송, 월식도시락, 단체급식 메뉴를 잘 아는 식단 기획자다.',
     '궁중수라간의 월간 식단표를 작성한다.',
     '현실적으로 조리 가능한 메뉴, 고객 선호도, 원가 밸런스, 재료 공유, 반복 방지를 모두 고려한다.',
     '',
     '생성 대상: ' + form.year + '년 ' + form.month + '월',
-    '월식도시락 운영 요일: ' + (form.lunchDays.length ? form.lunchDays.join(', ') : '월, 화, 수, 목, 금'),
-    '월식도시락 생성 날짜: ' + lunchDates.join(', '),
-    '반찬배송 출고 요일: ' + (form.banchanDays.length ? form.banchanDays.join(', ') : '월, 화, 수, 목, 금'),
-    '반찬배송 생성 날짜(date, 조리/출고일): ' + banchanDates.join(', '),
+    '생성 범위: ' + targetLabel,
+    '월식도시락 운영 요일: ' + (target !== 'banchan' ? (form.lunchDays.length ? form.lunchDays.join(', ') : '월, 화, 수, 목, 금') : '생성하지 않음'),
+    '월식도시락 생성 날짜: ' + (target !== 'banchan' ? lunchDates.join(', ') : '없음'),
+    '반찬배송 출고 요일: ' + (target !== 'lunchbox' ? (form.banchanDays.length ? form.banchanDays.join(', ') : '월, 화, 수, 목, 금') : '생성하지 않음'),
+    '반찬배송 생성 날짜(date, 조리/출고일): ' + (target !== 'lunchbox' ? banchanDates.join(', ') : '없음'),
+    '샐러드도시락 생성 날짜: ' + saladDates.join(', '),
     '반찬배송 arrival은 date의 다음 날짜로 작성한다.',
     '제외 날짜: ' + (excluded.length ? excluded.join(', ') : '없음'),
     '공휴일/휴무일/제외 날짜는 어떤 배열에도 절대 생성하지 않는다.',
@@ -3592,6 +3602,9 @@ function buildAiMonthlyPrompt(form){
     '- 볶음, 조림, 무침, 전, 구이, 튀김, 샐러드가 균형 있게 섞이게 한다.',
     '',
     '출력:',
+    target === 'banchan' ? '- banchanDeliveryEntries와 saladLunchboxEntries만 채우고 lunchboxEntries는 빈 배열 []로 반환한다.' : '',
+    target === 'lunchbox' ? '- lunchboxEntries와 saladLunchboxEntries만 채우고 banchanDeliveryEntries는 빈 배열 []로 반환한다.' : '',
+    target === 'both' ? '- banchanDeliveryEntries, lunchboxEntries, saladLunchboxEntries를 모두 채운다.' : '',
     '- 반드시 JSON Schema에 맞는 JSON만 반환한다.',
     '- 마크다운, 설명문, 코드블록은 절대 출력하지 않는다.'
   ].join('\n');
@@ -3791,13 +3804,13 @@ async function runAiPartialRegenerate(){
   const saladOnly = document.getElementById('ai-partial-scope').value === 'salad';
   showLoad('선택 범위를 다시 생성 중입니다...', targetDates.join(', '));
   try{
-    const partial = normalizeAiMonthlyResult(await requestAiPartialMenu(form, key, targetDates, saladOnly), form);
+    const partial = enforceAiTargetScope(normalizeAiMonthlyResult(await requestAiPartialMenu(form, key, targetDates, saladOnly), form), form);
     const raw = aiMonthlyResultCache.rawResult;
     raw.lunchboxEntries = saladOnly ? raw.lunchboxEntries : mergeEntriesByDate(raw.lunchboxEntries, partial.lunchboxEntries);
     raw.saladLunchboxEntries = mergeEntriesByDate(raw.saladLunchboxEntries, partial.saladLunchboxEntries, saladOnly, 'salad');
     raw.banchanDeliveryEntries = mergeEntriesByDate(raw.banchanDeliveryEntries, partial.banchanDeliveryEntries, saladOnly, 'salad');
     raw.sharedIngredientPlan = partial.sharedIngredientPlan?.length ? partial.sharedIngredientPlan : raw.sharedIngredientPlan;
-    const validation = validateAiMonthlyResult(raw, form.year, form.month);
+    const validation = validateAiMonthlyResult(raw, form.year, form.month, aiMonthlyResultCache.target || form.target);
     raw.warnings = Array.from(new Set([...(raw.warnings || []).filter(text=>!String(text).startsWith('오류:')), ...validation.warnings, ...validation.errors.map(v=>'오류: ' + v)]));
     aiMonthlyResultCache.lunchboxEntries = raw.lunchboxEntries;
     aiMonthlyResultCache.saladLunchboxEntries = raw.saladLunchboxEntries;
@@ -3858,6 +3871,16 @@ function normalizeAiMonthlyResult(result, form){
     qualityDifference: normalizeSpaces(item.qualityDifference)
   })) : [];
   raw.warnings = Array.isArray(raw.warnings) ? raw.warnings.map(normalizeSpaces).filter(Boolean) : [];
+  return raw;
+}
+function enforceAiTargetScope(raw, form){
+  const target = form?.target || 'both';
+  if(target === 'banchan'){
+    raw.lunchboxEntries = [];
+  } else if(target === 'lunchbox'){
+    raw.banchanDeliveryEntries = [];
+  }
+  raw.meta = Object.assign({}, raw.meta || {}, {target});
   return raw;
 }
 function getMenuText(entry){
@@ -3924,7 +3947,10 @@ function pushSequenceWarnings(entries, label, warnings){
     warnings.push(label + ': 매콤한 메뉴 비율이 높은 편입니다.');
   }
 }
-function validateAiMonthlyResult(result, year, month){
+function validateAiMonthlyResult(result, year, month, target){
+  const scope = target || result?.meta?.target || 'both';
+  const needsBanchan = scope !== 'lunchbox';
+  const needsLunchbox = scope !== 'banchan';
   const errors = [];
   const warnings = [];
   const saladByDate = new Map();
@@ -3968,10 +3994,13 @@ function validateAiMonthlyResult(result, year, month){
     if(!Array.isArray(entry.sides) || entry.sides.length !== 4){
       errors.push(tag + ': 월식도시락 반찬은 반드시 4개여야 합니다.');
     }
+    if(!saladByDate.has(entry.date)){
+      errors.push(tag + ': 같은 날짜의 샐러드도시락 결과가 없습니다.');
+    }
   });
-  if(!(result.banchanDeliveryEntries || []).length) errors.push('반찬배송 생성 결과가 비어 있습니다.');
-  if(!(result.lunchboxEntries || []).length) warnings.push('월식도시락 생성 결과가 비어 있습니다.');
-  if(!(result.saladLunchboxEntries || []).length) warnings.push('샐러드도시락 생성 결과가 비어 있습니다.');
+  if(needsBanchan && !(result.banchanDeliveryEntries || []).length) errors.push('반찬배송 생성 결과가 비어 있습니다.');
+  if(needsLunchbox && !(result.lunchboxEntries || []).length) errors.push('월식도시락 생성 결과가 비어 있습니다.');
+  if((needsBanchan || needsLunchbox) && !(result.saladLunchboxEntries || []).length) errors.push('샐러드도시락 생성 결과가 비어 있습니다.');
   pushSequenceWarnings(result.banchanDeliveryEntries || [], '반찬배송', warnings);
   pushSequenceWarnings(result.lunchboxEntries || [], '월식도시락', warnings);
   pushLunchPracticalWarnings(result.lunchboxEntries || [], warnings);
@@ -3981,18 +4010,19 @@ async function runAiMonthlyGenerate(){
   const key = (localStorage.getItem('ksura_gkey') || document.getElementById('gemini-key')?.value || '').trim();
   if(!key){ toast('Gemini API 키를 먼저 입력해주세요'); return; }
   const form = getAiMonthlyForm();
-  if(!form.lunchDays.length || !form.banchanDays.length){
-    toast('운영 요일과 반찬배송 출고 요일을 선택해주세요');
+  if((form.target !== 'banchan' && !form.lunchDays.length) || (form.target !== 'lunchbox' && !form.banchanDays.length)){
+    toast('생성할 식단의 운영 요일을 선택해주세요');
     return;
   }
   showLoad('AI가 월간 식단을 생성 중입니다...', form.year + '년 ' + form.month + '월 식단을 구성하고 있습니다.');
   try{
-    const raw = normalizeAiMonthlyResult(await requestAiMonthlyMenu(form, key), form);
-    const validation = validateAiMonthlyResult(raw, form.year, form.month);
+    const raw = enforceAiTargetScope(normalizeAiMonthlyResult(await requestAiMonthlyMenu(form, key), form), form);
+    const validation = validateAiMonthlyResult(raw, form.year, form.month, form.target);
     raw.warnings = Array.from(new Set([...(raw.warnings || []), ...validation.warnings, ...validation.errors.map(v=>'오류: ' + v)]));
     aiMonthlyResultCache = {
       year: form.year,
       month: form.month,
+      target: form.target || 'both',
       lunchboxEntries: raw.lunchboxEntries,
       saladLunchboxEntries: raw.saladLunchboxEntries,
       sharedIngredientPlan: raw.sharedIngredientPlan,
@@ -4035,7 +4065,7 @@ function applySingleAiBanchan(index){
   }
   const selected = getSelectedMonth();
   const entry = raw.banchanDeliveryEntries[index];
-  const validation = validateAiMonthlyResult(Object.assign({}, raw, {banchanDeliveryEntries:[entry]}), selected.year, selected.month);
+  const validation = validateAiMonthlyResult(Object.assign({}, raw, {banchanDeliveryEntries:[entry]}), selected.year, selected.month, 'banchan');
   if(validation.errors.length){
     toast('검증 오류가 있어 이 날짜를 반영할 수 없습니다');
     return;
@@ -4095,7 +4125,7 @@ function saveAiPreviewEdits(){
   raw.lunchboxEntries = lunchboxEntries;
   raw.saladLunchboxEntries = saladLunchboxEntries;
   raw.banchanDeliveryEntries = banchanDeliveryEntries;
-  const validation = validateAiMonthlyResult(raw, cache.year, cache.month);
+  const validation = validateAiMonthlyResult(raw, cache.year, cache.month, cache.target || raw.meta?.target || 'both');
   raw.warnings = Array.from(new Set([...(raw.warnings || []).filter(text=>!String(text).startsWith('오류:')), ...validation.warnings, ...validation.errors.map(v=>'오류: ' + v)]));
   cache.lunchboxEntries = lunchboxEntries;
   cache.saladLunchboxEntries = saladLunchboxEntries;
