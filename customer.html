@@ -737,6 +737,16 @@
     border-color: #ead8bd;
     color: var(--primary);
   }
+  .auth-login-hint {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-sub);
+    background: #fffaf5;
+    border: 1px solid #f1dfc4;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: -8px 0 16px;
+  }
 
   .form-group {
     margin-bottom: 10px;
@@ -1154,6 +1164,7 @@
       <div class="auth-title">로그인</div>
       <button class="icon-btn btn-help auth-help-btn" onclick="openHelpManual()" aria-label="도움말" title="도움말"><svg class="gj-icon"><use href="#gj-help"></use></svg></button>
     </div>
+    <div class="auth-login-hint">월식 도시락 주문은 로그인해주시면 됩니다.</div>
     <div class="form-group">
       <label class="form-label">이메일</label>
       <input class="form-input" type="email" id="login-email" placeholder="이메일 입력">
