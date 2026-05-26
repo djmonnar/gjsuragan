@@ -36,7 +36,8 @@
     messagingSenderId: "1009198450175",
     appId: "1:1009198450175:web:4a55da7c2092dba42613ca"
   };
-  const firebaseApp = firebase.initializeApp(firebaseConfig, 'gjsuragan-customer');
+  const CUSTOMER_FIREBASE_APP_NAME = 'gjsuragan-customer';
+  const firebaseApp = firebase.initializeApp(firebaseConfig, CUSTOMER_FIREBASE_APP_NAME);
   const auth = firebaseApp.auth();
   const db = firebaseApp.firestore();
   const AUTO_LOGIN_STORAGE_KEY = 'gjsuragan:autoLogin';
@@ -52,7 +53,16 @@
       localStorage.setItem(AUTO_LOGIN_STORAGE_KEY, enabled ? 'on' : 'off');
     } catch(e) {}
   }
-  auth.setPersistence(getAutoLoginEnabled() ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION).catch(()=>{});
+  function applyAuthPersistence(enabled) {
+    const persistence = enabled
+      ? firebase.auth.Auth.Persistence.LOCAL
+      : firebase.auth.Auth.Persistence.SESSION;
+    return auth.setPersistence(persistence).catch((e) => {
+      console.warn('Auth persistence 설정 실패:', e?.code || e);
+      if (enabled) return auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(()=>{});
+    });
+  }
+  let authPersistenceReady = applyAuthPersistence(getAutoLoginEnabled());
 </script>
 <!-- ===================================================== -->
 
@@ -653,6 +663,7 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
+    position: relative;
   }
   #auth-screen.active { display: flex; }
 
@@ -678,7 +689,7 @@
     background: white;
     border-radius: 8px;
     padding: 28px 24px;
-    width: 100%;
+    width: calc(100vw - 48px);
     max-width: 400px;
   }
 
@@ -687,6 +698,25 @@
     font-weight: 700;
     color: var(--text);
     margin-bottom: 24px;
+  }
+
+  .auth-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .auth-title-row .auth-title {
+    margin: 0 !important;
+  }
+  .auth-help-btn.btn-help {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    background: var(--gold-light);
+    border-color: #ead8bd;
+    color: var(--primary);
   }
 
   .form-group {
@@ -1097,7 +1127,10 @@
 
   <!-- 로그인 폼 -->
   <div class="auth-card" id="login-form">
-    <div class="auth-title">로그인</div>
+    <div class="auth-title-row">
+      <div class="auth-title">로그인</div>
+      <button class="icon-btn btn-help auth-help-btn" onclick="openHelpManual()" aria-label="도움말" title="도움말"><svg class="gj-icon"><use href="#gj-help"></use></svg></button>
+    </div>
     <div class="form-group">
       <label class="form-label">이메일</label>
       <input class="form-input" type="email" id="login-email" placeholder="이메일 입력">
@@ -1122,7 +1155,10 @@
 
   <!-- 회원가입 폼 -->
   <div class="auth-card" id="register-form" style="display:none">
-    <div class="auth-title">회원가입</div>
+    <div class="auth-title-row">
+      <div class="auth-title">회원가입</div>
+      <button class="icon-btn btn-help auth-help-btn" onclick="openHelpManual()" aria-label="도움말" title="도움말"><svg class="gj-icon"><use href="#gj-help"></use></svg></button>
+    </div>
     <div class="form-group">
       <label class="form-label">업체명 <span style="color:red">*</span></label>
       <input class="form-input" type="text" id="reg-bizname" placeholder="예) 진주내과의원">
@@ -1412,22 +1448,33 @@
   <div class="modal-sheet help-modal-sheet">
     <button class="modal-x-btn" onclick="closeHelpManual()" aria-label="닫기">×</button>
     <div class="modal-handle"></div>
-    <div class="help-title">고객앱 사용 메뉴얼</div>
-    <div class="help-sub">주문, 식단 확인, 일정 변경, 정산 확인을 순서대로 따라 하시면 됩니다.</div>
+    <div class="help-title">고객앱 사용 매뉴얼</div>
+    <div class="help-sub">로그인, 주문, 식단 확인, 일정 변경, 정산 확인을 순서대로 따라 하시면 됩니다.</div>
 
     <div class="help-section">
-      <div class="help-section-title">1. 오늘 주문하기</div>
+      <div class="help-section-title">1. 로그인과 자동 로그인</div>
       <ol>
-        <li>오늘 주문 탭에서 도시락과 샐러드 수량을 확인합니다.</li>
+        <li>이메일과 비밀번호를 입력한 뒤 <b>로그인</b>을 누릅니다.</li>
+        <li><b>자동 로그인</b>을 켜면 다음 접속부터 같은 기기에서 로그인 상태를 유지합니다.</li>
+        <li>브라우저와 바탕화면에 추가한 앱은 저장 공간이 달라 각각 한 번씩 로그인해야 할 수 있습니다.</li>
+      </ol>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">2. 주문 탭에서 주문하기</div>
+      <ol>
+        <li>오전과 점심 전에는 오늘 주문 수량을 확인하고 전송할 수 있습니다.</li>
+        <li>오늘 주문이 마감된 뒤 오후 1시 전까지는 다음 주문 오픈 안내가 표시됩니다.</li>
+        <li>오후 1시 이후에는 주문 탭이 다음 영업일 주문 화면으로 자동 전환됩니다.</li>
         <li>수량을 바꾸려면 +, − 버튼을 눌러 조정합니다.</li>
         <li>요청사항이 있으면 메모에 적고 <b>주문 전송하기</b>를 누릅니다.</li>
         <li>전송 완료 표시가 보이면 주문이 접수된 상태입니다.</li>
       </ol>
-      <div class="help-tip">마감 시간이 지나면 주문 변경이 제한될 수 있어요.</div>
+      <div class="help-tip">마감 후 오후 1시 전에는 “다음 주문은 오후 1시에 열립니다” 안내가 표시됩니다.</div>
     </div>
 
     <div class="help-section">
-      <div class="help-section-title">2. 다른 날짜 주문과 자체 휴무</div>
+      <div class="help-section-title">3. 다른 날짜 주문과 자체 휴무</div>
       <ol>
         <li>평일 일정 탭에서 원하는 날짜 카드를 누릅니다.</li>
         <li>해당 날짜의 수량을 수정한 뒤 다시 전송할 수 있습니다.</li>
@@ -1436,7 +1483,7 @@
     </div>
 
     <div class="help-section">
-      <div class="help-section-title">3. 식단 확인</div>
+      <div class="help-section-title">4. 식단 확인</div>
       <ol>
         <li>식단 탭에서 날짜를 선택합니다.</li>
         <li>조회 버튼을 누르면 해당 날짜의 도시락/샐러드 메뉴를 볼 수 있습니다.</li>
@@ -1445,7 +1492,7 @@
     </div>
 
     <div class="help-section">
-      <div class="help-section-title">4. 내 정보와 기본 수량</div>
+      <div class="help-section-title">5. 내 정보와 기본 수량</div>
       <ol>
         <li>내 정보 탭에서 업체명, 연락처, 식사 받는 시간을 수정합니다.</li>
         <li>매일 같은 수량이면 <b>매일 같은 수량 사용</b>을 체크합니다.</li>
@@ -1455,7 +1502,7 @@
     </div>
 
     <div class="help-section">
-      <div class="help-section-title">5. 정산 확인</div>
+      <div class="help-section-title">6. 정산 확인</div>
       <ol>
         <li>정산 탭에서 확인할 월을 선택합니다.</li>
         <li>조회 버튼을 누르면 해당 월 청구 내역과 입금 상태를 확인할 수 있습니다.</li>
@@ -2006,7 +2053,8 @@ async function doLogin() {
   if (btn) { btn.disabled = true; btn.textContent = '로그인 중…'; }
   try {
     setAutoLoginEnabled(autoLogin);
-    await auth.setPersistence(autoLogin ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION);
+    authPersistenceReady = applyAuthPersistence(autoLogin);
+    await authPersistenceReady;
     await auth.signInWithEmailAndPassword(email, pw);
   } catch(e) {
     console.error('로그인 오류:', e.code, e.message);
