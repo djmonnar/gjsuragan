@@ -11,9 +11,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 const firebaseConfig={apiKey:"AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A",authDomain:"gjsuragan-60505.firebaseapp.com",projectId:"gjsuragan-60505",storageBucket:"gjsuragan-60505.firebasestorage.app",messagingSenderId:"1009198450175",appId:"1:1009198450175:web:4a55da7c2092dba42613ca"};
-firebase.initializeApp(firebaseConfig);
-const auth=firebase.auth();
-const db=firebase.firestore();
+const firebaseApp=firebase.initializeApp(firebaseConfig,'gjsuragan-customer-settlement');
+const auth=firebaseApp.auth();
+const db=firebaseApp.firestore();
 auth.setPersistence('local').catch(()=>{});
 </script>
 <style>
@@ -86,8 +86,10 @@ for(const col of ['users','members','customers','customerProfiles']){for(const f
 function matchUser(d){const f=flat(d);if(Object.values(ID_FIELDS).some(k=>f[k]===currentUser.uid))return true;if(currentUser.email&&EMAIL_FIELDS.some(k=>String(f[k]||'').toLowerCase()===currentUser.email.toLowerCase()))return true;const name=customerName();if(name&&NAME_FIELDS.some(k=>String(f[k]||'').trim()===name))return true;return false}
 async function queryByCandidates(col, month){const found=new Map();const add=s=>s.forEach(doc=>found.set(doc.ref.path,{id:doc.id,path:doc.ref.path,...doc.data()}));const filters=[...ID_FIELDS.map(f=>[f,currentUser.uid]),...EMAIL_FIELDS.map(f=>[f,currentUser.email]),...NAME_FIELDS.map(f=>[f,customerName()])].filter(x=>x[1]);for(const [field,val] of filters){try{add(await db.collection(col).where(field,'==',val).limit(240).get())}catch(e){}}
 return Array.from(found.values()).filter(d=>!month||docMonth(d)===month||docDate(d).slice(0,7)===month||String(getAny(d,['month','ym','billingMonth','settleMonth'])||'').includes(month));}
-async function loadSettlement(){if(!currentUser)return;showLoading(true);try{const month=document.getElementById('monthInput').value||ymNow();let adminDocs=[];for(const col of SETTLEMENT_COLLECTIONS){const rows=await queryByCandidates(col,month);adminDocs.push(...rows.map(r=>({...r,_collection:col})))}
+async function loadSettlement(){if(!currentUser)return;showLoading(true);try{const month=document.getElementById('monthInput').value||ymNow();const directSnap=await db.collection('settlements').doc(month).collection('items').doc(currentUser.uid).get();if(directSnap.exists){invoiceState=normalizeSettlement({id:directSnap.id,...directSnap.data()},month,'admin');renderInvoice(invoiceState);return}let adminDocs=[];for(const col of SETTLEMENT_COLLECTIONS){const rows=await queryByCandidates(col,month);adminDocs.push(...rows.map(r=>({...r,_collection:col})))}
 if(adminDocs.length){invoiceState=normalizeSettlement(adminDocs[0],month,'admin');renderInvoice(invoiceState);return}
+// TODO: legacy users.settlements fallback은 데이터 마이그레이션 후 제거
+const legacySnap=await db.collection('users').doc(currentUser.uid).get();const legacy=legacySnap.exists?((legacySnap.data().settlements||{})[month]):null;if(legacy){invoiceState=normalizeSettlement(legacy,month,'admin');renderInvoice(invoiceState);return}
 let orderDocs=[];for(const col of ORDER_COLLECTIONS){const rows=await queryByCandidates(col,month);orderDocs.push(...rows.map(r=>({...r,_collection:col})))}
 invoiceState=buildFromOrders(orderDocs,month);renderInvoice(invoiceState)}catch(e){document.getElementById('invoiceHost').innerHTML=`<div class="panel empty">정산 데이터를 불러오지 못했습니다.<br>${e.message||e}</div>`}finally{showLoading(false)}}
 function itemKindByText(txt){const s=String(txt||'').toLowerCase();if(/행사|event/.test(s))return 'eventLunch';if(/샐러드|salad/.test(s))return 'salad';if(/도시락|dosirak|lunch|meal|box/.test(s))return 'lunch';return ''}

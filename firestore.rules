@@ -3,9 +3,149 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function adminEmails() {
+      return ['sun1562@naver.com'];
+    }
+
     function isAdmin() {
-      return request.auth != null
-        && request.auth.token.email == 'sun1562@naver.com';
+      return signedIn()
+        && request.auth.token.email in adminEmails();
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function optionalString(data, field, maxLen) {
+      return !(field in data.keys())
+        || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function optionalBool(data, field) {
+      return !(field in data.keys()) || data[field] is bool;
+    }
+
+    function optionalTimestamp(data, field) {
+      return !(field in data.keys()) || data[field] is timestamp;
+    }
+
+    function safeCount(value) {
+      return (value is int || value is float) && value >= 0 && value <= 50;
+    }
+
+    function optionalSafeCount(data, field) {
+      return !(field in data.keys()) || safeCount(data[field]);
+    }
+
+    function userProfileKeys() {
+      return [
+        'businessName',
+        'email',
+        'phone',
+        'mealTime',
+        'defaultLunch',
+        'defaultSalad',
+        'sameDailyMeal',
+        'weekdayMeals',
+        'createdAt',
+        'updatedAt'
+      ];
+    }
+
+    function validWeekdayMeals(data) {
+      return !(('weekdayMeals' in data.keys()))
+        || (
+          data.weekdayMeals is map
+          && data.weekdayMeals.keys().hasOnly(['mon', 'tue', 'wed', 'thu', 'fri'])
+          && (!('mon' in data.weekdayMeals.keys()) || validMealPair(data.weekdayMeals.mon))
+          && (!('tue' in data.weekdayMeals.keys()) || validMealPair(data.weekdayMeals.tue))
+          && (!('wed' in data.weekdayMeals.keys()) || validMealPair(data.weekdayMeals.wed))
+          && (!('thu' in data.weekdayMeals.keys()) || validMealPair(data.weekdayMeals.thu))
+          && (!('fri' in data.weekdayMeals.keys()) || validMealPair(data.weekdayMeals.fri))
+        );
+    }
+
+    function validMealPair(meal) {
+      return meal is map
+        && meal.keys().hasOnly(['lunch', 'salad'])
+        && (!('lunch' in meal.keys()) || safeCount(meal.lunch))
+        && (!('salad' in meal.keys()) || safeCount(meal.salad));
+    }
+
+    function validUserProfile(data) {
+      return optionalString(data, 'businessName', 80)
+        && optionalString(data, 'email', 160)
+        && optionalString(data, 'phone', 40)
+        && optionalString(data, 'mealTime', 20)
+        && optionalSafeCount(data, 'defaultLunch')
+        && optionalSafeCount(data, 'defaultSalad')
+        && optionalBool(data, 'sameDailyMeal')
+        && validWeekdayMeals(data)
+        && optionalTimestamp(data, 'createdAt')
+        && optionalTimestamp(data, 'updatedAt');
+    }
+
+    function validUserCreate(userId) {
+      return isOwner(userId)
+        && request.resource.data.keys().hasOnly(userProfileKeys())
+        && validUserProfile(request.resource.data)
+        && request.resource.data.email == request.auth.token.email;
+    }
+
+    function validUserUpdate(userId) {
+      return isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(userProfileKeys())
+        && validUserProfile(request.resource.data)
+        && (!('email' in request.resource.data.diff(resource.data).affectedKeys())
+          || request.resource.data.email == request.auth.token.email);
+    }
+
+    function orderKeys() {
+      return ['uid', 'lunchCount', 'saladCount', 'note', 'selfHoliday', 'submittedAt', 'updatedAt'];
+    }
+
+    function validOrderWrite(userId) {
+      return isOwner(userId)
+        && request.resource.data.keys().hasOnly(orderKeys())
+        && request.resource.data.uid == userId
+        && safeCount(request.resource.data.lunchCount)
+        && safeCount(request.resource.data.saladCount)
+        && optionalString(request.resource.data, 'note', 500)
+        && optionalBool(request.resource.data, 'selfHoliday')
+        && optionalTimestamp(request.resource.data, 'submittedAt')
+        && optionalTimestamp(request.resource.data, 'updatedAt');
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin() || validUserCreate(userId);
+      allow update: if isAdmin() || validUserUpdate(userId);
+      allow delete: if isAdmin();
+    }
+
+    match /orders/{date}/items/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isAdmin() || validOrderWrite(userId);
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /mealMenus/{date} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /config/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /settlements/{monthId}/items/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isAdmin();
     }
 
     match /customers/{document=**} {
@@ -16,39 +156,19 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    match /users/{userId} {
-      allow read, write: if request.auth != null &&
-        (request.auth.uid == userId || isAdmin());
-    }
-
-    match /orders/{date}/items/{userId} {
-      allow read, write: if request.auth != null &&
-        (request.auth.uid == userId || isAdmin());
-    }
-
-    match /mealMenus/{date} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-
-    match /config/{docId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-
-    match /editorStates/{docId} {
+    match /editorStates/{document=**} {
       allow read, write: if isAdmin();
     }
 
-    match /monthlyMenus/{monthId} {
+    match /monthlyMenus/{document=**} {
       allow read, write: if isAdmin();
     }
 
-    match /lunchboxMenus/{monthId} {
+    match /lunchboxMenus/{document=**} {
       allow read, write: if isAdmin();
     }
 
-    match /aiMenuDrafts/{monthId} {
+    match /aiMenuDrafts/{document=**} {
       allow read, write: if isAdmin();
     }
   }
