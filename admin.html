@@ -222,6 +222,15 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .menu-import-row .form-input{margin:0}
 .menu-import-list-head{display:grid;grid-template-columns:118px 1fr 1fr 48px;gap:8px;font-size:12px;font-weight:800;color:var(--sub);margin-top:12px;padding:0 10px}
 .menu-import-empty{font-size:13px;color:var(--sub);padding:14px 0}
+.event-menu-builder{background:#fffaf5;border:1px solid var(--border);border-radius:var(--radius);padding:12px}
+.event-menu-grid{display:grid;grid-template-columns:1fr 1fr 110px;gap:8px;align-items:center}
+.event-menu-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.event-menu-item{display:flex;justify-content:space-between;gap:8px;align-items:center;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px}
+.event-menu-item strong{display:block;color:var(--primary);font-size:13px;margin-bottom:2px}
+.event-menu-meta{font-size:12px;color:var(--sub);line-height:1.45}
+.event-menu-remove{border:0;background:#fdecea;color:var(--danger);border-radius:6px;padding:7px 9px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;flex:0 0 auto}
+.event-menu-total{font-size:13px;color:var(--sub);font-weight:800;margin-top:10px}
+.event-menu-add{width:100%;margin-top:8px}
 /* 모달 */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:center;justify-content:center;padding:24px}
 .modal-overlay.open{display:flex}
@@ -246,6 +255,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .form-grid,.receipt-layout,.settlement-tools{grid-template-columns:1fr}
   .batch-toolbar{gap:8px}
   .receipt-item-row{grid-template-columns:1fr 1fr}
+  .event-menu-grid{grid-template-columns:1fr}
   .settlement-summary,.settlement-summary2{grid-template-columns:repeat(2,1fr)}
   .summary-value{font-size:22px}
   .current-date{min-width:130px;font-size:14px}
@@ -641,11 +651,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <div class="section-title">🎪 행사도시락 등록</div>
     <div class="panel">
       <input type="hidden" id="event-id">
+      <input type="hidden" id="event-name">
+      <input type="hidden" id="event-count">
+      <input type="hidden" id="event-price">
       <div class="form-grid">
-        <div>
-          <label class="form-label">도시락 이름</label>
-          <input class="form-input" type="text" id="event-name" placeholder="예) 기업 행사 도시락">
-        </div>
         <div>
           <label class="form-label">날짜</label>
           <input class="form-input" type="date" id="event-date">
@@ -654,13 +663,18 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <label class="form-label">시간</label>
           <input class="form-input" type="text" id="event-time" placeholder="예) 11:30 또는 오후 3시">
         </div>
-        <div>
-          <label class="form-label">갯수</label>
-          <input class="form-input" type="number" id="event-count" min="1" placeholder="0">
-        </div>
-        <div>
-          <label class="form-label">개당/평균 가격</label>
-          <input class="form-input" type="number" id="event-price" min="0" placeholder="0">
+        <div class="full">
+          <label class="form-label">도시락메뉴/수량</label>
+          <div class="event-menu-builder">
+            <div class="event-menu-grid">
+              <select class="form-input" id="event-menu-category"></select>
+              <select class="form-input" id="event-menu-name"></select>
+              <input class="form-input" type="number" id="event-menu-qty" min="1" max="999" placeholder="수량">
+            </div>
+            <button class="secondary-btn event-menu-add" onclick="addAdminEventMenuItem()">+ 메뉴 추가</button>
+            <div class="event-menu-list" id="event-menu-list"></div>
+            <div class="event-menu-total" id="event-menu-total"></div>
+          </div>
         </div>
         <div class="full">
           <label class="form-label">배송장소</label>
@@ -1390,6 +1404,7 @@ let deletedUsers = {};
 let eventLunches = [];
 let pendingPublicEventOrderId = '';
 let pendingPublicEventOrder = null;
+let adminEventDraftItems = [];
 let settlementRows = [];
 let settlementEvents = [];
 let currentOrderRows = [];
@@ -1404,6 +1419,19 @@ let settlementChartDonut = null;
 let currentSettleFilter = 'all';
 
 const DEFAULT_MANUAL_MONTHLY_SETTLEMENTS = {};
+const EVENT_LUNCH_MENUS = [
+  { category: '한상 도시락', name: '제육 한상 (간장, 양념)', price: 9000 },
+  { category: '한상 도시락', name: '순살닭구이 한상', price: 9500 },
+  { category: '수라상 도시락', name: '양념닭구이&떡갈비', price: 13900 },
+  { category: '수라상 도시락', name: '김치제육&떡갈비', price: 14900 },
+  { category: '수라상 도시락', name: '간장제육&양념닭구이', price: 15900 },
+  { category: 'VIP 일품 도시락', name: '직화제육&간장제육 한정식', price: 17900 },
+  { category: 'VIP 일품 도시락', name: '소불고기 한정식', price: 18900 },
+  { category: 'VIP 일품 도시락', name: '소불고기&생선구이 한정식', price: 19900 },
+  { category: 'VIP 일품 도시락', name: '프리미엄 장어구이&전복', price: 27900 },
+  { category: 'VIP 일품 도시락', name: '프리미엄 LA갈비&연어스테이크', price: 29900 },
+  { category: 'VIP 일품 도시락', name: '프리미엄 VIP 도시락', price: 33900 }
+];
 const USER_PRIVATE_FIELDS = [
   'deliveryPlace',
   'address',
@@ -3982,7 +4010,10 @@ function switchAdminTab(tab) {
     el.style.display = el.dataset.tab === tab ? '' : 'none';
   });
   if (tab === 'members') renderMembers();
-  if (tab === 'events') loadEventLunches();
+  if (tab === 'events') {
+    initAdminEventMenuPicker();
+    loadEventLunches();
+  }
   if (tab === 'menus') {
     initMenuForm();
     loadMealMenuEditor();
@@ -4006,9 +4037,106 @@ function resetEventForm() {
   });
   pendingPublicEventOrderId = '';
   pendingPublicEventOrder = null;
+  setAdminEventDraftItems([]);
   document.getElementById('event-date').dataset.oldDate = '';
   document.getElementById('event-error').classList.remove('show');
-  document.getElementById('event-name').focus();
+  document.getElementById('event-menu-category')?.focus();
+}
+
+function initAdminEventMenuPicker() {
+  const categoryEl = document.getElementById('event-menu-category');
+  const menuEl = document.getElementById('event-menu-name');
+  if (!categoryEl || !menuEl || categoryEl.dataset.ready === '1') {
+    renderAdminEventDraftItems();
+    return;
+  }
+  const categories = [...new Set(EVENT_LUNCH_MENUS.map(item => item.category))];
+  categoryEl.innerHTML = categories.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+  categoryEl.addEventListener('change', renderAdminEventMenuOptions);
+  categoryEl.dataset.ready = '1';
+  renderAdminEventMenuOptions();
+  renderAdminEventDraftItems();
+}
+
+function renderAdminEventMenuOptions() {
+  const categoryEl = document.getElementById('event-menu-category');
+  const menuEl = document.getElementById('event-menu-name');
+  if (!categoryEl || !menuEl) return;
+  const category = categoryEl.value;
+  menuEl.innerHTML = EVENT_LUNCH_MENUS
+    .filter(item => item.category === category)
+    .map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)} (${formatMoney(item.price)})</option>`)
+    .join('');
+}
+
+function normalizeAdminEventItem(item = {}) {
+  const name = item.name || item.menu || '';
+  const catalog = EVENT_LUNCH_MENUS.find(menu => menu.name === name);
+  return {
+    category: item.category || catalog?.category || '행사도시락',
+    name: name || '행사도시락',
+    qty: Math.max(0, Number(item.qty || item.count || 0) || 0),
+    price: Math.max(0, Number(item.price || item.unitPrice || catalog?.price || 0) || 0)
+  };
+}
+
+function setAdminEventDraftItems(items) {
+  adminEventDraftItems = (Array.isArray(items) ? items : [])
+    .map(normalizeAdminEventItem)
+    .filter(item => item.name && item.qty > 0);
+  renderAdminEventDraftItems();
+}
+
+function renderAdminEventDraftItems() {
+  const list = document.getElementById('event-menu-list');
+  const total = document.getElementById('event-menu-total');
+  if (!list || !total) return;
+  if (!adminEventDraftItems.length) {
+    list.innerHTML = '<div style="font-size:13px;color:var(--sub);text-align:center;padding:8px">추가된 메뉴가 없습니다.</div>';
+    total.textContent = '메뉴를 추가하면 총 수량과 금액이 자동 계산됩니다.';
+    syncAdminEventHiddenFields();
+    return;
+  }
+  list.innerHTML = adminEventDraftItems.map((item, idx) => `
+    <div class="event-menu-item">
+      <div>
+        <strong>${escapeHtml(item.name)}</strong>
+        <div class="event-menu-meta">${escapeHtml(item.category)} · ${item.qty}개 · ${formatMoney(item.price)} · ${formatMoney(item.qty * item.price)}</div>
+      </div>
+      <button class="event-menu-remove" type="button" onclick="removeAdminEventMenuItem(${idx})">삭제</button>
+    </div>
+  `).join('');
+  total.textContent = `총 ${eventOrderTotalQty({ items: adminEventDraftItems })}개 · ${formatMoney(eventOrderTotalAmount({ items: adminEventDraftItems }))}`;
+  syncAdminEventHiddenFields();
+}
+
+function syncAdminEventHiddenFields() {
+  const summary = eventOrderItemsSummary({ items: adminEventDraftItems });
+  const count = eventOrderTotalQty({ items: adminEventDraftItems }) || 0;
+  const price = eventAveragePrice({ items: adminEventDraftItems }) || 0;
+  document.getElementById('event-name').value = summary;
+  document.getElementById('event-count').value = count || '';
+  document.getElementById('event-price').value = price || '';
+}
+
+function addAdminEventMenuItem() {
+  const category = document.getElementById('event-menu-category')?.value || '';
+  const name = document.getElementById('event-menu-name')?.value || '';
+  const qty = parseInt(document.getElementById('event-menu-qty')?.value, 10) || 0;
+  const menu = EVENT_LUNCH_MENUS.find(item => item.category === category && item.name === name);
+  if (!menu || qty <= 0) {
+    showToast('메뉴와 수량을 확인해주세요.');
+    return;
+  }
+  adminEventDraftItems.push({ category, name, qty, price: menu.price });
+  document.getElementById('event-menu-qty').value = '';
+  document.getElementById('event-error').classList.remove('show');
+  renderAdminEventDraftItems();
+}
+
+function removeAdminEventMenuItem(index) {
+  adminEventDraftItems.splice(index, 1);
+  renderAdminEventDraftItems();
 }
 
 async function loadEventLunches() {
@@ -4142,23 +4270,22 @@ function publicEventOrderToRow(item) {
 async function registerPublicEventOrder(id) {
   const item = eventLunches.find(e => e.id === id && e.source === 'publicEventOrder');
   if (!item) return;
+  initAdminEventMenuPicker();
   pendingPublicEventOrderId = id;
   pendingPublicEventOrder = item;
   document.getElementById('event-id').value = '';
-  document.getElementById('event-name').value = eventOrderItemsSummary(item) || item.businessName || '';
   document.getElementById('event-date').value = item.eventDate || '';
-  document.getElementById('event-time').value = String(item.eventTime || '').match(/^\d{2}:\d{2}$/) ? item.eventTime : '';
-  document.getElementById('event-count').value = eventOrderTotalQty(item) || '';
-  document.getElementById('event-price').value = eventAveragePrice(item) || '';
+  document.getElementById('event-time').value = item.eventTime || '';
   document.getElementById('event-place').value = item.place || '';
   document.getElementById('event-note').value = [
     item.businessName ? `상호명: ${item.businessName}` : '',
-    eventOrderItemsSummary(item) ? `메뉴/수량: ${eventOrderItemsSummary(item)}` : '',
-    item.eventTime && !String(item.eventTime).match(/^\d{2}:\d{2}$/) ? `희망시간: ${item.eventTime}` : '',
     item.requestNote ? `요청사항: ${item.requestNote}` : '',
     paymentLabel(item) ? `결제: ${paymentLabel(item)}` : ''
   ].filter(Boolean).join('\n');
-  showToast('비회원 주문 내용을 등록 폼에 불러왔습니다. 갯수와 가격을 확인 후 저장해주세요.');
+  setAdminEventDraftItems(Array.isArray(item.items) && item.items.length
+    ? item.items
+    : [{ name: item.name || item.menuText || '행사도시락', qty: eventOrderTotalQty(item) || item.count || 1, price: eventAveragePrice(item), category: '행사도시락' }]);
+  showToast('비회원 주문 내용을 등록 폼에 불러왔습니다. 메뉴와 수량을 확인 후 저장해주세요.');
 }
 
 async function dismissPublicEventOrder(id) {
@@ -4173,6 +4300,7 @@ async function dismissPublicEventOrder(id) {
 }
 
 async function saveEventLunch() {
+  syncAdminEventHiddenFields();
   const id = document.getElementById('event-id').value;
   const name = document.getElementById('event-name').value.trim();
   const eventDate = document.getElementById('event-date').value;
@@ -4184,17 +4312,15 @@ async function saveEventLunch() {
   const errEl = document.getElementById('event-error');
   const existingEvent = id ? eventLunches.find(item => item.id === id) : null;
   errEl.classList.remove('show');
-  if (!name || !eventDate || !eventTime || !place || count <= 0 || price < 0) {
-    errEl.textContent = '도시락 이름, 날짜, 시간, 배송장소, 갯수, 가격을 입력해주세요.';
+  if (!eventDate || !eventTime || !place || adminEventDraftItems.length === 0 || count <= 0 || price < 0) {
+    errEl.textContent = '날짜, 시간, 배송장소, 도시락 메뉴와 수량을 입력해주세요.';
     errEl.classList.add('show');
     return;
   }
   const docId = eventDocId(id);
   const sourceOrder = pendingPublicEventOrderId ? pendingPublicEventOrder : null;
-  const items = Array.isArray(sourceOrder?.items) && sourceOrder.items.length
-    ? sourceOrder.items
-    : [{ name, qty: count, price, category: '행사도시락' }];
-  const amount = sourceOrder ? eventOrderTotalAmount(sourceOrder) : count * price;
+  const items = adminEventDraftItems.map(item => ({ ...item }));
+  const amount = eventOrderTotalAmount({ items });
   const payload = {
     kind: 'eventLunch',
     uid: docId,
@@ -4242,16 +4368,17 @@ async function saveEventLunch() {
 function editEventLunch(id) {
   const item = eventLunches.find(e => e.id === id);
   if (!item) return;
+  initAdminEventMenuPicker();
   document.getElementById('event-id').value = item.id;
-  document.getElementById('event-name').value = item.name || '';
   document.getElementById('event-date').value = item.eventDate || '';
   document.getElementById('event-time').value = item.eventTime || '';
-  document.getElementById('event-count').value = item.count || '';
-  document.getElementById('event-price').value = item.price || '';
   document.getElementById('event-place').value = item.place || '';
   document.getElementById('event-note').value = item.note || '';
   pendingPublicEventOrderId = '';
   pendingPublicEventOrder = null;
+  setAdminEventDraftItems(Array.isArray(item.items) && item.items.length
+    ? item.items
+    : [{ name: item.name || '행사도시락', qty: item.count || 1, price: item.price || 0, category: '행사도시락' }]);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
