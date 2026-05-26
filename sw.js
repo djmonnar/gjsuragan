@@ -1,6 +1,7 @@
-const CACHE = 'gjsuragan-v8-install-banner';
+const CACHE = 'gjsuragan-v9-login-promo';
 const PRECACHE = [
   './customer.html',
+  './assets/img/event-lunch-banner.jpg',
   './icons/icon.svg',
   './manifest.json'
 ];

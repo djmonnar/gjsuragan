@@ -661,15 +661,15 @@
     background: var(--primary);
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 24px;
+    justify-content: flex-start;
+    padding: 52px 24px 112px;
     position: relative;
   }
   #auth-screen.active { display: flex; }
 
   .auth-logo {
     text-align: center;
-    margin-bottom: 40px;
+    margin-bottom: 18px;
   }
   .auth-logo .kr {
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
@@ -683,6 +683,23 @@
     color: rgba(240,208,144,0.6);
     letter-spacing: 0.5px;
     margin-top: 4px;
+  }
+
+  .auth-promo-banner {
+    width: calc(100vw - 48px);
+    max-width: 400px;
+    margin-bottom: 18px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f8efe2;
+    box-shadow: 0 10px 28px rgba(45, 24, 10, 0.24);
+  }
+  .auth-promo-banner img {
+    display: block;
+    width: 100%;
+    height: clamp(132px, 42vw, 168px);
+    object-fit: cover;
+    object-position: center;
   }
 
   .auth-card {
@@ -1123,6 +1140,10 @@
   <div class="auth-logo">
     <div class="kr">궁중수라간</div>
     <div class="sub">월식 도시락 주문 시스템</div>
+  </div>
+
+  <div class="auth-promo-banner" role="img" aria-label="궁중수라간 행사도시락 주문 안내 배너">
+    <img src="./assets/img/event-lunch-banner.jpg" alt="궁중수라간 행사도시락 주문하기">
   </div>
 
   <!-- 로그인 폼 -->
