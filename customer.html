@@ -981,19 +981,9 @@
   .cust-payment-row:last-child{border-bottom:none}
   .cust-payment-row .p-date{color:var(--text-secondary)}
   .cust-payment-row .p-amt{font-weight:700;color:var(--primary);text-align:right}
-  .cust-payment-row .p-note{color:var(--text-secondary);font-size:12px}
+.cust-payment-row .p-note{color:var(--text-secondary);font-size:12px}
 .btn-call{color:#1e6e40}
 .btn-call:hover{background:#e8f5e9}
-.tomorrow-card{border:1px dashed var(--border);border-radius:8px;padding:15px 16px;background:var(--bg);cursor:pointer;transition:transform 0.25s var(--ease-spring),box-shadow 0.25s var(--ease-spring),border-color 0.2s,border-style 0.2s}
-.tomorrow-card:hover{border-color:var(--primary);border-style:solid;transform:translateY(-2px);box-shadow:0 6px 18px rgba(15,23,42,0.09)}
-.tomorrow-card:hover{border-color:var(--primary);background:#fffaf5}
-.tomorrow-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.tomorrow-card-date{font-size:17px;font-weight:800;color:var(--primary)}
-.tomorrow-card-status{font-size:14px;color:var(--text-sub)}
-.tomorrow-card-status.submitted{color:#1e6e40;font-weight:700}
-.tomorrow-card-hint{font-size:14px;color:var(--text-sub);margin-top:4px}
-.tomorrow-card-status.self-holiday{color:#c0392b;font-weight:700}
-.tomorrow-card-status.default-badge{color:#1a6fa8;font-weight:700}
 .self-holiday-btn{width:100%;padding:15px;border:1.5px solid #e74c3c;background:#fff;color:#c0392b;border-radius:8px;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:8px;transition:.15s}
 .self-holiday-btn:hover{background:#fdecea}
 .self-holiday-badge{display:inline-block;background:#fdecea;color:#c0392b;border-radius:8px;padding:3px 8px;font-size:12px;font-weight:800}
@@ -1285,11 +1275,6 @@
       </div>
     </div>
 
-    <!-- 내일 주문 미리 설정 -->
-    <div id="tomorrow-section" style="margin-top:16px;display:none">
-      <div class="section-title" style="margin-bottom:8px"><svg class="gj-icon"><use href="#gj-calendar"></use></svg>내일 주문 미리 설정</div>
-      <div id="tomorrow-card" class="tomorrow-card"></div>
-    </div>
   </div>
 
   <!-- 식단 탭 -->
@@ -1613,10 +1598,13 @@ let currentUser = null;
 let userProfile = null;
 let todayLunch = 0;
 let todaySalad = 0;
+let currentOrderTargetDate = '';
+let orderTargetRefreshTimer = null;
 let modalDateStr = '';
 let modalLunch = 0;
 let modalSalad = 0;
 const mealMenuCache = {};
+const NEXT_ORDER_OPEN_HOUR = 13;
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
@@ -1739,6 +1727,9 @@ function isClosed() {
   const m = kst.getUTCMinutes();
   return h > orderDeadline.hour || (h === orderDeadline.hour && m >= orderDeadline.minute);
 }
+function isNextOrderOpen(kst = getKST()) {
+  return kst.getUTCHours() >= NEXT_ORDER_OPEN_HOUR;
+}
 function isWeekendDate(dStr) {
   const dt = new Date(`${dStr}T00:00:00+09:00`);
   const day = dt.getDay();
@@ -1791,33 +1782,44 @@ function getNextBusinessDay(fromStr) {
   return null;
 }
 
-function renderTomorrowCard(tomorrowStr, existing) {
-  const sec = document.getElementById('tomorrow-section');
-  const card = document.getElementById('tomorrow-card');
-  if (!tomorrowStr) { sec.style.display = 'none'; return; }
-  sec.style.display = 'block';
-  const defaults = defaultMealsForDate(tomorrowStr);
-  const submitted = Boolean(existing);
-  const isSelfHoliday = submitted && existing.selfHoliday;
-  const hasDefault = !submitted && (defaults.lunch + defaults.salad) > 0;
-  const statusText = isSelfHoliday
-    ? '자체 휴무 등록됨'
-    : submitted
-    ? `도시락 ${existing.lunchCount}개 / 샐러드 ${existing.saladCount}개`
-    : hasDefault
-    ? `기본값 도시락 ${defaults.lunch}개 · 샐러드 ${defaults.salad}개 자동 적용 예정`
-    : '수량을 입력해주세요';
-  const statusLabel = isSelfHoliday ? '자체 휴무' : submitted ? '입력됨' : hasDefault ? '기본값 예정' : '미입력';
-  const statusCls = isSelfHoliday ? ' self-holiday' : submitted ? ' submitted' : hasDefault ? ' default-badge' : '';
-  card.innerHTML = `
-    <div class="tomorrow-card-head">
-      <span class="tomorrow-card-date">${formatDateKR(tomorrowStr)}</span>
-      <span class="tomorrow-card-status${statusCls}">${statusLabel}</span>
-    </div>
-    <div style="font-size:13px;color:var(--text)">${statusText}</div>
-    <div class="tomorrow-card-hint">탭하면 수정할 수 있습니다</div>
-  `;
-  card.onclick = () => openDayModal(tomorrowStr, existing);
+function getOrderTargetContext() {
+  const kst = getKST();
+  const today = dateStr(kst);
+  const nextBusinessDay = getNextBusinessDay(today);
+  const nextOpen = isNextOrderOpen(kst);
+  const todayClosed = isClosed();
+  const todayNoDelivery = isNoDeliveryDate(today);
+  const targetDate = nextOpen && nextBusinessDay ? nextBusinessDay : today;
+  return {
+    today,
+    targetDate,
+    isFuture: targetDate !== today,
+    lockedUntilNextOpen: !nextOpen && (todayClosed || todayNoDelivery),
+    todayClosed,
+    todayNoDelivery,
+    holiday: holidayName(today)
+  };
+}
+
+function orderTargetBadgeText(ctx) {
+  if (!ctx.isFuture) return `${formatDateKR(ctx.targetDate)} 오늘`;
+  const tomorrow = new Date(ctx.today + 'T00:00:00');
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return `${formatDateKR(ctx.targetDate)} ${dateStr(tomorrow) === ctx.targetDate ? '내일 주문' : '다음 주문'}`;
+}
+
+function scheduleOrderTargetRefresh() {
+  if (orderTargetRefreshTimer) clearTimeout(orderTargetRefreshTimer);
+  const kst = getKST();
+  if (isNextOrderOpen(kst)) return;
+  const h = kst.getUTCHours();
+  const m = kst.getUTCMinutes();
+  const s = kst.getUTCSeconds();
+  const ms = kst.getUTCMilliseconds();
+  const wait = Math.max(1000, ((NEXT_ORDER_OPEN_HOUR - h) * 60 - m) * 60000 - s * 1000 - ms + 1000);
+  orderTargetRefreshTimer = setTimeout(() => {
+    if (currentUser) renderToday();
+  }, wait);
 }
 
 function formatDateKR(dStr) {
@@ -1937,18 +1939,6 @@ async function loadMealMenu(dStr) {
   const snap = await db.collection('mealMenus').doc(dStr).get();
   mealMenuCache[dStr] = snap.exists ? snap.data() : null;
   return mealMenuCache[dStr];
-}
-async function loadTodayMealMenu() {
-  const today = dateStr(getKST());
-  try {
-    renderMealMenuCard('today-meal-card', today, await loadMealMenu(today));
-  } catch(e) {
-    const el = document.getElementById('today-meal-card');
-    if (el) {
-      el.className = 'meal-card is-empty';
-      el.textContent = '식단을 불러오지 못했습니다.';
-    }
-  }
 }
 async function searchMealMenu() {
   const input = document.getElementById('meal-search-date');
@@ -2092,7 +2082,6 @@ function showMain() {
   renderWeek();
   const mealSearchDate = document.getElementById('meal-search-date');
   if (mealSearchDate && !mealSearchDate.value) mealSearchDate.value = dateStr(getKST());
-  loadTodayMealMenu();
 
   // iOS 사파리에서 홈 화면 추가 안내
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -2243,39 +2232,46 @@ async function loadCustomerSettlement() {
 
 // ───────── 오늘 주문 렌더링 ─────────
 async function renderToday() {
-  const kst = getKST();
-  const today = dateStr(kst);
-  const closed = isClosed();
-  const holiday = holidayName(today);
-  const noDelivery = isNoDeliveryDate(today);
+  const ctx = getOrderTargetContext();
+  const targetDate = ctx.targetDate;
+  currentOrderTargetDate = targetDate;
+  const targetNoDelivery = isNoDeliveryDate(targetDate);
 
-  document.getElementById('today-badge').innerHTML = `${iconSvg('calendar')}<span>${formatDateKR(today)}</span>`;
+  document.getElementById('today-badge').innerHTML = `${iconSvg('calendar')}<span>${orderTargetBadgeText(ctx)}</span>`;
+  try {
+    renderMealMenuCard('today-meal-card', targetDate, await loadMealMenu(targetDate));
+  } catch(e) {
+    const el = document.getElementById('today-meal-card');
+    if (el) {
+      el.className = 'meal-card is-empty';
+      el.textContent = '식단을 불러오지 못했습니다.';
+    }
+  }
 
   const closedBanner = document.getElementById('closed-banner');
-  if (noDelivery) {
+  if (ctx.lockedUntilNextOpen) {
     closedBanner.style.display = 'flex';
     closedBanner.innerHTML = `
-      <span class="icon">${iconSvg('delivery')}</span>
+      <span class="icon">${ctx.todayNoDelivery ? iconSvg('delivery') : iconSvg('clock')}</span>
       <div>
-        <strong>${holiday ? `${holiday}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다'}</strong><br>
-        <span style="font-size:12px">배송일에만 주문을 입력할 수 있습니다</span>
+        <strong>${ctx.todayNoDelivery ? (ctx.holiday ? `${ctx.holiday}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다') : '오늘 주문이 마감되었습니다'}</strong><br>
+        <span style="font-size:12px">다음 주문은 오후 1시에 열립니다</span>
       </div>
     `;
-  } else if (closed) {
+  } else if (ctx.isFuture) {
     closedBanner.style.display = 'flex';
     closedBanner.innerHTML = `
-      <span class="icon">${iconSvg('clock')}</span>
+      <span class="icon">${iconSvg('calendar')}</span>
       <div>
-        <strong>오늘 주문이 마감되었습니다</strong><br>
-        <span style="font-size:12px" id="closed-banner-time">주문 마감: ${deadlineText()}</span>
+        <strong>다음 영업일 주문을 미리 받고 있습니다</strong><br>
+        <span style="font-size:12px">${formatDateKR(targetDate)} 주문을 입력할 수 있습니다</span>
       </div>
     `;
   } else {
     closedBanner.style.display = 'none';
   }
 
-  // 기존 주문 로드
-  const snap = await db.collection('orders').doc(today)
+  const snap = await db.collection('orders').doc(targetDate)
     .collection('items').doc(currentUser.uid).get();
 
   const submitBtn = document.getElementById('submit-btn');
@@ -2291,43 +2287,28 @@ async function renderToday() {
       submitBtn.textContent = '자체 휴무 등록됨';
       submitBtn.disabled = false;
       document.getElementById('default-apply-notice').style.display = 'none';
-      if (!isClosed()) setQtyDisabled(false);
-      else setQtyDisabled(true);
+      setQtyDisabled(ctx.lockedUntilNextOpen || targetNoDelivery);
     } else {
       setCardSubmitted(true, data.submittedAt);
     }
-    if (closed || noDelivery) setQtyDisabled(true);
   } else {
-    const todayDefault = defaultMealsForDate(today);
+    const todayDefault = defaultMealsForDate(targetDate);
     todayLunch = todayDefault.lunch;
     todaySalad = todayDefault.salad;
     const hasDefault = (todayDefault.lunch + todayDefault.salad) > 0;
     setCardSubmitted(false, null, hasDefault);
-    if (closed || noDelivery) {
-      submitBtn.disabled = true;
-      submitBtn.textContent = noDelivery ? '배송 없음' : '주문 마감됨';
-      document.getElementById('default-apply-notice').style.display = 'none';
-      setQtyDisabled(true);
-    }
   }
 
-  if (noDelivery) {
+  if (ctx.lockedUntilNextOpen || targetNoDelivery) {
     submitBtn.disabled = true;
-    submitBtn.textContent = '배송 없음';
+    submitBtn.textContent = ctx.lockedUntilNextOpen ? '오후 1시에 다음 주문 가능' : '배송 없음';
+    document.getElementById('default-apply-notice').style.display = 'none';
+    setQtyDisabled(true);
   }
 
   document.getElementById('lunch-value').textContent = todayLunch;
   document.getElementById('salad-value').textContent = todaySalad;
-
-  // 내일 주문 미리 설정
-  const tomorrowStr = getNextBusinessDay(today);
-  if (tomorrowStr) {
-    db.collection('orders').doc(tomorrowStr).collection('items').doc(currentUser.uid).get()
-      .then(snap => renderTomorrowCard(tomorrowStr, snap.exists ? snap.data() : null))
-      .catch(() => renderTomorrowCard(tomorrowStr, null));
-  } else {
-    document.getElementById('tomorrow-section').style.display = 'none';
-  }
+  scheduleOrderTargetRefresh();
 }
 
 function setCardSubmitted(yes, ts, hasDefault) {
@@ -2340,8 +2321,7 @@ function setCardSubmitted(yes, ts, hasDefault) {
     submitBtn.disabled = false;
     badge.style.display = 'none';
     notice.style.display = 'none';
-    if (!isClosed()) setQtyDisabled(false);
-    else setQtyDisabled(true);
+    setQtyDisabled(false);
   } else if (hasDefault) {
     submitBtn.className = 'submit-btn default-btn';
     submitBtn.textContent = '수량 변경해서 전송';
@@ -2349,11 +2329,13 @@ function setCardSubmitted(yes, ts, hasDefault) {
     badge.style.display = 'none';
     notice.style.display = 'block';
     notice.innerHTML = `설정된 기본값(도시락 ${todayLunch}개 · 샐러드 ${todaySalad}개)으로 자동 배달됩니다.<br><span style="font-size:12px;color:#a0522d">수량을 바꾸려면 위에서 조정 후 전송하세요</span>`;
+    setQtyDisabled(false);
   } else {
     submitBtn.className = 'submit-btn';
     submitBtn.textContent = '주문 전송하기';
     submitBtn.disabled = false;
     notice.style.display = 'none';
+    setQtyDisabled(false);
   }
 }
 
@@ -2390,7 +2372,13 @@ async function submitOrder(source) {
   let targetDate, lunch, salad;
 
   if (source === 'today') {
-    targetDate = dateStr(getKST());
+    const ctx = getOrderTargetContext();
+    if (ctx.lockedUntilNextOpen) {
+      showToast('다음 주문은 오후 1시에 열립니다.', 'error');
+      return;
+    }
+    targetDate = ctx.targetDate;
+    currentOrderTargetDate = targetDate;
     lunch = todayLunch;
     salad = todaySalad;
   } else {
@@ -2426,19 +2414,11 @@ async function submitOrder(source) {
     showToast('주문이 전송되었습니다.', 'success');
 
     if (source === 'today') {
-      setCardSubmitted(true, new Date());
-      if (!isClosed()) setQtyDisabled(false);
+      await renderToday();
     } else {
       closeModal();
       renderWeek();
-      // 모달에서 저장한 날짜가 내일이면 내일 카드 갱신
-      const today = dateStr(getKST());
-      const tomorrowStr = getNextBusinessDay(today);
-      if (tomorrowStr && modalDateStr === tomorrowStr) {
-        db.collection('orders').doc(tomorrowStr).collection('items').doc(currentUser.uid).get()
-          .then(snap => renderTomorrowCard(tomorrowStr, snap.exists ? snap.data() : null))
-          .catch(() => {});
-      }
+      if (modalDateStr === currentOrderTargetDate) renderToday();
     }
   } catch(e) {
     showToast('전송 실패. 다시 시도해주세요.', 'error');
@@ -2467,13 +2447,7 @@ async function submitSelfHoliday() {
     }
     closeModal();
     renderWeek();
-    const today = dateStr(getKST());
-    const tomorrowStr = getNextBusinessDay(today);
-    if (tomorrowStr && modalDateStr === tomorrowStr) {
-      db.collection('orders').doc(tomorrowStr).collection('items').doc(currentUser.uid).get()
-        .then(snap => renderTomorrowCard(tomorrowStr, snap.exists ? snap.data() : null))
-        .catch(() => {});
-    }
+    if (modalDateStr === currentOrderTargetDate) renderToday();
   } catch(e) {
     showToast('저장 실패. 다시 시도해주세요.', 'error');
     btn.disabled = false;
