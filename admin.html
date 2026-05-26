@@ -225,7 +225,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 /* 모달 */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:center;justify-content:center;padding:24px}
 .modal-overlay.open{display:flex}
-.modal-box{background:#fff;border-radius:var(--radius);padding:24px;width:100%;max-width:520px;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-box{background:#fff;border-radius:var(--radius);padding:24px;width:100%;max-width:520px;max-height:calc(100dvh - 48px);overflow-y:auto;overscroll-behavior:contain;box-shadow:0 8px 32px rgba(0,0,0,.18)}
 .modal-actions{display:flex;gap:8px;align-items:center;margin-top:8px}
 .modal-actions .save-btn{flex:1;margin-top:0}
 .modal-actions .danger-btn{align-self:stretch}
