@@ -105,19 +105,39 @@ service cloud.firestore {
     }
 
     function orderKeys() {
-      return ['uid', 'lunchCount', 'saladCount', 'note', 'selfHoliday', 'submittedAt', 'updatedAt'];
+      return ['uid', 'targetDate', 'lunchCount', 'saladCount', 'note', 'selfHoliday', 'submittedAt', 'updatedAt'];
     }
 
-    function validOrderWrite(userId) {
+    function validOrderWrite(date, userId) {
       return isOwner(userId)
         && request.resource.data.keys().hasOnly(orderKeys())
         && request.resource.data.uid == userId
+        && request.resource.data.targetDate == date
         && safeCount(request.resource.data.lunchCount)
         && safeCount(request.resource.data.saladCount)
         && optionalString(request.resource.data, 'note', 500)
         && optionalBool(request.resource.data, 'selfHoliday')
-        && optionalTimestamp(request.resource.data, 'submittedAt')
+        && (!('selfHoliday' in request.resource.data.keys())
+          || request.resource.data.selfHoliday == false
+          || (request.resource.data.lunchCount == 0 && request.resource.data.saladCount == 0))
+        && request.resource.data.submittedAt == request.time
         && optionalTimestamp(request.resource.data, 'updatedAt');
+    }
+
+    function validOrderCreate(date, userId) {
+      return validOrderWrite(date, userId);
+    }
+
+    function validOrderUpdate(date, userId) {
+      return resource.data.uid == userId
+        && resource.data.keys().hasOnly(orderKeys())
+        && validOrderWrite(date, userId);
+    }
+
+    function validOrderDelete(userId) {
+      return isOwner(userId)
+        && resource.data.uid == userId
+        && resource.data.keys().hasOnly(orderKeys());
     }
 
     match /users/{userId} {
@@ -133,8 +153,9 @@ service cloud.firestore {
 
     match /orders/{date}/items/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create, update: if isAdmin() || validOrderWrite(userId);
-      allow delete: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin() || validOrderCreate(date, userId);
+      allow update: if isAdmin() || validOrderUpdate(date, userId);
+      allow delete: if isAdmin() || validOrderDelete(userId);
     }
 
     match /mealMenus/{date} {

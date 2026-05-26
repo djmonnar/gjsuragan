@@ -2462,6 +2462,7 @@ async function submitOrder(source) {
     await db.collection('orders').doc(targetDate)
       .collection('items').doc(currentUser.uid).set({
         uid: currentUser.uid,
+        targetDate,
         lunchCount: lunch,
         saladCount: salad,
         note: note,
@@ -2478,6 +2479,7 @@ async function submitOrder(source) {
       if (modalDateStr === currentOrderTargetDate) renderToday();
     }
   } catch(e) {
+    console.error('주문 전송 오류:', e);
     showToast('전송 실패. 다시 시도해주세요.', 'error');
     btn.disabled = false;
     btn.textContent = '주문 전송하기';
@@ -2495,6 +2497,7 @@ async function submitSelfHoliday() {
     } else {
       await db.collection('orders').doc(modalDateStr).collection('items').doc(currentUser.uid).set({
         uid: currentUser.uid,
+        targetDate: modalDateStr,
         lunchCount: 0,
         saladCount: 0,
         selfHoliday: true,
@@ -2506,6 +2509,7 @@ async function submitSelfHoliday() {
     renderWeek();
     if (modalDateStr === currentOrderTargetDate) renderToday();
   } catch(e) {
+    console.error('자체 휴무 저장 오류:', e);
     showToast('저장 실패. 다시 시도해주세요.', 'error');
     btn.disabled = false;
   }
