@@ -1,4 +1,4 @@
-const CACHE = 'wolsik-v1';
+const CACHE = 'suragan-v2';
 const PRECACHE = [
   './customer.html',
   './icons/icon.svg',

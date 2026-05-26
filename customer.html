@@ -12,7 +12,7 @@
 <!-- iOS 홈 화면 추가 지원 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="월식주문">
+<meta name="apple-mobile-web-app-title" content="궁중수라간">
 <link rel="apple-touch-icon" href="./icons/icon.svg">
 
 <!-- 안드로이드 스플래시 배경색 -->
@@ -36,9 +36,9 @@
     messagingSenderId: "1009198450175",
     appId: "1:1009198450175:web:4a55da7c2092dba42613ca"
   };
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.firestore();
+  const firebaseApp = firebase.initializeApp(firebaseConfig, 'gjsuragan-customer');
+  const auth = firebaseApp.auth();
+  const db = firebaseApp.firestore();
   const AUTO_LOGIN_STORAGE_KEY = 'gjsuragan:autoLogin';
   function getAutoLoginEnabled() {
     try {
@@ -1538,14 +1538,18 @@
   <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px">
     <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px">
       <div style="font-size:20px;font-weight:800;color:#7B3F1A">1</div>
-      <div style="font-size:14px">아래 <strong>공유 버튼</strong> (□↑) 을 누르세요</div>
+      <div style="font-size:14px">아래 <strong>점 세 개(...)</strong> 버튼을 누르세요</div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px">
       <div style="font-size:20px;font-weight:800;color:#7B3F1A">2</div>
-      <div style="font-size:14px"><strong>"홈 화면에 추가"</strong> 를 선택하세요</div>
+      <div style="font-size:14px"><strong>"공유하기"</strong> 를 선택하세요</div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px">
       <div style="font-size:20px;font-weight:800;color:#7B3F1A">3</div>
+      <div style="font-size:14px"><strong>"홈 화면에 추가"</strong> 를 선택하세요</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px">
+      <div style="font-size:20px;font-weight:800;color:#7B3F1A">4</div>
       <div style="font-size:14px">오른쪽 위 <strong>"추가"</strong> 를 누르면 완료!</div>
     </div>
   </div>

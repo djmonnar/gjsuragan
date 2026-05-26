@@ -1,7 +1,7 @@
 {
-  "name": "월식",
-  "short_name": "월식",
-  "description": "월식 도시락 주문 앱",
+  "name": "궁중수라간",
+  "short_name": "궁중수라간",
+  "description": "궁중수라간 도시락 주문 앱",
   "start_url": "./customer.html",
   "display": "standalone",
   "orientation": "portrait",
