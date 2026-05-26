@@ -140,6 +140,51 @@ service cloud.firestore {
         && resource.data.keys().hasOnly(orderKeys());
     }
 
+    function eventOrderKeys() {
+      return [
+        'businessName',
+        'place',
+        'eventDate',
+        'eventTime',
+        'menuText',
+        'requestNote',
+        'paymentCash',
+        'paymentTransfer',
+        'paymentCard',
+        'status',
+        'source',
+        'createdAt'
+      ];
+    }
+
+    function validPublicEventOrder() {
+      return request.auth == null
+        && request.resource.data.keys().hasOnly(eventOrderKeys())
+        && request.resource.data.businessName is string
+        && request.resource.data.businessName.size() > 0
+        && request.resource.data.businessName.size() <= 80
+        && request.resource.data.place is string
+        && request.resource.data.place.size() > 0
+        && request.resource.data.place.size() <= 160
+        && request.resource.data.eventDate is string
+        && request.resource.data.eventDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && request.resource.data.eventTime is string
+        && request.resource.data.eventTime.matches('^\\d{2}:\\d{2}$')
+        && request.resource.data.menuText is string
+        && request.resource.data.menuText.size() > 0
+        && request.resource.data.menuText.size() <= 500
+        && optionalString(request.resource.data, 'requestNote', 500)
+        && request.resource.data.paymentCash is bool
+        && request.resource.data.paymentTransfer is bool
+        && request.resource.data.paymentCard is bool
+        && (request.resource.data.paymentCash
+          || request.resource.data.paymentTransfer
+          || request.resource.data.paymentCard)
+        && request.resource.data.status == 'new'
+        && request.resource.data.source == 'publicEventPage'
+        && request.resource.data.createdAt == request.time;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAdmin() || validUserCreate(userId);
@@ -171,6 +216,11 @@ service cloud.firestore {
     match /settlements/{monthId}/items/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow write: if isAdmin();
+    }
+
+    match /eventOrders/{orderId} {
+      allow create: if validPublicEventOrder();
+      allow read, update, delete: if isAdmin();
     }
 
     match /customers/{document=**} {

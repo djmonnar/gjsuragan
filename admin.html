@@ -1388,6 +1388,7 @@ let currentDateStr = '';
 let allUsers = {};
 let deletedUsers = {};
 let eventLunches = [];
+let pendingPublicEventOrderId = '';
 let settlementRows = [];
 let settlementEvents = [];
 let currentOrderRows = [];
@@ -4002,6 +4003,7 @@ function resetEventForm() {
   ['event-id','event-name','event-date','event-time','event-place','event-count','event-price','event-note'].forEach(id => {
     document.getElementById(id).value = '';
   });
+  pendingPublicEventOrderId = '';
   document.getElementById('event-date').dataset.oldDate = '';
   document.getElementById('event-error').classList.remove('show');
   document.getElementById('event-name').focus();
@@ -4011,9 +4013,18 @@ async function loadEventLunches() {
   const tbody = document.getElementById('event-tbody');
   tbody.innerHTML = '<tr class="no-order-row"><td colspan="8">불러오는 중...</td></tr>';
   try {
-    const doc = await db.collection('users').doc(adminUid).get();
+    const [doc, publicSnap] = await Promise.all([
+      db.collection('users').doc(adminUid).get(),
+      db.collection('eventOrders').orderBy('createdAt', 'desc').limit(100).get().catch(() => null)
+    ]);
     const events = doc.exists ? adminEventsFromData(doc.data()) : {};
-    eventLunches = Object.entries(events).map(([id, item]) => ({ id, ...item }));
+    const publicOrders = publicSnap
+      ? publicSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data(), source: 'publicEventOrder' }))
+        .filter(item => item.status !== 'registered' && item.status !== 'deleted')
+      : [];
+    eventLunches = Object.entries(events).map(([id, item]) => ({ id, ...item, source: item.source || 'adminEvent' }))
+      .concat(publicOrders.map(publicEventOrderToRow));
     eventLunches.sort((a, b) => `${a.eventDate || ''} ${a.eventTime || ''}`.localeCompare(`${b.eventDate || ''} ${b.eventTime || ''}`));
     renderEventLunches();
   } catch(e) {
@@ -4031,19 +4042,78 @@ function renderEventLunches() {
     <tr>
       <td>${escapeHtml(item.eventDate || '-')}</td>
       <td>${escapeHtml(item.eventTime || '-')}</td>
-      <td class="biz-name">${escapeHtml(item.name || '-')}</td>
+      <td class="biz-name">${item.source === 'publicEventOrder' ? '<span class="note-badge">비회원</span> ' : ''}${escapeHtml(item.name || '-')}</td>
       <td class="qty-cell">${item.count ?? 0}</td>
       <td>${formatMoney(item.price || 0)}</td>
       <td>${escapeHtml(item.place || '-')}</td>
       <td class="note-cell">${item.note ? `<span class="note-badge" title="${escapeHtml(item.note)}">${escapeHtml(item.note)}</span>` : '<span style="color:#ccc">-</span>'}</td>
       <td>
         <div class="inline-actions">
-          <button class="secondary-btn" onclick="editEventLunch('${item.id}')">수정</button>
-          <button class="danger-btn" onclick="deleteEventLunch('${item.id}')">삭제</button>
+          ${item.source === 'publicEventOrder'
+            ? `<button class="save-btn" style="width:auto;padding:8px 10px" onclick="registerPublicEventOrder('${item.id}')">등록</button><button class="danger-btn" onclick="dismissPublicEventOrder('${item.id}')">숨김</button>`
+            : `<button class="secondary-btn" onclick="editEventLunch('${item.id}')">수정</button><button class="danger-btn" onclick="deleteEventLunch('${item.id}')">삭제</button>`}
         </div>
       </td>
     </tr>
   `).join('');
+}
+
+function paymentLabel(item) {
+  return [
+    item.paymentCash ? '현금' : '',
+    item.paymentTransfer ? '이체' : '',
+    item.paymentCard ? '카드계산' : ''
+  ].filter(Boolean).join(', ');
+}
+
+function publicEventOrderToRow(item) {
+  const pay = paymentLabel(item);
+  return {
+    ...item,
+    name: item.menuText || item.businessName || '행사도시락',
+    eventDate: item.eventDate || '',
+    eventTime: item.eventTime || '',
+    place: item.place || '',
+    count: '',
+    price: 0,
+    note: [
+      item.businessName ? `상호명: ${item.businessName}` : '',
+      item.requestNote ? `요청사항: ${item.requestNote}` : '',
+      pay ? `결제: ${pay}` : ''
+    ].filter(Boolean).join(' / '),
+    source: 'publicEventOrder'
+  };
+}
+
+async function registerPublicEventOrder(id) {
+  const item = eventLunches.find(e => e.id === id && e.source === 'publicEventOrder');
+  if (!item) return;
+  pendingPublicEventOrderId = id;
+  document.getElementById('event-id').value = '';
+  document.getElementById('event-name').value = item.menuText || item.businessName || '';
+  document.getElementById('event-date').value = item.eventDate || '';
+  document.getElementById('event-time').value = item.eventTime || '';
+  document.getElementById('event-count').value = '';
+  document.getElementById('event-price').value = '';
+  document.getElementById('event-place').value = item.place || '';
+  document.getElementById('event-note').value = [
+    item.businessName ? `상호명: ${item.businessName}` : '',
+    item.menuText ? `메뉴/수량: ${item.menuText}` : '',
+    item.requestNote ? `요청사항: ${item.requestNote}` : '',
+    paymentLabel(item) ? `결제: ${paymentLabel(item)}` : ''
+  ].filter(Boolean).join('\n');
+  showToast('비회원 주문 내용을 등록 폼에 불러왔습니다. 갯수와 가격을 확인 후 저장해주세요.');
+}
+
+async function dismissPublicEventOrder(id) {
+  if (!confirm('이 비회원 행사도시락 주문을 목록에서 숨길까요?')) return;
+  await db.collection('eventOrders').doc(id).set({
+    status: 'deleted',
+    deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    deletedBy: adminUid
+  }, { merge: true });
+  showToast('비회원 주문을 숨겼습니다.');
+  loadEventLunches();
 }
 
 async function saveEventLunch() {
@@ -4079,6 +4149,15 @@ async function saveEventLunch() {
     await db.collection('users').doc(adminUid).set({
       adminEvents: { [docId]: eventRecord }
     }, { merge: true });
+    if (pendingPublicEventOrderId) {
+      await db.collection('eventOrders').doc(pendingPublicEventOrderId).set({
+        status: 'registered',
+        registeredEventId: docId,
+        registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
+        registeredBy: adminUid
+      }, { merge: true });
+      pendingPublicEventOrderId = '';
+    }
     showToast(id ? '✅ 행사도시락이 수정되었습니다.' : '✅ 행사도시락이 등록되었습니다.');
     resetEventForm();
     loadEventLunches();

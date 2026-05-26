@@ -1,7 +1,9 @@
-const CACHE = 'gjsuragan-v9-login-promo';
+const CACHE = 'gjsuragan-v10-event-order';
 const PRECACHE = [
   './customer.html',
+  './event-order.html',
   './assets/img/event-lunch-banner.jpg',
+  './assets/img/event-menu.jpg',
   './icons/icon.svg',
   './manifest.json'
 ];
