@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v5-auth-help';
+const CACHE = 'gjsuragan-v6-login-reset';
 const PRECACHE = [
   './customer.html',
   './icons/icon.svg',

@@ -2063,6 +2063,14 @@ async function doLogin() {
   }
 }
 
+function resetLoginButton() {
+  const btn = document.querySelector('#login-form .auth-submit');
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = '로그인';
+  }
+}
+
 async function doRegister() {
   const bizname = document.getElementById('reg-bizname').value.trim();
   const email = document.getElementById('reg-email').value.trim();
@@ -2120,6 +2128,7 @@ function hideLoading() {
   setTimeout(() => el.style.display = 'none', 400);
 }
 function showAuth() {
+  resetLoginButton();
   document.getElementById('auth-screen').classList.add('active');
   document.getElementById('main-screen').classList.remove('active');
 }
