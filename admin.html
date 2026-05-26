@@ -872,6 +872,15 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       </div>
 
       <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px">고객 비공개 필드 분리</div>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px">
+        users 문서에 남아있는 배송지, 단가, 관리자 메모 같은 필드를 관리자 전용 userPrivate 컬렉션으로 옮깁니다.
+      </div>
+      <button onclick="migrateUserPrivateFields()"
+        style="background:#fff;color:var(--primary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">비공개 필드 분리</button>
+      <div id="user-private-migration-result" style="font-size:12px;color:var(--text-secondary);margin-top:8px"></div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
       <div style="font-size:14px;font-weight:700;margin-bottom:10px">정산 데이터 마이그레이션</div>
       <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px">
         기존 users 문서 안의 settlements 데이터를 새 settlements 컬렉션으로 복사합니다. 복사 후 기존 데이터는 자동 삭제하지 않습니다.
@@ -1393,6 +1402,18 @@ let settlementChartDonut = null;
 let currentSettleFilter = 'all';
 
 const DEFAULT_MANUAL_MONTHLY_SETTLEMENTS = {};
+const USER_PRIVATE_FIELDS = [
+  'deliveryPlace',
+  'address',
+  'lunchPrice',
+  'saladPrice',
+  'priceLunch',
+  'priceSalad',
+  'adminMemo',
+  'memo',
+  'status',
+  'role'
+];
 
 const SUPPLIER_INFO = {
   name: '궁중수라간',
@@ -1658,6 +1679,23 @@ function orderLunchPrice(order = {}, user = {}) {
 }
 function orderSaladPrice(order = {}, user = {}) {
   return Number(order.saladPrice ?? userSaladPrice(user) ?? 0) || 0;
+}
+function userPrivateRef(uid) {
+  return db.collection('userPrivate').doc(uid);
+}
+function privateUserPayload({ deliveryPlace = '', lunchPrice = 0, saladPrice = 0 } = {}) {
+  return {
+    deliveryPlace,
+    lunchPrice,
+    saladPrice,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+}
+function userPrivateDeletePayload() {
+  return USER_PRIVATE_FIELDS.reduce((acc, field) => {
+    acc[field] = firebase.firestore.FieldValue.delete();
+    return acc;
+  }, {});
 }
 function orderEventLunchPrice(order = {}) {
   return Number(order.eventLunchPrice ?? order.eventPrice ?? 0) || 0;
@@ -2280,9 +2318,19 @@ async function loadAllUsers() {
   allUsers = {};
   deletedUsers = {};
   try {
-    const snap = await db.collection('users').get();
+    const [snap, privateSnap] = await Promise.all([
+      db.collection('users').get(),
+      db.collection('userPrivate').get().catch(() => null)
+    ]);
+    const privateByUid = {};
+    if (privateSnap) {
+      privateSnap.forEach(doc => {
+        privateByUid[doc.id] = doc.data() || {};
+      });
+    }
     snap.forEach(doc => {
-      const data = doc.data();
+      const publicData = doc.data() || {};
+      const data = { ...publicData, ...(privateByUid[doc.id] || {}) };
       if (ADMIN_EMAILS.includes(data.email) || (data.adminEvents && !data.businessName)) return;
       if (data.deleted || data.disabled) {
         deletedUsers[doc.id] = data;
@@ -3068,7 +3116,18 @@ async function saveMember() {
     return;
   }
   try {
-    await db.collection('users').doc(uid).update({ businessName: bizname, phone, deliveryPlace, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice });
+    await db.collection('users').doc(uid).update({
+      businessName: bizname,
+      phone,
+      mealTime,
+      defaultLunch: lunch,
+      defaultSalad: salad,
+      sameDailyMeal,
+      weekdayMeals,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      ...userPrivateDeletePayload()
+    });
+    await userPrivateRef(uid).set(privateUserPayload({ deliveryPlace, lunchPrice, saladPrice }), { merge: true });
     allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice };
     closeMemberModal();
     renderMembers();
@@ -5268,6 +5327,49 @@ function renderLegalHolidayList() {
   el.innerHTML = Object.entries(all).sort((a,b) => a[0].localeCompare(b[0])).map(([d, name]) =>
     `<span style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:3px 10px;font-size:12px;color:var(--text-secondary)">${d} ${name}</span>`
   ).join('');
+}
+
+async function migrateUserPrivateFields() {
+  if (!confirm('users 문서의 배송지/단가/관리자 메모를 userPrivate 경로로 옮길까요?')) return;
+  if (!confirm('한 번 더 확인합니다. 복사 후 users 문서에서는 해당 비공개 필드를 삭제합니다. 진행할까요?')) return;
+  const resultEl = document.getElementById('user-private-migration-result');
+  if (resultEl) resultEl.textContent = '분리 작업 중...';
+  try {
+    const usersSnap = await db.collection('users').get();
+    const batchLimit = 400;
+    let batch = db.batch();
+    let pending = 0;
+    let moved = 0;
+    for (const doc of usersSnap.docs) {
+      const data = doc.data() || {};
+      const privatePayload = {};
+      USER_PRIVATE_FIELDS.forEach(field => {
+        if (data[field] !== undefined) privatePayload[field] = data[field];
+      });
+      if (!Object.keys(privatePayload).length) continue;
+      privatePayload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      batch.set(userPrivateRef(doc.id), privatePayload, { merge: true });
+      batch.update(doc.ref, userPrivateDeletePayload());
+      pending += 2;
+      moved += 1;
+      if (pending >= batchLimit) {
+        await batch.commit();
+        batch = db.batch();
+        pending = 0;
+      }
+    }
+    if (pending > 0) await batch.commit();
+    await loadAllUsers();
+    renderMembers();
+    const message = `분리 완료: ${moved}명`;
+    console.log('[user private migration]', message);
+    if (resultEl) resultEl.textContent = message;
+    showToast(`✅ 비공개 필드 ${moved}명 분리 완료`);
+  } catch (e) {
+    console.error('비공개 필드 분리 실패:', e);
+    if (resultEl) resultEl.textContent = '실패: ' + e.message;
+    showToast('비공개 필드 분리 실패: ' + e.message);
+  }
 }
 
 async function migrateLegacySettlementsToNewPath() {

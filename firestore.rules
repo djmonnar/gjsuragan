@@ -127,6 +127,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /userPrivate/{userId} {
+      allow read, write: if isAdmin();
+    }
+
     match /orders/{date}/items/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create, update: if isAdmin() || validOrderWrite(userId);
