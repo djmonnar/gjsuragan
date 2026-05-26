@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v7-rules-order';
+const CACHE = 'gjsuragan-v8-install-banner';
 const PRECACHE = [
   './customer.html',
   './icons/icon.svg',

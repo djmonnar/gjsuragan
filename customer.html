@@ -1556,7 +1556,7 @@
   </div>
 </div>
 
-<!-- iOS 설치 안내 모달 -->
+<!-- 앱 설치 안내 모달 -->
 <div id="ios-guide" style="
   display:none; position:fixed; bottom:0; left:0; right:0;
   background:white; border-radius:20px 20px 0 0;
@@ -1565,9 +1565,9 @@
   max-width:480px; margin:0 auto;
 ">
   <div style="text-align:center;margin-bottom:16px">
-    <div style="font-size:18px;font-weight:700;color:#7B3F1A">아이폰에서 앱 설치하기</div>
+    <div id="install-guide-title" style="font-size:18px;font-weight:700;color:#7B3F1A">아이폰에서 앱 설치하기</div>
   </div>
-  <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px">
+  <div id="install-guide-steps" style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px">
     <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px">
       <div style="font-size:20px;font-weight:800;color:#7B3F1A">1</div>
       <div style="font-size:14px">아래 <strong>점 세 개(...)</strong> 버튼을 누르세요</div>
@@ -1609,8 +1609,12 @@ let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  // 로그인 후에 배너 표시
-  setTimeout(showInstallBanner, 2000);
+  setTimeout(showInstallBanner, 800);
+});
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  const banner = document.getElementById('install-banner');
+  if (banner) banner.style.display = 'none';
 });
 window.addEventListener('DOMContentLoaded', () => {
   setMealTimeControls('reg', '');
@@ -1620,24 +1624,51 @@ window.addEventListener('DOMContentLoaded', () => {
     autoLoginEl.checked = getAutoLoginEnabled();
     autoLoginEl.addEventListener('change', () => setAutoLoginEnabled(autoLoginEl.checked));
   }
+  setTimeout(showInstallBanner, 1200);
 });
 
 function showInstallBanner() {
   // 이미 설치되어 있으면 표시 안 함
   if (window.matchMedia('(display-mode: standalone)').matches) return;
-  if (!deferredPrompt) return;
 
   const banner = document.getElementById('install-banner');
   if (banner) banner.style.display = 'flex';
 }
 
 function installApp() {
-  if (!deferredPrompt) return;
+  if (!deferredPrompt) {
+    openInstallGuide();
+    return;
+  }
   deferredPrompt.prompt();
   deferredPrompt.userChoice.then(() => {
     deferredPrompt = null;
     document.getElementById('install-banner').style.display = 'none';
   });
+}
+
+function openInstallGuide() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const title = document.getElementById('install-guide-title');
+  const steps = document.getElementById('install-guide-steps');
+  if (!title || !steps) return;
+  if (isIOS) {
+    title.textContent = '아이폰에서 앱 설치하기';
+    steps.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">1</div><div style="font-size:14px">아래 <strong>점 세 개(...)</strong> 버튼을 누르세요</div></div>
+      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">2</div><div style="font-size:14px"><strong>"공유하기"</strong> 를 선택하세요</div></div>
+      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">3</div><div style="font-size:14px"><strong>"홈 화면에 추가"</strong> 를 선택하세요</div></div>
+      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">4</div><div style="font-size:14px">오른쪽 위 <strong>"추가"</strong> 를 누르면 완료!</div></div>
+    `;
+  } else {
+    title.textContent = '앱으로 설치하기';
+    steps.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">1</div><div style="font-size:14px">브라우저 오른쪽 위 <strong>메뉴</strong>를 여세요</div></div>
+      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">2</div><div style="font-size:14px"><strong>"앱 설치"</strong> 또는 <strong>"홈 화면에 추가"</strong>를 선택하세요</div></div>
+      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">3</div><div style="font-size:14px">설치를 누르면 바탕화면에서 바로 열 수 있습니다</div></div>
+    `;
+  }
+  document.getElementById('ios-guide').style.display = 'block';
 }
 
 // ───────── 전역 상태 ─────────
@@ -2146,7 +2177,7 @@ function showMain() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
   if (isIOS && isSafari && !isStandalone) {
     setTimeout(() => {
-      document.getElementById('ios-guide').style.display = 'block';
+      openInstallGuide();
     }, 2500);
   }
 }
