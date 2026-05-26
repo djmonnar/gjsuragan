@@ -4183,7 +4183,7 @@ function renderEventLunches() {
       <td>
         <div class="inline-actions">
           ${item.source === 'publicEventOrder'
-            ? `<button class="save-btn" style="width:auto;padding:8px 10px" onclick="registerPublicEventOrder('${item.id}')">등록</button><button class="danger-btn" onclick="dismissPublicEventOrder('${item.id}')">숨김</button>`
+            ? `<button class="secondary-btn" onclick="registerPublicEventOrder('${item.id}')">수정</button><button class="save-btn" style="width:auto;padding:8px 10px" onclick="completePublicEventOrder('${item.id}')">배송완료</button><button class="danger-btn" onclick="deletePublicEventOrder('${item.id}')">삭제</button>`
             : `<button class="secondary-btn" onclick="editEventLunch('${item.id}')">수정</button><button class="save-btn" style="width:auto;padding:8px 10px" onclick="toggleEventDelivered('${item.id}')">${item.delivered ? '완료취소' : '배송완료'}</button><button class="danger-btn" onclick="deleteEventLunch('${item.id}')">삭제</button>`}
         </div>
       </td>
@@ -4267,13 +4267,64 @@ function publicEventOrderToRow(item) {
   };
 }
 
+function eventItemsFromOrder(item = {}) {
+  if (Array.isArray(item.items) && item.items.length) {
+    return item.items.map(normalizeAdminEventItem).filter(row => row.name && row.qty > 0);
+  }
+  const qty = eventOrderTotalQty(item) || Number(item.count || 0) || 1;
+  return [{
+    category: '행사도시락',
+    name: item.name || item.menuText || '행사도시락',
+    qty,
+    price: eventAveragePrice(item)
+  }];
+}
+
+function eventRecordFromOrder(item, docId, overrides = {}) {
+  const items = eventItemsFromOrder(item);
+  const count = eventOrderTotalQty({ items }) || Number(item.count || 0) || 0;
+  const price = eventAveragePrice({ items }) || Number(item.price || 0) || 0;
+  const amount = eventOrderTotalAmount({ items });
+  const delivered = Boolean(overrides.delivered ?? item.delivered);
+  const now = new Date().toISOString();
+  return {
+    kind: 'eventLunch',
+    uid: docId,
+    businessName: item.businessName || '행사도시락',
+    name: eventOrderItemsSummary({ items }) || item.name || '행사도시락',
+    eventDate: item.eventDate || '',
+    eventTime: item.eventTime || '',
+    place: item.place || '',
+    count,
+    price,
+    note: item.note || '',
+    items,
+    paymentCash: Boolean(item.paymentCash),
+    paymentTransfer: Boolean(item.paymentTransfer),
+    paymentCard: Boolean(item.paymentCard),
+    paymentLabel: paymentLabel(item),
+    requestNote: item.requestNote || '',
+    delivered,
+    deliveredAt: delivered ? (overrides.deliveredAt || item.deliveredAt || now) : '',
+    deliveredBy: delivered ? (overrides.deliveredBy || item.deliveredBy || adminUid) : '',
+    lunchCount: count,
+    saladCount: 0,
+    amount,
+    source: 'adminEvent',
+    origin: item.source || 'publicEventOrder',
+    publicEventOrderId: item.id || item.publicEventOrderId || '',
+    createdAt: item.createdAt || now,
+    updatedAt: now
+  };
+}
+
 async function registerPublicEventOrder(id) {
   const item = eventLunches.find(e => e.id === id && e.source === 'publicEventOrder');
   if (!item) return;
   initAdminEventMenuPicker();
   pendingPublicEventOrderId = id;
   pendingPublicEventOrder = item;
-  document.getElementById('event-id').value = '';
+  document.getElementById('event-id').value = `event_${id}`;
   document.getElementById('event-date').value = item.eventDate || '';
   document.getElementById('event-time').value = item.eventTime || '';
   document.getElementById('event-place').value = item.place || '';
@@ -4282,21 +4333,42 @@ async function registerPublicEventOrder(id) {
     item.requestNote ? `요청사항: ${item.requestNote}` : '',
     paymentLabel(item) ? `결제: ${paymentLabel(item)}` : ''
   ].filter(Boolean).join('\n');
-  setAdminEventDraftItems(Array.isArray(item.items) && item.items.length
-    ? item.items
-    : [{ name: item.name || item.menuText || '행사도시락', qty: eventOrderTotalQty(item) || item.count || 1, price: eventAveragePrice(item), category: '행사도시락' }]);
-  showToast('비회원 주문 내용을 등록 폼에 불러왔습니다. 메뉴와 수량을 확인 후 저장해주세요.');
+  setAdminEventDraftItems(eventItemsFromOrder(item));
+  showToast('비회원 주문 내용을 수정 폼에 불러왔습니다. 저장하면 정산용 행사로 등록됩니다.');
 }
 
-async function dismissPublicEventOrder(id) {
-  if (!confirm('이 비회원 행사도시락 주문을 목록에서 숨길까요?')) return;
-  await db.collection('eventOrders').doc(id).set({
-    status: 'deleted',
-    deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    deletedBy: adminUid
-  }, { merge: true });
-  showToast('비회원 주문을 숨겼습니다.');
-  loadEventLunches();
+async function completePublicEventOrder(id) {
+  const item = eventLunches.find(e => e.id === id && e.source === 'publicEventOrder');
+  if (!item) return;
+  if (!confirm('이 비회원 행사도시락 주문을 배송완료 처리하고 정산에 반영할까요?')) return;
+  const docId = `event_${id}`;
+  const eventRecord = eventRecordFromOrder(item, docId, { delivered: true });
+  try {
+    await db.collection('users').doc(adminUid).set({
+      adminEvents: { [docId]: eventRecord }
+    }, { merge: true });
+    await db.collection('eventOrders').doc(id).set({
+      status: 'registered',
+      registeredEventId: docId,
+      registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
+      registeredBy: adminUid
+    }, { merge: true });
+    showToast('✅ 배송완료 처리되었습니다. 해당 월 정산에 반영됩니다.');
+    loadEventLunches();
+  } catch(e) {
+    showToast('배송완료 처리 실패: ' + e.message);
+  }
+}
+
+async function deletePublicEventOrder(id) {
+  if (!confirm('이 비회원 행사도시락 주문을 삭제할까요?')) return;
+  try {
+    await db.collection('eventOrders').doc(id).delete();
+    showToast('삭제되었습니다.');
+    loadEventLunches();
+  } catch(e) {
+    showToast('삭제 실패: ' + e.message);
+  }
 }
 
 async function saveEventLunch() {
@@ -4311,6 +4383,7 @@ async function saveEventLunch() {
   const note = document.getElementById('event-note').value.trim();
   const errEl = document.getElementById('event-error');
   const existingEvent = id ? eventLunches.find(item => item.id === id) : null;
+  const isPublicRegistration = Boolean(pendingPublicEventOrderId);
   errEl.classList.remove('show');
   if (!eventDate || !eventTime || !place || adminEventDraftItems.length === 0 || count <= 0 || price < 0) {
     errEl.textContent = '날짜, 시간, 배송장소, 도시락 메뉴와 수량을 입력해주세요.';
@@ -4324,14 +4397,14 @@ async function saveEventLunch() {
   const payload = {
     kind: 'eventLunch',
     uid: docId,
-    businessName: sourceOrder?.businessName || '행사도시락',
+    businessName: sourceOrder?.businessName || existingEvent?.businessName || '행사도시락',
     name, eventDate, eventTime, place, count, price, note,
     items,
-    paymentCash: Boolean(sourceOrder?.paymentCash),
-    paymentTransfer: Boolean(sourceOrder?.paymentTransfer),
-    paymentCard: Boolean(sourceOrder?.paymentCard),
-    paymentLabel: sourceOrder ? paymentLabel(sourceOrder) : '',
-    requestNote: sourceOrder?.requestNote || '',
+    paymentCash: Boolean(sourceOrder?.paymentCash ?? existingEvent?.paymentCash),
+    paymentTransfer: Boolean(sourceOrder?.paymentTransfer ?? existingEvent?.paymentTransfer),
+    paymentCard: Boolean(sourceOrder?.paymentCard ?? existingEvent?.paymentCard),
+    paymentLabel: sourceOrder ? paymentLabel(sourceOrder) : (existingEvent?.paymentLabel || paymentLabel(existingEvent || {})),
+    requestNote: sourceOrder?.requestNote || existingEvent?.requestNote || '',
     delivered: existingEvent ? Boolean(existingEvent.delivered) : false,
     deliveredAt: existingEvent?.deliveredAt || '',
     deliveredBy: existingEvent?.deliveredBy || '',
@@ -4342,7 +4415,7 @@ async function saveEventLunch() {
   };
   try {
     const eventRecord = { ...payload, updatedAt: new Date().toISOString() };
-    if (!id) eventRecord.createdAt = new Date().toISOString();
+    if (!id || isPublicRegistration) eventRecord.createdAt = existingEvent?.createdAt || new Date().toISOString();
     await db.collection('users').doc(adminUid).set({
       adminEvents: { [docId]: eventRecord }
     }, { merge: true });
@@ -4356,7 +4429,7 @@ async function saveEventLunch() {
       pendingPublicEventOrderId = '';
       pendingPublicEventOrder = null;
     }
-    showToast(id ? '✅ 행사도시락이 수정되었습니다.' : '✅ 행사도시락이 등록되었습니다.');
+    showToast(isPublicRegistration ? '✅ 비회원 행사도시락 주문이 등록되었습니다.' : (id ? '✅ 행사도시락이 수정되었습니다.' : '✅ 행사도시락이 등록되었습니다.'));
     resetEventForm();
     loadEventLunches();
   } catch(e) {
