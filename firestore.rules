@@ -146,7 +146,9 @@ service cloud.firestore {
         'place',
         'eventDate',
         'eventTime',
+        'eventTimeType',
         'menuText',
+        'items',
         'requestNote',
         'paymentCash',
         'paymentTransfer',
@@ -169,10 +171,15 @@ service cloud.firestore {
         && request.resource.data.eventDate is string
         && request.resource.data.eventDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
         && request.resource.data.eventTime is string
-        && request.resource.data.eventTime.matches('^\\d{2}:\\d{2}$')
+        && request.resource.data.eventTime.size() > 0
+        && request.resource.data.eventTime.size() <= 40
+        && request.resource.data.eventTimeType in ['preset', 'custom']
         && request.resource.data.menuText is string
         && request.resource.data.menuText.size() > 0
         && request.resource.data.menuText.size() <= 500
+        && request.resource.data.items is list
+        && request.resource.data.items.size() > 0
+        && request.resource.data.items.size() <= 20
         && optionalString(request.resource.data, 'requestNote', 500)
         && request.resource.data.paymentCash is bool
         && request.resource.data.paymentTransfer is bool

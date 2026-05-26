@@ -39,6 +39,18 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .textarea{min-height:92px;resize:vertical;line-height:1.5}
 .input:focus,.textarea:focus{outline:none;border-color:var(--primary);background:#fff}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.menu-builder{border:1px solid var(--border);border-radius:8px;background:#fffaf5;padding:12px;margin-bottom:12px}
+.menu-builder-grid{display:grid;grid-template-columns:1fr;gap:8px}
+.menu-add{border:1px solid var(--primary);background:#fff;color:var(--primary);border-radius:8px;padding:12px;font:inherit;font-weight:900;cursor:pointer;width:100%;margin-top:8px}
+.menu-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.menu-item{display:flex;justify-content:space-between;gap:8px;align-items:center;background:#fff;border:1px solid #ead8bd;border-radius:8px;padding:10px}
+.menu-item-main{font-size:13px;line-height:1.45}
+.menu-item-main strong{display:block;color:var(--primary);font-size:14px}
+.menu-remove{border:0;background:#fdecea;color:var(--danger);border-radius:6px;padding:7px 9px;font:inherit;font-size:12px;font-weight:900;cursor:pointer;flex:0 0 auto}
+.time-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.time-btn{border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;padding:11px 8px;font:inherit;font-size:14px;font-weight:900;color:#4b5563;cursor:pointer}
+.time-btn.active{border-color:var(--primary);background:#fff4e4;color:var(--primary)}
+.time-custom{display:none;margin-top:8px}
 .pay-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pay{display:flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;padding:12px 8px;font-size:14px;font-weight:800;color:#4b5563}
 .pay input{width:18px;height:18px;accent-color:var(--primary)}
@@ -49,7 +61,8 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .msg.ok{display:block;background:#e8f5e9;color:var(--success)}
 .msg.err{display:block;background:#fdecea;color:var(--danger)}
 .required{color:var(--danger)}
-@media(max-width:390px){.page{padding-left:14px;padding-right:14px}.grid2,.pay-row{grid-template-columns:1fr}.brand{font-size:25px}.panel{padding:16px}}
+@media(max-width:480px){.grid2{grid-template-columns:1fr}.time-options{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:390px){.page{padding-left:14px;padding-right:14px}.pay-row{grid-template-columns:1fr}.time-options{grid-template-columns:repeat(2,1fr)}.brand{font-size:25px}.panel{padding:16px}}
 </style>
 </head>
 <body>
@@ -82,13 +95,29 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
           <input class="input" type="date" id="eventDate">
         </div>
         <div class="field">
-          <label class="label" for="eventTime">시간 <span class="required">*</span></label>
-          <input class="input" type="time" id="eventTime">
+          <label class="label">수령 희망 시간 <span class="required">*</span></label>
+          <div class="time-options" id="timeOptions">
+            <button class="time-btn" type="button" data-time="10:30">10:30</button>
+            <button class="time-btn" type="button" data-time="11:00">11:00</button>
+            <button class="time-btn" type="button" data-time="11:30">11:30</button>
+            <button class="time-btn" type="button" data-time="12:00">12:00</button>
+            <button class="time-btn" type="button" data-time="12:30">12:30</button>
+            <button class="time-btn" type="button" data-time="custom">기타</button>
+          </div>
+          <input class="input time-custom" id="customTime" maxlength="40" placeholder="예) 오전 9시, 오후 3시 30분">
         </div>
       </div>
       <div class="field">
-        <label class="label" for="menuText">도시락메뉴/수량 <span class="required">*</span></label>
-        <textarea class="textarea" id="menuText" maxlength="500" placeholder="예) 김치제육&떡갈비 20개, 프리미엄 VIP 도시락 5개"></textarea>
+        <div class="label">도시락메뉴/수량 <span class="required">*</span></div>
+        <div class="menu-builder">
+          <div class="menu-builder-grid">
+            <select class="input" id="menuCategory"></select>
+            <select class="input" id="menuName"></select>
+            <input class="input" type="number" id="menuQty" min="1" max="999" placeholder="수량">
+          </div>
+          <button class="menu-add" type="button" onclick="addMenuItem()">+ 메뉴 추가</button>
+          <div class="menu-list" id="menuList"></div>
+        </div>
       </div>
       <div class="field">
         <label class="label" for="requestNote">요청사항</label>
@@ -113,6 +142,21 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 const form = document.getElementById('event-order-form');
 const msg = document.getElementById('formMsg');
 const btn = document.getElementById('submitBtn');
+const EVENT_MENUS = [
+  { category: '한상 도시락', name: '제육 한상 (간장, 양념)', price: 9000 },
+  { category: '한상 도시락', name: '순살닭구이 한상', price: 9500 },
+  { category: '수라상 도시락', name: '양념닭구이&떡갈비', price: 13900 },
+  { category: '수라상 도시락', name: '김치제육&떡갈비', price: 14900 },
+  { category: '수라상 도시락', name: '간장제육&양념닭구이', price: 15900 },
+  { category: 'VIP 일품 도시락', name: '직화제육&간장제육 한정식', price: 17900 },
+  { category: 'VIP 일품 도시락', name: '소불고기 한정식', price: 18900 },
+  { category: 'VIP 일품 도시락', name: '소불고기&생선구이 한정식', price: 19900 },
+  { category: 'VIP 일품 도시락', name: '프리미엄 장어구이&전복', price: 27900 },
+  { category: 'VIP 일품 도시락', name: '프리미엄 LA갈비&연어스테이크', price: 29900 },
+  { category: 'VIP 일품 도시락', name: '프리미엄 VIP 도시락', price: 33900 }
+];
+let selectedTime = '';
+let orderItems = [];
 
 function value(id) {
   return document.getElementById(id).value.trim();
@@ -121,6 +165,76 @@ function value(id) {
 function setMsg(text, type) {
   msg.textContent = text;
   msg.className = `msg ${type}`;
+}
+
+function money(value) {
+  return Number(value || 0).toLocaleString('ko-KR') + '원';
+}
+
+function initMenus() {
+  const cat = document.getElementById('menuCategory');
+  const categories = [...new Set(EVENT_MENUS.map(item => item.category))];
+  cat.innerHTML = categories.map(name => `<option value="${name}">${name}</option>`).join('');
+  cat.addEventListener('change', renderMenuOptions);
+  renderMenuOptions();
+}
+
+function renderMenuOptions() {
+  const category = value('menuCategory');
+  const menu = document.getElementById('menuName');
+  menu.innerHTML = EVENT_MENUS
+    .filter(item => item.category === category)
+    .map(item => `<option value="${item.name}">${item.name} (${money(item.price)})</option>`)
+    .join('');
+}
+
+function renderMenuList() {
+  const list = document.getElementById('menuList');
+  if (!orderItems.length) {
+    list.innerHTML = '<div style="font-size:13px;color:#8a6a4f;text-align:center;padding:6px">추가된 메뉴가 없습니다.</div>';
+    return;
+  }
+  list.innerHTML = orderItems.map((item, idx) => `
+    <div class="menu-item">
+      <div class="menu-item-main"><strong>${item.name}</strong>${item.category} · ${item.qty}개 · ${money(item.price)}</div>
+      <button class="menu-remove" type="button" onclick="removeMenuItem(${idx})">삭제</button>
+    </div>
+  `).join('');
+}
+
+function addMenuItem() {
+  const category = value('menuCategory');
+  const name = value('menuName');
+  const qty = parseInt(value('menuQty'), 10) || 0;
+  const menu = EVENT_MENUS.find(item => item.category === category && item.name === name);
+  if (!menu || qty <= 0) {
+    setMsg('메뉴와 수량을 확인해주세요.', 'err');
+    return;
+  }
+  orderItems.push({ category, name, qty, price: menu.price });
+  document.getElementById('menuQty').value = '';
+  setMsg('', '');
+  renderMenuList();
+}
+
+function removeMenuItem(index) {
+  orderItems.splice(index, 1);
+  renderMenuList();
+}
+
+function menuSummary() {
+  return orderItems.map(item => `${item.name} ${item.qty}개`).join(', ');
+}
+
+function initTimeOptions() {
+  document.querySelectorAll('.time-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+      button.classList.add('active');
+      selectedTime = button.dataset.time;
+      document.getElementById('customTime').style.display = selectedTime === 'custom' ? 'block' : 'none';
+    });
+  });
 }
 
 form.addEventListener('submit', async (e) => {
@@ -132,8 +246,10 @@ form.addEventListener('submit', async (e) => {
     businessName: value('businessName'),
     place: value('place'),
     eventDate: value('eventDate'),
-    eventTime: value('eventTime'),
-    menuText: value('menuText'),
+    eventTime: selectedTime === 'custom' ? value('customTime') : selectedTime,
+    eventTimeType: selectedTime === 'custom' ? 'custom' : 'preset',
+    menuText: menuSummary(),
+    items: orderItems,
     requestNote: value('requestNote'),
     paymentCash,
     paymentTransfer,
@@ -142,7 +258,7 @@ form.addEventListener('submit', async (e) => {
     source: 'publicEventPage',
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
-  if (!payload.businessName || !payload.place || !payload.eventDate || !payload.eventTime || !payload.menuText) {
+  if (!payload.businessName || !payload.place || !payload.eventDate || !payload.eventTime || !orderItems.length) {
     setMsg('필수 항목을 모두 입력해주세요.', 'err');
     return;
   }
@@ -155,6 +271,11 @@ form.addEventListener('submit', async (e) => {
   try {
     await db.collection('eventOrders').add(payload);
     form.reset();
+    selectedTime = '';
+    orderItems = [];
+    document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('customTime').style.display = 'none';
+    renderMenuList();
     setMsg('행사도시락 주문이 접수되었습니다. 확인 후 연락드리겠습니다.', 'ok');
   } catch (err) {
     console.error(err);
@@ -164,6 +285,10 @@ form.addEventListener('submit', async (e) => {
     btn.textContent = '주문 접수하기';
   }
 });
+
+initMenus();
+initTimeOptions();
+renderMenuList();
 </script>
 </body>
 </html>

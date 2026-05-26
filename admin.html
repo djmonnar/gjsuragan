@@ -4066,15 +4066,32 @@ function paymentLabel(item) {
   ].filter(Boolean).join(', ');
 }
 
+function eventOrderItemsSummary(item) {
+  if (Array.isArray(item.items) && item.items.length) {
+    return item.items
+      .map(row => `${row.name || row.menu || '메뉴'} ${Number(row.qty || row.count || 0) || 0}개`)
+      .join(', ');
+  }
+  return item.menuText || '';
+}
+
+function eventOrderTotalQty(item) {
+  if (Array.isArray(item.items) && item.items.length) {
+    return item.items.reduce((sum, row) => sum + (Number(row.qty || row.count || 0) || 0), 0);
+  }
+  return '';
+}
+
 function publicEventOrderToRow(item) {
   const pay = paymentLabel(item);
+  const summary = eventOrderItemsSummary(item);
   return {
     ...item,
-    name: item.menuText || item.businessName || '행사도시락',
+    name: summary || item.businessName || '행사도시락',
     eventDate: item.eventDate || '',
     eventTime: item.eventTime || '',
     place: item.place || '',
-    count: '',
+    count: eventOrderTotalQty(item),
     price: 0,
     note: [
       item.businessName ? `상호명: ${item.businessName}` : '',
@@ -4090,15 +4107,16 @@ async function registerPublicEventOrder(id) {
   if (!item) return;
   pendingPublicEventOrderId = id;
   document.getElementById('event-id').value = '';
-  document.getElementById('event-name').value = item.menuText || item.businessName || '';
+  document.getElementById('event-name').value = eventOrderItemsSummary(item) || item.businessName || '';
   document.getElementById('event-date').value = item.eventDate || '';
-  document.getElementById('event-time').value = item.eventTime || '';
-  document.getElementById('event-count').value = '';
+  document.getElementById('event-time').value = String(item.eventTime || '').match(/^\d{2}:\d{2}$/) ? item.eventTime : '';
+  document.getElementById('event-count').value = eventOrderTotalQty(item) || '';
   document.getElementById('event-price').value = '';
   document.getElementById('event-place').value = item.place || '';
   document.getElementById('event-note').value = [
     item.businessName ? `상호명: ${item.businessName}` : '',
-    item.menuText ? `메뉴/수량: ${item.menuText}` : '',
+    eventOrderItemsSummary(item) ? `메뉴/수량: ${eventOrderItemsSummary(item)}` : '',
+    item.eventTime && !String(item.eventTime).match(/^\d{2}:\d{2}$/) ? `희망시간: ${item.eventTime}` : '',
     item.requestNote ? `요청사항: ${item.requestNote}` : '',
     paymentLabel(item) ? `결제: ${paymentLabel(item)}` : ''
   ].filter(Boolean).join('\n');
