@@ -89,21 +89,61 @@ function parseText(){
     if(addrReg.test(l)){ mainAddr=l.replace(/^\(?\d{5}\)?\s*/,'').trim(); break; }
   }
 
+  // ── 파이프(|) 구분 옵션 라인 파싱 ──
+  // 형식: "현관비밀번호(없으면 x): #1303#|세트 선택(필수): B세트|횟수 선택(필수): 주 1회(총 4회)|배송 요일 선택: 수요일 조리 - 수요일 도착"
+  const DAYS_KO={'월':1,'화':2,'수':3,'목':4,'금':5,'토':6,'일':0};
+  let opts={};
+  for(const l of lines){
+    if(!l.includes('|')||!l.includes(':')) continue;
+    const segs=l.split('|').map(s=>s.trim());
+    if(segs.length<2) continue;
+    for(const seg of segs){
+      const ci=seg.indexOf(':');
+      if(ci===-1) continue;
+      const key=seg.slice(0,ci).replace(/\([^)]*\)/g,'').trim();
+      const val=seg.slice(ci+1).trim();
+      if(/현관|비밀번호/i.test(key)){
+        if(val&&!/^x$|없음|해당없음/i.test(val)) opts.door=val;
+      } else if(/세트\s*선택|상품/i.test(key)){
+        const sm=val.match(/([ABC])세트/i); if(sm) opts.set=sm[1].toUpperCase();
+      } else if(/횟수|주기/i.test(key)){
+        const fm=val.match(/주\s*(\d+)\s*회/i); if(fm) opts.type=parseInt(fm[1]);
+        const tm=val.match(/총\s*(\d+)\s*회/i); if(tm) opts.total=parseInt(tm[1]);
+      } else if(/배송\s*요일/i.test(key)){
+        const dms=[...val.matchAll(/([월화수목금토일])요일/g)].map(m=>DAYS_KO[m[1]]);
+        if(dms.length>=1){
+          opts.cookDays=[dms[0]];
+          opts.arriveDays=dms.length>=2?[dms[1]]:[dms[0]];
+          opts.isDirect=(dms.length<2||dms[0]===dms[1]);
+        }
+      }
+    }
+    if(opts.door||opts.set||opts.type) break; // 옵션 라인 찾았으면 중단
+  }
+  // SCH 인덱스 역산 (모달 자동선택용)
+  if(opts.type&&opts.cookDays){
+    const schList=SCH[String(opts.type)]||[];
+    const idx=schList.findIndex(s=>s.c.join(',')===opts.cookDays.join(','));
+    if(idx!==-1) opts.schIdx=idx;
+    if(opts.isDirect) opts.arriveDays=[...opts.cookDays];
+  }
+
   // ── 현관번호 / 요청사항 ──
-  let door='', request='';
+  let door=opts.door||'', request='';
   for(let i=0;i<lines.length;i++){
     const l=lines[i];
     if(/현관|비밀번호/i.test(l)&&!door){
       const fullText=l+' '+(lines[i+1]||'');
-      // "현관[...]: 값" 형태에서 콜론 뒤 값 추출 (중간에 부가설명 있어도 처리)
+      // "현관[...]: 값" 형태에서 콜론 뒤 값 추출, | 구분자에서 멈춤
       const m=fullText.match(/현관[^:：\n]*[:：]\s*(.+)/i)
              ||fullText.match(/비밀번호[^:：\n]*[:：]\s*(.+)/i);
       if(m){
-        door=m[1].split(/\s{2,}|\n/)[0].trim();
+        door=m[1].split(/[|｜]|\s{2,}|\n/)[0].trim();
       } else {
-        // 콜론 없는 경우: 라벨 제거 후 나머지
-        door=fullText.replace(/현관\s*비밀번호\s*/i,'').split(/\s{2,}|\n/)[0].trim();
+        door=fullText.replace(/현관\s*비밀번호\s*/i,'').split(/[|｜]|\s{2,}|\n/)[0].trim();
       }
+      // "x", "없음" 등 비어있는 값 제거
+      if(/^x$|없음|해당없음/i.test(door)) door='';
     }
     if(/배송\s*전|미리\s*연락|부재|문\s*앞|두고\s*가|놓아/i.test(l)) request=l;
   }
@@ -208,6 +248,15 @@ function parseText(){
   if(p.productId&&!p.set) p.set=p.productId;
   else if(p.set&&!p.productId&&['A','B','C'].includes(p.set)) p.productId=p.set;
 
+  // ── opts(파이프 옵션) 데이터 병합 ──
+  if(opts.set)    { p.set=opts.set; p.productId=opts.set; }
+  if(opts.type)   { p.type=opts.type; p.orderType='sub'; }
+  if(opts.total)  p.total=opts.total;
+  if(opts.cookDays)  p.cookDays=opts.cookDays;
+  if(opts.arriveDays) p.arriveDays=opts.arriveDays;
+  if(opts.isDirect!==undefined) p.isDirect=opts.isDirect;
+  if(opts.schIdx!==undefined)   p.schIdx=opts.schIdx;
+
   parsedData=p;
   const prodDisplay=p.productId?productLabel(p.productId):(p.set?p.set+'세트':'(직접 선택)');
   document.getElementById('parseRows').innerHTML=[
@@ -255,6 +304,15 @@ function regParsed(){
       document.getElementById('pm-set').value   = p.set || '';
       document.getElementById('pm-total').value = p.total || 12;
       document.getElementById('pm-start').value = p.startDate || t;
+      // 파이프 옵션에서 주기·일정 파싱된 경우 자동 선택
+      if(p.type){
+        const freqEl=document.getElementById('pm-freq');
+        if(freqEl){ freqEl.value=String(p.type); pmUpdSch(); }
+        if(p.schIdx!==undefined){
+          const schedEl=document.getElementById('pm-sched');
+          if(schedEl) schedEl.value=String(p.schIdx);
+        }
+      }
     }
   }
   // 주문번호·직배송 채우기
