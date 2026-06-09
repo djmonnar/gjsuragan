@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v14-spam-reset';
+const CACHE = 'gjsuragan-v15-reset-panel';
 const PRECACHE = [
   './customer.html',
   './event-order.html',
