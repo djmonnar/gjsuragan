@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v15-reset-panel';
+const CACHE = 'gjsuragan-v16-withdrawal';
 const PRECACHE = [
   './customer.html',
   './event-order.html',

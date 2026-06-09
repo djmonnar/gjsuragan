@@ -1086,6 +1086,34 @@
     cursor: pointer; margin-top: 6px; transition: background 0.2s;
   }
   .save-btn:hover { background: var(--primary-light); }
+  .withdraw-box {
+    border-color: #f3c5bf;
+    background: #fff8f7;
+  }
+  .withdraw-copy {
+    color: var(--text-sub);
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+  .withdraw-btn {
+    width: 100%;
+    background: #b42318;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 800;
+    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .withdraw-btn:hover { background: #8f1c13; }
+  .withdraw-btn:disabled {
+    background: var(--closed);
+    cursor: default;
+  }
 
   @media (max-width: 420px) {
     body { max-width: 100%; }
@@ -1574,6 +1602,14 @@
       </div>
       <div class="error-msg" id="pw-error"></div>
       <button class="save-btn" onclick="changePassword()">비밀번호 변경</button>
+    </div>
+
+    <div class="section-title"><svg class="gj-icon"><use href="#gj-profile"></use></svg>회원 탈퇴</div>
+    <div class="profile-block withdraw-box">
+      <div class="withdraw-copy">
+        탈퇴 요청 시 고객 페이지 로그인이 차단됩니다. 다만 기존 주문, 배송, 정산 기록은 운영 및 확인을 위해 보관됩니다.
+      </div>
+      <button class="withdraw-btn" id="withdraw-btn" onclick="requestWithdrawal()">회원 탈퇴 요청</button>
     </div>
   </div>
 </div>
@@ -2988,6 +3024,39 @@ async function changePassword() {
     } else {
       showError('pw-error', '변경 실패: ' + e.message);
     }
+  }
+}
+
+async function requestWithdrawal() {
+  if (!currentUser) return;
+  const ok = confirm('회원 탈퇴를 요청할까요?\n\n탈퇴 후 고객 페이지 로그인이 차단되지만 기존 주문, 배송, 정산 기록은 보관됩니다.');
+  if (!ok) return;
+  const finalOk = confirm('정말 탈퇴 요청을 진행할까요?\n\n다시 이용하려면 관리자에게 복구를 요청해야 합니다.');
+  if (!finalOk) return;
+
+  const btn = document.getElementById('withdraw-btn');
+  const originalText = btn ? btn.textContent : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '처리 중...';
+  }
+
+  try {
+    await db.collection('users').doc(currentUser.uid).update({
+      deleted: true,
+      disabled: true,
+      withdrawalRequestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      withdrawalRequestedBy: currentUser.uid,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('탈퇴 요청이 처리되었습니다.', 'success');
+    await auth.signOut();
+  } catch(e) {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+    showToast('탈퇴 요청 실패: ' + e.message, 'error');
   }
 }
 

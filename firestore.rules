@@ -58,6 +58,16 @@ service cloud.firestore {
       ];
     }
 
+    function withdrawalKeys() {
+      return [
+        'deleted',
+        'disabled',
+        'withdrawalRequestedAt',
+        'withdrawalRequestedBy',
+        'updatedAt'
+      ];
+    }
+
     function validWeekdayMeals(data) {
       return !(('weekdayMeals' in data.keys()))
         || (
@@ -104,10 +114,24 @@ service cloud.firestore {
 
     function validUserUpdate(userId) {
       return isOwner(userId)
+        && (!('deleted' in resource.data.keys()) || resource.data.deleted == false)
+        && (!('disabled' in resource.data.keys()) || resource.data.disabled == false)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(userProfileKeys())
         && validUserProfile(request.resource.data)
         && (!('email' in request.resource.data.diff(resource.data).affectedKeys())
           || request.resource.data.email == request.auth.token.email);
+    }
+
+    function validUserWithdrawal(userId) {
+      return isOwner(userId)
+        && (!('deleted' in resource.data.keys()) || resource.data.deleted == false)
+        && (!('disabled' in resource.data.keys()) || resource.data.disabled == false)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(withdrawalKeys())
+        && request.resource.data.deleted == true
+        && request.resource.data.disabled == true
+        && request.resource.data.withdrawalRequestedAt == request.time
+        && request.resource.data.withdrawalRequestedBy == userId
+        && request.resource.data.updatedAt == request.time;
     }
 
     function orderKeys() {
@@ -215,7 +239,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAdmin() || validUserCreate(userId);
-      allow update: if isAdmin() || validUserUpdate(userId);
+      allow update: if isAdmin() || validUserUpdate(userId) || validUserWithdrawal(userId);
       allow delete: if isAdmin();
     }
 

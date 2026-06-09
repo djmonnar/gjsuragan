@@ -2867,7 +2867,7 @@ function renderMembers() {
   }
   if (deleted.length > 0) {
     html += `<div style="grid-column:1/-1;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;font-weight:700;color:var(--sub);margin-bottom:10px">삭제된 회원 (${deleted.length})</div>
+      <div style="font-size:12px;font-weight:700;color:var(--sub);margin-bottom:10px">삭제/탈퇴 회원 (${deleted.length})</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
         ${deleted.map(([uid, u]) => `
           <div style="background:#fdecea;border:1px solid #f5c6cb;border-radius:10px;padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:10px">
@@ -2887,9 +2887,22 @@ function renderMembers() {
 async function restoreMember(uid) {
   if (!confirm('이 회원을 복구할까요? 고객 로그인이 다시 가능해집니다.')) return;
   try {
-    await db.collection('users').doc(uid).update({ deleted: false, deletedAt: firebase.firestore.FieldValue.delete() });
+    await db.collection('users').doc(uid).update({
+      deleted: false,
+      disabled: false,
+      deletedAt: firebase.firestore.FieldValue.delete(),
+      deletedBy: firebase.firestore.FieldValue.delete(),
+      withdrawalRequestedAt: firebase.firestore.FieldValue.delete(),
+      withdrawalRequestedBy: firebase.firestore.FieldValue.delete(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
     allUsers[uid] = deletedUsers[uid];
     allUsers[uid].deleted = false;
+    allUsers[uid].disabled = false;
+    delete allUsers[uid].deletedAt;
+    delete allUsers[uid].deletedBy;
+    delete allUsers[uid].withdrawalRequestedAt;
+    delete allUsers[uid].withdrawalRequestedBy;
     delete deletedUsers[uid];
     renderMembers();
     showToast('회원이 복구되었습니다.');
@@ -3296,7 +3309,10 @@ async function deleteMember() {
   try {
     await db.collection('users').doc(uid).update({
       deleted: true,
-      deletedAt: firebase.firestore.FieldValue.serverTimestamp()
+      disabled: true,
+      deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      deletedBy: adminUid || '',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     delete allUsers[uid];
     closeMemberModal();
