@@ -198,6 +198,22 @@ service cloud.firestore {
       ];
     }
 
+    function exactlyOnePaymentMethod(data) {
+      return (
+        data.paymentCash == true
+        && data.paymentTransfer == false
+        && data.paymentCard == false
+      ) || (
+        data.paymentCash == false
+        && data.paymentTransfer == true
+        && data.paymentCard == false
+      ) || (
+        data.paymentCash == false
+        && data.paymentTransfer == false
+        && data.paymentCard == true
+      );
+    }
+
     function validPublicEventOrder() {
       return request.auth == null
         && request.resource.data.keys().hasOnly(eventOrderKeys())
@@ -225,9 +241,7 @@ service cloud.firestore {
         && request.resource.data.paymentCash is bool
         && request.resource.data.paymentTransfer is bool
         && request.resource.data.paymentCard is bool
-        && (request.resource.data.paymentCash
-          || request.resource.data.paymentTransfer
-          || request.resource.data.paymentCard)
+        && exactlyOnePaymentMethod(request.resource.data)
         && request.resource.data.status == 'new'
         && request.resource.data.source == 'publicEventPage'
         && request.resource.data.createdAt == request.time

@@ -137,9 +137,9 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
       <div class="field">
         <div class="label">결제 <span class="required">*</span></div>
         <div class="pay-row">
-          <label class="pay"><input type="checkbox" id="payCash"> 현금</label>
-          <label class="pay"><input type="checkbox" id="payTransfer"> 이체</label>
-          <label class="pay"><input type="checkbox" id="payCard"> 카드계산</label>
+          <label class="pay"><input type="radio" name="paymentMethod" id="payCash" value="cash"> 현금</label>
+          <label class="pay"><input type="radio" name="paymentMethod" id="payTransfer" value="transfer"> 이체</label>
+          <label class="pay"><input type="radio" name="paymentMethod" id="payCard" value="card"> 카드계산</label>
         </div>
       </div>
       <label class="consent" for="privacyConsent">
@@ -254,9 +254,10 @@ function initTimeOptions() {
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const paymentCash = document.getElementById('payCash').checked;
-  const paymentTransfer = document.getElementById('payTransfer').checked;
-  const paymentCard = document.getElementById('payCard').checked;
+  const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || '';
+  const paymentCash = paymentMethod === 'cash';
+  const paymentTransfer = paymentMethod === 'transfer';
+  const paymentCard = paymentMethod === 'card';
   const payload = {
     businessName: value('businessName'),
     contactPhone: value('contactPhone'),
@@ -288,8 +289,8 @@ form.addEventListener('submit', async (e) => {
     setMsg('연락처를 확인해주세요.', 'err');
     return;
   }
-  if (!paymentCash && !paymentTransfer && !paymentCard) {
-    setMsg('결제 방법을 하나 이상 선택해주세요.', 'err');
+  if (!paymentMethod) {
+    setMsg('결제 방법을 하나 선택해주세요.', 'err');
     return;
   }
   if (!payload.privacyConsent) {

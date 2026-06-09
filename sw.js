@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v16-withdrawal';
+const CACHE = 'gjsuragan-v17-event-payment-radio';
 const PRECACHE = [
   './customer.html',
   './event-order.html',
