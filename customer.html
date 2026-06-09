@@ -888,6 +888,18 @@
     cursor: pointer;
     text-decoration: underline;
   }
+  .auth-link-btn {
+    display: inline-block;
+    margin-top: 10px;
+    border: 0;
+    background: transparent;
+    color: var(--primary);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+  }
 
   .error-msg {
     color: var(--error);
@@ -1214,6 +1226,7 @@
     </label>
     <div class="error-msg" id="login-error"></div>
     <button class="auth-submit" onclick="doLogin()">로그인</button>
+    <button type="button" class="auth-link-btn" onclick="sendPasswordReset()">비밀번호를 잊으셨나요?</button>
     <div class="auth-toggle">
       처음 이용하시나요? <span onclick="showRegister()">회원가입</span>
     </div>
@@ -2174,6 +2187,21 @@ async function doLogin() {
     console.error('로그인 오류:', e.code, e.message);
     showError('login-error', '이메일 또는 비밀번호가 올바르지 않습니다.');
     if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
+  }
+}
+
+async function sendPasswordReset() {
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) {
+    showError('login-error', '비밀번호 재설정 메일을 받을 이메일을 입력해주세요.');
+    return;
+  }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    showToast('비밀번호 재설정 메일을 보냈습니다.', 'success');
+  } catch(e) {
+    console.error('비밀번호 재설정 오류:', e.code);
+    showError('login-error', '재설정 메일 발송에 실패했습니다. 이메일을 확인해주세요.');
   }
 }
 
