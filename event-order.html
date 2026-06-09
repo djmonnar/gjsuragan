@@ -54,6 +54,8 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .pay-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pay{display:flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;padding:12px 8px;font-size:14px;font-weight:800;color:#4b5563}
 .pay input{width:18px;height:18px;accent-color:var(--primary)}
+.consent{display:flex;align-items:flex-start;gap:9px;border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;padding:11px 12px;font-size:12px;font-weight:700;line-height:1.5;color:#4b5563}
+.consent input{width:18px;height:18px;flex:0 0 18px;margin-top:1px;accent-color:var(--primary)}
 .submit{width:100%;border:0;border-radius:8px;background:var(--primary);color:#fff;padding:15px;font:inherit;font-size:17px;font-weight:900;cursor:pointer;margin-top:4px}
 .submit:disabled{opacity:.65;cursor:default}
 .back{display:block;text-align:center;color:var(--primary);font-size:13px;font-weight:800;margin-top:14px;text-decoration:none}
@@ -84,6 +86,10 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
       <div class="field">
         <label class="label" for="businessName">상호명 <span class="required">*</span></label>
         <input class="input" id="businessName" maxlength="80" placeholder="예) 진주OO병원">
+      </div>
+      <div class="field">
+        <label class="label" for="contactPhone">연락처 <span class="required">*</span></label>
+        <input class="input" type="tel" id="contactPhone" maxlength="24" placeholder="예) 010-0000-0000">
       </div>
       <div class="field">
         <label class="label" for="place">장소 <span class="required">*</span></label>
@@ -121,7 +127,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
       </div>
       <div class="field">
         <label class="label" for="requestNote">요청사항</label>
-        <textarea class="textarea" id="requestNote" maxlength="500" placeholder="포장, 알레르기, 수저 필요 여부, 담당자 연락처 등"></textarea>
+        <textarea class="textarea" id="requestNote" maxlength="500" placeholder="포장, 알레르기, 수저 필요 여부 등"></textarea>
       </div>
       <div class="field">
         <div class="label">결제 <span class="required">*</span></div>
@@ -131,6 +137,10 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
           <label class="pay"><input type="checkbox" id="payCard"> 카드계산</label>
         </div>
       </div>
+      <label class="consent" for="privacyConsent">
+        <input type="checkbox" id="privacyConsent">
+        <span>주문 확인과 배송 상담을 위해 상호명, 연락처, 장소, 주문 내용을 수집·이용하는 데 동의합니다.</span>
+      </label>
       <button class="submit" id="submitBtn" type="submit">주문 접수하기</button>
       <div class="msg" id="formMsg"></div>
     </form>
@@ -244,6 +254,7 @@ form.addEventListener('submit', async (e) => {
   const paymentCard = document.getElementById('payCard').checked;
   const payload = {
     businessName: value('businessName'),
+    contactPhone: value('contactPhone'),
     place: value('place'),
     eventDate: value('eventDate'),
     eventTime: selectedTime === 'custom' ? value('customTime') : selectedTime,
@@ -256,14 +267,23 @@ form.addEventListener('submit', async (e) => {
     paymentCard,
     status: 'new',
     source: 'publicEventPage',
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    privacyConsent: document.getElementById('privacyConsent').checked
   };
-  if (!payload.businessName || !payload.place || !payload.eventDate || !payload.eventTime || !orderItems.length) {
+  if (!payload.businessName || !payload.contactPhone || !payload.place || !payload.eventDate || !payload.eventTime || !orderItems.length) {
     setMsg('필수 항목을 모두 입력해주세요.', 'err');
+    return;
+  }
+  if (!/^0[0-9\-\s]{7,20}$/.test(payload.contactPhone)) {
+    setMsg('연락처를 확인해주세요.', 'err');
     return;
   }
   if (!paymentCash && !paymentTransfer && !paymentCard) {
     setMsg('결제 방법을 하나 이상 선택해주세요.', 'err');
+    return;
+  }
+  if (!payload.privacyConsent) {
+    setMsg('개인정보 수집·이용에 동의해주세요.', 'err');
     return;
   }
   btn.disabled = true;

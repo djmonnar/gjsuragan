@@ -843,6 +843,38 @@
     color: var(--text-sub);
     font-weight: 600;
   }
+  .consent-option {
+    min-height: 48px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 12px 0 4px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: #FFFDF9;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .consent-option input {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    margin-top: 2px;
+    accent-color: var(--primary);
+  }
+  .consent-copy {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-sub);
+    font-weight: 600;
+  }
+  .consent-copy strong {
+    display: block;
+    color: var(--text);
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
 
   .auth-toggle {
     text-align: center;
@@ -1260,6 +1292,13 @@
         <input class="form-input" type="number" id="reg-fri-salad" min="0" max="50" placeholder="샐러드">
       </div>
     </div>
+    <label class="consent-option" for="reg-privacy-consent">
+      <input type="checkbox" id="reg-privacy-consent">
+      <span class="consent-copy">
+        <strong>개인정보 수집·이용 동의</strong>
+        주문 관리와 배송 안내를 위해 업체명, 이메일, 휴대폰 번호, 식사 시간과 주문 내역을 수집·이용합니다.
+      </span>
+    </label>
     <div class="error-msg" id="reg-error"></div>
     <button class="auth-submit" onclick="doRegister()">가입하기</button>
     <div class="auth-toggle">
@@ -1866,6 +1905,16 @@ async function loadSettings() {
   } catch(e) {}
 }
 
+async function isOrderDateLocked(dStr) {
+  if (!dStr) return false;
+  try {
+    const snap = await db.collection('orderLocks').doc(dStr).get();
+    return snap.exists;
+  } catch(e) {
+    return false;
+  }
+}
+
 function deadlineText() {
   const h = orderDeadline.hour;
   const m = orderDeadline.minute;
@@ -2146,10 +2195,14 @@ async function doRegister() {
   const lunch = parseInt(document.getElementById('reg-lunch').value) || 2;
   const salad = parseInt(document.getElementById('reg-salad').value) || 0;
   const sameDailyMeal = document.getElementById('reg-same-daily').checked;
+  const privacyConsent = document.getElementById('reg-privacy-consent')?.checked;
   const weekdayMeals = readWeekdayMeals('reg', lunch, salad);
 
   if (!bizname || !email || !pw) {
     showError('reg-error', '업체명, 이메일, 비밀번호는 필수입니다.'); return;
+  }
+  if (!privacyConsent) {
+    showError('reg-error', '개인정보 수집·이용에 동의해주세요.'); return;
   }
   if (pw.length < 6) {
     showError('reg-error', '비밀번호는 6자리 이상이어야 합니다.'); return;
@@ -2173,6 +2226,8 @@ async function doRegister() {
       businessName: bizname, email, phone, mealTime,
       defaultLunch: lunch, defaultSalad: salad,
       sameDailyMeal, weekdayMeals,
+      privacyConsent: true,
+      privacyConsentAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -2393,8 +2448,11 @@ async function renderToday() {
     closedBanner.style.display = 'none';
   }
 
-  const snap = await db.collection('orders').doc(targetDate)
-    .collection('items').doc(currentUser.uid).get();
+  const [snap, lockSnap] = await Promise.all([
+    db.collection('orders').doc(targetDate).collection('items').doc(currentUser.uid).get(),
+    db.collection('orderLocks').doc(targetDate).get().catch(() => null)
+  ]);
+  const targetLocked = !!lockSnap?.exists;
 
   const submitBtn = document.getElementById('submit-btn');
 
@@ -2421,9 +2479,9 @@ async function renderToday() {
     setCardSubmitted(false, null, hasDefault);
   }
 
-  if (ctx.lockedUntilNextOpen || targetNoDelivery) {
+  if (ctx.lockedUntilNextOpen || targetNoDelivery || targetLocked) {
     submitBtn.disabled = true;
-    submitBtn.textContent = ctx.lockedUntilNextOpen ? '오후 1시에 다음 주문 가능' : '배송 없음';
+    submitBtn.textContent = targetLocked ? '주문 마감됨' : ctx.lockedUntilNextOpen ? '오후 1시에 다음 주문 가능' : '배송 없음';
     document.getElementById('default-apply-notice').style.display = 'none';
     setQtyDisabled(true);
   }
@@ -2514,6 +2572,10 @@ async function submitOrder(source) {
 
   if (isNoDeliveryDate(targetDate)) {
     showToast(holidayName(targetDate) ? `${holidayName(targetDate)}은 배송이 없습니다.` : '토·일은 월식 배송이 없습니다.', 'error');
+    return;
+  }
+  if (await isOrderDateLocked(targetDate)) {
+    showToast('해당 날짜 주문은 관리자 마감 처리되어 변경할 수 없습니다.', 'error');
     return;
   }
 
@@ -2614,14 +2676,18 @@ async function renderWeek() {
 
   // 주문 현황 일괄 조회
   const snapshots = await Promise.all(
-    days.map(d => db.collection('orders').doc(d).collection('items').doc(currentUser.uid).get())
+    days.map(d => Promise.all([
+      db.collection('orders').doc(d).collection('items').doc(currentUser.uid).get(),
+      db.collection('orderLocks').doc(d).get().catch(() => null)
+    ]))
   );
 
   const list = document.getElementById('week-list');
   list.innerHTML = '';
 
   days.forEach((ds, i) => {
-    const snap = snapshots[i];
+    const [snap, lockSnap] = snapshots[i];
+    const locked = !!lockSnap?.exists;
     const isToday = ds === todayStr;
     const isPast = isPastDate(ds);
     const submitted = snap.exists;
@@ -2637,10 +2703,10 @@ async function renderWeek() {
     else if (noDelivery) { statusClass = 'status-closed'; statusText = holiday ? `${holiday} 배송없음` : '배송없음'; }
     else if ((defaults.lunch + defaults.salad) > 0) { statusClass = 'status-default'; statusText = `기본 ${defaults.lunch}개 자동 적용`; }
     else if (isPast) { statusClass = 'status-past'; statusText = '입력없음'; }
-    else if (todayClosed) { statusClass = 'status-closed'; statusText = '마감'; }
+    else if (locked || todayClosed) { statusClass = 'status-closed'; statusText = '마감'; }
 
     const isSelfHoliday = submitted && snap.data().selfHoliday;
-    const clickable = (!noDelivery || isSelfHoliday) && !isPast && !(todayClosed && !submitted);
+    const clickable = (!noDelivery || isSelfHoliday) && !isPast && !locked && !(todayClosed && !submitted);
 
     const el = document.createElement('div');
     el.className = `week-item fade-in-up${isToday ? ' is-today' : ''}${isPast ? ' is-past' : ''}${submitted ? ' is-submitted' : ''}`;

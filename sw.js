@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v12-event-admin-flow';
+const CACHE = 'gjsuragan-v13-customer-release';
 const PRECACHE = [
   './customer.html',
   './event-order.html',

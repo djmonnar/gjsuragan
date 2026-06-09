@@ -586,6 +586,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <button class="refresh-btn" onclick="loadAllUsers().then(loadOrders)"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>새로고침</span></button>
     <button class="refresh-btn" onclick="exportKakaoSummary()"><svg class="action-icon"><use href="#admin-i-chat"></use></svg><span>카톡용 복사</span></button>
     <button class="today-btn" onclick="completeSelectedDeliveries()"><svg class="action-icon"><use href="#admin-i-truck"></use></svg><span>배송 완료</span></button>
+    <button class="manual-btn" id="order-lock-btn" onclick="toggleOrderLock()"><span>주문 잠금</span></button>
     <button class="manual-btn" onclick="openManualOrderModal()"><svg class="action-icon"><use href="#admin-i-edit"></use></svg><span>수동 배송 입력</span></button>
     <button class="manual-btn" onclick="openBatchEntry()"><svg class="action-icon"><use href="#admin-i-orders"></use></svg><span>일괄 입력</span></button>
   </div>
@@ -1408,6 +1409,7 @@ let adminEventDraftItems = [];
 let settlementRows = [];
 let settlementEvents = [];
 let currentOrderRows = [];
+let currentOrderLocked = false;
 let mealMenus = [];
 let mealPdfCandidates = [];
 let activeAdminTab = 'orders';
@@ -2388,10 +2390,16 @@ function setDateFromPicker() {
   if (val) { currentDateStr = val; updateDateLabel(); loadOrders(); }
 }
 
-function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}) {
+function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnapshots = null) {
   const rowsByUid = {};
-  Object.entries(allUsers).forEach(([uid, user]) => {
+  const defaultSource = defaultSnapshots || Object.entries(allUsers).map(([uid, user]) => {
     const defaults = defaultMealsForDate(user, dStr);
+    return [uid, { ...user, defaultLunchForDate: defaults.lunch, defaultSaladForDate: defaults.salad }];
+  });
+  defaultSource.forEach(([uid, user]) => {
+    const defaults = defaultSnapshots
+      ? { lunch: parseCount(user.lunchCount, 0), salad: parseCount(user.saladCount, 0) }
+      : { lunch: user.defaultLunchForDate, salad: user.defaultSaladForDate };
     const delivered = deliveredRecords[uid];
     if (delivered?.orderDeleted) return;
     if ((defaults.lunch + defaults.salad) <= 0) return;
@@ -2406,7 +2414,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}) {
       lunchPrice: userLunchPrice(user),
       saladPrice: userSaladPrice(user),
       eventLunchPrice: orderEventLunchPrice(delivered || {}),
-      note: '요일 기본값',
+      note: defaultSnapshots ? '잠금 시점 기본값' : '요일 기본값',
       submittedAt: null,
       delivered: Boolean(delivered?.delivered),
       deliveredAt: delivered?.deliveredAt || null,
@@ -2529,6 +2537,8 @@ async function loadOrders() {
   if (checkAll) checkAll.checked = false;
 
   if (isNoDeliveryDate(currentDateStr)) {
+    currentOrderLocked = false;
+    updateOrderLockButton();
     const message = holidayName(currentDateStr) ? `${holidayName(currentDateStr)}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다';
     document.getElementById('order-tbody').innerHTML = `<tr class="no-order-row"><td colspan="12">${escapeHtml(message)}</td></tr>`;
     ['sum-count','sum-lunch','sum-salad'].forEach((id,i) => {
@@ -2540,13 +2550,20 @@ async function loadOrders() {
   }
 
   try {
-    const [snap, adminDoc] = await Promise.all([
+    const [snap, adminDoc, lockDoc, defaultSnap] = await Promise.all([
       db.collection('orders').doc(currentDateStr).collection('items').get(),
-      db.collection('users').doc(adminUid).get()
+      db.collection('users').doc(adminUid).get(),
+      db.collection('orderLocks').doc(currentDateStr).get().catch(() => null),
+      db.collection('orderDefaultSnapshots').doc(currentDateStr).collection('items').get().catch(() => null)
     ]);
+    currentOrderLocked = !!lockDoc?.exists;
+    updateOrderLockButton();
     const adminData = adminDoc.exists ? adminDoc.data() : {};
     const deliveredRecords = deliveryRecordsFromData(adminData)[currentDateStr] || {};
-    const orders = mergeOrdersWithDefaults(currentDateStr, snap, deliveredRecords);
+    const defaultSnapshots = currentOrderLocked && defaultSnap
+      ? defaultSnap.docs.map(doc => [doc.id, doc.data() || {}])
+      : null;
+    const orders = mergeOrdersWithDefaults(currentDateStr, snap, deliveredRecords, defaultSnapshots);
     currentOrderRows = orders;
 
     let totalLunch = 0, totalSalad = 0;
@@ -2626,6 +2643,106 @@ async function loadOrders() {
   } catch(e) {
     document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="12">불러오기 실패: ' + e.message + '</td></tr>';
   }
+}
+
+function updateOrderLockButton() {
+  const btn = document.getElementById('order-lock-btn');
+  if (!btn) return;
+  btn.textContent = currentOrderLocked ? '주문 잠금 해제' : '주문 잠금';
+  btn.style.background = currentOrderLocked ? '#fdecea' : '';
+  btn.style.color = currentOrderLocked ? '#c0392b' : '';
+  btn.title = currentOrderLocked
+    ? '고객의 이 날짜 주문 변경이 막혀 있습니다.'
+    : '현재 날짜의 고객 주문 변경을 막고 기본수량을 고정합니다.';
+}
+
+async function commitBatchOps(ops) {
+  let batch = db.batch();
+  let pending = 0;
+  for (const op of ops) {
+    if (op.type === 'set') batch.set(op.ref, op.data, op.options || {});
+    else if (op.type === 'delete') batch.delete(op.ref);
+    pending += 1;
+    if (pending >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      pending = 0;
+    }
+  }
+  if (pending > 0) await batch.commit();
+}
+
+async function lockOrderDate(date = currentDateStr) {
+  if (!date) return;
+  if (isNoDeliveryDate(date)) {
+    showToast('배송 없는 날짜는 잠금이 필요 없습니다.');
+    return;
+  }
+  if (!confirm(`${formatDateKR(date)} 주문을 잠글까요?\n고객 주문 변경이 차단되고 현재 기본수량이 고정됩니다.`)) return;
+  try {
+    await loadAllUsers();
+    const existing = await db.collection('orderDefaultSnapshots').doc(date).collection('items').get().catch(() => null);
+    const ops = [];
+    if (existing) existing.docs.forEach(doc => ops.push({ type: 'delete', ref: doc.ref }));
+    Object.entries(allUsers).forEach(([uid, user]) => {
+      const defaults = defaultMealsForDate(user, date);
+      if ((defaults.lunch + defaults.salad) <= 0) return;
+      ops.push({
+        type: 'set',
+        ref: db.collection('orderDefaultSnapshots').doc(date).collection('items').doc(uid),
+        data: {
+          uid,
+          businessName: user.businessName || '',
+          lunchCount: defaults.lunch,
+          saladCount: defaults.salad,
+          mealTime: user.mealTime || '',
+          deliveryPlace: user.deliveryPlace || user.address || '',
+          lunchPrice: userLunchPrice(user),
+          saladPrice: userSaladPrice(user),
+          lockedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          lockedBy: adminUid
+        }
+      });
+    });
+    ops.push({
+      type: 'set',
+      ref: db.collection('orderLocks').doc(date),
+      data: {
+        date,
+        locked: true,
+        lockedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lockedBy: adminUid,
+        reason: 'admin-order-close'
+      },
+      options: { merge: true }
+    });
+    await commitBatchOps(ops);
+    currentOrderLocked = true;
+    showToast(`${date} 주문이 잠겼습니다.`);
+    await loadOrders();
+  } catch(e) {
+    showToast('주문 잠금 실패: ' + e.message);
+  }
+}
+
+async function unlockOrderDate(date = currentDateStr) {
+  if (!date) return;
+  if (!confirm(`${formatDateKR(date)} 주문 잠금을 해제할까요?\n고객이 다시 주문을 변경할 수 있고 기본수량도 현재 회원정보 기준으로 계산됩니다.`)) return;
+  try {
+    const snap = await db.collection('orderDefaultSnapshots').doc(date).collection('items').get().catch(() => null);
+    const ops = [{ type: 'delete', ref: db.collection('orderLocks').doc(date) }];
+    if (snap) snap.docs.forEach(doc => ops.push({ type: 'delete', ref: doc.ref }));
+    await commitBatchOps(ops);
+    currentOrderLocked = false;
+    showToast(`${date} 주문 잠금이 해제되었습니다.`);
+    await loadOrders();
+  } catch(e) {
+    showToast('잠금 해제 실패: ' + e.message);
+  }
+}
+
+function toggleOrderLock() {
+  return currentOrderLocked ? unlockOrderDate() : lockOrderDate();
 }
 
 // ── 미제출 업체 ──
@@ -4172,7 +4289,7 @@ function renderEventLunches() {
     <tr>
       <td>${escapeHtml(item.eventDate || '-')}</td>
       <td>${escapeHtml(item.eventTime || '-')}</td>
-      <td class="biz-name">${item.source === 'publicEventOrder' ? '<span class="note-badge">비회원</span> ' : ''}${escapeHtml(eventCustomerName(item))}</td>
+      <td class="biz-name">${item.source === 'publicEventOrder' ? '<span class="note-badge">비회원</span> ' : ''}${escapeHtml(eventCustomerName(item))}${item.contactPhone ? `<br><span style="font-size:12px;color:var(--sub);font-weight:500">${escapeHtml(item.contactPhone)}</span>` : ''}</td>
       <td class="note-cell">${escapeHtml(eventOrderItemsSummary(item) || item.name || '-')}</td>
       <td class="qty-cell">${eventOrderTotalQty(item) || item.count || 0}</td>
       <td>${formatMoney(eventOrderTotalAmount(item) || item.amount || 0)}</td>
@@ -4262,6 +4379,7 @@ function publicEventOrderToRow(item) {
     price: eventAveragePrice(item),
     amount: eventOrderTotalAmount(item),
     note: item.requestNote || '',
+    contactPhone: item.contactPhone || '',
     paymentLabel: pay,
     source: 'publicEventOrder'
   };
@@ -4291,6 +4409,7 @@ function eventRecordFromOrder(item, docId, overrides = {}) {
     kind: 'eventLunch',
     uid: docId,
     businessName: item.businessName || '행사도시락',
+    contactPhone: item.contactPhone || '',
     name: eventOrderItemsSummary({ items }) || item.name || '행사도시락',
     eventDate: item.eventDate || '',
     eventTime: item.eventTime || '',
@@ -4330,6 +4449,7 @@ async function registerPublicEventOrder(id) {
   document.getElementById('event-place').value = item.place || '';
   document.getElementById('event-note').value = [
     item.businessName ? `상호명: ${item.businessName}` : '',
+    item.contactPhone ? `연락처: ${item.contactPhone}` : '',
     item.requestNote ? `요청사항: ${item.requestNote}` : '',
     paymentLabel(item) ? `결제: ${paymentLabel(item)}` : ''
   ].filter(Boolean).join('\n');

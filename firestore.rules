@@ -52,7 +52,9 @@ service cloud.firestore {
         'sameDailyMeal',
         'weekdayMeals',
         'createdAt',
-        'updatedAt'
+        'updatedAt',
+        'privacyConsent',
+        'privacyConsentAt'
       ];
     }
 
@@ -84,16 +86,20 @@ service cloud.firestore {
         && optionalSafeCount(data, 'defaultLunch')
         && optionalSafeCount(data, 'defaultSalad')
         && optionalBool(data, 'sameDailyMeal')
+        && optionalBool(data, 'privacyConsent')
         && validWeekdayMeals(data)
         && optionalTimestamp(data, 'createdAt')
-        && optionalTimestamp(data, 'updatedAt');
+        && optionalTimestamp(data, 'updatedAt')
+        && optionalTimestamp(data, 'privacyConsentAt');
     }
 
     function validUserCreate(userId) {
       return isOwner(userId)
         && request.resource.data.keys().hasOnly(userProfileKeys())
         && validUserProfile(request.resource.data)
-        && request.resource.data.email == request.auth.token.email;
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.privacyConsent == true
+        && request.resource.data.privacyConsentAt == request.time;
     }
 
     function validUserUpdate(userId) {
@@ -108,8 +114,13 @@ service cloud.firestore {
       return ['uid', 'targetDate', 'lunchCount', 'saladCount', 'note', 'selfHoliday', 'submittedAt', 'updatedAt'];
     }
 
+    function orderDateUnlocked(date) {
+      return !exists(/databases/$(database)/documents/orderLocks/$(date));
+    }
+
     function validOrderWrite(date, userId) {
       return isOwner(userId)
+        && orderDateUnlocked(date)
         && request.resource.data.keys().hasOnly(orderKeys())
         && request.resource.data.uid == userId
         && request.resource.data.targetDate == date
@@ -136,6 +147,7 @@ service cloud.firestore {
 
     function validOrderDelete(userId) {
       return isOwner(userId)
+        && orderDateUnlocked(resource.data.targetDate)
         && resource.data.uid == userId
         && resource.data.keys().hasOnly(orderKeys());
     }
@@ -143,6 +155,7 @@ service cloud.firestore {
     function eventOrderKeys() {
       return [
         'businessName',
+        'contactPhone',
         'place',
         'eventDate',
         'eventTime',
@@ -155,7 +168,8 @@ service cloud.firestore {
         'paymentCard',
         'status',
         'source',
-        'createdAt'
+        'createdAt',
+        'privacyConsent'
       ];
     }
 
@@ -165,6 +179,8 @@ service cloud.firestore {
         && request.resource.data.businessName is string
         && request.resource.data.businessName.size() > 0
         && request.resource.data.businessName.size() <= 80
+        && request.resource.data.contactPhone is string
+        && request.resource.data.contactPhone.matches('^0[0-9\\- ]{7,20}$')
         && request.resource.data.place is string
         && request.resource.data.place.size() > 0
         && request.resource.data.place.size() <= 160
@@ -189,7 +205,8 @@ service cloud.firestore {
           || request.resource.data.paymentCard)
         && request.resource.data.status == 'new'
         && request.resource.data.source == 'publicEventPage'
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.privacyConsent == true;
     }
 
     match /users/{userId} {
@@ -208,6 +225,15 @@ service cloud.firestore {
       allow create: if isAdmin() || validOrderCreate(date, userId);
       allow update: if isAdmin() || validOrderUpdate(date, userId);
       allow delete: if isAdmin() || validOrderDelete(userId);
+    }
+
+    match /orderLocks/{date} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /orderDefaultSnapshots/{date}/items/{userId} {
+      allow read, write: if isAdmin();
     }
 
     match /mealMenus/{date} {
