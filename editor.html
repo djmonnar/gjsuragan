@@ -237,6 +237,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 .program-hero p{font-size:13px;color:#6B5A4E;line-height:1.6;}
 .program-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
 .program-card{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;text-decoration:none;background:#fff;border:1px solid #F3E4D6;border-radius:14px;padding:14px;transition:transform .15s,box-shadow .15s,border-color .15s;}
+.program-card.feature{grid-column:1/-1;background:#FFF7ED;border-color:#FDBA74;}
 .program-card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(92,58,33,.12);border-color:#FDBA74;}
 .program-icon{width:48px;height:48px;border-radius:16px;background:#FFF7ED;border:1px solid #FED7AA;display:flex;align-items:center;justify-content:center;color:#EA580C;font-size:20px;font-weight:900;}
 .program-card b{display:block;color:#2D2A26;font-size:14px;margin-bottom:4px;}
@@ -359,6 +360,11 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
         </div>
       </div>
       <div class="program-grid">
+        <a class="program-card feature" href="https://djmonnar.github.io/gjsuragan/links.html" target="_blank" rel="noopener">
+          <div class="program-icon">링</div>
+          <div><b>전체 업무 링크 모음</b><span>고객 공유용, 운영 관리, 제작 도구, 매뉴얼 링크를 한 화면에서 확인</span></div>
+          <div class="program-arrow">›</div>
+        </a>
         <a class="program-card" href="https://djmonnar.github.io/gjsuragan/menu.html" target="_blank" rel="noopener">
           <div class="program-icon">상</div>
           <div><b>상세페이지 만들기</b><span>반찬배송·상품 상세페이지 제작</span></div>

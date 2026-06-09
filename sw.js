@@ -1,7 +1,8 @@
-const CACHE = 'gjsuragan-v17-event-payment-radio';
+const CACHE = 'gjsuragan-v18-links-hub';
 const PRECACHE = [
   './customer.html',
   './event-order.html',
+  './links.html',
   './assets/img/event-lunch-banner.jpg',
   './assets/img/event-menu.jpg',
   './icons/icon.svg',

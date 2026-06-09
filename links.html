@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>궁중수라간 업무 링크</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fff8ef;
+  --surface:#fff;
+  --surface-soft:#fffaf4;
+  --primary:#7a3f1f;
+  --primary-2:#b55f26;
+  --ink:#211915;
+  --muted:#76675e;
+  --line:#ead8c5;
+  --gold:#d9a441;
+  --green:#2f7d4d;
+  --blue:#326d91;
+  --red:#b13d2e;
+  --shadow:0 16px 40px rgba(88,53,25,.11);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  min-height:100vh;
+  background:
+    linear-gradient(180deg,rgba(255,248,239,.96),rgba(255,252,248,.98)),
+    url('./assets/img/suragan-mark.png') center 34px/132px auto no-repeat;
+  font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  color:var(--ink);
+}
+a{color:inherit}
+.page{width:min(1120px,100%);margin:0 auto;padding:30px 18px 42px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:46px;height:46px;border-radius:14px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;box-shadow:0 8px 22px rgba(88,53,25,.08);overflow:hidden}
+.mark img{width:38px;height:38px;object-fit:contain}
+.brand h1{font-size:25px;font-weight:900;letter-spacing:0;color:var(--primary)}
+.brand p{font-size:13px;color:var(--muted);margin-top:3px}
+.top-actions{display:flex;gap:8px;align-items:center}
+.small-btn{
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--primary);
+  border-radius:8px;
+  padding:10px 12px;
+  font-size:13px;
+  font-weight:800;
+  text-decoration:none;
+  cursor:pointer;
+}
+.small-btn:hover{border-color:#d7ad7e;background:var(--surface-soft)}
+.search-panel{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:8px;
+  box-shadow:var(--shadow);
+  padding:16px;
+  margin-bottom:18px;
+}
+.search-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+.search-input{
+  width:100%;
+  border:1px solid #dcc8b1;
+  border-radius:8px;
+  padding:14px 14px;
+  font-size:16px;
+  font-family:inherit;
+  outline:none;
+}
+.search-input:focus{border-color:var(--primary-2);box-shadow:0 0 0 3px rgba(181,95,38,.12)}
+.hint{font-size:12px;color:var(--muted);line-height:1.55;margin-top:9px}
+.section{margin-top:22px}
+.section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:10px}
+.section-title{font-size:17px;font-weight:900;color:var(--ink)}
+.section-count{font-size:12px;color:var(--muted);font-weight:800}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.link-card{
+  min-height:168px;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:15px;
+  box-shadow:0 8px 22px rgba(88,53,25,.07);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.link-card:hover{border-color:#d6a166;box-shadow:0 12px 28px rgba(88,53,25,.11)}
+.card-top{display:flex;align-items:flex-start;gap:11px}
+.icon{
+  width:42px;height:42px;border-radius:8px;display:grid;place-items:center;
+  flex:0 0 auto;font-size:17px;font-weight:900;color:#fff;background:var(--primary);
+}
+.icon.green{background:var(--green)}
+.icon.blue{background:var(--blue)}
+.icon.gold{background:var(--gold);color:#2d2419}
+.icon.red{background:var(--red)}
+.card-title{font-size:16px;font-weight:900;color:var(--ink);line-height:1.35}
+.card-desc{font-size:13px;color:var(--muted);line-height:1.55;margin-top:3px}
+.card-url{
+  margin-top:auto;
+  border:1px solid #eee0cf;
+  background:var(--surface-soft);
+  border-radius:8px;
+  padding:9px 10px;
+  color:#7a5b43;
+  font-size:12px;
+  line-height:1.35;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.card-actions{display:grid;grid-template-columns:1fr auto;gap:8px}
+.open-btn,.copy-btn{
+  border:none;
+  border-radius:8px;
+  padding:11px 12px;
+  font-family:inherit;
+  font-size:13px;
+  font-weight:900;
+  cursor:pointer;
+  text-align:center;
+  text-decoration:none;
+}
+.open-btn{background:var(--primary);color:#fff}
+.open-btn:hover{background:#5f3017}
+.copy-btn{background:#f2e5d6;color:var(--primary)}
+.copy-btn:hover{background:#e7d2bc}
+.empty{display:none;padding:26px;text-align:center;color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:8px;background:#fff}
+.toast{
+  position:fixed;left:50%;bottom:22px;transform:translate(-50%,80px);
+  background:#241b16;color:#fff;border-radius:999px;padding:10px 18px;
+  font-size:13px;font-weight:800;box-shadow:0 10px 28px rgba(0,0,0,.18);
+  transition:transform .22s ease;z-index:10;max-width:calc(100vw - 32px);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.toast.show{transform:translate(-50%,0)}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){
+  .page{padding:20px 14px 34px}
+  .topbar{align-items:flex-start;flex-direction:column}
+  .brand h1{font-size:21px}
+  .top-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}
+  .small-btn{text-align:center}
+  .search-row{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .link-card{min-height:0}
+}
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark"><img src="./assets/img/suragan-mark.png" alt="궁중수라간"></div>
+      <div>
+        <h1>궁중수라간 업무 링크</h1>
+        <p>운영, 고객 주문, 제작, 매뉴얼 페이지를 한 곳에서 엽니다.</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <a class="small-btn" href="./editor.html">식단 편집기</a>
+      <a class="small-btn" href="./index.html">배송관리</a>
+    </div>
+  </header>
+
+  <section class="search-panel">
+    <div class="search-row">
+      <input class="search-input" id="searchInput" type="search" placeholder="찾을 페이지를 입력하세요. 예: 고객, 행사, 정산, 매뉴얼" autocomplete="off">
+      <button class="small-btn" type="button" onclick="clearSearch()">초기화</button>
+    </div>
+    <div class="hint">외부에 공유할 때는 고객용 페이지와 행사 주문 페이지 링크만 사용하세요. 관리자/편집기/배송관리는 내부용입니다.</div>
+  </section>
+
+  <div id="sections"></div>
+  <div class="empty" id="emptyState">검색 결과가 없습니다.</div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const BASE = 'https://djmonnar.github.io/gjsuragan/';
+const links = [
+  {
+    group: '고객 공유',
+    items: [
+      { title: '월식 고객 주문앱', desc: '월식 도시락 고객 로그인, 주문, 식단, 정산 확인 화면', path: 'customer.html', icon: '고', color: 'green' },
+      { title: '행사도시락 주문 페이지', desc: '외부 고객이 행사 도시락을 공개 접수하는 주문 화면', path: 'event-order.html', icon: '행', color: 'gold' },
+      { title: '고객 정산표 확인', desc: '월식 고객이 같은 계정으로 월별 정산표를 확인하는 화면', path: 'customer-settlement.html', icon: '정', color: 'blue' }
+    ]
+  },
+  {
+    group: '운영 관리',
+    items: [
+      { title: '배송관리 시스템', desc: '기존 주문, 배송, 거래처, 일정 운영 화면', path: 'index.html', icon: '배', color: 'red' },
+      { title: '월식 관리자', desc: '월식 주문, 메뉴, 회원, 정산, 행사주문 관리 화면', path: 'admin.html', icon: '관', color: '' },
+      { title: '식단 편집기', desc: '식단표 편집, AI 식단 생성, 업무 링크 팝업 화면', path: 'editor.html', icon: '편', color: 'blue' }
+    ]
+  },
+  {
+    group: '제작 도구',
+    items: [
+      { title: '상세페이지 만들기', desc: '반찬배송과 상품 상세페이지 이미지 제작 도구', path: 'menu.html', icon: '상', color: 'gold' },
+      { title: '일회주문 이미지 제작', desc: '일회 주문 안내 이미지와 홍보용 화면 제작', path: '%ED%85%9C%ED%94%8C%EB%A6%BF.html', icon: '일', color: 'green' },
+      { title: '식단표 페이지', desc: '식단표 확인과 별도 편집이 필요한 경우 사용하는 보조 페이지', path: '%EC%8B%9D%EB%8B%A8%ED%91%9C.html', icon: '식', color: '' }
+    ]
+  },
+  {
+    group: '문서와 외부 자료',
+    items: [
+      { title: '사용 매뉴얼', desc: '관리자와 운영자가 확인하는 사용 설명서', path: 'manual.html', icon: '문', color: 'blue' },
+      { title: '아임웹 매뉴얼', desc: '아임웹 상품/페이지 수정 절차 안내', path: 'imwebmanual.html', icon: '웹', color: 'red' },
+      { title: '원산지 상세정보', desc: 'Notion에 정리된 원산지와 상세 정보 자료', url: 'https://www.notion.so/2fec43094c8980818b2de393419e56a9', icon: '원', color: 'gold' },
+      { title: '식단표 원산지 자동보내기', desc: '식단표와 원산지 전송 업무용 외부 페이지', url: 'https://djmonnar.github.io/gjsuraganmenu/', icon: '송', color: 'green' }
+    ]
+  }
+];
+
+function fullUrl(item) {
+  return item.url || BASE + item.path;
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+}
+
+function renderLinks() {
+  const query = document.getElementById('searchInput').value.trim().toLowerCase();
+  const root = document.getElementById('sections');
+  let visibleCount = 0;
+  root.innerHTML = links.map(section => {
+    const items = section.items.filter(item => {
+      const haystack = [section.group, item.title, item.desc, fullUrl(item)].join(' ').toLowerCase();
+      return !query || haystack.includes(query);
+    });
+    visibleCount += items.length;
+    if (!items.length) return '';
+    return `
+      <section class="section">
+        <div class="section-head">
+          <h2 class="section-title">${escapeHtml(section.group)}</h2>
+          <div class="section-count">${items.length}개</div>
+        </div>
+        <div class="grid">
+          ${items.map(item => {
+            const url = fullUrl(item);
+            return `
+              <article class="link-card">
+                <div class="card-top">
+                  <div class="icon ${escapeHtml(item.color)}">${escapeHtml(item.icon)}</div>
+                  <div>
+                    <div class="card-title">${escapeHtml(item.title)}</div>
+                    <div class="card-desc">${escapeHtml(item.desc)}</div>
+                  </div>
+                </div>
+                <div class="card-url" title="${escapeHtml(url)}">${escapeHtml(url)}</div>
+                <div class="card-actions">
+                  <a class="open-btn" href="${escapeHtml(url)}" target="_blank" rel="noopener">열기</a>
+                  <button class="copy-btn" type="button" onclick="copyLink('${escapeHtml(url)}')">복사</button>
+                </div>
+              </article>
+            `;
+          }).join('')}
+        </div>
+      </section>
+    `;
+  }).join('');
+  document.getElementById('emptyState').style.display = visibleCount ? 'none' : 'block';
+}
+
+async function copyLink(url) {
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('링크를 복사했습니다.');
+  } catch(e) {
+    showToast('복사에 실패했습니다. 주소를 직접 선택해주세요.');
+  }
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  renderLinks();
+}
+
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+document.getElementById('searchInput').addEventListener('input', renderLinks);
+renderLinks();
+</script>
+</body>
+</html>
