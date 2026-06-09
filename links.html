@@ -91,10 +91,28 @@ a{color:inherit}
 }
 .link-card:hover{border-color:#d6a166;box-shadow:0 12px 28px rgba(88,53,25,.11)}
 .card-top{display:flex;align-items:flex-start;gap:11px}
+.card-copy{flex:1;min-width:0}
 .icon{
   width:42px;height:42px;border-radius:8px;display:grid;place-items:center;
   flex:0 0 auto;font-size:17px;font-weight:900;color:#fff;background:var(--primary);
 }
+.star-btn{
+  width:36px;
+  height:36px;
+  border:1px solid #ead8c5;
+  border-radius:8px;
+  background:#fff;
+  color:#b58a42;
+  font-size:22px;
+  line-height:1;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  flex:0 0 auto;
+}
+.star-btn:hover{border-color:#d9a441;background:#fff8e7}
+.star-btn.on{background:#fff3bf;border-color:#d9a441;color:#a66b00}
+.favorite-section .link-card{border-color:#d9a441;background:#fffdf5}
 .icon.green{background:var(--green)}
 .icon.blue{background:var(--blue)}
 .icon.gold{background:var(--gold);color:#2d2419}
@@ -183,10 +201,12 @@ a{color:inherit}
 
 <script>
 const BASE = 'https://djmonnar.github.io/gjsuragan/';
+const FAVORITES_KEY = 'gjsuragan_link_favorites_v1';
 const links = [
   {
     group: '고객 공유',
     items: [
+      { id: 'main-homepage', title: '궁중수라간 메인 홈페이지', desc: '고객에게 보여주는 궁중수라간 공식 홈페이지', url: 'https://gjsuragan.co.kr/', icon: '홈', color: 'red' },
       { title: '월식 고객 주문앱', desc: '월식 도시락 고객 로그인, 주문, 식단, 정산 확인 화면', path: 'customer.html', icon: '고', color: 'green' },
       { title: '행사도시락 주문 페이지', desc: '외부 고객이 행사 도시락을 공개 접수하는 주문 화면', path: 'event-order.html', icon: '행', color: 'gold' },
       { title: '고객 정산표 확인', desc: '월식 고객이 같은 계정으로 월별 정산표를 확인하는 화면', path: 'customer-settlement.html', icon: '정', color: 'blue' }
@@ -223,21 +243,64 @@ function fullUrl(item) {
   return item.url || BASE + item.path;
 }
 
+function linkId(item) {
+  return item.id || item.path || item.url || item.title;
+}
+
+function allItems() {
+  return links.flatMap(section => section.items.map(item => ({ ...item, group: section.group, id: linkId(item) })));
+}
+
+function getFavorites() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch(e) {
+    return [];
+  }
+}
+
+function setFavorites(favorites) {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify([...new Set(favorites)]));
+}
+
+function isFavorite(id) {
+  return getFavorites().includes(id);
+}
+
 function escapeHtml(value) {
   return String(value || '').replace(/[&<>"']/g, ch => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[ch]));
 }
 
+function escapeJsArg(value) {
+  return escapeHtml(String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+}
+
 function renderLinks() {
   const query = document.getElementById('searchInput').value.trim().toLowerCase();
   const root = document.getElementById('sections');
+  const favorites = getFavorites();
+  const favoriteItems = favorites.map(id => allItems().find(item => item.id === id)).filter(Boolean);
   let visibleCount = 0;
-  root.innerHTML = links.map(section => {
+  const favoriteHtml = favoriteItems.length && !query ? `
+    <section class="section favorite-section">
+      <div class="section-head">
+        <h2 class="section-title">즐겨찾기</h2>
+        <div class="section-count">${favoriteItems.length}개</div>
+      </div>
+      <div class="grid">
+        ${favoriteItems.map(item => renderCard(item)).join('')}
+      </div>
+    </section>
+  ` : '';
+  root.innerHTML = favoriteHtml + links.map(section => {
     const items = section.items.filter(item => {
       const haystack = [section.group, item.title, item.desc, fullUrl(item)].join(' ').toLowerCase();
       return !query || haystack.includes(query);
-    });
+    }).map(item => ({ ...item, group: section.group, id: linkId(item) }))
+      .sort((a, b) => Number(isFavorite(b.id)) - Number(isFavorite(a.id)));
     visibleCount += items.length;
     if (!items.length) return '';
     return `
@@ -247,30 +310,44 @@ function renderLinks() {
           <div class="section-count">${items.length}개</div>
         </div>
         <div class="grid">
-          ${items.map(item => {
-            const url = fullUrl(item);
-            return `
-              <article class="link-card">
-                <div class="card-top">
-                  <div class="icon ${escapeHtml(item.color)}">${escapeHtml(item.icon)}</div>
-                  <div>
-                    <div class="card-title">${escapeHtml(item.title)}</div>
-                    <div class="card-desc">${escapeHtml(item.desc)}</div>
-                  </div>
-                </div>
-                <div class="card-url" title="${escapeHtml(url)}">${escapeHtml(url)}</div>
-                <div class="card-actions">
-                  <a class="open-btn" href="${escapeHtml(url)}" target="_blank" rel="noopener">열기</a>
-                  <button class="copy-btn" type="button" onclick="copyLink('${escapeHtml(url)}')">복사</button>
-                </div>
-              </article>
-            `;
-          }).join('')}
+          ${items.map(item => renderCard(item)).join('')}
         </div>
       </section>
     `;
   }).join('');
   document.getElementById('emptyState').style.display = visibleCount ? 'none' : 'block';
+}
+
+function renderCard(item) {
+  const url = fullUrl(item);
+  const id = item.id || linkId(item);
+  const favorite = isFavorite(id);
+  return `
+    <article class="link-card">
+      <div class="card-top">
+        <div class="icon ${escapeHtml(item.color)}">${escapeHtml(item.icon)}</div>
+        <div class="card-copy">
+          <div class="card-title">${escapeHtml(item.title)}</div>
+          <div class="card-desc">${escapeHtml(item.desc)}</div>
+        </div>
+        <button class="star-btn ${favorite ? 'on' : ''}" type="button" onclick="toggleFavorite('${escapeJsArg(id)}')" aria-label="${favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}" title="${favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}">${favorite ? '★' : '☆'}</button>
+      </div>
+      <div class="card-url" title="${escapeHtml(url)}">${escapeHtml(url)}</div>
+      <div class="card-actions">
+        <a class="open-btn" href="${escapeHtml(url)}" target="_blank" rel="noopener">열기</a>
+        <button class="copy-btn" type="button" onclick="copyLink('${escapeJsArg(url)}')">복사</button>
+      </div>
+    </article>
+  `;
+}
+
+function toggleFavorite(id) {
+  const favorites = getFavorites();
+  const exists = favorites.includes(id);
+  const next = exists ? favorites.filter(item => item !== id) : [id, ...favorites];
+  setFavorites(next);
+  renderLinks();
+  showToast(exists ? '즐겨찾기에서 해제했습니다.' : '즐겨찾기에 추가했습니다.');
 }
 
 async function copyLink(url) {

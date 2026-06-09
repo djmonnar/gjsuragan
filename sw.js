@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v18-links-hub';
+const CACHE = 'gjsuragan-v19-link-favorites';
 const PRECACHE = [
   './customer.html',
   './event-order.html',
