@@ -196,6 +196,8 @@ async function sendPushToAdmins(message) {
         link: ADMIN_URL
       },
       notification: {
+        title: message.title,
+        body: message.body,
         icon: '/gjsuragan/icons/icon.svg',
         badge: '/gjsuragan/icons/icon.svg',
         tag: message.data.requestId ? `change-request-${message.data.requestId}` : 'gjsuragan-change-request',
@@ -223,6 +225,11 @@ async function sendPushToAdmins(message) {
     }
   });
   await Promise.all(cleanup);
+  logger.info('FCM push result', {
+    total: tokenItems.length,
+    sent: response.successCount,
+    failed: response.failureCount
+  });
 
   return {
     total: tokenItems.length,

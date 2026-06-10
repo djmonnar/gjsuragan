@@ -866,6 +866,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         </div>
         <div class="inline-actions">
           <button class="save-btn" style="width:auto" onclick="enableAdminPushNotifications()">모바일 알림 허용</button>
+          <button class="secondary-btn" onclick="testAdminPushNotification()">알림 테스트</button>
           <button class="danger-btn" onclick="disableAdminPushNotifications()">알림 비활성화</button>
         </div>
         <div class="push-status" id="push-status">알림 상태를 확인하는 중...</div>
@@ -2605,12 +2606,64 @@ function subscribeCurrentPushToken(docId) {
   });
 }
 
+async function showAdminSystemNotification(title, body, data = {}) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
+  const options = {
+    body,
+    icon: './icons/icon.svg',
+    badge: './icons/icon.svg',
+    tag: data.requestId ? `change-request-${data.requestId}` : `gjsuragan-admin-${Date.now()}`,
+    renotify: true,
+    data: {
+      url: data.url || './admin.html#changeRequests',
+      requestId: data.requestId || '',
+      type: data.type || '',
+      customerName: data.customerName || ''
+    }
+  };
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification(title, options);
+      return true;
+    }
+  } catch (e) {
+    console.warn('서비스워커 알림 표시 실패:', e);
+  }
+  try {
+    new Notification(title, options);
+    return true;
+  } catch (e) {
+    console.warn('브라우저 알림 표시 실패:', e);
+    return false;
+  }
+}
+
+async function testAdminPushNotification() {
+  if (typeof Notification === 'undefined') {
+    updatePushStatus('이 브라우저는 알림 권한 API를 지원하지 않습니다.');
+    return;
+  }
+  if (Notification.permission !== 'granted') {
+    updatePushStatus('알림 권한이 아직 허용되지 않았습니다. 먼저 모바일 알림 허용을 눌러주세요.');
+    return;
+  }
+  const shown = await showAdminSystemNotification('궁중수라간 테스트 알림', '이 알림이 보이면 이 기기의 알림 권한은 정상입니다.', {
+    type: 'test',
+    url: './admin.html#changeRequests'
+  });
+  updatePushStatus(shown
+    ? '테스트 알림을 보냈습니다.\n실제 변경요청 푸시는 오후 2시 ~ 오후 5시에 발송됩니다.'
+    : '테스트 알림을 표시하지 못했습니다. 브라우저/앱 알림 설정을 확인해주세요.');
+}
+
 function initAdminForegroundMessaging() {
   if (!messaging) return;
   messaging.onMessage(payload => {
     const title = payload?.notification?.title || '궁중수라간 변경요청';
     const body = payload?.notification?.body || '새 변경요청이 있습니다.';
     showAdminInPageAlert(title, body);
+    showAdminSystemNotification(title, body, payload?.data || {});
     if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
   });
 }
