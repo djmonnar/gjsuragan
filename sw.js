@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v21-galaxy-install-guide';
+const CACHE = 'gjsuragan-v22-samsung-install-steps';
 const PRECACHE = [
   './customer.html',
   './event-order.html',
