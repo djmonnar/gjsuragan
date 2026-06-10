@@ -860,9 +860,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="push-setting-copy">
           관리자 휴대폰에 변경요청 알림을 받으려면 이 관리자 페이지를 모바일 브라우저 또는 홈 화면 앱으로 열고 알림을 허용하세요.
         </div>
-        <div class="push-window-box">모바일 푸시 알림: 오후 2시 ~ 오후 5시</div>
+        <div class="push-window-box">변경요청 오후 2~5시 · 주문접수 오전 6~10시 · 행사도시락 24시간</div>
         <div class="push-setting-copy">
-          이 시간 밖의 요청은 관리자 화면 목록에는 즉시 표시되고, 모바일 푸시는 다음 허용 시간대에 모아서 발송됩니다.
+          변경요청 푸시는 오후 2~5시에 발송됩니다. 이 시간 밖의 요청은 목록에는 즉시 표시되고, 푸시는 다음 허용 시간에 모아서 발송됩니다.
         </div>
         <div class="inline-actions">
           <button class="save-btn" style="width:auto" onclick="enableAdminPushNotifications()">모바일 알림 허용</button>
@@ -881,7 +881,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="change-request-toolbar">
           <div>
             <div class="section-title" style="margin:0">요청 목록</div>
-            <div class="member-hint">고객 요청은 시간 제한 없이 즉시 표시됩니다. 모바일 푸시만 오후 2시부터 오후 5시까지 울립니다.</div>
+            <div class="member-hint">고객 요청은 시간 제한 없이 즉시 표시됩니다. 변경요청 푸시는 오후 2~5시, 주문접수 푸시는 오전 6~10시에 울립니다.</div>
           </div>
           <div class="change-request-filters">
             <button class="cr-filter-btn active" data-cr-filter="all" onclick="setChangeRequestFilter('all')">전체</button>
@@ -2682,7 +2682,7 @@ async function testAdminPushNotification() {
     url: './admin.html#changeRequests'
   });
   updatePushStatus(shown
-    ? '테스트 알림을 보냈습니다.\n실제 변경요청 푸시는 오후 2시 ~ 오후 5시에 발송됩니다.'
+    ? '테스트 알림을 보냈습니다.\n변경요청 오후 2~5시 / 주문접수 오전 6~10시 / 행사도시락 24시간'
     : '테스트 알림을 표시하지 못했습니다. 브라우저/앱 알림 설정을 확인해주세요.');
 }
 
