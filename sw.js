@@ -8,8 +8,7 @@ const PRECACHE = [
   './assets/img/event-menu.jpg',
   './icons/icon.svg',
   './manifest.json',
-  './admin-manifest.json',
-  './firebase-messaging-sw.js'
+  './admin-manifest.json'
 ];
 
 try {

@@ -869,6 +869,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <button class="secondary-btn" onclick="testAdminPushNotification()">기기 알림 테스트</button>
           <button class="secondary-btn" onclick="testAdminServerPushNotification()">서버 푸시 테스트</button>
           <button class="danger-btn" onclick="disableAdminPushNotifications()">알림 비활성화</button>
+          <button class="danger-btn" onclick="resetAndRenewPushToken()" title="토큰/SW 초기화 후 재발급">토큰 초기화</button>
         </div>
         <div class="push-status" id="push-status">알림 상태를 확인하는 중...</div>
         <div class="push-setting-copy" style="margin-top:12px">
@@ -2572,6 +2573,33 @@ async function enableAdminPushNotifications() {
   } catch(e) {
     console.error('푸시 알림 설정 실패:', e);
     updatePushStatus('푸시 알림 설정 실패: ' + (e.message || e.code || e));
+  }
+}
+
+async function resetAndRenewPushToken() {
+  updatePushStatus('푸시 토큰 초기화 중...');
+  try {
+    // 1. 기존 토큰 삭제 (FCM 서버에 알림)
+    if (messaging) {
+      try { await messaging.deleteToken(); } catch(e) { /* 없어도 계속 */ }
+    }
+    // 2. 기존 Firestore 토큰 비활성화
+    if (currentPushTokenDocId) {
+      await db.collection('adminPushTokens').doc(currentPushTokenDocId).set({
+        enabled: false,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+    // 3. 모든 SW 등록 해제 (firebase-messaging-sw.js 포함)
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const reg of regs) await reg.unregister();
+    // 4. 캐시 전체 삭제
+    const cacheKeys = await caches.keys();
+    for (const key of cacheKeys) await caches.delete(key);
+    updatePushStatus('초기화 완료. 페이지를 새로고침 후 알림 활성화를 다시 누르세요.');
+    showToast('초기화 완료. 새로고침 후 알림을 다시 활성화하세요.');
+  } catch(e) {
+    updatePushStatus('초기화 실패: ' + e.message);
   }
 }
 
