@@ -852,6 +852,48 @@ function customerOrderDate(c){
   return c?.onceDate || c?.startDate || '-';
 }
 
+const CUSTOMER_NEW_BADGE_MS = 24 * 60 * 60 * 1000;
+
+function customerTimestampMs(value){
+  if(!value) return 0;
+  if(value instanceof Date){
+    const t = value.getTime();
+    return Number.isNaN(t) ? 0 : t;
+  }
+  if(typeof value?.toDate === 'function'){
+    const t = value.toDate().getTime();
+    return Number.isNaN(t) ? 0 : t;
+  }
+  if(typeof value?.seconds === 'number'){
+    return (value.seconds * 1000) + Math.floor((value.nanoseconds || 0) / 1000000);
+  }
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function customerCreatedTime(c){
+  return customerTimestampMs(c?.createdAt) || customerTimestampMs(c?.updatedAt);
+}
+
+function customerIsNewOrder(c){
+  const created = customerCreatedTime(c);
+  if(!created) return false;
+  const age = Date.now() - created;
+  return age >= 0 && age <= CUSTOMER_NEW_BADGE_MS;
+}
+
+function customerNewBadgeHtml(){
+  return '<span class="badge" title="최근 24시간 이내 신규 주문" style="background:#fff3bf;color:#9a6700;border-color:#d9a441;font-weight:900;letter-spacing:.2px;">NEW</span>';
+}
+
+function customerOrderNewBadge(c){
+  return customerIsNewOrder(c) ? customerNewBadgeHtml() : '';
+}
+
+function customerGroupNewBadge(g){
+  return (g?.orders || []).some(customerIsNewOrder) ? customerNewBadgeHtml() : '';
+}
+
 function customerIsActiveOrder(c){
   return c && c.status === 'active' && Number(c.remain || 0) > 0;
 }
@@ -1013,6 +1055,7 @@ function customerGroupOrderSummary(c){
           <span class="badge ${productBadgeClass(prod)}">${customerText(productLabel(prod))}</span>
           <span class="badge ${customerOrderTypeBadge(c)}">${customerText(customerOrderTypeLabel(c))}</span>
           <span class="badge b-${c.status}">${customerText(status)}</span>
+          ${customerOrderNewBadge(c)}
         </div>
         <div style="font-size:11px;color:var(--text3);">${orderNo ? '#' + customerText(orderNo) : ''}</div>
       </div>
@@ -1189,6 +1232,7 @@ function customerGroupOrderSummary(c, idx){
     <div style="margin-top:8px;">
       <button class="btn btn-g sm" style="width:100%;justify-content:space-between;text-align:left;display:flex;align-items:center;gap:8px;padding:8px 10px;" onclick="customerToggleOrder(${idx},'${customerJsArg(c.id)}')">
         <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${customerText(customerOrderButtonLabel(c))}</span>
+        ${customerOrderNewBadge(c)}
         <span>${isOpen ? '접기' : '보기'}</span>
       </button>
       ${!isOpen ? '' : `<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:6px;background:var(--surface);">
@@ -1197,6 +1241,7 @@ function customerGroupOrderSummary(c, idx){
             <span class="badge ${productBadgeClass(prod)}">${customerText(productLabel(prod))}</span>
             <span class="badge ${customerOrderTypeBadge(c)}">${customerText(customerOrderTypeLabel(c))}</span>
             <span class="badge b-${c.status}">${customerText(status)}</span>
+            ${customerOrderNewBadge(c)}
           </div>
           <div style="font-size:11px;color:var(--text3);">${orderNo ? '#' + customerText(orderNo) : ''}</div>
         </div>
@@ -1243,7 +1288,7 @@ function showCustomerGroup(idx, keepExpanded = false){
       <div class="dph">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;">
           <div>
-            <div style="font-size:16px;font-weight:700;">${customerText(g.name || latest.name || '-')}</div>
+            <div style="font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${customerText(g.name || latest.name || '-')} ${customerGroupNewBadge(g)}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:2px;">${g.orders.length > 1 ? '재주문 ' + g.orders.length + '건' : '주문 1건'}</div>
           </div>
           <span class="badge b-${status.cls}">${customerText(status.label)}</span>
@@ -1302,6 +1347,7 @@ function renderCust(){
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;">
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                 <strong style="font-size:14px;">${customerText(g.name || '-')}</strong>
+                ${customerGroupNewBadge(g)}
                 ${customerProductChips(g)}
                 ${customerTypeChips(g)}
               </div>
@@ -1324,6 +1370,7 @@ function renderCust(){
       return `<tr class="trc" data-group-idx="${idx}" onclick="showCustomerGroup(${idx})">
         <td>
           <strong>${customerText(g.name || '-')}</strong>
+          ${customerGroupNewBadge(g)}
           ${customerOrderCountHtml(g)}
         </td>
         <td style="white-space:nowrap;">${customerText(g.phone || '-')}</td>
