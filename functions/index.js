@@ -1,5 +1,5 @@
 const admin = require('firebase-admin');
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { logger } = require('firebase-functions');
 
@@ -11,6 +11,7 @@ const WINDOW_START_HOUR = Number(process.env.NOTIFICATION_WINDOW_START_HOUR || 1
 const WINDOW_END_HOUR = Number(process.env.NOTIFICATION_WINDOW_END_HOUR || 17);
 const MAX_PENDING_PER_BATCH = 20;
 const ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html#changeRequests';
+const ORDER_ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html';
 
 exports.onChangeRequestCreated = onDocumentCreated('changeRequests/{requestId}', async (event) => {
   const snap = event.data;
@@ -41,6 +42,27 @@ exports.onChangeRequestCreated = onDocumentCreated('changeRequests/{requestId}',
     notifiedAt: null,
     notificationAttempts: Number(request.notificationAttempts || 0)
   }, { merge: true });
+});
+
+exports.onCustomerOrderWritten = onDocumentWritten('orders/{date}/items/{userId}', async (event) => {
+  const after = event.data?.after;
+  if (!after?.exists) return;
+
+  const order = after.data() || {};
+  const before = event.data?.before?.exists ? (event.data.before.data() || {}) : null;
+  if (before && sameOrderForNotification(before, order)) return;
+
+  const now = new Date();
+  const windowInfo = notificationWindow(now);
+  if (!windowInfo.open) {
+    logger.info('Order push skipped outside notification window', {
+      date: event.params.date,
+      userId: event.params.userId
+    });
+    return;
+  }
+
+  await sendOrderNotification(event.params.date, event.params.userId, order, Boolean(before));
 });
 
 exports.flushPendingChangeRequestNotifications = onSchedule({
@@ -180,6 +202,46 @@ async function sendGroupedNotification(items) {
   await batch.commit();
 }
 
+function sameOrderForNotification(before, after) {
+  return Number(before.lunchCount || 0) === Number(after.lunchCount || 0)
+    && Number(before.saladCount || 0) === Number(after.saladCount || 0)
+    && Boolean(before.selfHoliday) === Boolean(after.selfHoliday)
+    && String(before.note || '') === String(after.note || '');
+}
+
+async function sendOrderNotification(date, userId, order, isUpdate) {
+  const userSnap = await db.collection('users').doc(userId).get().catch(() => null);
+  const user = userSnap?.exists ? (userSnap.data() || {}) : {};
+  const customerName = user.businessName || order.businessName || order.customerName || '고객';
+  const lunch = Number(order.lunchCount || order.lunchQty || 0) || 0;
+  const salad = Number(order.saladCount || order.saladQty || 0) || 0;
+  const title = isUpdate ? '궁중수라간 주문 변경' : '궁중수라간 주문 접수';
+  const body = order.selfHoliday
+    ? `${customerName}님이 ${date} 자체 휴무를 등록했습니다.`
+    : `${customerName}님 ${date} 주문: 도시락 ${lunch}개 / 샐러드 ${salad}개`;
+  const result = await sendPushToAdmins({
+    title,
+    body,
+    data: {
+      requestId: `order-${date}-${userId}`,
+      type: isUpdate ? 'order_update' : 'order_create',
+      customerName: String(customerName),
+      orderDate: String(date),
+      userId: String(userId),
+      url: ORDER_ADMIN_URL
+    },
+    url: ORDER_ADMIN_URL,
+    tag: `order-${date}-${userId}`
+  });
+  logger.info('Order push result', {
+    date,
+    userId,
+    total: result.total,
+    sent: result.sent,
+    failed: result.failed
+  });
+}
+
 async function sendPushToAdmins(message) {
   const tokenItems = await enabledPushTokens();
   if (!tokenItems.length) return { total: 0, sent: 0, failed: 0 };
@@ -193,14 +255,14 @@ async function sendPushToAdmins(message) {
     data: message.data,
     webpush: {
       fcmOptions: {
-        link: ADMIN_URL
+        link: message.url || ADMIN_URL
       },
       notification: {
         title: message.title,
         body: message.body,
         icon: '/gjsuragan/icons/icon.svg',
         badge: '/gjsuragan/icons/icon.svg',
-        tag: message.data.requestId ? `change-request-${message.data.requestId}` : 'gjsuragan-change-request',
+        tag: message.tag || (message.data.requestId ? `change-request-${message.data.requestId}` : 'gjsuragan-change-request'),
         renotify: true
       }
     }
