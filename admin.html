@@ -177,6 +177,22 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .qty-stepper{display:inline-flex;align-items:center;gap:6px}
 .qty-step-btn{width:26px;height:26px;border:1px solid var(--border);border-radius:7px;background:#f9f5ee;color:var(--primary);font-size:15px;font-weight:800;line-height:1;cursor:pointer}
 .qty-step-btn:active{transform:translateY(1px)}
+.mobile-qty-heading,.mobile-qty-btn{display:none}
+.mobile-qty-btn{width:100%;border:1px solid #d0d5dd;background:#fff;border-radius:10px;padding:8px 9px;font-family:inherit;color:var(--text);align-items:center;justify-content:center;gap:4px;flex-direction:column;cursor:pointer}
+.mobile-qty-btn:active{transform:translateY(1px)}
+.mobile-qty-btn:disabled{opacity:.55;cursor:not-allowed}
+.mobile-qty-total{font-size:17px;font-weight:900;color:var(--primary);line-height:1.1}
+.mobile-qty-detail{font-size:11px;font-weight:800;color:var(--sub);line-height:1.25;white-space:nowrap}
+.order-qty-modal-head{background:#fffaf5;border:1px solid #f0d9c0;border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.order-qty-modal-name{font-size:16px;font-weight:900;color:var(--primary);margin-bottom:3px}
+.order-qty-modal-date{font-size:12px;font-weight:700;color:var(--sub)}
+.order-qty-edit-list{display:grid;gap:10px}
+.order-qty-edit-row{display:grid;grid-template-columns:90px 1fr;align-items:center;gap:10px;background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px}
+.order-qty-edit-label{font-size:14px;font-weight:900;color:var(--text)}
+.order-qty-edit-row .qty-stepper{justify-content:flex-end}
+.order-qty-total-box{margin-top:12px;background:var(--primary);color:#fff;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;font-weight:900}
+.order-qty-total-box span:first-child{font-size:13px;color:var(--gold)}
+.order-qty-total-box span:last-child{font-size:22px}
 .batch-entry-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);margin-bottom:8px;background:#fff;transition:border-color .15s,background .15s}
 .batch-entry-row.has-data{border-color:#4caf50;background:#f0fdf0}
 .batch-entry-name{font-weight:600;font-size:14px}
@@ -299,6 +315,23 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .summary-value{font-size:22px}
   .current-date{min-width:130px;font-size:14px}
   .order-table th,.order-table td{padding:11px 10px}
+  .daily-order-table th:nth-child(2),.daily-order-table td:nth-child(2),
+  .daily-order-table th:nth-child(5),.daily-order-table td:nth-child(5),
+  .daily-order-table th:nth-child(6),.daily-order-table td:nth-child(6),
+  .daily-order-table th:nth-child(7),.daily-order-table td:nth-child(7),
+  .daily-order-table th:nth-child(8),.daily-order-table td:nth-child(8),
+  .daily-order-table th:nth-child(10),.daily-order-table td:nth-child(10),
+  .daily-order-table th:nth-child(11),.daily-order-table td:nth-child(11),
+  .daily-order-table th:nth-child(12),.daily-order-table td:nth-child(12){display:none}
+  .daily-order-table th:nth-child(1),.daily-order-table td:nth-child(1){width:42px;text-align:center;padding-left:8px;padding-right:6px}
+  .daily-order-table th:nth-child(3),.daily-order-table td:nth-child(3){width:auto;min-width:116px}
+  .daily-order-table th:nth-child(4),.daily-order-table td:nth-child(4){width:98px;text-align:center;padding-left:6px;padding-right:6px}
+  .daily-order-table th:nth-child(9),.daily-order-table td:nth-child(9){width:58px;text-align:center;padding-left:4px;padding-right:8px}
+  .daily-order-table .biz-name{font-size:14px;line-height:1.25}
+  .daily-order-table .desktop-qty-heading,.daily-order-table .qty-stepper{display:none}
+  .daily-order-table .mobile-qty-heading{display:inline}
+  .daily-order-table .mobile-qty-btn{display:flex}
+  .daily-order-table .delivery-status{font-size:10px;padding:3px 7px}
   .members-btn{margin-left:0}
   .settle-dashboard{grid-template-columns:1fr}
   .settle-kpi-grid{grid-template-columns:repeat(2,1fr)}
@@ -651,13 +684,16 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 
   <div class="table-section admin-tab-panel" data-tab="orders">
     <div class="section-title">업체별 주문 내역</div>
-    <table class="order-table">
+    <table class="order-table daily-order-table">
       <thead>
         <tr>
           <th style="text-align:center"><input class="select-all-check" type="checkbox" id="order-check-all" onchange="toggleAllOrders(this.checked)"></th>
           <th>#</th>
           <th>업체명</th>
-          <th style="text-align:center"><span class="th-icon-label"><svg class="admin-icon"><use href="#admin-i-lunch"></use></svg><span>도시락</span></span></th>
+          <th style="text-align:center">
+            <span class="th-icon-label desktop-qty-heading"><svg class="admin-icon"><use href="#admin-i-lunch"></use></svg><span>도시락</span></span>
+            <span class="mobile-qty-heading">수량</span>
+          </th>
           <th style="text-align:center"><span class="th-icon-label"><svg class="admin-icon"><use href="#admin-i-salad"></use></svg><span>샐러드</span></span></th>
           <th style="text-align:center"><span class="th-icon-label"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>행사</span></span></th>
           <th style="text-align:center">총수량</th>
@@ -1198,6 +1234,55 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 
     <!-- 행사도시락 개수 (숨김 요소, 기존 호환) -->
     <span id="settle-event-total" style="display:none">0</span>
+  </div>
+</div>
+
+<!-- 모바일 주문 수량 수정 모달 -->
+<div class="modal-overlay" id="order-qty-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">주문 수량 수정</div>
+      <button class="modal-close" onclick="closeOrderQtyModal()">✕</button>
+    </div>
+    <input type="hidden" id="order-qty-uid">
+    <div class="order-qty-modal-head">
+      <div class="order-qty-modal-name" id="order-qty-name">업체명</div>
+      <div class="order-qty-modal-date" id="order-qty-date">-</div>
+    </div>
+    <div class="order-qty-edit-list">
+      <div class="order-qty-edit-row">
+        <div class="order-qty-edit-label">도시락</div>
+        <div class="qty-stepper">
+          <button type="button" class="qty-step-btn" onclick="adjustOrderQtyModal('lunch',-1)">−</button>
+          <input class="qty-edit" id="order-qty-lunch" type="number" min="0" max="999" value="0" oninput="updateOrderQtyModalTotal()">
+          <button type="button" class="qty-step-btn" onclick="adjustOrderQtyModal('lunch',1)">+</button>
+        </div>
+      </div>
+      <div class="order-qty-edit-row">
+        <div class="order-qty-edit-label">샐러드</div>
+        <div class="qty-stepper">
+          <button type="button" class="qty-step-btn" onclick="adjustOrderQtyModal('salad',-1)">−</button>
+          <input class="qty-edit" id="order-qty-salad" type="number" min="0" max="999" value="0" oninput="updateOrderQtyModalTotal()">
+          <button type="button" class="qty-step-btn" onclick="adjustOrderQtyModal('salad',1)">+</button>
+        </div>
+      </div>
+      <div class="order-qty-edit-row">
+        <div class="order-qty-edit-label">행사</div>
+        <div class="qty-stepper">
+          <button type="button" class="qty-step-btn" onclick="adjustOrderQtyModal('event',-1)">−</button>
+          <input class="qty-edit" id="order-qty-event" type="number" min="0" max="999" value="0" oninput="updateOrderQtyModalTotal()">
+          <button type="button" class="qty-step-btn" onclick="adjustOrderQtyModal('event',1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="order-qty-total-box">
+      <span>총 수량</span>
+      <span id="order-qty-total">0개</span>
+    </div>
+    <div class="modal-actions">
+      <button class="save-btn" onclick="saveOrderQtyModal()">적용하기</button>
+      <button class="danger-btn" id="order-qty-delete-btn" onclick="deleteOrderItemFromQtyModal()">삭제</button>
+    </div>
   </div>
 </div>
 
@@ -3005,6 +3090,7 @@ async function loadOrders() {
         const manageHtml = canDeleteOrder
           ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="danger-btn" onclick="deleteOrderItem('${jsString(o.uid)}')">삭제</button></div>`
           : '<span style="color:var(--sub);font-size:12px">-</span>';
+        const mobileQtyDetail = `도 ${o.lunchCount ?? 0} · 샐 ${o.saladCount ?? 0}${eventLunch ? ` · 행 ${eventLunch}` : ''}`;
         tr.innerHTML = `
           <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${(!o.delivered && !isSelfHoliday) ? 'checked' : ''} ${disabledAttr}></td>
           <td style="color:var(--sub);font-size:13px">${i + 1}</td>
@@ -3015,6 +3101,10 @@ async function loadOrders() {
               <input class="qty-edit deliver-lunch" type="number" min="0" max="999" value="${o.lunchCount ?? 0}" ${disabledAttr}>
               <button type="button" class="qty-step-btn" onclick="adjustQty(this,1)" ${disabledAttr}>+</button>
             </div>
+            <button type="button" class="mobile-qty-btn" onclick="openOrderQtyModal('${jsString(o.uid)}')" ${disabledAttr}>
+              <span class="mobile-qty-total">${totalQty}개</span>
+              <span class="mobile-qty-detail">${mobileQtyDetail}</span>
+            </button>
           </td>
           <td class="qty-cell">
             <div class="qty-stepper">
@@ -3037,6 +3127,7 @@ async function loadOrders() {
           <td class="note-cell">${noteHtml}</td>
           <td>${manageHtml}</td>
         `;
+        tr.dataset.orderUid = o.uid;
         tbody.appendChild(tr);
       });
       if (checkAll) checkAll.checked = orders.some(o => !o.delivered && !o.selfHoliday);
@@ -3175,6 +3266,140 @@ function adjustQty(btn, delta) {
   const now = parseInt(input.value, 10) || 0;
   const next = Math.max(min, Math.min(max, now + delta));
   input.value = next;
+  const rowEl = btn.closest('tr');
+  if (rowEl?.dataset.orderUid) refreshOrderRowCalculatedCells(rowEl.dataset.orderUid);
+}
+
+function orderRowElementByUid(uid) {
+  const check = Array.from(document.querySelectorAll('.order-check')).find(el => el.value === uid);
+  return check ? check.closest('tr') : null;
+}
+
+function orderQtyValuesFromRow(rowEl) {
+  return {
+    lunch: parseDeliveryCount(rowEl?.querySelector('.deliver-lunch')?.value, 0),
+    salad: parseDeliveryCount(rowEl?.querySelector('.deliver-salad')?.value, 0),
+    event: parseDeliveryCount(rowEl?.querySelector('.deliver-event-lunch')?.value, 0)
+  };
+}
+
+function updateMobileOrderQtyButton(rowEl, values) {
+  const btn = rowEl?.querySelector('.mobile-qty-btn');
+  if (!btn) return;
+  const total = values.lunch + values.salad + values.event;
+  const detail = `도 ${values.lunch} · 샐 ${values.salad}${values.event ? ` · 행 ${values.event}` : ''}`;
+  const totalEl = btn.querySelector('.mobile-qty-total');
+  const detailEl = btn.querySelector('.mobile-qty-detail');
+  if (totalEl) totalEl.textContent = `${total}개`;
+  if (detailEl) detailEl.textContent = detail;
+}
+
+function refreshOrderRowCalculatedCells(uid) {
+  const rowEl = orderRowElementByUid(uid);
+  if (!rowEl) return;
+  const values = orderQtyValuesFromRow(rowEl);
+  const row = currentOrderRows.find(item => item.uid === uid) || {};
+  const user = allUsers[uid] || {};
+  const items = buildOrderItems({
+    lunchQty: values.lunch,
+    lunchPrice: orderLunchPrice(row, user),
+    saladQty: values.salad,
+    saladPrice: orderSaladPrice(row, user),
+    eventLunchQty: values.event,
+    eventLunchPrice: orderEventLunchPrice(row)
+  });
+  const totalQty = values.lunch + values.salad + values.event;
+  const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+  if (rowEl.children[6]) rowEl.children[6].textContent = totalQty;
+  if (rowEl.children[7]) rowEl.children[7].textContent = totalAmount ? formatMoney(totalAmount) : '-';
+  updateMobileOrderQtyButton(rowEl, values);
+  refreshOrderSummaryFromInputs();
+}
+
+function refreshOrderSummaryFromInputs() {
+  let totalLunch = 0;
+  let totalSalad = 0;
+  let count = 0;
+  document.querySelectorAll('#order-tbody tr').forEach(rowEl => {
+    if (!rowEl.querySelector('.order-check')) return;
+    const values = orderQtyValuesFromRow(rowEl);
+    totalLunch += values.lunch;
+    totalSalad += values.salad;
+    count += 1;
+  });
+  const countEl = document.getElementById('sum-count');
+  const lunchEl = document.getElementById('sum-lunch');
+  const saladEl = document.getElementById('sum-salad');
+  if (countEl) countEl.innerHTML = `${count}<span class="summary-unit">곳</span>`;
+  if (lunchEl) lunchEl.innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
+  if (saladEl) saladEl.innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
+}
+
+function openOrderQtyModal(uid) {
+  const rowEl = orderRowElementByUid(uid);
+  const row = currentOrderRows.find(item => item.uid === uid) || {};
+  if (!rowEl || row.selfHoliday) return;
+  const values = orderQtyValuesFromRow(rowEl);
+  document.getElementById('order-qty-uid').value = uid;
+  document.getElementById('order-qty-name').textContent = row.businessName || allUsers[uid]?.businessName || '업체명';
+  document.getElementById('order-qty-date').textContent = formatDateKR(currentDateStr);
+  document.getElementById('order-qty-lunch').value = values.lunch;
+  document.getElementById('order-qty-salad').value = values.salad;
+  document.getElementById('order-qty-event').value = values.event;
+  const canDeleteOrder = row.orderDocExists || row.adminManual || row.source === 'manual' || row.source === 'default' || row.selfHoliday;
+  const deleteBtn = document.getElementById('order-qty-delete-btn');
+  if (deleteBtn) deleteBtn.style.display = canDeleteOrder ? '' : 'none';
+  updateOrderQtyModalTotal();
+  document.getElementById('order-qty-modal').classList.add('open');
+}
+
+function closeOrderQtyModal() {
+  document.getElementById('order-qty-modal').classList.remove('open');
+}
+
+function adjustOrderQtyModal(type, delta) {
+  const id = type === 'event' ? 'order-qty-event' : `order-qty-${type}`;
+  const input = document.getElementById(id);
+  if (!input) return;
+  const min = parseInt(input.min || '0', 10);
+  const max = parseInt(input.max || '999', 10);
+  const now = parseInt(input.value, 10) || 0;
+  input.value = Math.max(min, Math.min(max, now + delta));
+  updateOrderQtyModalTotal();
+}
+
+function updateOrderQtyModalTotal() {
+  const lunch = parseDeliveryCount(document.getElementById('order-qty-lunch')?.value, 0);
+  const salad = parseDeliveryCount(document.getElementById('order-qty-salad')?.value, 0);
+  const eventLunch = parseDeliveryCount(document.getElementById('order-qty-event')?.value, 0);
+  const totalEl = document.getElementById('order-qty-total');
+  if (totalEl) totalEl.textContent = `${lunch + salad + eventLunch}개`;
+}
+
+function saveOrderQtyModal() {
+  const uid = document.getElementById('order-qty-uid').value;
+  const rowEl = orderRowElementByUid(uid);
+  if (!uid || !rowEl) return;
+  const values = {
+    lunch: parseDeliveryCount(document.getElementById('order-qty-lunch')?.value, 0),
+    salad: parseDeliveryCount(document.getElementById('order-qty-salad')?.value, 0),
+    event: parseDeliveryCount(document.getElementById('order-qty-event')?.value, 0)
+  };
+  const lunchEl = rowEl.querySelector('.deliver-lunch');
+  const saladEl = rowEl.querySelector('.deliver-salad');
+  const eventEl = rowEl.querySelector('.deliver-event-lunch');
+  if (lunchEl) lunchEl.value = values.lunch;
+  if (saladEl) saladEl.value = values.salad;
+  if (eventEl) eventEl.value = values.event;
+  refreshOrderRowCalculatedCells(uid);
+  closeOrderQtyModal();
+  showToast('수량을 표에 반영했습니다. 배송 완료를 누르면 저장됩니다.');
+}
+
+function deleteOrderItemFromQtyModal() {
+  const uid = document.getElementById('order-qty-uid').value;
+  closeOrderQtyModal();
+  deleteOrderItem(uid);
 }
 
 function toggleAllOrders(checked) {

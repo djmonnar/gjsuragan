@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v23-temp-push-window';
+const CACHE = 'gjsuragan-v24-mobile-admin-qty';
 const PRECACHE = [
   './customer.html',
   './admin.html',
