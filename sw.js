@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v20-order-date-fix';
+const CACHE = 'gjsuragan-v21-galaxy-install-guide';
 const PRECACHE = [
   './customer.html',
   './event-order.html',

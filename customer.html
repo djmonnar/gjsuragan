@@ -1711,8 +1711,8 @@
   <div style="display:flex;align-items:center;gap:10px">
     <img src="./icons/icon.svg" style="width:40px;height:40px;border-radius:10px">
     <div>
-      <div style="font-size:14px;font-weight:600">앱으로 설치하기</div>
-      <div style="font-size:12px;opacity:0.7">홈 화면에서 바로 열 수 있어요</div>
+      <div style="font-size:14px;font-weight:600">홈 화면에 추가하기</div>
+      <div style="font-size:12px;opacity:0.7">갤럭시와 아이폰에서 바로 열 수 있어요</div>
     </div>
   </div>
   <div style="display:flex;gap:8px">
@@ -1832,11 +1832,12 @@ function openInstallGuide() {
       <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">4</div><div style="font-size:14px">오른쪽 위 <strong>"추가"</strong> 를 누르면 완료!</div></div>
     `;
   } else {
-    title.textContent = '앱으로 설치하기';
+    title.textContent = '갤럭시에서 홈 화면 추가하기';
     steps.innerHTML = `
-      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">1</div><div style="font-size:14px">브라우저 오른쪽 위 <strong>메뉴</strong>를 여세요</div></div>
-      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">2</div><div style="font-size:14px"><strong>"앱 설치"</strong> 또는 <strong>"홈 화면에 추가"</strong>를 선택하세요</div></div>
-      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">3</div><div style="font-size:14px">설치를 누르면 바탕화면에서 바로 열 수 있습니다</div></div>
+      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">1</div><div style="font-size:14px"><strong>Chrome</strong>은 오른쪽 위 <strong>점 3개(⋮)</strong>, <strong>삼성 인터넷</strong>은 오른쪽 아래 <strong>메뉴(≡)</strong>를 누르세요</div></div>
+      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">2</div><div style="font-size:14px"><strong>"앱 설치"</strong>가 보이면 선택하세요. 없으면 <strong>"홈 화면에 추가"</strong>를 선택하세요</div></div>
+      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">3</div><div style="font-size:14px">이름을 확인한 뒤 <strong>"설치"</strong> 또는 <strong>"추가"</strong>를 누르세요</div></div>
+      <div style="display:flex;align-items:center;gap:12px;background:#FDF6EC;padding:12px;border-radius:12px"><div style="font-size:20px;font-weight:800;color:#7B3F1A">4</div><div style="font-size:14px">갤럭시 홈 화면에 생긴 <strong>궁중수라간</strong> 아이콘으로 바로 열 수 있습니다</div></div>
     `;
   }
   document.getElementById('ios-guide').style.display = 'block';
