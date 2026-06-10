@@ -2031,11 +2031,16 @@ function isPastDate(dStr) {
   return dStr < dateStr(getKST());
 }
 
+function addCalendarDays(dStr, delta) {
+  const [y, m, d] = String(dStr || '').split('-').map(Number);
+  if (!y || !m || !d) return '';
+  const dt = new Date(Date.UTC(y, m - 1, d + delta));
+  return dt.toISOString().split('T')[0];
+}
+
 function getNextBusinessDay(fromStr) {
-  const d = new Date(fromStr + 'T00:00:00');
   for (let i = 1; i <= 7; i++) {
-    d.setDate(d.getDate() + 1);
-    const s = dateStr(d);
+    const s = addCalendarDays(fromStr, i);
     if (!isNoDeliveryDate(s)) return s;
   }
   return null;
@@ -2062,9 +2067,7 @@ function getOrderTargetContext() {
 
 function orderTargetBadgeText(ctx) {
   if (!ctx.isFuture) return `${formatDateKR(ctx.targetDate)} 오늘`;
-  const tomorrow = new Date(ctx.today + 'T00:00:00');
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return `${formatDateKR(ctx.targetDate)} ${dateStr(tomorrow) === ctx.targetDate ? '내일 주문' : '다음 주문'}`;
+  return `${formatDateKR(ctx.targetDate)} ${addCalendarDays(ctx.today, 1) === ctx.targetDate ? '내일 주문' : '다음 주문'}`;
 }
 
 function scheduleOrderTargetRefresh() {
@@ -2710,6 +2713,10 @@ async function submitOrder(source) {
     showToast(holidayName(targetDate) ? `${holidayName(targetDate)}은 배송이 없습니다.` : '토·일은 월식 배송이 없습니다.', 'error');
     return;
   }
+  if (targetDate === dateStr(getKST()) && isClosed()) {
+    showToast('오늘 주문은 마감되었습니다.', 'error');
+    return;
+  }
   if (await isOrderDateLocked(targetDate)) {
     showToast('해당 날짜 주문은 관리자 마감 처리되어 변경할 수 없습니다.', 'error');
     return;
@@ -2842,7 +2849,7 @@ async function renderWeek() {
     else if (locked || todayClosed) { statusClass = 'status-closed'; statusText = '마감'; }
 
     const isSelfHoliday = submitted && snap.data().selfHoliday;
-    const clickable = (!noDelivery || isSelfHoliday) && !isPast && !locked && !(todayClosed && !submitted);
+    const clickable = (!noDelivery || isSelfHoliday) && !isPast && !locked && !todayClosed;
 
     const el = document.createElement('div');
     el.className = `week-item fade-in-up${isToday ? ' is-today' : ''}${isPast ? ' is-past' : ''}${submitted ? ' is-submitted' : ''}`;
