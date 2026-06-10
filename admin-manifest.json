@@ -1,0 +1,20 @@
+{
+  "name": "궁중수라간 관리자",
+  "short_name": "수라간관리자",
+  "description": "궁중수라간 관리자 주문 및 변경요청 알림",
+  "start_url": "./admin.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#7B3F1A",
+  "theme_color": "#7B3F1A",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

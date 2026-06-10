@@ -6,13 +6,27 @@
 // - 현관비밀번호: 배송메모 + 옵션값에서 함께 파싱
 // ════════════════════════════════════════
 
-const CONFIG = {
-  IMWEB_API_KEY    : 'f4c170bec9ca844a18e00057eed5c55cd9c386ed89',
-  IMWEB_SECRET_KEY : '0f1de9c3db89406396c91a',
-  PROJECT_ID       : 'gjsuragan-60505',
-  CLIENT_EMAIL     : 'firebase-adminsdk-fbsvc@gjsuragan-60505.iam.gserviceaccount.com',
-  PRIVATE_KEY      : '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDODxBqvve4A9EV\n8HQtnhfCx0YYPooxvgQ9ivjldZQhMA4WeMXS2Nl+8XoDus7GzBCZ9/g7h03quoAc\nZzX6dPII1xkILg1PlV+sPm/xRtIdjlT6iOPJ+xeIAUNzcivUzEbkjiO8xdeWJW1N\nZLJILwz9v0oDSDIBMPIwCkhbAQ7G56qhw3e73UkUTSA1OyC6jZZgX26ApFaui2oN\nxpOwZiwV1gwtWTurlfREVrd9XLXWnOtUQSAedXgXKZrrN0QOuWma+KlimtkProtZ\ntsHsKnRDmaIOzAcUxzWanBx9YYBeZzFy3zKy3nOq3/RjyTzn6HBz/w/CQ1W8j1lP\nSGo0arp/AgMBAAECggEADr0gb9I1sSbXZ29UkAgVK6x0mhAByH8OmexSfe8uvOpN\nXP7J1O6ygpROeu0mFILM09vbGJRGrCR852CGiYygh1CuDK9mlQEFNTJzcARLISwT\nbfwpTELhMwGMITooYnHeHEOtJg0srM5ZMXD4w5WsozXHMHw91Lyl2257hcQ0mgt1\nMGRDzy2rZ9qI0H27+ej+r3wXvAu/X/R8Lvra852zv9/cM9pq/mKA+alUmbxSTtFa\nyzx8yC0cro1dJS/1BeAnCgawZYmYhzC7Z04NMxN0dcejWOnAITCupRq1euabpQd0\n21ZEZEQyuiRXw0n6PlN8mHolo/wqyqQABQxj8dEqmQKBgQDnv71mWhKzved83hFM\nB5vbH4mA14mOWEfBK0OQR5tYGyaMDxzHqHHLvs/W2boljOsAVdX91Rlhxt2DQRIo\nKGmADsdV7k1sZNmTRxFmzs3xOTbhnCr5S6BNtyte/YsjlEjlz3h3JDwmM5r0wOxw\nw21kobyO3r/zR5kZ43/SSWlJuwKBgQDjnx4/8Pl2b242Qw39bA9s/LYBUCcaDUZT\n/knkvyI0WuVOgp1Jm7LD78QHJ6KPrfY0EWhrqo46aXPPusJqKrsL2h6phxbT5P8+\nAoK9vGPyN29OMFf/6u4nxvfxv1PPutuoV+KbKWN/9n32pTmW6o19q3tGUeSyMzP1\nfiWiJ8g0DQKBgCyehA7SxMsKgylNcDMdO+rCdazy0q8vXBFbDRUYVFZwU8mfl0Dx\ns4cw479QCED2ksBrxlmqz8o9iaSdwKsurLFVJxfqW8nE2Qc8JaOPqaMKCwEBGl0J\nLIIKBDWzxzhAcpCck2sM9O+9+9Wn114Wolc/tJglVvu2C0oqvQ91xunFAoGBAJDl\nvsTnanY5UwhZwTMcsekoKdhGJM4Ruz5GttVV0rlPT3+d5/Bum+rc24XOdk5OaFcW\n6cj4Bpgqft2yvoYE85ME49X5N8/li5H22TFdFqafIUy9u5ce/0H1B+stZ3XqNmBA\nqfEp9LwFtoPnA/UNFMr1+YB3K0VBEQdqqRxDhM+VAoGAJZcD8yF5DPUXB73dfXOQ\nX/FbxomyaA8gj+4sOR/3XzRqk3NzjTFhdhn04WBfboZVu5sDEF4tCHNYq1nBZA47\nOHRNjy4rnK4ZsJgGbQTKGvB+egvjhcfoUx0vyy7T77sEP90ozJBmvuJvwlk/wtpH\nSsydyy5OfUHo4RM6WGCq6iM=\n-----END PRIVATE KEY-----\n',
-};
+const CONFIG = getAppConfig_();
+
+function getScriptProperty_(name) {
+  return String(PropertiesService.getScriptProperties().getProperty(name) || '').trim();
+}
+
+function getAppConfig_() {
+  return {
+    IMWEB_API_KEY: getScriptProperty_('IMWEB_API_KEY'),
+    IMWEB_SECRET_KEY: getScriptProperty_('IMWEB_SECRET_KEY'),
+    PROJECT_ID: getScriptProperty_('FIREBASE_PROJECT_ID'),
+    CLIENT_EMAIL: getScriptProperty_('FIREBASE_CLIENT_EMAIL'),
+    PRIVATE_KEY: getScriptProperty_('FIREBASE_PRIVATE_KEY')
+  };
+}
+
+function requireConfig_(name) {
+  const value = CONFIG[name];
+  if (!value) throw new Error('Script Properties에 ' + name + ' 값이 없습니다.');
+  return value;
+}
 
 // 아임웹 주문 상태 코드
 const CANCEL_STATUS = [
@@ -551,9 +565,11 @@ function getFirstShipDate(cookDays, orderTimestamp) {
 }
 
 function getImwebToken() {
+  const imwebKey = requireConfig_('IMWEB_API_KEY');
+  const imwebSecret = requireConfig_('IMWEB_SECRET_KEY');
   const res = UrlFetchApp.fetch('https://api.imweb.me/v2/auth', {
     method:'post', contentType:'application/json',
-    payload:JSON.stringify({key:CONFIG.IMWEB_API_KEY, secret:CONFIG.IMWEB_SECRET_KEY}),
+    payload:JSON.stringify({key:imwebKey, secret:imwebSecret}),
     muteHttpExceptions:true,
   });
   const json = JSON.parse(res.getContentText());
@@ -611,9 +627,11 @@ function getOrderProdOrders(token, orderNo) {
 }
 
 function getFirebaseToken() {
+  const clientEmail = requireConfig_('CLIENT_EMAIL');
+  const privateKey = requireConfig_('PRIVATE_KEY');
   const now = Math.floor(Date.now()/1000);
   const claim = {
-    iss:CONFIG.CLIENT_EMAIL, sub:CONFIG.CLIENT_EMAIL,
+    iss:clientEmail, sub:clientEmail,
     aud:'https://oauth2.googleapis.com/token',
     iat:now, exp:now+3600,
     scope:'https://www.googleapis.com/auth/datastore',
@@ -621,7 +639,7 @@ function getFirebaseToken() {
   const header  = Utilities.base64EncodeWebSafe(JSON.stringify({alg:'RS256',typ:'JWT'}));
   const payload = Utilities.base64EncodeWebSafe(JSON.stringify(claim));
   const toSign  = header+'.'+payload;
-  const key     = CONFIG.PRIVATE_KEY.replace(/\\n/g,'\n');
+  const key     = privateKey.replace(/\\n/g,'\n');
   const sig     = Utilities.base64EncodeWebSafe(Utilities.computeRsaSha256Signature(toSign,key));
   const res = UrlFetchApp.fetch('https://oauth2.googleapis.com/token', {
     method:'post', contentType:'application/x-www-form-urlencoded',
@@ -634,7 +652,8 @@ function getFirebaseToken() {
 function saveToFirestore(data, collectionName) {
   const token = getFirebaseToken();
   const collection = collectionName || 'customers';
-  const url = 'https://firestore.googleapis.com/v1/projects/'+CONFIG.PROJECT_ID+'/databases/(default)/documents/'+collection;
+  const projectId = requireConfig_('PROJECT_ID');
+  const url = 'https://firestore.googleapis.com/v1/projects/'+projectId+'/databases/(default)/documents/'+collection;
   function toFsValue(v) {
     if (v===null||v===undefined) return {nullValue:null};
     if (typeof v==='boolean') return {booleanValue:v};
@@ -679,19 +698,21 @@ function recordImwebCancel(orderNo, status, records, cancelInfo) {
 
 function deleteFromFirestore(docId) {
   const token = getFirebaseToken();
+  const projectId = requireConfig_('PROJECT_ID');
   UrlFetchApp.fetch(
-    'https://firestore.googleapis.com/v1/projects/'+CONFIG.PROJECT_ID+'/databases/(default)/documents/customers/'+docId,
+    'https://firestore.googleapis.com/v1/projects/'+projectId+'/databases/(default)/documents/customers/'+docId,
     {method:'delete', headers:{Authorization:'Bearer '+token}, muteHttpExceptions:true}
   );
 }
 
 function getExistingOrders() {
   const token = getFirebaseToken();
+  const projectId = requireConfig_('PROJECT_ID');
   const map = {};
   let pageToken = '';
 
   while (true) {
-    let url = 'https://firestore.googleapis.com/v1/projects/'+CONFIG.PROJECT_ID+'/databases/(default)/documents/customers?pageSize=1000';
+    let url = 'https://firestore.googleapis.com/v1/projects/'+projectId+'/databases/(default)/documents/customers?pageSize=1000';
     if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
     const res = UrlFetchApp.fetch(url, {
       headers:{Authorization:'Bearer '+token}, muteHttpExceptions:true

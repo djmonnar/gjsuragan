@@ -1,12 +1,15 @@
 const CACHE = 'gjsuragan-v22-samsung-install-steps';
 const PRECACHE = [
   './customer.html',
+  './admin.html',
   './event-order.html',
   './links.html',
   './assets/img/event-lunch-banner.jpg',
   './assets/img/event-menu.jpg',
   './icons/icon.svg',
-  './manifest.json'
+  './manifest.json',
+  './admin-manifest.json',
+  './firebase-messaging-sw.js'
 ];
 
 self.addEventListener('install', e => {

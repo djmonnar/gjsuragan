@@ -1090,6 +1090,45 @@
     border-color: #f3c5bf;
     background: #fff8f7;
   }
+  .change-request-box {
+    border-color: #f0d9c0;
+    background: #fffaf5;
+  }
+  .change-request-help {
+    color: var(--text-sub);
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+  .change-request-grid {
+    display: grid;
+    gap: 10px;
+  }
+  .change-request-history {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .change-request-item {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 12px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .change-request-item strong { color: var(--primary); }
+  .request-status-chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    background: #fff3e0;
+    color: #b45309;
+    margin-left: 4px;
+  }
   .withdraw-copy {
     color: var(--text-sub);
     font-size: 14px;
@@ -1589,6 +1628,43 @@
       <button class="save-btn" onclick="saveProfile()">저장하기</button>
     </div>
 
+    <div class="section-title"><svg class="gj-icon"><use href="#gj-note"></use></svg>주문 변경 요청</div>
+    <div class="profile-block change-request-box">
+      <div class="change-request-help">
+        배송일, 주소, 일시중지, 요청사항 변경은 이곳에 남겨주세요. 요청은 바로 접수되며, 실제 주문/정산 기록은 관리자가 확인 후 반영합니다.
+      </div>
+      <div class="change-request-grid">
+        <div class="form-group">
+          <label class="form-label">요청 종류</label>
+          <select class="form-input" id="change-request-type" onchange="syncChangeRequestTitle()">
+            <option value="schedule_change">배송일 변경</option>
+            <option value="address_change">주소 변경</option>
+            <option value="pause">일시중지</option>
+            <option value="memo">요청사항</option>
+            <option value="etc">기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">제목</label>
+          <input class="form-input" type="text" id="change-request-title" placeholder="예) 다음 주 수요일 배송일 변경">
+        </div>
+        <div class="form-group">
+          <label class="form-label">현재 내용</label>
+          <input class="form-input" type="text" id="change-request-before" placeholder="예) 기존 주소 또는 기존 배송일">
+        </div>
+        <div class="form-group">
+          <label class="form-label">변경 요청 내용</label>
+          <input class="form-input" type="text" id="change-request-after" placeholder="예) 변경할 주소 또는 원하는 배송일">
+        </div>
+        <div class="form-group">
+          <label class="form-label">추가 메모</label>
+          <textarea class="note-area" id="change-request-memo" placeholder="관리자에게 전달할 내용을 입력하세요."></textarea>
+        </div>
+      </div>
+      <button class="save-btn" id="change-request-submit-btn" onclick="submitChangeRequest()">변경요청 보내기</button>
+      <div class="change-request-history" id="change-request-history"></div>
+    </div>
+
     <!-- 비밀번호 변경 -->
     <div class="section-title"><svg class="gj-icon"><use href="#gj-lock"></use></svg>비밀번호 변경</div>
     <div class="profile-block">
@@ -1847,6 +1923,8 @@ function openInstallGuide() {
 // ───────── 전역 상태 ─────────
 let currentUser = null;
 let userProfile = null;
+let customerChangeRequests = [];
+let customerChangeRequestsUnsub = null;
 let todayLunch = 0;
 let todaySalad = 0;
 let currentOrderTargetDate = '';
@@ -2229,6 +2307,7 @@ auth.onAuthStateChanged(async (user) => {
       await loadCustomHolidays();
       await loadSettings();
       await loadUserProfile();
+      subscribeCustomerChangeRequests();
     } catch(e) {
       console.error('프로필 로딩 오류:', e.code, e.message);
       if (e.message && (e.message.includes('삭제') || e.message.includes('비활성'))) {
@@ -2379,6 +2458,10 @@ async function doRegister() {
 }
 
 function doLogout() {
+  if (customerChangeRequestsUnsub) {
+    customerChangeRequestsUnsub();
+    customerChangeRequestsUnsub = null;
+  }
   auth.signOut();
 }
 
@@ -2980,6 +3063,8 @@ function renderProfile() {
   document.getElementById('prof-same-daily').checked = sameDailyMeal;
   fillWeekdayInputs('prof', meals);
   document.getElementById('prof-weekday-fields').style.display = sameDailyMeal ? 'none' : 'grid';
+  syncChangeRequestTitle();
+  renderCustomerChangeRequests();
   loadStats('week');
 }
 
@@ -3013,6 +3098,161 @@ async function saveProfile() {
   } catch(e) {
     showToast('저장 실패: ' + e.message, 'error');
   }
+}
+
+function changeRequestTypeLabel(type) {
+  return {
+    schedule_change:'배송일 변경',
+    address_change:'주소 변경',
+    pause:'일시중지',
+    memo:'요청사항',
+    etc:'기타'
+  }[type] || '기타';
+}
+
+function syncChangeRequestTitle() {
+  const type = document.getElementById('change-request-type')?.value || 'etc';
+  const titleEl = document.getElementById('change-request-title');
+  if (titleEl && !titleEl.value.trim()) titleEl.value = changeRequestTypeLabel(type);
+}
+
+function nextNotificationWindowStartDate() {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone:'Asia/Seoul',
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit',
+    hour:'2-digit',
+    minute:'2-digit',
+    second:'2-digit',
+    hour12:false
+  }).formatToParts(now).reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+  const kstHour = parseInt(parts.hour, 10);
+  const baseUtc = Date.UTC(parseInt(parts.year,10), parseInt(parts.month,10) - 1, parseInt(parts.day,10), 9, 0, 0);
+  const nextUtc = kstHour < 18 ? baseUtc : baseUtc + 86400000;
+  return new Date(nextUtc);
+}
+
+async function submitChangeRequest() {
+  if (!currentUser || !userProfile) return;
+  const type = document.getElementById('change-request-type').value;
+  const title = document.getElementById('change-request-title').value.trim() || changeRequestTypeLabel(type);
+  const before = document.getElementById('change-request-before').value.trim();
+  const after = document.getElementById('change-request-after').value.trim();
+  const memo = document.getElementById('change-request-memo').value.trim();
+  if (!after && !memo) {
+    showToast('변경할 내용이나 메모를 입력해주세요.', 'error');
+    return;
+  }
+  const btn = document.getElementById('change-request-submit-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '요청 전송 중...';
+  }
+  try {
+    await db.collection('changeRequests').add({
+      customerId: currentUser.uid,
+      customerName: userProfile.businessName || currentUser.email || '',
+      phone: userProfile.phone || '',
+      type,
+      title,
+      before,
+      after,
+      memo,
+      status: 'new',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      readAt: null,
+      handledAt: null,
+      notificationStatus: 'pending',
+      notifyAfterAt: firebase.firestore.Timestamp.fromDate(nextNotificationWindowStartDate()),
+      notifiedAt: null,
+      notificationAttempts: 0,
+      notificationWindow: {
+        timezone: 'Asia/Seoul',
+        startHour: 18,
+        endHour: 22
+      },
+      urgent: false
+    });
+    document.getElementById('change-request-title').value = '';
+    document.getElementById('change-request-before').value = '';
+    document.getElementById('change-request-after').value = '';
+    document.getElementById('change-request-memo').value = '';
+    syncChangeRequestTitle();
+    showToast('변경요청이 접수되었습니다.', 'success');
+  } catch(e) {
+    console.error('변경요청 저장 실패:', e);
+    showToast('요청 저장 실패: ' + e.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '변경요청 보내기';
+    }
+  }
+}
+
+function subscribeCustomerChangeRequests() {
+  if (!currentUser) return;
+  if (customerChangeRequestsUnsub) customerChangeRequestsUnsub();
+  customerChangeRequestsUnsub = db.collection('changeRequests')
+    .where('customerId', '==', currentUser.uid)
+    .onSnapshot(snapshot => {
+      customerChangeRequests = [];
+      snapshot.forEach(doc => customerChangeRequests.push({ id:doc.id, ...doc.data() }));
+      customerChangeRequests.sort((a, b) => {
+        const ad = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+        const bd = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+        return bd - ad;
+      });
+      customerChangeRequests = customerChangeRequests.slice(0, 5);
+      renderCustomerChangeRequests();
+    }, err => {
+      console.warn('변경요청 목록 오류:', err);
+    });
+}
+
+function changeRequestStatusLabel(status) {
+  return {
+    new:'접수',
+    checking:'확인중',
+    approved:'승인',
+    rejected:'반려',
+    done:'완료'
+  }[status] || status || '접수';
+}
+
+function formatRequestTime(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone:'Asia/Seoul',
+    month:'2-digit',
+    day:'2-digit',
+    hour:'2-digit',
+    minute:'2-digit'
+  }).format(d);
+}
+
+function renderCustomerChangeRequests() {
+  const el = document.getElementById('change-request-history');
+  if (!el) return;
+  if (!customerChangeRequests.length) {
+    el.innerHTML = '<div class="change-request-item">최근 변경요청이 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = customerChangeRequests.map(item => `
+    <div class="change-request-item">
+      <strong>${escapeHtml(item.title || changeRequestTypeLabel(item.type))}</strong>
+      <span class="request-status-chip">${changeRequestStatusLabel(item.status)}</span>
+      <div style="color:var(--text-sub);margin-top:3px">${formatRequestTime(item.createdAt)}</div>
+      <div>${escapeHtml(item.after || item.memo || '-')}</div>
+    </div>
+  `).join('');
 }
 
 async function changePassword() {

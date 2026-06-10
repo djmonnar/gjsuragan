@@ -33,6 +33,11 @@ service cloud.firestore {
       return !(field in data.keys()) || data[field] is timestamp;
     }
 
+    function nullableTimestamp(data, field) {
+      return field in data.keys()
+        && (data[field] == null || data[field] is timestamp);
+    }
+
     function safeCount(value) {
       return (value is int || value is float) && value >= 0 && value <= 50;
     }
@@ -250,6 +255,96 @@ service cloud.firestore {
         && request.resource.data.companyWebsite.size() == 0;
     }
 
+    function changeRequestKeys() {
+      return [
+        'customerId',
+        'customerName',
+        'phone',
+        'type',
+        'title',
+        'before',
+        'after',
+        'memo',
+        'status',
+        'createdAt',
+        'readAt',
+        'handledAt',
+        'notificationStatus',
+        'notifyAfterAt',
+        'notifiedAt',
+        'notificationAttempts',
+        'notificationWindow',
+        'urgent'
+      ];
+    }
+
+    function validNotificationWindow(data) {
+      return data.notificationWindow is map
+        && data.notificationWindow.timezone == 'Asia/Seoul'
+        && data.notificationWindow.startHour == 18
+        && data.notificationWindow.endHour == 22;
+    }
+
+    function validChangeRequestCreate() {
+      return signedIn()
+        && request.resource.data.keys().hasOnly(changeRequestKeys())
+        && request.resource.data.customerId == request.auth.uid
+        && request.resource.data.customerName is string
+        && request.resource.data.customerName.size() <= 80
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() <= 40
+        && request.resource.data.type in ['schedule_change', 'address_change', 'pause', 'memo', 'etc']
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 120
+        && optionalString(request.resource.data, 'before', 500)
+        && optionalString(request.resource.data, 'after', 500)
+        && optionalString(request.resource.data, 'memo', 1000)
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt == request.time
+        && nullableTimestamp(request.resource.data, 'readAt')
+        && request.resource.data.readAt == null
+        && nullableTimestamp(request.resource.data, 'handledAt')
+        && request.resource.data.handledAt == null
+        && request.resource.data.notificationStatus == 'pending'
+        && request.resource.data.notifyAfterAt is timestamp
+        && nullableTimestamp(request.resource.data, 'notifiedAt')
+        && request.resource.data.notifiedAt == null
+        && request.resource.data.notificationAttempts == 0
+        && validNotificationWindow(request.resource.data)
+        && request.resource.data.urgent == false;
+    }
+
+    function adminPushTokenKeys() {
+      return [
+        'token',
+        'userEmail',
+        'userAgent',
+        'platform',
+        'enabled',
+        'createdAt',
+        'updatedAt',
+        'disabledAt',
+        'disabledReason'
+      ];
+    }
+
+    function validAdminPushTokenWrite() {
+      return isAdmin()
+        && request.resource.data.keys().hasOnly(adminPushTokenKeys())
+        && request.resource.data.token is string
+        && request.resource.data.token.size() > 20
+        && request.resource.data.token.size() <= 4096
+        && request.resource.data.userEmail == request.auth.token.email
+        && optionalString(request.resource.data, 'userAgent', 500)
+        && optionalString(request.resource.data, 'platform', 120)
+        && request.resource.data.enabled is bool
+        && optionalTimestamp(request.resource.data, 'createdAt')
+        && optionalTimestamp(request.resource.data, 'updatedAt')
+        && optionalTimestamp(request.resource.data, 'disabledAt')
+        && optionalString(request.resource.data, 'disabledReason', 120);
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAdmin() || validUserCreate(userId);
@@ -295,6 +390,21 @@ service cloud.firestore {
     match /eventOrders/{orderId} {
       allow create: if validPublicEventOrder();
       allow read, update, delete: if isAdmin();
+    }
+
+    match /changeRequests/{requestId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.customerId == request.auth.uid);
+      allow create: if validChangeRequestCreate();
+      allow update, delete: if isAdmin();
+    }
+
+    match /adminPushTokens/{tokenId} {
+      allow read, delete: if isAdmin();
+      allow create, update: if validAdminPushTokenWrite();
+    }
+
+    match /invalidPushTokens/{document=**} {
+      allow read, write: if isAdmin();
     }
 
     match /customers/{document=**} {

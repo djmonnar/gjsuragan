@@ -4,10 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>궁중수라간 관리자 · 주문 현황</title>
+<link rel="manifest" href="./admin-manifest.json">
+<meta name="theme-color" content="#7B3F1A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="수라간관리자">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
@@ -16,6 +21,8 @@
 const firebaseConfig={apiKey:"AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A",authDomain:"gjsuragan-60505.firebaseapp.com",projectId:"gjsuragan-60505",storageBucket:"gjsuragan-60505.firebasestorage.app",messagingSenderId:"1009198450175",appId:"1:1009198450175:web:4a55da7c2092dba42613ca"};
 const firebaseApp=firebase.initializeApp(firebaseConfig,'gjsuragan-admin');
 const auth=firebaseApp.auth();const db=firebaseApp.firestore();
+const messaging=firebase.messaging.isSupported()?firebaseApp.messaging():null;
+const FCM_VAPID_PUBLIC_KEY='BHXtN0pC4FNWDwQtAUaCTAWcKseMEWdaZuYMoJdjajZsWARrLQfcU_a57F2BKOFXSlyg30etqA7pbwa0AQixQ3A';
 const ADMIN_EMAILS=['sun1562@naver.com'];
 auth.setPersistence('local').catch(()=>{});
 </script>
@@ -231,6 +238,38 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .event-menu-remove{border:0;background:#fdecea;color:var(--danger);border-radius:6px;padding:7px 9px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;flex:0 0 auto}
 .event-menu-total{font-size:13px;color:var(--sub);font-weight:800;margin-top:10px}
 .event-menu-add{width:100%;margin-top:8px}
+.change-request-section{padding:0 24px 36px}
+.change-request-layout{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:16px;align-items:start}
+.push-setting-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+.push-setting-title{font-size:15px;font-weight:800;color:var(--primary);margin-bottom:8px}
+.push-setting-copy{font-size:13px;color:var(--sub);line-height:1.6;margin-bottom:12px}
+.push-window-box{background:#fffaf5;border:1px solid #f0d9c0;border-radius:10px;padding:11px 12px;font-size:13px;color:var(--primary);font-weight:800;margin-bottom:12px}
+.push-status{font-size:13px;line-height:1.6;color:var(--sub);background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:10px;white-space:pre-wrap}
+.change-request-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.change-request-filters{display:flex;gap:6px;flex-wrap:wrap}
+.cr-filter-btn{border:1px solid var(--border);background:#fff;color:var(--sub);border-radius:999px;padding:7px 12px;font-size:12px;font-weight:800;font-family:inherit;cursor:pointer}
+.cr-filter-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.change-request-list{display:grid;gap:10px}
+.change-request-card{background:#fff;border:1px solid var(--border);border-left:4px solid var(--gold);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+.change-request-card.status-new{border-left-color:#c0392b}
+.change-request-card.status-done,.change-request-card.status-approved{border-left-color:#1e6e40}
+.cr-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}
+.cr-title{font-size:15px;font-weight:900;color:var(--text)}
+.cr-meta{font-size:12px;color:var(--sub);line-height:1.5}
+.cr-body{font-size:13px;line-height:1.6;color:var(--text);display:grid;gap:4px;margin:10px 0}
+.cr-label{color:var(--sub);font-weight:800;margin-right:4px}
+.cr-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.cr-badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:900;background:#fff3e0;color:#b45309;border:1px solid #fed7aa;white-space:nowrap}
+.cr-badge.new{background:#fdecea;color:#c0392b;border-color:#f5b7b1}
+.cr-badge.sent{background:#e8f5e9;color:#1e6e40;border-color:#b7dfbd}
+.cr-badge.pending{background:#e0f2fe;color:#0369a1;border-color:#bae6fd}
+.cr-badge.failed{background:#fdecea;color:#c0392b;border-color:#f5b7b1}
+.tab-count-badge{display:none;min-width:18px;height:18px;border-radius:999px;background:#c0392b;color:#fff;font-size:11px;font-weight:900;align-items:center;justify-content:center;padding:0 5px;margin-left:2px}
+.tab-count-badge.show{display:inline-flex}
+.admin-inpage-alert{position:fixed;right:22px;bottom:22px;z-index:3100;background:#111827;color:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.22);padding:14px 16px;max-width:340px;transform:translateY(20px);opacity:0;pointer-events:none;transition:.25s}
+.admin-inpage-alert.show{opacity:1;transform:translateY(0);pointer-events:auto}
+.admin-inpage-alert strong{display:block;font-size:14px;margin-bottom:4px}
+.admin-inpage-alert span{display:block;font-size:13px;line-height:1.45;color:#e5e7eb}
 /* 모달 */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:center;justify-content:center;padding:24px}
 .modal-overlay.open{display:flex}
@@ -269,6 +308,9 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .settle-filter-tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;width:100%}
   .payment-row{grid-template-columns:1fr 1fr}
   .menu-import-row,.menu-import-list-head{grid-template-columns:1fr}
+  .change-request-section{padding-left:16px;padding-right:16px}
+  .change-request-layout{grid-template-columns:1fr}
+  .admin-inpage-alert{left:16px;right:16px;bottom:18px;max-width:none}
 }
 /* ── 통계 CSS ── */
 .stats-period-btn{border:1px solid var(--border);background:#fff;color:var(--sub);font-size:12px;font-weight:600;padding:5px 12px;border-radius:16px;cursor:pointer;font-family:inherit}
@@ -566,6 +608,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <button class="tab-btn" id="tab-members" onclick="switchAdminTab('members')"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>회원관리</span></button>
     <button class="tab-btn" id="tab-events" onclick="switchAdminTab('events')"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>행사도시락</span></button>
     <button class="tab-btn" id="tab-menus" onclick="switchAdminTab('menus')"><svg class="admin-icon"><use href="#admin-i-menu"></use></svg><span>식단관리</span></button>
+    <button class="tab-btn" id="tab-changeRequests" onclick="switchAdminTab('changeRequests')"><svg class="admin-icon"><use href="#admin-i-chat"></use></svg><span>변경요청</span><span class="tab-count-badge" id="change-request-tab-count">0</span></button>
     <button class="tab-btn" id="tab-settlements" onclick="switchAdminTab('settlements')"><svg class="admin-icon"><use href="#admin-i-settle"></use></svg><span>정산</span></button>
     <button class="tab-btn" id="tab-receipts" onclick="switchAdminTab('receipts')"><svg class="admin-icon"><use href="#admin-i-receipt"></use></svg><span>간이영수증</span></button>
     <button class="tab-btn" id="tab-stats" onclick="switchAdminTab('stats')"><svg class="admin-icon"><use href="#admin-i-stats"></use></svg><span>통계</span></button>
@@ -771,6 +814,46 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <tr class="no-order-row"><td colspan="6">불러오는 중...</td></tr>
       </tbody>
     </table>
+  </div>
+
+  <div class="change-request-section admin-tab-panel" data-tab="changeRequests" style="display:none">
+    <div class="section-title">고객 변경요청</div>
+    <div class="change-request-layout">
+      <div class="push-setting-card">
+        <div class="push-setting-title">모바일 푸시 알림</div>
+        <div class="push-setting-copy">
+          관리자 휴대폰에 변경요청 알림을 받으려면 이 관리자 페이지를 모바일 브라우저 또는 홈 화면 앱으로 열고 알림을 허용하세요.
+        </div>
+        <div class="push-window-box">모바일 푸시 알림: 오후 6시 ~ 밤 10시</div>
+        <div class="push-setting-copy">
+          이 시간 밖의 요청은 관리자 화면 목록에는 즉시 표시되고, 모바일 푸시는 다음 허용 시간대에 모아서 발송됩니다.
+        </div>
+        <div class="inline-actions">
+          <button class="save-btn" style="width:auto" onclick="enableAdminPushNotifications()">모바일 알림 허용</button>
+          <button class="danger-btn" onclick="disableAdminPushNotifications()">알림 비활성화</button>
+        </div>
+        <div class="push-status" id="push-status">알림 상태를 확인하는 중...</div>
+        <div class="push-setting-copy" style="margin-top:12px">
+          iPhone은 Safari에서 관리자 페이지를 홈 화면에 추가한 뒤, 홈 화면 앱에서 알림 권한을 허용해야 푸시가 안정적으로 동작합니다.
+          Android Chrome은 알림 허용 후 바로 테스트할 수 있습니다.
+        </div>
+      </div>
+      <div>
+        <div class="change-request-toolbar">
+          <div>
+            <div class="section-title" style="margin:0">요청 목록</div>
+            <div class="member-hint">고객 요청은 시간 제한 없이 즉시 표시됩니다. 모바일 푸시만 오후 6시부터 밤 10시까지 울립니다.</div>
+          </div>
+          <div class="change-request-filters">
+            <button class="cr-filter-btn active" data-cr-filter="all" onclick="setChangeRequestFilter('all')">전체</button>
+            <button class="cr-filter-btn" data-cr-filter="new" onclick="setChangeRequestFilter('new')">신규</button>
+            <button class="cr-filter-btn" data-cr-filter="pendingPush" onclick="setChangeRequestFilter('pendingPush')">푸시 대기</button>
+            <button class="cr-filter-btn" data-cr-filter="done" onclick="setChangeRequestFilter('done')">완료</button>
+          </div>
+        </div>
+        <div class="change-request-list" id="change-request-list">불러오는 중...</div>
+      </div>
+    </div>
   </div>
 
   <div class="receipt-section admin-tab-panel" data-tab="receipts" style="display:none">
@@ -1396,6 +1479,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   </div>
 </div>
 
+<div class="admin-inpage-alert" id="admin-inpage-alert" onclick="switchAdminTab('changeRequests')">
+  <strong id="admin-inpage-alert-title">변경요청</strong>
+  <span id="admin-inpage-alert-body">새 요청이 접수되었습니다.</span>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1419,6 +1506,13 @@ let sheetTargetUid = '';
 let settlementChartBar = null;
 let settlementChartDonut = null;
 let currentSettleFilter = 'all';
+let changeRequests = [];
+let changeRequestFilter = 'all';
+let changeRequestsUnsub = null;
+let changeRequestsInitialized = false;
+let currentPushToken = '';
+let currentPushTokenDocId = '';
+let adminPushTokenUnsub = null;
 
 const DEFAULT_MANUAL_MONTHLY_SETTLEMENTS = {};
 const EVENT_LUNCH_MENUS = [
@@ -1446,6 +1540,12 @@ const USER_PRIVATE_FIELDS = [
   'status',
   'role'
 ];
+
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#changeRequests' && document.getElementById('main-screen')?.classList.contains('active')) {
+    switchAdminTab('changeRequests');
+  }
+});
 
 const SUPPLIER_INFO = {
   name: '궁중수라간',
@@ -2281,6 +2381,305 @@ function formatTime(ts) {
   return `${String(kst.getUTCHours()).padStart(2,'0')}:${String(kst.getUTCMinutes()).padStart(2,'0')}`;
 }
 
+function formatDateTimeKR(ts) {
+  if (!ts) return '-';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  if (!d || Number.isNaN(d.getTime())) return '-';
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone:'Asia/Seoul',
+    month:'2-digit',
+    day:'2-digit',
+    hour:'2-digit',
+    minute:'2-digit'
+  }).format(d);
+}
+
+function changeRequestTypeLabel(type) {
+  return {
+    schedule_change:'배송일 변경',
+    address_change:'주소 변경',
+    pause:'일시중지',
+    memo:'요청사항',
+    etc:'기타'
+  }[type] || '기타';
+}
+
+function changeRequestStatusLabel(status) {
+  return {
+    new:'신규',
+    checking:'확인중',
+    approved:'승인',
+    rejected:'반려',
+    done:'완료'
+  }[status] || status || '-';
+}
+
+function notificationStatusLabel(status) {
+  return {
+    pending:'푸시 대기 중',
+    sent:'푸시 발송됨',
+    failed:'푸시 실패',
+    skipped:'푸시 생략'
+  }[status] || '-';
+}
+
+function tokenDocId(token) {
+  return btoa(unescape(encodeURIComponent(token))).replace(/[+/=]/g, '_').slice(0, 180);
+}
+
+function updatePushStatus(message) {
+  const el = document.getElementById('push-status');
+  if (el) el.textContent = message;
+}
+
+async function registerMessagingServiceWorker() {
+  if (!('serviceWorker' in navigator)) throw new Error('이 브라우저는 서비스워커를 지원하지 않습니다.');
+  return navigator.serviceWorker.register('./firebase-messaging-sw.js');
+}
+
+async function enableAdminPushNotifications() {
+  if (!adminUid || !auth.currentUser || !ADMIN_EMAILS.includes(auth.currentUser.email)) {
+    showToast('관리자 로그인 후 알림을 설정할 수 있습니다.');
+    return;
+  }
+  if (!messaging) {
+    updatePushStatus('이 브라우저는 Firebase 웹푸시를 지원하지 않습니다. iPhone은 홈 화면 앱에서 다시 시도하세요.');
+    return;
+  }
+  if (typeof Notification === 'undefined') {
+    updatePushStatus('이 브라우저는 알림 권한 API를 지원하지 않습니다.');
+    return;
+  }
+  try {
+    updatePushStatus('알림 권한을 요청하는 중...');
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      updatePushStatus('알림 권한이 허용되지 않았습니다.');
+      return;
+    }
+    if (!FCM_VAPID_PUBLIC_KEY || FCM_VAPID_PUBLIC_KEY.indexOf('TODO_') === 0) {
+      updatePushStatus('알림 권한은 허용되었습니다.\n다음 단계로 Firebase 콘솔의 Web Push 인증서 공개키를 admin.html의 FCM_VAPID_PUBLIC_KEY에 입력해야 토큰이 저장됩니다.');
+      return;
+    }
+    const swReg = await registerMessagingServiceWorker();
+    const token = await messaging.getToken({
+      vapidKey: FCM_VAPID_PUBLIC_KEY,
+      serviceWorkerRegistration: swReg
+    });
+    if (!token) throw new Error('FCM 토큰을 발급받지 못했습니다.');
+    const docId = tokenDocId(token);
+    currentPushToken = token;
+    currentPushTokenDocId = docId;
+    await db.collection('adminPushTokens').doc(docId).set({
+      token,
+      userEmail: auth.currentUser.email || '',
+      userAgent: navigator.userAgent || '',
+      platform: navigator.platform || '',
+      enabled: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    subscribeCurrentPushToken(docId);
+    updatePushStatus('모바일 알림이 활성화되었습니다.\n알림 시간대: 오후 6시 ~ 밤 10시');
+    showToast('모바일 알림이 활성화되었습니다.');
+  } catch(e) {
+    console.error('푸시 알림 설정 실패:', e);
+    updatePushStatus('푸시 알림 설정 실패: ' + (e.message || e.code || e));
+  }
+}
+
+async function disableAdminPushNotifications() {
+  try {
+    if (!currentPushTokenDocId && currentPushToken) currentPushTokenDocId = tokenDocId(currentPushToken);
+    if (!currentPushTokenDocId) {
+      updatePushStatus('이 기기에 저장된 알림 토큰을 찾지 못했습니다.');
+      return;
+    }
+    await db.collection('adminPushTokens').doc(currentPushTokenDocId).set({
+      enabled: false,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    updatePushStatus('이 기기의 모바일 알림이 비활성화되었습니다.');
+    showToast('모바일 알림을 비활성화했습니다.');
+  } catch(e) {
+    updatePushStatus('비활성화 실패: ' + e.message);
+  }
+}
+
+function subscribeCurrentPushToken(docId) {
+  if (adminPushTokenUnsub) adminPushTokenUnsub();
+  if (!docId) return;
+  adminPushTokenUnsub = db.collection('adminPushTokens').doc(docId).onSnapshot(snap => {
+    if (!snap.exists) return;
+    const data = snap.data() || {};
+    updatePushStatus(
+      `현재 기기 알림: ${data.enabled ? '활성화' : '비활성화'}\n` +
+      `알림 시간대: 오후 6시 ~ 밤 10시\n` +
+      `마지막 갱신: ${formatDateTimeKR(data.updatedAt || data.createdAt)}`
+    );
+  });
+}
+
+function initAdminForegroundMessaging() {
+  if (!messaging) return;
+  messaging.onMessage(payload => {
+    const title = payload?.notification?.title || '궁중수라간 변경요청';
+    const body = payload?.notification?.body || '새 변경요청이 있습니다.';
+    showAdminInPageAlert(title, body);
+    if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
+  });
+}
+
+function subscribeChangeRequests() {
+  if (changeRequestsUnsub) return;
+  changeRequestsUnsub = db.collection('changeRequests')
+    .orderBy('createdAt', 'desc')
+    .limit(80)
+    .onSnapshot(snapshot => {
+      const fresh = [];
+      snapshot.forEach(doc => fresh.push({ id:doc.id, ...doc.data() }));
+      const added = [];
+      snapshot.docChanges().forEach(change => {
+        if (change.type === 'added') added.push({ id:change.doc.id, ...change.doc.data() });
+      });
+      changeRequests = fresh;
+      renderChangeRequests();
+      updateChangeRequestBadge();
+      if (changeRequestsInitialized && added.length) {
+        const newest = added[0];
+        showChangeRequestNotice(newest);
+      }
+      changeRequestsInitialized = true;
+    }, err => {
+      console.error('변경요청 구독 오류:', err);
+      const el = document.getElementById('change-request-list');
+      if (el) el.textContent = '변경요청을 불러오지 못했습니다: ' + err.message;
+    });
+}
+
+function updateChangeRequestBadge() {
+  const count = changeRequests.filter(r => (r.status || 'new') === 'new').length;
+  const badge = document.getElementById('change-request-tab-count');
+  if (!badge) return;
+  badge.textContent = count > 99 ? '99+' : String(count);
+  badge.classList.toggle('show', count > 0);
+}
+
+function setChangeRequestFilter(filter) {
+  changeRequestFilter = filter;
+  document.querySelectorAll('.cr-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.crFilter === filter);
+  });
+  renderChangeRequests();
+}
+
+function filteredChangeRequests() {
+  return changeRequests.filter(item => {
+    const status = item.status || 'new';
+    const push = item.notificationStatus || 'pending';
+    if (changeRequestFilter === 'new') return status === 'new';
+    if (changeRequestFilter === 'pendingPush') return push === 'pending';
+    if (changeRequestFilter === 'done') return ['approved','rejected','done'].includes(status);
+    return true;
+  });
+}
+
+function renderChangeRequests() {
+  const listEl = document.getElementById('change-request-list');
+  if (!listEl) return;
+  const rows = filteredChangeRequests();
+  if (!rows.length) {
+    listEl.innerHTML = '<div class="panel" style="text-align:center;color:var(--sub)">표시할 변경요청이 없습니다.</div>';
+    return;
+  }
+  listEl.innerHTML = rows.map(item => {
+    const status = item.status || 'new';
+    const push = item.notificationStatus || 'pending';
+    const before = item.before ? `<div><span class="cr-label">이전</span>${escapeHtml(item.before)}</div>` : '';
+    const after = item.after ? `<div><span class="cr-label">요청</span>${escapeHtml(item.after)}</div>` : '';
+    const memo = item.memo ? `<div><span class="cr-label">메모</span>${escapeHtml(item.memo)}</div>` : '';
+    const read = item.readAt ? '' : `<button class="secondary-btn" onclick="markChangeRequestRead('${item.id}')">읽음</button>`;
+    return `
+      <div class="change-request-card status-${escapeHtml(status)}">
+        <div class="cr-head">
+          <div>
+            <div class="cr-title">${escapeHtml(item.title || changeRequestTypeLabel(item.type))}</div>
+            <div class="cr-meta">${escapeHtml(item.customerName || '고객')} · ${escapeHtml(item.phone || '-')} · ${formatDateTimeKR(item.createdAt)}</div>
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">
+            <span class="cr-badge ${status === 'new' ? 'new' : ''}">${changeRequestStatusLabel(status)}</span>
+            <span class="cr-badge ${escapeHtml(push)}">${notificationStatusLabel(push)}</span>
+          </div>
+        </div>
+        <div class="cr-body">${before}${after}${memo || '<div><span class="cr-label">메모</span>-</div>'}</div>
+        <div class="cr-meta">푸시 예정: ${item.notifyAfterAt ? formatDateTimeKR(item.notifyAfterAt) : '-'} · 시도 ${item.notificationAttempts || 0}회</div>
+        <div class="cr-actions">
+          ${read}
+          <button class="secondary-btn" onclick="updateChangeRequestStatus('${item.id}','checking')">확인중</button>
+          <button class="save-btn" style="width:auto;padding:9px 13px" onclick="updateChangeRequestStatus('${item.id}','done')">완료</button>
+          <button class="danger-btn" onclick="updateChangeRequestStatus('${item.id}','rejected')">반려</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function markChangeRequestRead(id) {
+  await db.collection('changeRequests').doc(id).set({
+    readAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge:true });
+}
+
+async function updateChangeRequestStatus(id, status) {
+  const payload = {
+    status,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if (['approved','rejected','done'].includes(status)) {
+    payload.handledAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.readAt = firebase.firestore.FieldValue.serverTimestamp();
+  }
+  await db.collection('changeRequests').doc(id).set(payload, { merge:true });
+  showToast('변경요청 상태를 저장했습니다.');
+}
+
+function showChangeRequestNotice(item) {
+  const title = '궁중수라간 변경요청';
+  const body = `${item.customerName || '고객'}님이 ${changeRequestTypeLabel(item.type)}을 요청했습니다.`;
+  showAdminInPageAlert(title, body);
+  playAdminNotificationSound();
+  if (navigator.vibrate) navigator.vibrate([180, 80, 180]);
+}
+
+function showAdminInPageAlert(title, body) {
+  const box = document.getElementById('admin-inpage-alert');
+  if (!box) return;
+  document.getElementById('admin-inpage-alert-title').textContent = title;
+  document.getElementById('admin-inpage-alert-body').textContent = body;
+  box.classList.add('show');
+  clearTimeout(window.__adminAlertTimer);
+  window.__adminAlertTimer = setTimeout(() => box.classList.remove('show'), 6500);
+}
+
+function playAdminNotificationSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(740, ctx.currentTime);
+    osc.frequency.setValueAtTime(920, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.42);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.45);
+  } catch(e) {}
+}
+
 // ── 인증 ──
 let _appInitialized = false;
 
@@ -2304,9 +2703,13 @@ auth.onAuthStateChanged(async (user) => {
         await Promise.all([loadCustomHolidays(), loadSettings()]);
         initReceiptForm();
         initSettlementForm();
+        subscribeChangeRequests();
+        initAdminForegroundMessaging();
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') updatePushStatus('알림 권한은 허용되어 있습니다. 토큰 상태를 확인하려면 모바일 알림 허용을 한 번 눌러주세요.\n알림 시간대: 오후 6시 ~ 밤 10시');
       } catch(e) { console.error('초기화 오류:', e); }
       updateDateLabel();
       loadOrders();
+      if (location.hash === '#changeRequests') switchAdminTab('changeRequests');
     }
   } else if (user) {
     loadingEl.style.display = 'none';
@@ -2340,6 +2743,9 @@ async function doAdminLogin() {
 
 function doAdminLogout() {
   _appInitialized = false;
+  changeRequestsInitialized = false;
+  if (changeRequestsUnsub) { changeRequestsUnsub(); changeRequestsUnsub = null; }
+  if (adminPushTokenUnsub) { adminPushTokenUnsub(); adminPushTokenUnsub = null; }
   auth.signOut();
   document.getElementById('main-screen').classList.remove('active');
   document.getElementById('auth-screen').classList.add('active');
@@ -4136,7 +4542,7 @@ async function saveMealPdfCandidates() {
 
 function switchAdminTab(tab) {
   activeAdminTab = tab;
-  ['orders','members','events','menus','settlements','receipts','stats','settings','manual'].forEach(name => {
+  ['orders','members','events','menus','changeRequests','settlements','receipts','stats','settings','manual'].forEach(name => {
     document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
   });
   document.querySelectorAll('.admin-tab-panel').forEach(el => {
@@ -4182,6 +4588,9 @@ function initAdminEventMenuPicker() {
   if (!categoryEl || !menuEl || categoryEl.dataset.ready === '1') {
     renderAdminEventDraftItems();
     return;
+  }
+  if (tab === 'changeRequests') {
+    renderChangeRequests();
   }
   const categories = [...new Set(EVENT_LUNCH_MENUS.map(item => item.category))];
   categoryEl.innerHTML = categories.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
