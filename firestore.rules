@@ -281,8 +281,16 @@ service cloud.firestore {
     function validNotificationWindow(data) {
       return data.notificationWindow is map
         && data.notificationWindow.timezone == 'Asia/Seoul'
-        && data.notificationWindow.startHour == 18
-        && data.notificationWindow.endHour == 22;
+        && (
+          (
+            data.notificationWindow.startHour == 14
+            && data.notificationWindow.endHour == 17
+          )
+          || (
+            data.notificationWindow.startHour == 18
+            && data.notificationWindow.endHour == 22
+          )
+        );
     }
 
     function validChangeRequestCreate() {
