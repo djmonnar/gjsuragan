@@ -7,8 +7,8 @@ admin.initializeApp();
 
 const db = admin.firestore();
 const TIMEZONE = 'Asia/Seoul';
-const WINDOW_START_HOUR = Number(process.env.NOTIFICATION_WINDOW_START_HOUR || 18);
-const WINDOW_END_HOUR = Number(process.env.NOTIFICATION_WINDOW_END_HOUR || 22);
+const WINDOW_START_HOUR = Number(process.env.NOTIFICATION_WINDOW_START_HOUR || 14);
+const WINDOW_END_HOUR = Number(process.env.NOTIFICATION_WINDOW_END_HOUR || 17);
 const MAX_PENDING_PER_BATCH = 20;
 const ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html#changeRequests';
 

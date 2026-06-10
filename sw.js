@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v22-samsung-install-steps';
+const CACHE = 'gjsuragan-v23-temp-push-window';
 const PRECACHE = [
   './customer.html',
   './admin.html',

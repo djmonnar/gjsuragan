@@ -824,7 +824,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="push-setting-copy">
           관리자 휴대폰에 변경요청 알림을 받으려면 이 관리자 페이지를 모바일 브라우저 또는 홈 화면 앱으로 열고 알림을 허용하세요.
         </div>
-        <div class="push-window-box">모바일 푸시 알림: 오후 6시 ~ 밤 10시</div>
+        <div class="push-window-box">모바일 푸시 알림: 오후 2시 ~ 오후 5시</div>
         <div class="push-setting-copy">
           이 시간 밖의 요청은 관리자 화면 목록에는 즉시 표시되고, 모바일 푸시는 다음 허용 시간대에 모아서 발송됩니다.
         </div>
@@ -842,7 +842,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="change-request-toolbar">
           <div>
             <div class="section-title" style="margin:0">요청 목록</div>
-            <div class="member-hint">고객 요청은 시간 제한 없이 즉시 표시됩니다. 모바일 푸시만 오후 6시부터 밤 10시까지 울립니다.</div>
+            <div class="member-hint">고객 요청은 시간 제한 없이 즉시 표시됩니다. 모바일 푸시만 오후 2시부터 오후 5시까지 울립니다.</div>
           </div>
           <div class="change-request-filters">
             <button class="cr-filter-btn active" data-cr-filter="all" onclick="setChangeRequestFilter('all')">전체</button>
@@ -2480,7 +2480,7 @@ async function enableAdminPushNotifications() {
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     subscribeCurrentPushToken(docId);
-    updatePushStatus('모바일 알림이 활성화되었습니다.\n알림 시간대: 오후 6시 ~ 밤 10시');
+    updatePushStatus('모바일 알림이 활성화되었습니다.\n알림 시간대: 오후 2시 ~ 오후 5시');
     showToast('모바일 알림이 활성화되었습니다.');
   } catch(e) {
     console.error('푸시 알림 설정 실패:', e);
@@ -2514,7 +2514,7 @@ function subscribeCurrentPushToken(docId) {
     const data = snap.data() || {};
     updatePushStatus(
       `현재 기기 알림: ${data.enabled ? '활성화' : '비활성화'}\n` +
-      `알림 시간대: 오후 6시 ~ 밤 10시\n` +
+      `알림 시간대: 오후 2시 ~ 오후 5시\n` +
       `마지막 갱신: ${formatDateTimeKR(data.updatedAt || data.createdAt)}`
     );
   });
@@ -2705,7 +2705,7 @@ auth.onAuthStateChanged(async (user) => {
         initSettlementForm();
         subscribeChangeRequests();
         initAdminForegroundMessaging();
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') updatePushStatus('알림 권한은 허용되어 있습니다. 토큰 상태를 확인하려면 모바일 알림 허용을 한 번 눌러주세요.\n알림 시간대: 오후 6시 ~ 밤 10시');
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') updatePushStatus('알림 권한은 허용되어 있습니다. 토큰 상태를 확인하려면 모바일 알림 허용을 한 번 눌러주세요.\n알림 시간대: 오후 2시 ~ 오후 5시');
       } catch(e) { console.error('초기화 오류:', e); }
       updateDateLabel();
       loadOrders();

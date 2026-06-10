@@ -3132,8 +3132,8 @@ function nextNotificationWindowStartDate() {
     return acc;
   }, {});
   const kstHour = parseInt(parts.hour, 10);
-  const baseUtc = Date.UTC(parseInt(parts.year,10), parseInt(parts.month,10) - 1, parseInt(parts.day,10), 9, 0, 0);
-  const nextUtc = kstHour < 18 ? baseUtc : baseUtc + 86400000;
+  const baseUtc = Date.UTC(parseInt(parts.year,10), parseInt(parts.month,10) - 1, parseInt(parts.day,10), 5, 0, 0);
+  const nextUtc = kstHour < 14 ? baseUtc : baseUtc + 86400000;
   return new Date(nextUtc);
 }
 
@@ -3173,8 +3173,8 @@ async function submitChangeRequest() {
       notificationAttempts: 0,
       notificationWindow: {
         timezone: 'Asia/Seoul',
-        startHour: 18,
-        endHour: 22
+        startHour: 14,
+        endHour: 17
       },
       urgent: false
     });
