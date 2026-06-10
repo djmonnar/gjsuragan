@@ -65,6 +65,62 @@ exports.onCustomerOrderWritten = onDocumentWritten('orders/{date}/items/{userId}
   await sendOrderNotification(event.params.date, event.params.userId, order, Boolean(before));
 });
 
+exports.onAdminPushTestCreated = onDocumentCreated('adminPushTests/{testId}', async (event) => {
+  const snap = event.data;
+  if (!snap) return;
+  const test = snap.data() || {};
+  const token = String(test.token || '');
+  if (!token) {
+    await snap.ref.set({
+      status: 'failed',
+      errorCode: 'missing-token',
+      errorMessage: 'No FCM token provided',
+      handledAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    return;
+  }
+  try {
+    const messageId = await admin.messaging().send({
+      token,
+      notification: {
+        title: '궁중수라간 서버 푸시 테스트',
+        body: '이 알림이 보이면 서버 FCM 경로도 정상입니다.'
+      },
+      data: {
+        type: 'server_push_test',
+        url: ADMIN_URL
+      },
+      webpush: {
+        fcmOptions: {
+          link: ADMIN_URL
+        },
+        notification: {
+          title: '궁중수라간 서버 푸시 테스트',
+          body: '이 알림이 보이면 서버 FCM 경로도 정상입니다.',
+          icon: '/gjsuragan/icons/icon.svg',
+          badge: '/gjsuragan/icons/icon.svg',
+          tag: `admin-push-test-${event.params.testId}`,
+          renotify: true
+        }
+      }
+    });
+    await snap.ref.set({
+      status: 'sent',
+      messageId,
+      handledAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    logger.info('Admin push test sent', { testId: event.params.testId });
+  } catch (error) {
+    await snap.ref.set({
+      status: 'failed',
+      errorCode: error.code || '',
+      errorMessage: error.message || '',
+      handledAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    logger.warn('Admin push test failed', event.params.testId, error.code, error.message);
+  }
+});
+
 exports.flushPendingChangeRequestNotifications = onSchedule({
   schedule: 'every 15 minutes',
   timeZone: TIMEZONE

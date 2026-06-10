@@ -866,7 +866,8 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         </div>
         <div class="inline-actions">
           <button class="save-btn" style="width:auto" onclick="enableAdminPushNotifications()">모바일 알림 허용</button>
-          <button class="secondary-btn" onclick="testAdminPushNotification()">알림 테스트</button>
+          <button class="secondary-btn" onclick="testAdminPushNotification()">기기 알림 테스트</button>
+          <button class="secondary-btn" onclick="testAdminServerPushNotification()">서버 푸시 테스트</button>
           <button class="danger-btn" onclick="disableAdminPushNotifications()">알림 비활성화</button>
         </div>
         <div class="push-status" id="push-status">알림 상태를 확인하는 중...</div>
@@ -2655,6 +2656,66 @@ async function testAdminPushNotification() {
   updatePushStatus(shown
     ? '테스트 알림을 보냈습니다.\n실제 변경요청 푸시는 오후 2시 ~ 오후 5시에 발송됩니다.'
     : '테스트 알림을 표시하지 못했습니다. 브라우저/앱 알림 설정을 확인해주세요.');
+}
+
+async function ensureCurrentPushToken() {
+  if (currentPushToken && currentPushTokenDocId) return currentPushToken;
+  if (!messaging) throw new Error('이 브라우저는 Firebase 웹푸시를 지원하지 않습니다.');
+  if (typeof Notification === 'undefined') throw new Error('이 브라우저는 알림 권한 API를 지원하지 않습니다.');
+  if (Notification.permission !== 'granted') throw new Error('먼저 모바일 알림 허용을 눌러 알림 권한을 허용해주세요.');
+  const swReg = await registerMessagingServiceWorker();
+  const token = await messaging.getToken({
+    vapidKey: FCM_VAPID_PUBLIC_KEY,
+    serviceWorkerRegistration: swReg
+  });
+  if (!token) throw new Error('FCM 토큰을 발급받지 못했습니다.');
+  currentPushToken = token;
+  currentPushTokenDocId = tokenDocId(token);
+  await db.collection('adminPushTokens').doc(currentPushTokenDocId).set({
+    token,
+    userEmail: auth.currentUser.email || '',
+    userAgent: navigator.userAgent || '',
+    platform: navigator.platform || '',
+    enabled: true,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+  subscribeCurrentPushToken(currentPushTokenDocId);
+  return token;
+}
+
+async function testAdminServerPushNotification() {
+  if (!adminUid || !auth.currentUser || !ADMIN_EMAILS.includes(auth.currentUser.email)) {
+    updatePushStatus('관리자 로그인 후 서버 푸시를 테스트할 수 있습니다.');
+    return;
+  }
+  try {
+    updatePushStatus('현재 기기 토큰으로 서버 푸시 테스트를 요청하는 중...');
+    const token = await ensureCurrentPushToken();
+    const ref = await db.collection('adminPushTests').add({
+      token,
+      userEmail: auth.currentUser.email || '',
+      userAgent: navigator.userAgent || '',
+      platform: navigator.platform || '',
+      status: 'new',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    const unsub = ref.onSnapshot(snap => {
+      const data = snap.data() || {};
+      if (data.status === 'sent') {
+        updatePushStatus('서버 푸시 테스트 발송 성공.\n알림이 안 보이면 Android Chrome/앱 알림 표시 설정을 확인해야 합니다.');
+        unsub();
+      } else if (data.status === 'failed') {
+        updatePushStatus(`서버 푸시 테스트 실패: ${data.errorCode || ''} ${data.errorMessage || ''}`.trim());
+        unsub();
+      }
+    });
+    setTimeout(() => {
+      try { unsub(); } catch (_) {}
+    }, 15000);
+  } catch(e) {
+    updatePushStatus('서버 푸시 테스트 실패: ' + (e.message || e.code || e));
+  }
 }
 
 function initAdminForegroundMessaging() {

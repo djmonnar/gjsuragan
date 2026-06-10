@@ -411,6 +411,11 @@ service cloud.firestore {
       allow create, update: if validAdminPushTokenWrite();
     }
 
+    match /adminPushTests/{testId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
     match /invalidPushTokens/{document=**} {
       allow read, write: if isAdmin();
     }
