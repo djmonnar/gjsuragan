@@ -2568,7 +2568,7 @@ async function enableAdminPushNotifications() {
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     subscribeCurrentPushToken(docId);
-    updatePushStatus('모바일 알림이 활성화되었습니다.\n알림 시간대: 오후 2시 ~ 오후 5시');
+    updatePushStatus('모바일 알림이 활성화되었습니다.\n알림 시간대: 변경요청 오후 2~5시 / 주문접수 오전 6~10시 / 행사도시락 24시간');
     showToast('모바일 알림이 활성화되었습니다.');
   } catch(e) {
     console.error('푸시 알림 설정 실패:', e);
@@ -2629,7 +2629,7 @@ function subscribeCurrentPushToken(docId) {
     const data = snap.data() || {};
     updatePushStatus(
       `현재 기기 알림: ${data.enabled ? '활성화' : '비활성화'}\n` +
-      `알림 시간대: 오후 2시 ~ 오후 5시\n` +
+      `알림 시간대: 변경요청 오후 2~5시 / 주문접수 오전 6~10시 / 행사도시락 24시간\n` +
       `마지막 갱신: ${formatDateTimeKR(data.updatedAt || data.createdAt)}`
     );
   });
@@ -2932,7 +2932,7 @@ auth.onAuthStateChanged(async (user) => {
         initSettlementForm();
         subscribeChangeRequests();
         initAdminForegroundMessaging();
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') updatePushStatus('알림 권한은 허용되어 있습니다. 토큰 상태를 확인하려면 모바일 알림 허용을 한 번 눌러주세요.\n알림 시간대: 오후 2시 ~ 오후 5시');
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') updatePushStatus('알림 권한은 허용되어 있습니다. 토큰 상태를 확인하려면 모바일 알림 허용을 한 번 눌러주세요.\n알림 시간대: 변경요청 오후 2~5시 / 주문접수 오전 6~10시 / 행사도시락 24시간');
       } catch(e) { console.error('초기화 오류:', e); }
       updateDateLabel();
       loadOrders();

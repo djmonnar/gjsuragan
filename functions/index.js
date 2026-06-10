@@ -9,9 +9,12 @@ const db = admin.firestore();
 const TIMEZONE = 'Asia/Seoul';
 const WINDOW_START_HOUR = Number(process.env.NOTIFICATION_WINDOW_START_HOUR || 14);
 const WINDOW_END_HOUR = Number(process.env.NOTIFICATION_WINDOW_END_HOUR || 17);
+const ORDER_WINDOW_START_HOUR = 6;
+const ORDER_WINDOW_END_HOUR = 10;
 const MAX_PENDING_PER_BATCH = 20;
 const ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html#changeRequests';
 const ORDER_ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html';
+const EVENT_ORDER_ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html#eventOrders';
 
 exports.onChangeRequestCreated = onDocumentCreated('changeRequests/{requestId}', async (event) => {
   const snap = event.data;
@@ -53,7 +56,7 @@ exports.onCustomerOrderWritten = onDocumentWritten('orders/{date}/items/{userId}
   if (before && sameOrderForNotification(before, order)) return;
 
   const now = new Date();
-  const windowInfo = notificationWindow(now);
+  const windowInfo = orderNotificationWindow(now);
   if (!windowInfo.open) {
     logger.info('Order push skipped outside notification window', {
       date: event.params.date,
@@ -63,6 +66,34 @@ exports.onCustomerOrderWritten = onDocumentWritten('orders/{date}/items/{userId}
   }
 
   await sendOrderNotification(event.params.date, event.params.userId, order, Boolean(before));
+});
+
+exports.onEventOrderCreated = onDocumentCreated('eventOrders/{orderId}', async (event) => {
+  const snap = event.data;
+  if (!snap) return;
+  const order = snap.data() || {};
+  const orderId = event.params.orderId;
+
+  const businessName = order.businessName || '고객';
+  const eventDate = order.eventDate || '';
+  const menuText = order.menuText ? order.menuText.slice(0, 40) : '';
+  const title = '궁중수라간 행사도시락 견적 요청';
+  const body = `${businessName}님 ${eventDate} 행사: ${menuText}`;
+
+  await sendPushToAdmins({
+    title,
+    body,
+    data: {
+      requestId: orderId,
+      type: 'event_order',
+      customerName: String(businessName),
+      orderDate: String(eventDate),
+      url: EVENT_ORDER_ADMIN_URL
+    },
+    url: EVENT_ORDER_ADMIN_URL,
+    tag: `event-order-${orderId}`
+  });
+  logger.info('Event order push sent', { orderId, businessName, eventDate });
 });
 
 exports.onAdminPushTestCreated = onDocumentCreated('adminPushTests/{testId}', async (event) => {
@@ -156,7 +187,15 @@ exports.flushPendingChangeRequestNotifications = onSchedule({
   }
 });
 
+function orderNotificationWindow(now) {
+  return notificationWindowFor(now, ORDER_WINDOW_START_HOUR, ORDER_WINDOW_END_HOUR);
+}
+
 function notificationWindow(now) {
+  return notificationWindowFor(now, WINDOW_START_HOUR, WINDOW_END_HOUR);
+}
+
+function notificationWindowFor(now, startHour, endHour) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: TIMEZONE,
     year: 'numeric',
@@ -172,16 +211,16 @@ function notificationWindow(now) {
   }, {});
 
   const hour = Number(parts.hour);
-  const open = hour >= WINDOW_START_HOUR && hour < WINDOW_END_HOUR;
+  const open = hour >= startHour && hour < endHour;
   const todayStartUtc = Date.UTC(
     Number(parts.year),
     Number(parts.month) - 1,
     Number(parts.day),
-    WINDOW_START_HOUR - 9,
+    startHour - 9,
     0,
     0
   );
-  const nextStart = hour < WINDOW_START_HOUR
+  const nextStart = hour < startHour
     ? new Date(todayStartUtc)
     : new Date(todayStartUtc + 24 * 60 * 60 * 1000);
 
