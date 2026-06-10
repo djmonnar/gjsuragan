@@ -4867,9 +4867,6 @@ function initAdminEventMenuPicker() {
     renderAdminEventDraftItems();
     return;
   }
-  if (tab === 'changeRequests') {
-    renderChangeRequests();
-  }
   const categories = [...new Set(EVENT_LUNCH_MENUS.map(item => item.category))];
   categoryEl.innerHTML = categories.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
   categoryEl.addEventListener('change', renderAdminEventMenuOptions);

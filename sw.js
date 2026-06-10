@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v25-admin-push-foreground';
+const CACHE = 'gjsuragan-v26-event-lunch-loading';
 const PRECACHE = [
   './customer.html',
   './admin.html',
