@@ -3058,7 +3058,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
   snap.forEach(doc => {
     const order = { uid: doc.id, ...doc.data() };
     if (isEventOrder(order)) return;
-    const user = allUsers[order.uid] || {};
+    const user = allUsers[order.uid] || deletedUsers[order.uid] || {};
     const delivered = deliveredRecords[order.uid];
     const deliveredOverride = delivered && !delivered.orderDeleted && (delivered.delivered || delivered.adminAdjusted || delivered.adminManual);
     const lunch = orderLunchQty(order);
@@ -3230,8 +3230,8 @@ async function loadOrders() {
         const canEditManual = (o.adminManual || o.source === 'manual') && !allUsers[o.uid];
         const canDeleteOrder = o.orderDocExists || o.adminManual || o.source === 'manual' || o.source === 'default' || o.selfHoliday;
         const manageHtml = canDeleteOrder
-          ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="danger-btn" onclick="deleteOrderItem('${jsString(o.uid)}')">삭제</button></div>`
-          : '<span style="color:var(--sub);font-size:12px">-</span>';
+          ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button><button class="danger-btn" onclick="deleteOrderItem('${jsString(o.uid)}')">삭제</button></div>`
+          : `<div class="inline-actions"><button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button></div>`;
         const mobileQtyDetail = `도 ${o.lunchCount ?? 0} · 샐 ${o.saladCount ?? 0}${eventLunch ? ` · 행 ${eventLunch}` : ''}`;
         tr.innerHTML = `
           <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${(!o.delivered && !isSelfHoliday) ? 'checked' : ''} ${disabledAttr}></td>
@@ -3538,6 +3538,29 @@ function saveOrderQtyModal() {
   showToast('수량을 표에 반영했습니다. 배송 완료를 누르면 저장됩니다.');
 }
 
+async function saveInlineQty(uid) {
+  const rowEl = orderRowElementByUid(uid);
+  if (!rowEl) return;
+  const values = orderQtyValuesFromRow(rowEl);
+  const row = currentOrderRows.find(item => item.uid === uid) || {};
+  const user = allUsers[uid] || deletedUsers[uid] || {};
+  try {
+    await db.collection('orders').doc(currentDateStr).collection('items').doc(uid).set({
+      lunchCount: values.lunch,
+      saladCount: values.salad,
+      eventLunchCount: values.event,
+      adminInput: true,
+      adminAdjusted: true,
+      source: row.source === 'manual' ? 'adminManual' : (row.source === 'default' ? 'adminDefault' : 'order'),
+      submittedBy: adminUid,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    showToast(`✅ ${user.businessName || row.businessName || '주문'} 수량 저장됨`);
+  } catch(e) {
+    showToast('저장 실패: ' + e.message, 'error');
+  }
+}
+
 function deleteOrderItemFromQtyModal() {
   const uid = document.getElementById('order-qty-uid').value;
   closeOrderQtyModal();
@@ -3567,7 +3590,7 @@ async function completeSelectedDeliveries() {
     const rowEl = cb.closest('tr');
     const row = currentOrderRows.find(item => item.uid === uid) || {};
     if (row.selfHoliday) return;
-    const user = allUsers[uid] || {};
+    const user = allUsers[uid] || deletedUsers[uid] || {};
     const lunch = parseDeliveryCount(rowEl.querySelector('.deliver-lunch')?.value, 0);
     const salad = parseDeliveryCount(rowEl.querySelector('.deliver-salad')?.value, 0);
     const eventLunch = parseDeliveryCount(rowEl.querySelector('.deliver-event-lunch')?.value, 0);
