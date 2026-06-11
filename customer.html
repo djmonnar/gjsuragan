@@ -1576,6 +1576,13 @@
         <input class="form-input" type="tel" id="prof-phone" placeholder="010-0000-0000">
       </div>
       <div class="form-group">
+        <label class="form-label">배송지 주소</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="form-input" type="text" id="prof-place" placeholder="주소 찾기 버튼으로 입력하세요" readonly style="flex:1;background:#f9f9f9;cursor:default">
+          <button type="button" class="save-btn" style="white-space:nowrap;width:auto;padding:10px 14px;font-size:13px" onclick="openAddressSearch()">🔍 주소 찾기</button>
+        </div>
+      </div>
+      <div class="form-group">
         <label class="form-label">식사 받는 시간</label>
         <input class="meal-time-hidden" type="hidden" id="prof-mealtime">
         <div class="meal-time-picker">
@@ -3055,6 +3062,7 @@ function renderProfile() {
   if (!userProfile) return;
   document.getElementById('prof-bizname').value = userProfile.businessName || '';
   document.getElementById('prof-phone').value = userProfile.phone || '';
+  document.getElementById('prof-place').value = userProfile.deliveryPlace || '';
   setMealTimeControls('prof', userProfile.mealTime || '');
   document.getElementById('prof-lunch').value = userProfile.defaultLunch ?? 2;
   document.getElementById('prof-salad').value = userProfile.defaultSalad ?? 0;
@@ -3068,9 +3076,25 @@ function renderProfile() {
   loadStats('week');
 }
 
+function openAddressSearch() {
+  function run() {
+    new daum.Postcode({
+      oncomplete(data) {
+        document.getElementById('prof-place').value = data.roadAddress || data.jibunAddress;
+      }
+    }).open();
+  }
+  if (window.daum?.Postcode) { run(); return; }
+  const s = document.createElement('script');
+  s.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+  s.onload = run;
+  document.head.appendChild(s);
+}
+
 async function saveProfile() {
   const bizname = document.getElementById('prof-bizname').value.trim();
   const phone = document.getElementById('prof-phone').value.trim();
+  const deliveryPlace = document.getElementById('prof-place').value.trim();
   const mealTimeInfo = getTenMinuteTimeValue('prof-mealtime');
   const mealTime = mealTimeInfo.value;
   const lunch = parseInt(document.getElementById('prof-lunch').value) || 0;
@@ -3088,9 +3112,10 @@ async function saveProfile() {
       defaultSalad: salad,
       sameDailyMeal,
       weekdayMeals,
+      deliveryPlace,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    userProfile = { ...userProfile, businessName: bizname, phone, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals };
+    userProfile = { ...userProfile, businessName: bizname, phone, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, deliveryPlace };
     document.getElementById('header-bizname').textContent = bizname;
     renderToday();
     renderWeek();

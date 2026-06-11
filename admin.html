@@ -1329,7 +1329,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <label class="form-label">휴대폰 번호</label>
     <input class="form-input" type="tel" id="edit-phone" placeholder="010-0000-0000">
     <label class="form-label">배송지</label>
-    <input class="form-input" type="text" id="edit-place" placeholder="배송지 또는 주소">
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="form-input" type="text" id="edit-place" placeholder="주소 찾기 버튼으로 입력하세요" readonly style="flex:1;background:#f9f9f9;cursor:default">
+      <button type="button" class="secondary-btn" style="white-space:nowrap;padding:10px 14px;font-size:13px" onclick="openAddressSearch('edit-place')">🔍 주소 찾기</button>
+    </div>
     <label class="form-label">식사 받는 시간</label>
     <input class="meal-time-hidden" type="hidden" id="edit-mealtime">
     <div class="meal-time-picker">
@@ -7073,6 +7076,22 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── 주소 검색 (카카오 우편번호) ──
+function openAddressSearch(targetInputId) {
+  function run() {
+    new daum.Postcode({
+      oncomplete(data) {
+        document.getElementById(targetInputId).value = data.roadAddress || data.jibunAddress;
+      }
+    }).open();
+  }
+  if (window.daum?.Postcode) { run(); return; }
+  const s = document.createElement('script');
+  s.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+  s.onload = run;
+  document.head.appendChild(s);
 }
 
 // ── 배송지 지도 ──
