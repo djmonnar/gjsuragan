@@ -654,7 +654,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <button class="tab-btn" id="tab-members" onclick="switchAdminTab('members')"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>회원관리</span></button>
     <button class="tab-btn" id="tab-events" onclick="switchAdminTab('events')"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>행사도시락</span></button>
     <button class="tab-btn" id="tab-menus" onclick="switchAdminTab('menus')"><svg class="admin-icon"><use href="#admin-i-menu"></use></svg><span>식단관리</span></button>
-    <button class="tab-btn" id="tab-changeRequests" onclick="switchAdminTab('changeRequests')"><svg class="admin-icon"><use href="#admin-i-chat"></use></svg><span>변경요청</span><span class="tab-count-badge" id="change-request-tab-count">0</span></button>
+    <button class="tab-btn" id="tab-changeRequests" onclick="switchAdminTab('changeRequests')"><svg class="admin-icon"><use href="#admin-i-chat"></use></svg><span>문의사항</span><span class="tab-count-badge" id="change-request-tab-count">0</span></button>
     <button class="tab-btn" id="tab-settlements" onclick="switchAdminTab('settlements')"><svg class="admin-icon"><use href="#admin-i-settle"></use></svg><span>정산</span></button>
     <button class="tab-btn" id="tab-receipts" onclick="switchAdminTab('receipts')"><svg class="admin-icon"><use href="#admin-i-receipt"></use></svg><span>간이영수증</span></button>
     <button class="tab-btn" id="tab-stats" onclick="switchAdminTab('stats')"><svg class="admin-icon"><use href="#admin-i-stats"></use></svg><span>통계</span></button>
@@ -867,35 +867,13 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   </div>
 
   <div class="change-request-section admin-tab-panel" data-tab="changeRequests" style="display:none">
-    <div class="section-title">고객 변경요청</div>
+    <div class="section-title">고객 문의사항</div>
     <div class="change-request-layout">
-      <div class="push-setting-card">
-        <div class="push-setting-title">모바일 푸시 알림</div>
-        <div class="push-setting-copy">
-          관리자 휴대폰에 변경요청 알림을 받으려면 이 관리자 페이지를 모바일 브라우저 또는 홈 화면 앱으로 열고 알림을 허용하세요.
-        </div>
-        <div class="push-window-box">모바일 푸시 알림: 24시간 실시간 발송</div>
-        <div class="push-setting-copy">
-          변경요청, 주문접수, 행사도시락 견적 요청 모두 접수 즉시 실시간으로 푸시 알림이 발송됩니다.
-        </div>
-        <div class="inline-actions">
-          <button class="save-btn" style="width:auto" onclick="enableAdminPushNotifications()">모바일 알림 허용</button>
-          <button class="secondary-btn" onclick="testAdminPushNotification()">기기 알림 테스트</button>
-          <button class="secondary-btn" onclick="testAdminServerPushNotification()">서버 푸시 테스트</button>
-          <button class="danger-btn" onclick="disableAdminPushNotifications()">알림 비활성화</button>
-          <button class="danger-btn" onclick="resetAndRenewPushToken()" title="토큰/SW 초기화 후 재발급">토큰 초기화</button>
-        </div>
-        <div class="push-status" id="push-status">알림 상태를 확인하는 중...</div>
-        <div class="push-setting-copy" style="margin-top:12px">
-          iPhone은 Safari에서 관리자 페이지를 홈 화면에 추가한 뒤, 홈 화면 앱에서 알림 권한을 허용해야 푸시가 안정적으로 동작합니다.
-          Android Chrome은 알림 허용 후 바로 테스트할 수 있습니다.
-        </div>
-      </div>
       <div>
         <div class="change-request-toolbar">
           <div>
-            <div class="section-title" style="margin:0">요청 목록</div>
-            <div class="member-hint">고객 요청은 접수 즉시 표시되며, 모바일 푸시도 24시간 실시간으로 발송됩니다.</div>
+            <div class="section-title" style="margin:0">문의 목록</div>
+            <div class="member-hint">고객 문의는 접수 즉시 표시되며, 모바일 푸시도 24시간 실시간으로 발송됩니다.</div>
           </div>
           <div class="change-request-filters">
             <button class="cr-filter-btn active" data-cr-filter="all" onclick="setChangeRequestFilter('all')">전체</button>
@@ -982,6 +960,28 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   </div>
 
   <div class="receipt-section admin-tab-panel" data-tab="settings" style="display:none">
+    <div class="push-setting-card" style="margin-bottom:14px">
+      <div class="push-setting-title">모바일 푸시 알림</div>
+      <div class="push-setting-copy">
+        관리자 휴대폰에 알림을 받으려면 이 관리자 페이지를 모바일 브라우저 또는 홈 화면 앱으로 열고 알림을 허용하세요.
+      </div>
+      <div class="push-window-box">모바일 푸시 알림: 24시간 실시간 발송</div>
+      <div class="push-setting-copy">
+        문의사항, 주문접수, 행사도시락 견적 요청 모두 접수 즉시 실시간으로 푸시 알림이 발송됩니다.
+      </div>
+      <div class="inline-actions">
+        <button class="save-btn" style="width:auto" onclick="enableAdminPushNotifications()">모바일 알림 허용</button>
+        <button class="secondary-btn" onclick="testAdminPushNotification()">기기 알림 테스트</button>
+        <button class="secondary-btn" onclick="testAdminServerPushNotification()">서버 푸시 테스트</button>
+        <button class="danger-btn" onclick="disableAdminPushNotifications()">알림 비활성화</button>
+        <button class="danger-btn" onclick="resetAndRenewPushToken()" title="토큰/SW 초기화 후 재발급">토큰 초기화</button>
+      </div>
+      <div class="push-status" id="push-status">알림 상태를 확인하는 중...</div>
+      <div class="push-setting-copy" style="margin-top:12px">
+        iPhone은 Safari에서 관리자 페이지를 홈 화면에 추가한 뒤, 홈 화면 앱에서 알림 권한을 허용해야 푸시가 안정적으로 동작합니다.
+        Android Chrome은 알림 허용 후 바로 테스트할 수 있습니다.
+      </div>
+    </div>
     <div class="panel" style="margin-bottom:14px">
       <div style="font-weight:700;color:var(--primary);margin-bottom:16px">⚙️ 설정</div>
 

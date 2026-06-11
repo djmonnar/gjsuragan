@@ -1545,6 +1545,14 @@
 
   <!-- 정산 탭 -->
   <div id="pane-settlement" class="content-area" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#fff8ed;border:1px solid #f0d090;border-radius:10px;padding:13px 14px;margin-bottom:16px;gap:10px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:11px;color:#7b4f1a;font-weight:700;margin-bottom:3px">입금 계좌</div>
+        <div style="font-size:15px;font-weight:800;color:#3d1f0a;letter-spacing:.3px">농협 302-4578-2271-31</div>
+        <div style="font-size:12px;color:#7b4f1a;margin-top:2px">주상훈 (궁중수라간)</div>
+      </div>
+      <button onclick="copyAccountNumber()" id="copy-account-btn" style="background:var(--primary);color:#fff;border:0;border-radius:8px;padding:9px 16px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap">복사</button>
+    </div>
     <div class="section-title"><svg class="gj-icon"><use href="#gj-settlement"></use></svg>월별 정산 내역</div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
       <input type="month" id="settle-month-input" class="form-input" style="max-width:160px">
@@ -1648,40 +1656,22 @@
       <button class="save-btn" onclick="saveProfile()">저장하기</button>
     </div>
 
-    <div class="section-title"><svg class="gj-icon"><use href="#gj-note"></use></svg>주문 변경 요청</div>
+    <div class="section-title"><svg class="gj-icon"><use href="#gj-note"></use></svg>문의사항</div>
     <div class="profile-block change-request-box">
       <div class="change-request-help">
-        배송일, 주소, 일시중지, 요청사항 변경은 이곳에 남겨주세요. 요청은 바로 접수되며, 실제 주문/정산 기록은 관리자가 확인 후 반영합니다.
+        배송일 변경, 주소 변경, 일시중지, 기타 문의사항을 남겨주세요. 접수 즉시 관리자에게 전달됩니다.
       </div>
       <div class="change-request-grid">
         <div class="form-group">
-          <label class="form-label">요청 종류</label>
-          <select class="form-input" id="change-request-type" onchange="syncChangeRequestTitle()">
-            <option value="schedule_change">배송일 변경</option>
-            <option value="address_change">주소 변경</option>
-            <option value="pause">일시중지</option>
-            <option value="memo">요청사항</option>
-            <option value="etc">기타</option>
-          </select>
-        </div>
-        <div class="form-group">
           <label class="form-label">제목</label>
-          <input class="form-input" type="text" id="change-request-title" placeholder="예) 다음 주 수요일 배송일 변경">
+          <input class="form-input" type="text" id="change-request-title" placeholder="예) 다음 주 수요일 배송 변경 문의">
         </div>
         <div class="form-group">
-          <label class="form-label">현재 내용</label>
-          <input class="form-input" type="text" id="change-request-before" placeholder="예) 기존 주소 또는 기존 배송일">
-        </div>
-        <div class="form-group">
-          <label class="form-label">변경 요청 내용</label>
-          <input class="form-input" type="text" id="change-request-after" placeholder="예) 변경할 주소 또는 원하는 배송일">
-        </div>
-        <div class="form-group">
-          <label class="form-label">추가 메모</label>
-          <textarea class="note-area" id="change-request-memo" placeholder="관리자에게 전달할 내용을 입력하세요."></textarea>
+          <label class="form-label">내용</label>
+          <textarea class="note-area" id="change-request-memo" placeholder="문의 내용을 자세히 입력해주세요."></textarea>
         </div>
       </div>
-      <button class="save-btn" id="change-request-submit-btn" onclick="submitChangeRequest()">변경요청 보내기</button>
+      <button class="save-btn" id="change-request-submit-btn" onclick="submitChangeRequest()">문의사항 보내기</button>
       <div class="change-request-history" id="change-request-history"></div>
     </div>
 
@@ -3174,38 +3164,41 @@ function changeRequestTypeLabel(type) {
   }[type] || '기타';
 }
 
-function syncChangeRequestTitle() {
-  const type = document.getElementById('change-request-type')?.value || 'etc';
-  const titleEl = document.getElementById('change-request-title');
-  if (titleEl && !titleEl.value.trim()) titleEl.value = changeRequestTypeLabel(type);
-}
+function syncChangeRequestTitle() {}
 
+
+async function copyAccountNumber() {
+  try {
+    await navigator.clipboard.writeText('302-4578-2271-31');
+    const btn = document.getElementById('copy-account-btn');
+    if (btn) { btn.textContent = '복사됨 ✓'; setTimeout(() => { btn.textContent = '복사'; }, 2000); }
+  } catch(e) {
+    showToast('복사 실패: ' + e.message, 'error');
+  }
+}
 
 async function submitChangeRequest() {
   if (!currentUser || !userProfile) return;
-  const type = document.getElementById('change-request-type').value;
-  const title = document.getElementById('change-request-title').value.trim() || changeRequestTypeLabel(type);
-  const before = document.getElementById('change-request-before').value.trim();
-  const after = document.getElementById('change-request-after').value.trim();
+  const title = document.getElementById('change-request-title').value.trim();
   const memo = document.getElementById('change-request-memo').value.trim();
-  if (!after && !memo) {
-    showToast('변경할 내용이나 메모를 입력해주세요.', 'error');
+  if (!title && !memo) {
+    showToast('제목 또는 내용을 입력해주세요.', 'error');
     return;
   }
   const btn = document.getElementById('change-request-submit-btn');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = '요청 전송 중...';
+    btn.textContent = '전송 중...';
   }
   try {
     await db.collection('changeRequests').add({
       customerId: currentUser.uid,
       customerName: userProfile.businessName || currentUser.email || '',
       phone: userProfile.phone || '',
-      type,
-      title,
-      before,
-      after,
+      type: 'etc',
+      title: title || memo.slice(0, 60),
+      before: '',
+      after: '',
       memo,
       status: 'new',
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -3217,18 +3210,15 @@ async function submitChangeRequest() {
       urgent: false
     });
     document.getElementById('change-request-title').value = '';
-    document.getElementById('change-request-before').value = '';
-    document.getElementById('change-request-after').value = '';
     document.getElementById('change-request-memo').value = '';
-    syncChangeRequestTitle();
-    showToast('변경요청이 접수되었습니다.', 'success');
+    showToast('문의사항이 접수되었습니다.', 'success');
   } catch(e) {
-    console.error('변경요청 저장 실패:', e);
-    showToast('요청 저장 실패: ' + e.message, 'error');
+    console.error('문의사항 저장 실패:', e);
+    showToast('저장 실패: ' + e.message, 'error');
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '변경요청 보내기';
+      btn.textContent = '문의사항 보내기';
     }
   }
 }
