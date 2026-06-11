@@ -52,6 +52,7 @@ service cloud.firestore {
         'email',
         'phone',
         'deliveryPlace',
+        'deliveryPlaceDetail',
         'mealTime',
         'defaultLunch',
         'defaultSalad',
@@ -99,6 +100,7 @@ service cloud.firestore {
         && optionalString(data, 'email', 160)
         && optionalString(data, 'phone', 40)
         && optionalString(data, 'deliveryPlace', 200)
+        && optionalString(data, 'deliveryPlaceDetail', 200)
         && optionalString(data, 'mealTime', 20)
         && optionalSafeCount(data, 'defaultLunch')
         && optionalSafeCount(data, 'defaultSalad')

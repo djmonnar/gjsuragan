@@ -1329,10 +1329,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <label class="form-label">휴대폰 번호</label>
     <input class="form-input" type="tel" id="edit-phone" placeholder="010-0000-0000">
     <label class="form-label">배송지</label>
-    <div style="display:flex;gap:8px;align-items:center">
-      <input class="form-input" type="text" id="edit-place" placeholder="주소 찾기 버튼으로 입력하세요" readonly style="flex:1;background:#f9f9f9;cursor:default">
-      <button type="button" class="secondary-btn" style="white-space:nowrap;padding:10px 14px;font-size:13px" onclick="openAddressSearch('edit-place')">🔍 주소 찾기</button>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+      <input class="form-input" type="text" id="edit-place" placeholder="주소 찾기 버튼으로 입력하세요" readonly style="flex:1;background:#f9f9f9;cursor:default;margin-bottom:0">
+      <button type="button" class="secondary-btn" style="white-space:nowrap;padding:10px 14px;font-size:13px" onclick="openAddressSearch('edit-place','edit-place-detail')">🔍 주소 찾기</button>
     </div>
+    <input class="form-input" type="text" id="edit-place-detail" placeholder="상세주소 (동/호수/층 등)">
     <label class="form-label">식사 받는 시간</label>
     <input class="meal-time-hidden" type="hidden" id="edit-mealtime">
     <div class="meal-time-picker">
@@ -1933,9 +1934,10 @@ function orderSaladPrice(order = {}, user = {}) {
 function userPrivateRef(uid) {
   return db.collection('userPrivate').doc(uid);
 }
-function privateUserPayload({ deliveryPlace = '', lunchPrice = 0, saladPrice = 0 } = {}) {
+function privateUserPayload({ deliveryPlace = '', deliveryPlaceDetail = '', lunchPrice = 0, saladPrice = 0 } = {}) {
   return {
     deliveryPlace,
+    deliveryPlaceDetail,
     lunchPrice,
     saladPrice,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -3742,6 +3744,7 @@ function openMemberEdit(uid) {
   document.getElementById('edit-bizname').value = u.businessName || '';
   document.getElementById('edit-phone').value = u.phone || '';
   document.getElementById('edit-place').value = u.deliveryPlace || u.address || '';
+  document.getElementById('edit-place-detail').value = u.deliveryPlaceDetail || '';
   setMealTimeControls('edit', u.mealTime || '');
   document.getElementById('edit-lunch').value = u.defaultLunch ?? 2;
   document.getElementById('edit-salad').value = u.defaultSalad ?? 0;
@@ -4081,6 +4084,7 @@ async function saveMember() {
   const bizname = document.getElementById('edit-bizname').value.trim();
   const phone = document.getElementById('edit-phone').value.trim();
   const deliveryPlace = document.getElementById('edit-place').value.trim();
+  const deliveryPlaceDetail = document.getElementById('edit-place-detail').value.trim();
   const lunch = parseInt(document.getElementById('edit-lunch').value) || 0;
   const salad = parseInt(document.getElementById('edit-salad').value) || 0;
   const sameDailyMeal = document.getElementById('edit-same-daily').checked;
@@ -4113,8 +4117,8 @@ async function saveMember() {
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       ...userPrivateDeletePayload()
     });
-    await userPrivateRef(uid).set(privateUserPayload({ deliveryPlace, lunchPrice, saladPrice }), { merge: true });
-    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice };
+    await userPrivateRef(uid).set(privateUserPayload({ deliveryPlace, deliveryPlaceDetail, lunchPrice, saladPrice }), { merge: true });
+    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, deliveryPlaceDetail, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice };
     closeMemberModal();
     renderMembers();
     loadOrders();
@@ -7079,11 +7083,13 @@ function showToast(msg) {
 }
 
 // ── 주소 검색 (카카오 우편번호) ──
-function openAddressSearch(targetInputId) {
+function openAddressSearch(mainInputId, detailInputId) {
   function run() {
     new daum.Postcode({
       oncomplete(data) {
-        document.getElementById(targetInputId).value = data.roadAddress || data.jibunAddress;
+        document.getElementById(mainInputId).value = data.roadAddress || data.jibunAddress;
+        const detailEl = detailInputId && document.getElementById(detailInputId);
+        if (detailEl) { detailEl.value = ''; detailEl.focus(); }
       }
     }).open();
   }
