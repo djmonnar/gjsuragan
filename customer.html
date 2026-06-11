@@ -1367,6 +1367,14 @@
       <input class="form-input" type="tel" id="reg-phone" placeholder="010-0000-0000">
     </div>
     <div class="form-group">
+      <label class="form-label">배송지 주소</label>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <input class="form-input" type="text" id="reg-place" placeholder="주소 찾기 버튼으로 입력하세요" readonly style="flex:1;background:#f9f9f9;cursor:default;margin-bottom:0">
+        <button type="button" class="secondary-btn" style="white-space:nowrap;padding:10px 14px;font-size:13px" onclick="openRegAddressSearch()">🔍 주소 찾기</button>
+      </div>
+      <input class="form-input" type="text" id="reg-place-detail" placeholder="상세주소 (동/호수/층 등)">
+    </div>
+    <div class="form-group">
       <label class="form-label">식사 받는 시간</label>
       <input class="meal-time-hidden" type="hidden" id="reg-mealtime">
       <div class="meal-time-picker">
@@ -2413,10 +2421,29 @@ function resetLoginButton() {
   }
 }
 
+function openRegAddressSearch() {
+  function run() {
+    new daum.Postcode({
+      oncomplete(data) {
+        document.getElementById('reg-place').value = data.roadAddress || data.jibunAddress;
+        const detail = document.getElementById('reg-place-detail');
+        if (detail) { detail.value = ''; detail.focus(); }
+      }
+    }).open();
+  }
+  if (window.daum?.Postcode) { run(); return; }
+  const s = document.createElement('script');
+  s.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+  s.onload = run;
+  document.head.appendChild(s);
+}
+
 async function doRegister() {
   const bizname = document.getElementById('reg-bizname').value.trim();
   const email = document.getElementById('reg-email').value.trim();
   const phone = document.getElementById('reg-phone').value.trim();
+  const deliveryPlace = document.getElementById('reg-place').value.trim();
+  const deliveryPlaceDetail = document.getElementById('reg-place-detail').value.trim();
   const mealTimeInfo = getTenMinuteTimeValue('reg-mealtime');
   const mealTime = mealTimeInfo.value;
   const pw = document.getElementById('reg-pw').value;
@@ -2451,7 +2478,9 @@ async function doRegister() {
   }
   try {
     await db.collection('users').doc(cred.user.uid).set({
-      businessName: bizname, email, phone, mealTime,
+      businessName: bizname, email, phone,
+      deliveryPlace, deliveryPlaceDetail,
+      mealTime,
       defaultLunch: lunch, defaultSalad: salad,
       sameDailyMeal, weekdayMeals,
       privacyConsent: true,
