@@ -7173,7 +7173,7 @@ async function initDeliveryMap(forceRefresh) {
   if (eventSnap && !eventSnap.empty) {
     const pending = eventSnap.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(o => o.status !== 'completed' && !o.delivered);
+      .filter(o => o.status !== 'completed' && !o.delivered && o.eventDate === currentDateStr);
     for (const order of pending) {
       const address = order.place || '';
       if (!address) continue;
