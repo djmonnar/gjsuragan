@@ -506,7 +506,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .th-icon-label{display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .th-icon-label .admin-icon{width:16px;height:16px;color:var(--primary)}
 .member-section.admin-tab-panel{padding-top:18px;padding-bottom:36px}
-.map-section.admin-tab-panel{padding:0;display:flex;flex-direction:column;height:calc(100vh - 110px)}
+.map-section.admin-tab-panel{padding:0;display:flex;flex-direction:column;height:calc(100vh - 110px);position:relative}
 #delivery-map{flex:1;min-height:400px;width:100%}
 .map-toolbar{display:flex;align-items:center;gap:10px;padding:10px 20px;background:#fff;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .map-legend{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--sub);margin-left:auto}
@@ -1133,6 +1133,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       </div>
     </div>
     <div id="delivery-map"></div>
+    <button id="map-hide-noorder-btn" onclick="toggleNoOrderMarkers()" style="position:absolute;bottom:16px;right:16px;z-index:100;background:rgba(255,255,255,.93);border:1px solid var(--border);border-radius:20px;padding:7px 16px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);color:var(--text)">⚫ 주문없는곳 숨기기</button>
   </div>
 
   <div class="settlement-section admin-tab-panel" data-tab="settlements" style="display:none">
@@ -7106,6 +7107,8 @@ const NAVER_CLIENT_ID = 'd4sg126q46';
 let naverMapInstance = null;
 let mapScriptLoaded = false;
 let mapMarkers = [];
+let mapNoOrderMarkers = [];
+let mapHideNoOrder = false;
 
 function loadNaverMapScript() {
   return new Promise((resolve, reject) => {
@@ -7145,6 +7148,7 @@ async function initDeliveryMap(forceRefresh) {
 
   mapMarkers.forEach(m => m.setMap(null));
   mapMarkers = [];
+  mapNoOrderMarkers = [];
 
   const members = Object.entries(allUsers).filter(([, u]) => !u.deleted && !u.disabled);
   if (!members.length) {
@@ -7282,6 +7286,17 @@ async function placeDeliveryMarker(uid, user, address, orderRow, forceRefresh) {
   });
 
   mapMarkers.push(marker);
+  if (!hasOrder) {
+    mapNoOrderMarkers.push(marker);
+    if (mapHideNoOrder) marker.setMap(null);
+  }
+}
+
+function toggleNoOrderMarkers() {
+  mapHideNoOrder = !mapHideNoOrder;
+  mapNoOrderMarkers.forEach(m => m.setMap(mapHideNoOrder ? null : naverMapInstance));
+  const btn = document.getElementById('map-hide-noorder-btn');
+  if (btn) btn.textContent = mapHideNoOrder ? '⚫ 주문없는곳 보이기' : '⚫ 주문없는곳 숨기기';
 }
 
 function geocodeAddress(address) {
