@@ -1129,6 +1129,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <span><span class="map-legend-dot" style="background:#1a9e72"></span>오늘 주문 있음</span>
         <span><span class="map-legend-dot" style="background:#98a2b3"></span>주문 없음</span>
         <span><span class="map-legend-dot" style="background:#f04438"></span>주소 미입력</span>
+        <span><span class="map-legend-dot" style="background:#f79009"></span>행사도시락</span>
       </div>
     </div>
     <div id="delivery-map"></div>
@@ -7163,6 +7164,61 @@ async function initDeliveryMap(forceRefresh) {
     if (statusEl) statusEl.textContent = `주소 조회 중... ${done}/${members.length}`;
     await new Promise(r => setTimeout(r, 120));
   }
+  // 행사도시락 마커 (배송완료 제외)
+  const eventSnap = await db.collection('eventOrders').orderBy('createdAt', 'desc').limit(200).get().catch(() => null);
+  if (eventSnap && !eventSnap.empty) {
+    const pending = eventSnap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(o => o.status !== 'completed' && !o.delivered);
+    for (const order of pending) {
+      const address = order.place || '';
+      if (!address) continue;
+      let coords = null;
+      const cacheKey = `event_${order.id}`;
+      if (!forceRefresh) {
+        try {
+          const snap = await db.collection('deliveryCoords').doc(cacheKey).get();
+          if (snap.exists) {
+            const d = snap.data();
+            if (d.lat && d.lng && d.address === address) coords = { lat: d.lat, lng: d.lng };
+          }
+        } catch(e) {}
+      }
+      if (!coords) {
+        coords = await geocodeAddress(address);
+        if (coords) {
+          db.collection('deliveryCoords').doc(cacheKey).set({
+            lat: coords.lat, lng: coords.lng, address,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).catch(() => {});
+        }
+      }
+      if (!coords) continue;
+      const marker = new naver.maps.Marker({
+        position: new naver.maps.LatLng(coords.lat, coords.lng),
+        map: naverMapInstance,
+        icon: {
+          content: `<div style="width:14px;height:14px;border-radius:50%;background:#f79009;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
+          anchor: new naver.maps.Point(7, 7)
+        }
+      });
+      const infoContent = `
+        <div class="map-info-window">
+          <div class="iw-name">🎉 행사 — ${escapeHtml(order.businessName || '-')}</div>
+          <div class="iw-addr">${escapeHtml(address)}${order.placeDetail ? ' ' + escapeHtml(order.placeDetail) : ''}</div>
+          <div style="font-size:12px;color:#667085">행사일: ${order.eventDate || '-'} ${order.eventTime || ''}</div>
+          <div style="font-size:12px;color:#667085">${escapeHtml((order.menuText || '').slice(0, 60))}</div>
+        </div>`;
+      const infoWindow = new naver.maps.InfoWindow({ content: infoContent, borderWidth: 1, borderColor: '#d0d5dd', backgroundColor: '#fff' });
+      naver.maps.Event.addListener(marker, 'click', () => {
+        if (infoWindow.getMap()) { infoWindow.close(); return; }
+        infoWindow.open(naverMapInstance, marker);
+      });
+      mapMarkers.push(marker);
+      await new Promise(r => setTimeout(r, 120));
+    }
+  }
+
   if (statusEl) statusEl.textContent = `${members.length}개 업체 표시됨. 마커를 클릭하면 상세 정보를 볼 수 있습니다.`;
 }
 

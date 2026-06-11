@@ -98,7 +98,11 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
       </div>
       <div class="field">
         <label class="label" for="place">장소 <span class="required">*</span></label>
-        <input class="input" id="place" maxlength="160" placeholder="배송 장소 또는 행사 장소">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+          <input class="input" id="place" maxlength="160" placeholder="주소 찾기 버튼으로 입력하세요" readonly style="flex:1;background:#f0f0f0;cursor:default;margin-bottom:0">
+          <button type="button" onclick="openPlaceSearch()" style="white-space:nowrap;border:1.5px solid var(--primary);background:#fff;color:var(--primary);border-radius:8px;padding:13px 12px;font:inherit;font-size:14px;font-weight:800;cursor:pointer;flex-shrink:0">🔍 주소 찾기</button>
+        </div>
+        <input class="input" id="placeDetail" maxlength="160" placeholder="상세주소 (건물명, 층, 호수 등)">
       </div>
       <div class="grid2">
         <div class="field">
@@ -262,6 +266,7 @@ form.addEventListener('submit', async (e) => {
     businessName: value('businessName'),
     contactPhone: value('contactPhone'),
     place: value('place'),
+    placeDetail: value('placeDetail'),
     eventDate: value('eventDate'),
     eventTime: selectedTime === 'custom' ? value('customTime') : selectedTime,
     eventTimeType: selectedTime === 'custom' ? 'custom' : 'preset',
@@ -316,6 +321,23 @@ form.addEventListener('submit', async (e) => {
     btn.textContent = '주문 접수하기';
   }
 });
+
+function openPlaceSearch() {
+  function run() {
+    new daum.Postcode({
+      oncomplete(data) {
+        document.getElementById('place').value = data.roadAddress || data.jibunAddress;
+        const detail = document.getElementById('placeDetail');
+        if (detail) { detail.value = ''; detail.focus(); }
+      }
+    }).open();
+  }
+  if (window.daum?.Postcode) { run(); return; }
+  const s = document.createElement('script');
+  s.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+  s.onload = run;
+  document.head.appendChild(s);
+}
 
 initMenus();
 initTimeOptions();

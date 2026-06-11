@@ -190,6 +190,7 @@ service cloud.firestore {
         'businessName',
         'contactPhone',
         'place',
+        'placeDetail',
         'eventDate',
         'eventTime',
         'eventTimeType',
@@ -234,6 +235,7 @@ service cloud.firestore {
         && request.resource.data.place is string
         && request.resource.data.place.size() > 0
         && request.resource.data.place.size() <= 160
+        && optionalString(request.resource.data, 'placeDetail', 200)
         && request.resource.data.eventDate is string
         && request.resource.data.eventDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
         && request.resource.data.eventTime is string
