@@ -401,6 +401,10 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    match /deliveryCoords/{document=**} {
+      allow read, write: if isAdmin();
+    }
+
     match /customers/{document=**} {
       allow read, write: if isAdmin();
     }

@@ -506,6 +506,15 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .th-icon-label{display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .th-icon-label .admin-icon{width:16px;height:16px;color:var(--primary)}
 .member-section.admin-tab-panel{padding-top:18px;padding-bottom:36px}
+.map-section.admin-tab-panel{padding:0;display:flex;flex-direction:column;height:calc(100vh - 110px)}
+#delivery-map{flex:1;min-height:400px;width:100%}
+.map-toolbar{display:flex;align-items:center;gap:10px;padding:10px 20px;background:#fff;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.map-legend{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--sub);margin-left:auto}
+.map-legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
+.map-info-window{font-family:'Pretendard Variable','Pretendard',-apple-system,sans-serif;min-width:160px;padding:10px 14px;font-size:13px;line-height:1.6}
+.map-info-window .iw-name{font-weight:800;font-size:14px;color:#0d3d2b;margin-bottom:4px}
+.map-info-window .iw-addr{color:#667085;font-size:12px;margin-bottom:4px}
+.map-info-window .iw-qty{color:#1a9e72;font-weight:700}
 .member-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:12px}
 .member-title-wrap{display:flex;flex-direction:column;gap:4px}
 .member-hint{font-size:12px;color:var(--sub);font-weight:700}
@@ -604,6 +613,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <path d="M5 18.7l4.1-.8 9.2-9.2-3-3L6.1 15 5 18.7Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
     <path d="M13.8 7.2l3 3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
   </symbol>
+  <symbol id="admin-i-map" viewBox="0 0 24 24">
+    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    <circle cx="12" cy="9" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/>
+  </symbol>
 </svg>
 
 <!-- 로딩 -->
@@ -647,6 +660,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <button class="tab-btn" id="tab-stats" onclick="switchAdminTab('stats')"><svg class="admin-icon"><use href="#admin-i-stats"></use></svg><span>통계</span></button>
     <button class="tab-btn" id="tab-settings" onclick="switchAdminTab('settings')"><svg class="admin-icon"><use href="#admin-i-settings"></use></svg><span>설정</span></button>
     <button class="tab-btn" id="tab-manual" onclick="switchAdminTab('manual')"><svg class="admin-icon"><use href="#admin-i-help"></use></svg><span>메뉴얼</span></button>
+    <button class="tab-btn" id="tab-map" onclick="switchAdminTab('map')"><svg class="admin-icon"><use href="#admin-i-map"></use></svg><span>지도</span></button>
   </div>
 
   <div class="controls-bar admin-tab-panel" data-tab="orders">
@@ -1105,6 +1119,19 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <label><input type="checkbox"> 행사도시락 누락 여부 확인</label>
       <label><input type="checkbox"> 정산 탭 금액 반영 확인</label>
     </div>
+  </div>
+
+  <div class="map-section admin-tab-panel" data-tab="map" style="display:none">
+    <div class="map-toolbar">
+      <button class="secondary-btn" onclick="loadDeliveryMap(true)" style="font-size:13px;padding:7px 14px">🔄 새로고침</button>
+      <span id="map-status" style="font-size:13px;color:var(--sub)">지도 탭을 열면 배송지를 불러옵니다.</span>
+      <div class="map-legend">
+        <span><span class="map-legend-dot" style="background:#1a9e72"></span>오늘 주문 있음</span>
+        <span><span class="map-legend-dot" style="background:#98a2b3"></span>주문 없음</span>
+        <span><span class="map-legend-dot" style="background:#f04438"></span>주소 미입력</span>
+      </div>
+    </div>
+    <div id="delivery-map"></div>
   </div>
 
   <div class="settlement-section admin-tab-panel" data-tab="settlements" style="display:none">
@@ -4932,7 +4959,7 @@ async function saveMealPdfCandidates() {
 
 function switchAdminTab(tab) {
   activeAdminTab = tab;
-  ['orders','members','events','menus','changeRequests','settlements','receipts','stats','settings','manual'].forEach(name => {
+  ['orders','members','events','menus','changeRequests','settlements','receipts','stats','settings','manual','map'].forEach(name => {
     document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
   });
   document.querySelectorAll('.admin-tab-panel').forEach(el => {
@@ -4958,6 +4985,7 @@ function switchAdminTab(tab) {
   }
   if (tab === 'stats') loadOrderStats();
   if (tab === 'settings') renderSettingsTab();
+  if (tab === 'map') loadDeliveryMap();
 }
 
 function resetEventForm() {
@@ -7045,6 +7073,146 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── 배송지 지도 ──
+const NAVER_CLIENT_ID = 'd4sg126q46';
+let naverMapInstance = null;
+let mapScriptLoaded = false;
+let mapMarkers = [];
+
+function loadNaverMapScript() {
+  return new Promise((resolve, reject) => {
+    if (mapScriptLoaded && window.naver?.maps) { resolve(); return; }
+    const script = document.createElement('script');
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_CLIENT_ID}&submodules=geocoder`;
+    script.onload = () => { mapScriptLoaded = true; resolve(); };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+async function loadDeliveryMap(forceRefresh = false) {
+  const statusEl = document.getElementById('map-status');
+  if (statusEl) statusEl.textContent = '지도를 불러오는 중...';
+  try {
+    await loadNaverMapScript();
+    await initDeliveryMap(forceRefresh);
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '지도 로드 실패: ' + e.message;
+    console.error('지도 로드 오류:', e);
+  }
+}
+
+async function initDeliveryMap(forceRefresh) {
+  const mapEl = document.getElementById('delivery-map');
+  const statusEl = document.getElementById('map-status');
+  if (!mapEl) return;
+
+  if (!naverMapInstance) {
+    naverMapInstance = new naver.maps.Map(mapEl, {
+      center: new naver.maps.LatLng(35.1796, 129.0756),
+      zoom: 13,
+      mapTypeId: naver.maps.MapTypeId.NORMAL
+    });
+  }
+
+  mapMarkers.forEach(m => m.setMap(null));
+  mapMarkers = [];
+
+  const members = Object.entries(allUsers).filter(([, u]) => !u.deleted && !u.disabled);
+  if (!members.length) {
+    if (statusEl) statusEl.textContent = '등록된 회원이 없습니다.';
+    return;
+  }
+  if (statusEl) statusEl.textContent = `총 ${members.length}개 업체 주소 조회 중...`;
+
+  const todayOrders = {};
+  currentOrderRows.forEach(r => { todayOrders[r.uid] = r; });
+
+  let done = 0;
+  for (const [uid, user] of members) {
+    const address = user.deliveryPlace || user.address || '';
+    await placeDeliveryMarker(uid, user, address, todayOrders[uid], forceRefresh);
+    done++;
+    if (statusEl) statusEl.textContent = `주소 조회 중... ${done}/${members.length}`;
+    await new Promise(r => setTimeout(r, 120));
+  }
+  if (statusEl) statusEl.textContent = `${members.length}개 업체 표시됨. 마커를 클릭하면 상세 정보를 볼 수 있습니다.`;
+}
+
+async function placeDeliveryMarker(uid, user, address, orderRow, forceRefresh) {
+  let coords = null;
+
+  if (!forceRefresh) {
+    try {
+      const snap = await db.collection('deliveryCoords').doc(uid).get();
+      if (snap.exists) {
+        const d = snap.data();
+        if (d.lat && d.lng && d.address === address) coords = { lat: d.lat, lng: d.lng };
+      }
+    } catch(e) { /* 캐시 없으면 그냥 진행 */ }
+  }
+
+  if (!coords && address) {
+    coords = await geocodeAddress(address);
+    if (coords) {
+      db.collection('deliveryCoords').doc(uid).set({
+        lat: coords.lat, lng: coords.lng, address,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(() => {});
+    }
+  }
+
+  const lunch = orderRow?.lunchCount ?? 0;
+  const salad = orderRow?.saladCount ?? 0;
+  const hasOrder = lunch + salad > 0;
+  const color = !address ? '#f04438' : hasOrder ? '#1a9e72' : '#98a2b3';
+  const markerPos = coords
+    ? new naver.maps.LatLng(coords.lat, coords.lng)
+    : null;
+
+  if (!markerPos) {
+    // 주소 없음 → 지도 중앙 근처 오프셋 없이 범례만 반영
+    return;
+  }
+
+  const marker = new naver.maps.Marker({
+    position: markerPos,
+    map: naverMapInstance,
+    icon: {
+      content: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
+      anchor: new naver.maps.Point(7, 7)
+    }
+  });
+
+  const infoContent = `
+    <div class="map-info-window">
+      <div class="iw-name">${escapeHtml(user.businessName || '-')}</div>
+      <div class="iw-addr">${escapeHtml(address || '주소 미입력')}</div>
+      ${hasOrder ? `<div class="iw-qty">🍱 도시락 ${lunch}개 · 샐러드 ${salad}개</div>` : '<div style="color:#98a2b3;font-size:12px">오늘 주문 없음</div>'}
+      ${user.mealTime ? `<div style="font-size:12px;color:#667085">식사시간 ${user.mealTime}</div>` : ''}
+    </div>`;
+  const infoWindow = new naver.maps.InfoWindow({ content: infoContent, borderWidth: 1, borderColor: '#d0d5dd', backgroundColor: '#fff' });
+
+  naver.maps.Event.addListener(marker, 'click', () => {
+    if (infoWindow.getMap()) { infoWindow.close(); return; }
+    infoWindow.open(naverMapInstance, marker);
+  });
+
+  mapMarkers.push(marker);
+}
+
+function geocodeAddress(address) {
+  return new Promise(resolve => {
+    naver.maps.Service.geocode({ query: address }, (status, response) => {
+      if (status !== naver.maps.Service.Status.OK || !response.v2.addresses.length) {
+        resolve(null); return;
+      }
+      const item = response.v2.addresses[0];
+      resolve({ lat: parseFloat(item.y), lng: parseFloat(item.x) });
+    });
+  });
 }
 </script>
 </body>
