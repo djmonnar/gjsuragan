@@ -270,27 +270,10 @@ service cloud.firestore {
         'readAt',
         'handledAt',
         'notificationStatus',
-        'notifyAfterAt',
         'notifiedAt',
         'notificationAttempts',
-        'notificationWindow',
         'urgent'
       ];
-    }
-
-    function validNotificationWindow(data) {
-      return data.notificationWindow is map
-        && data.notificationWindow.timezone == 'Asia/Seoul'
-        && (
-          (
-            data.notificationWindow.startHour == 14
-            && data.notificationWindow.endHour == 17
-          )
-          || (
-            data.notificationWindow.startHour == 18
-            && data.notificationWindow.endHour == 22
-          )
-        );
     }
 
     function validChangeRequestCreate() {
@@ -315,11 +298,9 @@ service cloud.firestore {
         && nullableTimestamp(request.resource.data, 'handledAt')
         && request.resource.data.handledAt == null
         && request.resource.data.notificationStatus == 'pending'
-        && request.resource.data.notifyAfterAt is timestamp
         && nullableTimestamp(request.resource.data, 'notifiedAt')
         && request.resource.data.notifiedAt == null
         && request.resource.data.notificationAttempts == 0
-        && validNotificationWindow(request.resource.data)
         && request.resource.data.urgent == false;
     }
 

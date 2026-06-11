@@ -3116,26 +3116,6 @@ function syncChangeRequestTitle() {
   if (titleEl && !titleEl.value.trim()) titleEl.value = changeRequestTypeLabel(type);
 }
 
-function nextNotificationWindowStartDate() {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone:'Asia/Seoul',
-    year:'numeric',
-    month:'2-digit',
-    day:'2-digit',
-    hour:'2-digit',
-    minute:'2-digit',
-    second:'2-digit',
-    hour12:false
-  }).formatToParts(now).reduce((acc, part) => {
-    acc[part.type] = part.value;
-    return acc;
-  }, {});
-  const kstHour = parseInt(parts.hour, 10);
-  const baseUtc = Date.UTC(parseInt(parts.year,10), parseInt(parts.month,10) - 1, parseInt(parts.day,10), 5, 0, 0);
-  const nextUtc = kstHour < 14 ? baseUtc : baseUtc + 86400000;
-  return new Date(nextUtc);
-}
 
 async function submitChangeRequest() {
   if (!currentUser || !userProfile) return;
@@ -3168,14 +3148,8 @@ async function submitChangeRequest() {
       readAt: null,
       handledAt: null,
       notificationStatus: 'pending',
-      notifyAfterAt: firebase.firestore.Timestamp.fromDate(nextNotificationWindowStartDate()),
       notifiedAt: null,
       notificationAttempts: 0,
-      notificationWindow: {
-        timezone: 'Asia/Seoul',
-        startHour: 14,
-        endHour: 17
-      },
       urgent: false
     });
     document.getElementById('change-request-title').value = '';

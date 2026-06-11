@@ -7,10 +7,6 @@ admin.initializeApp();
 
 const db = admin.firestore();
 const TIMEZONE = 'Asia/Seoul';
-const WINDOW_START_HOUR = Number(process.env.NOTIFICATION_WINDOW_START_HOUR || 14);
-const WINDOW_END_HOUR = Number(process.env.NOTIFICATION_WINDOW_END_HOUR || 17);
-const ORDER_WINDOW_START_HOUR = 6;
-const ORDER_WINDOW_END_HOUR = 10;
 const MAX_PENDING_PER_BATCH = 20;
 const ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html#changeRequests';
 const ORDER_ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html';
@@ -21,30 +17,7 @@ exports.onChangeRequestCreated = onDocumentCreated('changeRequests/{requestId}',
   if (!snap) return;
   const requestId = event.params.requestId;
   const request = snap.data() || {};
-  const now = new Date();
-  const windowInfo = notificationWindow(now);
-
-  const baseUpdate = {
-    urgent: request.urgent === true,
-    notificationWindow: {
-      timezone: TIMEZONE,
-      startHour: WINDOW_START_HOUR,
-      endHour: WINDOW_END_HOUR
-    }
-  };
-
-  if (request.urgent === true || windowInfo.open) {
-    await sendSingleRequestNotification(requestId, request, baseUpdate);
-    return;
-  }
-
-  await snap.ref.set({
-    ...baseUpdate,
-    notificationStatus: 'pending',
-    notifyAfterAt: admin.firestore.Timestamp.fromDate(windowInfo.nextStart),
-    notifiedAt: null,
-    notificationAttempts: Number(request.notificationAttempts || 0)
-  }, { merge: true });
+  await sendSingleRequestNotification(requestId, request, { urgent: request.urgent === true });
 });
 
 exports.onCustomerOrderWritten = onDocumentWritten('orders/{date}/items/{userId}', async (event) => {
@@ -54,16 +27,6 @@ exports.onCustomerOrderWritten = onDocumentWritten('orders/{date}/items/{userId}
   const order = after.data() || {};
   const before = event.data?.before?.exists ? (event.data.before.data() || {}) : null;
   if (before && sameOrderForNotification(before, order)) return;
-
-  const now = new Date();
-  const windowInfo = orderNotificationWindow(now);
-  if (!windowInfo.open) {
-    logger.info('Order push skipped outside notification window', {
-      date: event.params.date,
-      userId: event.params.userId
-    });
-    return;
-  }
 
   await sendOrderNotification(event.params.date, event.params.userId, order, Boolean(before));
 });
@@ -157,9 +120,6 @@ exports.flushPendingChangeRequestNotifications = onSchedule({
   timeZone: TIMEZONE
 }, async () => {
   const now = new Date();
-  const windowInfo = notificationWindow(now);
-  if (!windowInfo.open) return;
-
   const snap = await db.collection('changeRequests')
     .where('notificationStatus', '==', 'pending')
     .where('notifyAfterAt', '<=', admin.firestore.Timestamp.fromDate(now))
@@ -173,13 +133,7 @@ exports.flushPendingChangeRequestNotifications = onSchedule({
   const normal = requests.filter(item => item.data.urgent !== true);
 
   for (const item of urgent) {
-    await sendSingleRequestNotification(item.id, item.data, {
-      notificationWindow: {
-        timezone: TIMEZONE,
-        startHour: WINDOW_START_HOUR,
-        endHour: WINDOW_END_HOUR
-      }
-    });
+    await sendSingleRequestNotification(item.id, item.data, {});
   }
 
   if (normal.length) {
@@ -187,45 +141,6 @@ exports.flushPendingChangeRequestNotifications = onSchedule({
   }
 });
 
-function orderNotificationWindow(now) {
-  return notificationWindowFor(now, ORDER_WINDOW_START_HOUR, ORDER_WINDOW_END_HOUR);
-}
-
-function notificationWindow(now) {
-  return notificationWindowFor(now, WINDOW_START_HOUR, WINDOW_END_HOUR);
-}
-
-function notificationWindowFor(now, startHour, endHour) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  }).formatToParts(now).reduce((acc, part) => {
-    acc[part.type] = part.value;
-    return acc;
-  }, {});
-
-  const hour = Number(parts.hour);
-  const open = hour >= startHour && hour < endHour;
-  const todayStartUtc = Date.UTC(
-    Number(parts.year),
-    Number(parts.month) - 1,
-    Number(parts.day),
-    startHour - 9,
-    0,
-    0
-  );
-  const nextStart = hour < startHour
-    ? new Date(todayStartUtc)
-    : new Date(todayStartUtc + 24 * 60 * 60 * 1000);
-
-  return { open, nextStart };
-}
 
 async function enabledPushTokens() {
   const snap = await db.collection('adminPushTokens')
