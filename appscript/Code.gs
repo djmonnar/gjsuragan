@@ -471,6 +471,7 @@ function parseDirectHopeDateInfo(optionValues, orderTime) {
   const joined = (optionValues || []).join(' ');
   let month = null, day = null;
   let hasDateLikeToken = false;
+  let dayOnly = false;
   const base = orderTime ? new Date((orderTime + 9*3600)*1000) : new Date();
   const baseMonth = base.getUTCMonth() + 1;
 
@@ -499,6 +500,7 @@ function parseDirectHopeDateInfo(optionValues, orderTime) {
     if (m) {
       month = baseMonth;
       day = parseInt(m[1], 10);
+      dayOnly = true;
       hasDateLikeToken = true;
     }
   }
@@ -510,6 +512,7 @@ function parseDirectHopeDateInfo(optionValues, orderTime) {
       if (dm) {
         month = baseMonth;
         day = parseInt(dm[1], 10);
+        dayOnly = true;
         hasDateLikeToken = true;
         break;
       }
@@ -520,9 +523,21 @@ function parseDirectHopeDateInfo(optionValues, orderTime) {
     return {date:'', reason:'직배송 희망날짜를 찾지 못했습니다', invalid:false};
   }
   let year = base.getUTCFullYear();
-  const om = base.getUTCMonth() + 1;
-  if (om === 12 && month === 1) year++;
-  if (om === 1  && month === 12) year--;
+  if (dayOnly) {
+    const candidate = new Date(Date.UTC(year, month - 1, day));
+    const baseDate = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate()));
+    if (candidate < baseDate) {
+      month++;
+      if (month > 12) {
+        month = 1;
+        year++;
+      }
+    }
+  } else {
+    const om = base.getUTCMonth() + 1;
+    if (om === 12 && month === 1) year++;
+    if (om === 1  && month === 12) year--;
+  }
   const date = buildValidDateString(year, month, day);
   if (!date) {
     return {date:'', reason:'직배송 희망날짜가 실제 달력에 없는 날짜입니다', invalid:hasDateLikeToken};

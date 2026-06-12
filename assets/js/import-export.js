@@ -93,11 +93,34 @@ function parseText(){
   // 형식: "현관비밀번호(없으면 x): #1303#|세트 선택(필수): B세트|횟수 선택(필수): 주 1회(총 4회)|배송 요일 선택: 수요일 조리 - 수요일 도착"
   const DAYS_KO={'월':1,'화':2,'수':3,'목':4,'금':5,'토':6,'일':0};
   let opts={};
+  function parseOrderBaseDate(){
+    for(const l of lines){
+      let m=l.match(/^(\d{2})-(\d{2})-(\d{2})\s*(오전|오후)?\s*(\d{1,2})?:?(\d{2})?/);
+      if(m){
+        const year=2000+parseInt(m[1],10);
+        const month=parseInt(m[2],10);
+        const day=parseInt(m[3],10);
+        let hour=parseInt(m[5]||'0',10);
+        const minute=parseInt(m[6]||'0',10);
+        if(m[4]==='오후'&&hour<12) hour+=12;
+        if(m[4]==='오전'&&hour===12) hour=0;
+        const dt=new Date(year, month-1, day, hour, minute);
+        if(dt.getFullYear()===year&&dt.getMonth()+1===month&&dt.getDate()===day) return dt;
+      }
+      m=l.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if(m){
+        const dt=new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10));
+        if(!Number.isNaN(dt.getTime())) return dt;
+      }
+    }
+    return new Date();
+  }
   function parseHopeDateValue(val){
     const s=String(val||'').trim();
-    const now=new Date();
-    let y=now.getFullYear();
+    const base=parseOrderBaseDate();
+    let y=base.getFullYear();
     let mo=null, d=null;
+    let dayOnly=false;
     let m=s.match(/(\d{1,2})월[\s\.\-]*(\d{1,2})일/)
        || s.match(/^(\d{1,2})\s*[\/.\-]\s*(\d{1,2})(?:\D.*)?$/);
     if(m){
@@ -106,11 +129,20 @@ function parseText(){
     } else {
       m=s.match(/^(\d{1,2})\s*일(?:\D.*)?$/);
       if(m){
-        mo=now.getMonth()+1;
+        mo=base.getMonth()+1;
         d=parseInt(m[1],10);
+        dayOnly=true;
       }
     }
     if(!mo||!d) return '';
+    if(dayOnly){
+      const candidate=new Date(y, mo-1, d);
+      const baseDate=new Date(base.getFullYear(), base.getMonth(), base.getDate());
+      if(candidate<baseDate){
+        mo++;
+        if(mo>12){ mo=1; y++; }
+      }
+    }
     const dt=new Date(y, mo-1, d);
     if(dt.getFullYear()!==y||dt.getMonth()+1!==mo||dt.getDate()!==d) return '';
     return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
