@@ -938,6 +938,9 @@ function customerRiskReasons(c){
     if(!c.onceDate && !c.startDate) reasons.push('선택주문 배송일 없음');
     const ds = c.onceDate || c.startDate || '';
     if(ds && !riskOrderDateValid(ds)) reasons.push('배송일 날짜 형식 오류');
+    if(c.isDirect && ds && riskOrderDateValid(ds) && customerOrderDate(c) === ds){
+      reasons.push('직배송 주문일과 배송일이 같습니다');
+    }
   }
   if(!customerProductKey(c)) reasons.push('상품/세트 확인 필요');
   return customerUniqueBy(reasons.map(reason => ({ reason })), item => item.reason).map(item => item.reason);
