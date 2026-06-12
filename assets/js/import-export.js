@@ -93,6 +93,28 @@ function parseText(){
   // 형식: "현관비밀번호(없으면 x): #1303#|세트 선택(필수): B세트|횟수 선택(필수): 주 1회(총 4회)|배송 요일 선택: 수요일 조리 - 수요일 도착"
   const DAYS_KO={'월':1,'화':2,'수':3,'목':4,'금':5,'토':6,'일':0};
   let opts={};
+  function parseHopeDateValue(val){
+    const s=String(val||'').trim();
+    const now=new Date();
+    let y=now.getFullYear();
+    let mo=null, d=null;
+    let m=s.match(/(\d{1,2})월[\s\.\-]*(\d{1,2})일/)
+       || s.match(/^(\d{1,2})\s*[\/.\-]\s*(\d{1,2})(?:\D.*)?$/);
+    if(m){
+      mo=parseInt(m[1],10);
+      d=parseInt(m[2],10);
+    } else {
+      m=s.match(/^(\d{1,2})\s*일(?:\D.*)?$/);
+      if(m){
+        mo=now.getMonth()+1;
+        d=parseInt(m[1],10);
+      }
+    }
+    if(!mo||!d) return '';
+    const dt=new Date(y, mo-1, d);
+    if(dt.getFullYear()!==y||dt.getMonth()+1!==mo||dt.getDate()!==d) return '';
+    return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
   for(const l of lines){
     if(!l.includes('|')||!l.includes(':')) continue;
     const segs=l.split('|').map(s=>s.trim());
@@ -102,7 +124,11 @@ function parseText(){
       if(ci===-1) continue;
       const key=seg.slice(0,ci).replace(/\([^)]*\)/g,'').trim();
       const val=seg.slice(ci+1).trim();
-      if(/현관|비밀번호/i.test(key)){
+      if(/배송\s*희망\s*(날짜|일)|배송희망(날짜|일)/i.test(key)){
+        const date=parseHopeDateValue(val);
+        if(date) opts.onceDate=date;
+        opts.isDirect=true;
+      } else if(/현관|비밀번호/i.test(key)){
         if(val&&!/^x$|없음|해당없음/i.test(val)) opts.door=val;
       } else if(/세트\s*선택|상품/i.test(key)){
         const sm=val.match(/([ABC])세트/i); if(sm) opts.set=sm[1].toUpperCase();
@@ -118,7 +144,7 @@ function parseText(){
         }
       }
     }
-    if(opts.door||opts.set||opts.type) break; // 옵션 라인 찾았으면 중단
+    if(opts.door||opts.set||opts.type||opts.onceDate) break; // 옵션 라인 찾았으면 중단
   }
   // SCH 인덱스 역산 (모달 자동선택용)
   if(opts.type&&opts.cookDays){
@@ -159,7 +185,7 @@ function parseText(){
   // 날짜 파싱 헬퍼: "3월 27일 금요일" → "2026-03-27"
   function parseDateKo(str){
     const m=str.match(/(\d{1,2})월[\s\.\-]*(\d{1,2})일/);
-    if(!m) return '';
+    if(!m) return parseHopeDateValue(str);
     const y=new Date().getFullYear();
     const mo=String(m[1]).padStart(2,'0');
     const d=String(m[2]).padStart(2,'0');
@@ -186,7 +212,7 @@ function parseText(){
       // 날짜: "3월 XX일" 패턴
       let onceDate=''; let prodId=''; let qty=1;
       for(const l of seg){
-        if(!onceDate&&/\d{1,2}월[\s\.\-]*\d{1,2}일/.test(l)) onceDate=parseDateKo(l);
+        if(!onceDate) onceDate=parseDateKo(l);
         if(!prodId) prodId=parseProduct(l);
         const qm=l.match(/^(\d+)\s*개$/);
         if(qm) qty=parseInt(qm[1])||1;
@@ -256,6 +282,7 @@ function parseText(){
   if(opts.arriveDays) p.arriveDays=opts.arriveDays;
   if(opts.isDirect!==undefined) p.isDirect=opts.isDirect;
   if(opts.schIdx!==undefined)   p.schIdx=opts.schIdx;
+  if(opts.onceDate) p.onceDate=opts.onceDate;
 
   parsedData=p;
   const prodDisplay=p.productId?productLabel(p.productId):(p.set?p.set+'세트':'(직접 선택)');

@@ -1,7 +1,7 @@
 // ════════════════════════════════════════
 // 렌더링 통합
 // ════════════════════════════════════════
-function refreshAll(){ renderDash(); renderToday(); renderCust(); renderReport(); renderCancelLogs(); }
+function refreshAll(){ renderDash(); renderToday(); renderCust(); renderReport(); renderCancelLogs(); checkRiskOrderAlert(); }
 
 // 화면 크기 변경 시 재렌더링 (모바일↔PC 전환)
 let _resizeTimer;
@@ -894,6 +894,189 @@ function customerGroupNewBadge(g){
   return (g?.orders || []).some(customerIsNewOrder) ? customerNewBadgeHtml() : '';
 }
 
+const RISK_ORDER_DISMISS_KEY = 'gjs-risk-order-dismissed-v1';
+let __riskOrderAlertOpen = false;
+let __riskOrderSessionHidden = new Set();
+
+function riskOrderStorageList(){
+  try{
+    const raw = localStorage.getItem(RISK_ORDER_DISMISS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.filter(Boolean) : [];
+  }catch(e){
+    return [];
+  }
+}
+
+function riskOrderSaveStorage(list){
+  try{
+    localStorage.setItem(RISK_ORDER_DISMISS_KEY, JSON.stringify(Array.from(new Set(list)).slice(-500)));
+  }catch(e){}
+}
+
+function riskOrderKey(c){
+  return String(c?.orderNum || c?.syncKey || c?.id || '').trim();
+}
+
+function riskOrderDateValid(dateStr){
+  if(!dateStr) return false;
+  const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(y, mo - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() + 1 === mo && dt.getDate() === d;
+}
+
+function customerRiskReasons(c){
+  const reasons = [];
+  const schedule = String(c?.scheduleName || '');
+  if(c?.needsReview) reasons.push(c.reviewReason || '주문 확인 필요');
+  if(/확인\s*필요|미확인|확인필요/.test(schedule)) reasons.push(schedule || '배송일정 확인 필요');
+  if(c?.orderType === 'once' && c?.status !== 'end'){
+    if(!c.onceDate && !c.startDate) reasons.push('선택주문 배송일 없음');
+    const ds = c.onceDate || c.startDate || '';
+    if(ds && !riskOrderDateValid(ds)) reasons.push('배송일 날짜 형식 오류');
+  }
+  if(!customerProductKey(c)) reasons.push('상품/세트 확인 필요');
+  return customerUniqueBy(reasons.map(reason => ({ reason })), item => item.reason).map(item => item.reason);
+}
+
+function customerIsRiskOrder(c){
+  return customerRiskReasons(c).length > 0;
+}
+
+function customerRiskBadge(c){
+  return customerIsRiskOrder(c)
+    ? '<span class="badge" title="확인이 필요한 주문" style="background:#fff1f2;color:#be123c;border-color:#fecdd3;font-weight:900;">확인 필요</span>'
+    : '';
+}
+
+function customerGroupRiskBadge(g){
+  return (g?.orders || []).some(customerIsRiskOrder)
+    ? '<span class="badge" title="확인이 필요한 주문 포함" style="background:#fff1f2;color:#be123c;border-color:#fecdd3;font-weight:900;">확인 필요</span>'
+    : '';
+}
+
+function riskOrdersForAlert(){
+  const dismissed = new Set(riskOrderStorageList());
+  return customerSortOrders((custs || []).filter(c => {
+    const key = riskOrderKey(c);
+    return customerIsRiskOrder(c) && key && !dismissed.has(key) && !__riskOrderSessionHidden.has(key);
+  })).slice(0, 12);
+}
+
+function ensureRiskOrderAlertShell(){
+  let shell = document.getElementById('riskOrderAlert');
+  if(shell) return shell;
+  shell = document.createElement('div');
+  shell.id = 'riskOrderAlert';
+  shell.className = 'mbg';
+  shell.innerHTML = `
+    <div class="modal" style="width:min(680px,calc(100vw - 28px));">
+      <div class="mh">
+        <div class="mt">확인이 필요한 고객 주문</div>
+        <div class="mx" onclick="closeRiskOrderAlert(false)">×</div>
+      </div>
+      <div class="mb">
+        <div class="ibox" style="margin-bottom:12px;border-color:#fecdd3;background:#fff1f2;color:#881337;">
+          배송일정이나 상품 정보가 이상하게 들어온 주문입니다. 고객에게 확인이 필요하면 행을 눌러 고객관리 상세로 이동하세요.
+        </div>
+        <div id="riskOrderList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+      <div class="mf">
+        <button class="btn btn-g" onclick="closeRiskOrderAlert(false)">나중에 확인</button>
+        <button class="btn btn-p" onclick="closeRiskOrderAlert(true)">체크한 주문 다시 안 보기</button>
+      </div>
+    </div>`;
+  document.body.appendChild(shell);
+  return shell;
+}
+
+function checkRiskOrderAlert(){
+  if(__riskOrderAlertOpen) return;
+  const risks = riskOrdersForAlert();
+  if(!risks.length) return;
+  const shell = ensureRiskOrderAlertShell();
+  const list = document.getElementById('riskOrderList');
+  if(!list) return;
+  list.innerHTML = risks.map(c => {
+    const key = riskOrderKey(c);
+    const reasons = customerRiskReasons(c).join(' / ');
+    const schedule = scheduleDisp(c) || c.scheduleName || c.onceDate || '-';
+    const orderNo = c.orderNum || c.syncKey || '';
+    return `
+      <div class="risk-order-row" data-risk-key="${customerText(key)}" onclick="focusRiskOrder('${customerJsArg(c.id)}')" style="border:1px solid #fecdd3;border-radius:10px;background:#fff;padding:12px;cursor:pointer;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+          <div style="min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-weight:900;color:#111827;">
+              ${customerText(c.name || '-')}
+              ${customerRiskBadge(c)}
+              ${customerOrderNewBadge(c)}
+            </div>
+            <div style="font-size:12px;color:#6b7280;margin-top:4px;">${orderNo ? '#' + customerText(orderNo) + ' · ' : ''}${customerText(c.phone || '-')}</div>
+          </div>
+          <label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#6b7280;white-space:nowrap;">
+            <input type="checkbox" class="risk-order-dismiss" value="${customerText(key)}"> 다시 안 보기
+          </label>
+        </div>
+        <div style="display:grid;grid-template-columns:76px 1fr;gap:5px 8px;font-size:12px;margin-top:10px;">
+          <div style="color:#9ca3af;">배송일정</div><div>${customerText(schedule)}</div>
+          <div style="color:#9ca3af;">사유</div><div style="color:#be123c;font-weight:700;">${customerText(reasons || '확인 필요')}</div>
+          <div style="color:#9ca3af;">주소</div><div>${customerText(c.addr || '-')}</div>
+        </div>
+      </div>`;
+  }).join('');
+  shell.classList.add('on');
+  __riskOrderAlertOpen = true;
+}
+
+function closeRiskOrderAlert(saveChecked){
+  const shell = document.getElementById('riskOrderAlert');
+  const visibleKeys = Array.from(document.querySelectorAll('#riskOrderAlert .risk-order-row'))
+    .map(row => row.dataset.riskKey)
+    .filter(Boolean);
+  const checked = Array.from(document.querySelectorAll('#riskOrderAlert .risk-order-dismiss:checked'))
+    .map(el => el.value)
+    .filter(Boolean);
+  visibleKeys.forEach(key => __riskOrderSessionHidden.add(key));
+  if(saveChecked && checked.length){
+    riskOrderSaveStorage(riskOrderStorageList().concat(checked));
+    toast(`${checked.length}건은 이 기기에서 다시 알리지 않습니다`, 'ok');
+  }
+  if(shell) shell.classList.remove('on');
+  __riskOrderAlertOpen = false;
+}
+
+function clearCustomerFilters(){
+  ['srchQ','srchSet','srchType','srchSt','srchDirect','srchRemain'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  const sort = document.getElementById('srchSort');
+  if(sort) sort.value = 'recent';
+}
+
+function focusRiskOrder(orderId){
+  closeRiskOrderAlert(false);
+  clearCustomerFilters();
+  goTab('customers');
+  __expandedCustomerOrderId = orderId;
+  const idx = (__customerGroups || []).findIndex(g => (g.orders || []).some(c => c.id === orderId));
+  if(idx === -1){
+    toast('고객 목록에서 해당 주문을 찾지 못했습니다', 'er');
+    return;
+  }
+  const group = __customerGroups[idx];
+  __selectedCustomerGroupKey = group.key;
+  showCustomerGroup(idx, true);
+  setTimeout(() => {
+    const row = document.querySelector(`.trc[data-group-idx="${idx}"]`);
+    row?.scrollIntoView({ behavior:'smooth', block:'center' });
+  }, 60);
+}
+
 function customerIsActiveOrder(c){
   return c && c.status === 'active' && Number(c.remain || 0) > 0;
 }
@@ -1241,6 +1424,7 @@ function customerGroupOrderSummary(c, idx){
             <span class="badge ${productBadgeClass(prod)}">${customerText(productLabel(prod))}</span>
             <span class="badge ${customerOrderTypeBadge(c)}">${customerText(customerOrderTypeLabel(c))}</span>
             <span class="badge b-${c.status}">${customerText(status)}</span>
+            ${customerRiskBadge(c)}
             ${customerOrderNewBadge(c)}
           </div>
           <div style="font-size:11px;color:var(--text3);">${orderNo ? '#' + customerText(orderNo) : ''}</div>
@@ -1288,7 +1472,7 @@ function showCustomerGroup(idx, keepExpanded = false){
       <div class="dph">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;">
           <div>
-            <div style="font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${customerText(g.name || latest.name || '-')} ${customerGroupNewBadge(g)}</div>
+            <div style="font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${customerText(g.name || latest.name || '-')} ${customerGroupRiskBadge(g)} ${customerGroupNewBadge(g)}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:2px;">${g.orders.length > 1 ? '재주문 ' + g.orders.length + '건' : '주문 1건'}</div>
           </div>
           <span class="badge b-${status.cls}">${customerText(status.label)}</span>
@@ -1347,6 +1531,7 @@ function renderCust(){
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;">
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                 <strong style="font-size:14px;">${customerText(g.name || '-')}</strong>
+                ${customerGroupRiskBadge(g)}
                 ${customerGroupNewBadge(g)}
                 ${customerProductChips(g)}
                 ${customerTypeChips(g)}
@@ -1370,6 +1555,7 @@ function renderCust(){
       return `<tr class="trc" data-group-idx="${idx}" onclick="showCustomerGroup(${idx})">
         <td>
           <strong>${customerText(g.name || '-')}</strong>
+          ${customerGroupRiskBadge(g)}
           ${customerGroupNewBadge(g)}
           ${customerOrderCountHtml(g)}
         </td>

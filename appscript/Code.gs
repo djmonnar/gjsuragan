@@ -471,6 +471,8 @@ function parseDirectHopeDateInfo(optionValues, orderTime) {
   const joined = (optionValues || []).join(' ');
   let month = null, day = null;
   let hasDateLikeToken = false;
+  const base = orderTime ? new Date((orderTime + 9*3600)*1000) : new Date();
+  const baseMonth = base.getUTCMonth() + 1;
 
   let m = joined.match(/배송희망날짜[^\d]*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})/)
        || joined.match(/배송\s*희망\s*날짜[^\d]*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})/)
@@ -491,10 +493,32 @@ function parseDirectHopeDateInfo(optionValues, orderTime) {
     }
   }
 
+  if (month === null) {
+    m = joined.match(/배송\s*희망\s*(?:날짜|일)[^\d]*(\d{1,2})\s*일/)
+     || joined.match(/배송희망(?:날짜|일)[^\d]*(\d{1,2})\s*일/);
+    if (m) {
+      month = baseMonth;
+      day = parseInt(m[1], 10);
+      hasDateLikeToken = true;
+    }
+  }
+
+  if (month === null) {
+    for (var j = 0; j < (optionValues||[]).length; j++) {
+      const v2 = String(optionValues[j]||'').trim();
+      const dm = v2.match(/^(\d{1,2})\s*일(?:\D.*)?$/);
+      if (dm) {
+        month = baseMonth;
+        day = parseInt(dm[1], 10);
+        hasDateLikeToken = true;
+        break;
+      }
+    }
+  }
+
   if (month === null || day === null) {
     return {date:'', reason:'직배송 희망날짜를 찾지 못했습니다', invalid:false};
   }
-  const base = orderTime ? new Date((orderTime + 9*3600)*1000) : new Date();
   let year = base.getUTCFullYear();
   const om = base.getUTCMonth() + 1;
   if (om === 12 && month === 1) year++;
