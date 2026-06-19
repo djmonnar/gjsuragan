@@ -2,7 +2,8 @@
 // 아임웹 API 연동
 // ════════════════════════════════════════
 const IW_KEY_STORE = 'iw_keys';
-let iwOrders = []; // 불러온 주문 목록
+let iwOrders     = []; // 불러온 주문 목록
+let iwOrderItems = []; // 주문 × 상품 펼친 목록 (1행 = 1상품)
 
 const IW_CANCEL_STATUSES = [
   'order_cancel', 'pay_cancel', 'refund_req', 'refund_done',
@@ -246,11 +247,14 @@ async function imwebFetch(){
     // 이미 등록된 주문번호 제외
     iwOrders = activeOrders.filter(o => !existingOrderNums.has(String(o.order_no)));
 
-    document.getElementById('iw-cnt').textContent =
-      `${iwOrders.length}건 (전체 ${activeOrders.length}건 중 미등록${deleted ? ` / 취소삭제 ${deleted}건` : ''})`;
     renderImwebOrders();
+    const itemCnt  = iwOrderItems.length;
+    const orderCnt = iwOrders.length;
+    document.getElementById('iw-cnt').textContent = itemCnt === orderCnt
+      ? `${itemCnt}건 (전체 ${activeOrders.length}건 중 미등록${deleted ? ` / 취소삭제 ${deleted}건` : ''})`
+      : `${itemCnt}개 상품 / 주문 ${orderCnt}건 (전체 ${activeOrders.length}건 중 미등록${deleted ? ` / 취소삭제 ${deleted}건` : ''})`;
     document.getElementById('iw-result-wrap').style.display = 'block';
-    toast(`${iwOrders.length}건 불러옴 (기등록 ${activeOrders.length - iwOrders.length}건 제외${deleted ? `, 취소삭제 ${deleted}건` : ''})`,'info');
+    toast(`${orderCnt}건 불러옴 (기등록 ${activeOrders.length - orderCnt}건 제외${deleted ? `, 취소삭제 ${deleted}건` : ''})`,'info');
 
   } catch(e){
     toast('오류: '+e.message,'er');
@@ -292,19 +296,35 @@ function parseImwebProduct(prodName){
 
 function renderImwebOrders(){
   const tbody = document.getElementById('iw-tbody');
-  if(!iwOrders.length){
+  // 주문 × 상품으로 평탄화 (한 주문에 상품이 여러 개면 각각 행으로 분리)
+  iwOrderItems = [];
+  for (const o of iwOrders) {
+    const prodList = o.product_list || [];
+    if (!prodList.length) {
+      iwOrderItems.push({ o, prod: null, prodName: '', qty: 1 });
+    } else {
+      for (const p of prodList) {
+        iwOrderItems.push({
+          o,
+          prod: p,
+          prodName: (p.prod_name||'') + (p.opt_name ? ' / '+p.opt_name : ''),
+          qty: parseInt(p.ea)||1
+        });
+      }
+    }
+  }
+
+  if(!iwOrderItems.length){
     tbody.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="ei">📭</div><div>불러온 주문 없음</div></div></td></tr>`;
     return;
   }
-  tbody.innerHTML = iwOrders.map((o,i)=>{
-    const recv   = o.order_info?.recv || {};
-    const items  = o.product_list || [];
-    const prod0  = items[0] || {};
-    const prodName = (prod0.prod_name||'')+(prod0.opt_name?' / '+prod0.opt_name:'');
+  tbody.innerHTML = iwOrderItems.map((item, i)=>{
+    const recv     = item.o.order_info?.recv || {};
+    const prodName = item.prodName;
     const autoProd = parseImwebProduct(prodName);
-    const addr   = (recv.addr||'')+(recv.addr_detail?' '+recv.addr_detail:'');
-    const date   = String(o.order_date||'').slice(0,8);
-    const dateStr= date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : '';
+    const addr     = (recv.addr||'')+(recv.addr_detail?' '+recv.addr_detail:'');
+    const date     = String(item.o.order_date||'').slice(0,8);
+    const dateStr  = date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : '';
     const memoInfo = parseMemoWithDoor(recv.memo||'');
     const memoDisplay = memoInfo.door
       ? `<span style="color:var(--accent);font-weight:600;font-size:11px;">🔑 ${memoInfo.door}</span>${memoInfo.request ? `<br><span style="color:var(--text3);font-size:10px;">${memoInfo.request}</span>` : ''}`
@@ -313,8 +333,8 @@ function renderImwebOrders(){
     return `<tr id="iw-row-${i}">
       <td><input type="checkbox" class="iw-ck" data-idx="${i}" checked></td>
       <td style="color:var(--text3);">${i+1}</td>
-      <td style="font-size:11px;font-family:monospace;">${o.order_no||''}</td>
-      <td><strong>${recv.name||o.member_id||''}</strong></td>
+      <td style="font-size:11px;font-family:monospace;">${item.o.order_no||''}</td>
+      <td><strong>${recv.name||item.o.member_id||''}</strong></td>
       <td style="white-space:nowrap;">${recv.phone||''}</td>
       <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${addr}">${addr}</td>
       <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${prodName}">${prodName||'—'}</td>
@@ -362,16 +382,15 @@ async function imwebRegAll(){
 
   const t = todayStr(); let ok=0;
   for(const ck of checked){
-    const i   = parseInt(ck.dataset.idx);
-    const o   = iwOrders[i];
-    const row = document.getElementById('iw-row-'+i);
-    if(!o || !row) continue;
+    const i    = parseInt(ck.dataset.idx);
+    const item = iwOrderItems[i];
+    const row  = document.getElementById('iw-row-'+i);
+    if(!item || !row) continue;
 
+    const o        = item.o;
     const recv     = o.order_info?.recv || {};
-    const items    = o.product_list || [];
-    const prod0    = items[0] || {};
     const prod     = document.getElementById('iw-prod-'+i)?.value || '';
-    const qty      = parseInt(prod0.ea)||1;
+    const qty      = item.qty;
     const addr     = (recv.addr||'')+(recv.addr_detail?' '+recv.addr_detail:'');
     const date     = String(o.order_date||'').slice(0,8);
     const dateStr  = date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : t;
