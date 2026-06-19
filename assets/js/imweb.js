@@ -264,6 +264,17 @@ async function imwebFetch(){
   }
 }
 
+// 배송메모에서 현관번호 추출 (나머지는 요청사항으로 분리)
+function parseMemoWithDoor(memo) {
+  if (!memo) return { door: '', request: '' };
+  const pat = /(?:공동\s*)?현관\s*(?:비밀번호|번호|코드|비번)?\s*[:：]\s*(\S+)/i;
+  const m = memo.match(pat);
+  if (!m) return { door: '', request: memo.trim() };
+  const door = m[1];
+  const request = memo.replace(m[0], '').replace(/\s*[\n\r]+\s*/g, '\n').trim();
+  return { door, request };
+}
+
 // 상품명에서 세트/상품 자동 파싱
 function parseImwebProduct(prodName){
   if(!prodName) return '';
@@ -294,6 +305,10 @@ function renderImwebOrders(){
     const addr   = (recv.addr||'')+(recv.addr_detail?' '+recv.addr_detail:'');
     const date   = String(o.order_date||'').slice(0,8);
     const dateStr= date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : '';
+    const memoInfo = parseMemoWithDoor(recv.memo||'');
+    const memoDisplay = memoInfo.door
+      ? `<span style="color:var(--accent);font-weight:600;font-size:11px;">🔑 ${memoInfo.door}</span>${memoInfo.request ? `<br><span style="color:var(--text3);font-size:10px;">${memoInfo.request}</span>` : ''}`
+      : (recv.memo||'—');
 
     return `<tr id="iw-row-${i}">
       <td><input type="checkbox" class="iw-ck" data-idx="${i}" checked></td>
@@ -317,7 +332,7 @@ function renderImwebOrders(){
           </optgroup>
         </select>
       </td>
-      <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${recv.memo||'—'}</td>
+      <td style="font-size:11px;max-width:110px;word-break:break-all;">${memoDisplay}</td>
       <td style="font-size:11px;white-space:nowrap;">${dateStr}</td>
       <td><button class="btn btn-d sm" onclick="iwRemoveRow(${i})">✕</button></td>
     </tr>`;
@@ -360,13 +375,14 @@ async function imwebRegAll(){
     const addr     = (recv.addr||'')+(recv.addr_detail?' '+recv.addr_detail:'');
     const date     = String(o.order_date||'').slice(0,8);
     const dateStr  = date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : t;
+    const { door: parsedDoor, request: parsedRequest } = parseMemoWithDoor(recv.memo||'');
 
     const data = {
       name:     recv.name||'',
       phone:    recv.phone||'',
       addr:     addr,
-      door:     '',
-      request:  recv.memo||'',
+      door:     parsedDoor,
+      request:  parsedRequest,
       memo:     `아임웹 주문번호: ${o.order_no}`,
       set:      prod,
       productId:prod,
@@ -584,7 +600,7 @@ function iwRenderXl(){
       </td>
       <td style="min-width:140px;">${dateDisplay}</td>
       <td style="text-align:center;">${row.qty}</td>
-      <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${row.memo||'—'}</td>
+      <td style="font-size:11px;max-width:110px;word-break:break-all;">${(()=>{const p=parseMemoWithDoor(row.memo||'');return p.door?`<span style="color:var(--accent);font-weight:600;">🔑 ${p.door}</span>${p.request?`<br><span style="color:var(--text3);font-size:10px;">${p.request}</span>`:''}`:row.memo||'—';})()}</td>
       <td><button class="btn btn-d sm" onclick="iwXlRemove(${i})">✕</button></td>
     </tr>`;
   }).join('');
@@ -655,12 +671,14 @@ async function iwRegXl(){
     // 중복 체크
     if(existNums.has(orderNum)){ skip++; continue; }
 
+    const { door: parsedDoor, request: parsedRequest } = parseMemoWithDoor(d.memo||'');
+
     let data = {
       name:     d.recv,
       phone:    d.phone,
       addr:     d.addr,
-      door:     '',
-      request:  d.memo,
+      door:     parsedDoor,
+      request:  parsedRequest,
       memo:     `아임웹 주문번호: ${orderNum}`,
       set:      prod,
       productId:prod,
