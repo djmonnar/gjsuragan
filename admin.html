@@ -2128,7 +2128,7 @@ function adminEventsFromData(data = {}) {
 function mergeDeliveryRecord(existing, next) {
   if (!existing) return next;
   if (!next) return existing;
-  if (existing.deleted || existing.orderDeleted) return existing;
+  if ((existing.deleted || existing.orderDeleted) && !(next.deleted || next.orderDeleted)) return next;
   if (next.deleted || next.orderDeleted) return next;
   return { ...existing, ...next };
 }
@@ -7387,16 +7387,10 @@ async function deleteSettlementRow(uid, fromModal = false) {
         if (!records[ds] || !records[ds][uid]) return;
         if (!deliveryUpdates[ds]) deliveryUpdates[ds] = {};
         deliveryUpdates[ds][uid] = tombstone;
-        deliveryUpdates[`legacy:${ds}:${uid}`] = tombstone;
       });
       const payload = { deliveryRecords: {} };
       Object.entries(deliveryUpdates).forEach(([key, value]) => {
-        if (key.startsWith('legacy:')) {
-          const [, ds, targetUid] = key.split(':');
-          payload[`deliveryRecords.${ds}.${targetUid}`] = value;
-        } else {
-          payload.deliveryRecords[key] = value;
-        }
+        payload.deliveryRecords[key] = value;
       });
       if (Object.keys(payload.deliveryRecords).length > 0) await ref.set(payload, { merge: true });
       await settlementItemRef(month, uid).delete().catch(() => {});
