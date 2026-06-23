@@ -76,6 +76,31 @@ function parseText(){
 
   const phoneReg=/01[016789]-?\d{3,4}-?\d{4}/;
   const addrReg=/\(?\d{5}\)?\s+.+/;
+  const keyLabels='이름|주문자|수령자|연락처|휴대폰|전화|주소|배송지|현관번호|현관|비밀번호|요청사항|특이사항|메모|내부\\s*메모|상품|세트|배송\\s*주기|주기|배송\\s*일정|일정|총\\s*구독\\s*횟수|총\\s*횟수|횟수|시작일|배송방식|상태|주문번호';
+  function cleanParsedValue(v){
+    return String(v||'')
+      .replace(/\s+/g,' ')
+      .replace(/^\s*[:：]\s*/,'')
+      .trim();
+  }
+  function stripFieldLabel(v){
+    return cleanParsedValue(v).replace(new RegExp(`^\\s*(?:${keyLabels})\\s*[:：]\\s*`,'i'),'').trim();
+  }
+  function explicitField(labelRe){
+    const re=new RegExp(`(?:^|\\n)\\s*(?:${labelRe})\\s*[:：]\\s*([\\s\\S]*?)(?=(?:\\n\\s*(?:${keyLabels})\\s*[:：])|(?:\\s+(?:${keyLabels})\\s*[:：])|$)`,'i');
+    const m=raw.match(re);
+    return m ? cleanParsedValue(m[1]) : '';
+  }
+  function phoneDigits(phone){
+    return String(phone||'').replace(/\D/g,'');
+  }
+  function findExistingCustomerByNamePhone(name, phone){
+    const n=String(name||'').trim();
+    const p=phoneDigits(phone);
+    const source=Array.isArray(window.custs) ? window.custs : (typeof custs !== 'undefined' && Array.isArray(custs) ? custs : []);
+    if(!n||!p||!source.length) return null;
+    return source.find(c=>String(c.name||'').trim()===n&&phoneDigits(c.phone)===p) || null;
+  }
 
   // ── 전화번호: 마지막 등장 번호 (배송지 정보 기준) ──
   const allPhones=[];
@@ -83,21 +108,23 @@ function parseText(){
     const m=lines[i].match(phoneReg);
     if(m) allPhones.push({phone:m[0],idx:i});
   }
-  const mainPhone = allPhones.length ? allPhones[allPhones.length-1].phone : '';
+  const explicitPhone=explicitField('연락처|휴대폰|전화');
+  const mainPhone = explicitPhone.match(phoneReg)?.[0] || (allPhones.length ? allPhones[allPhones.length-1].phone : '');
   const lastPhoneIdx = allPhones.length ? allPhones[allPhones.length-1].idx : -1;
 
   // ── 이름: 마지막 전화번호 바로 위 줄 ──
-  let mainName='';
+  let mainName=stripFieldLabel(explicitField('이름|주문자|수령자'));
   if(lastPhoneIdx>0){
     let cand=lines[lastPhoneIdx-1].replace(/\s*\(비회원\)\s*/g,'').trim();
-    if(!/[0-9]{6,}|오전|오후|취소|완료|주문|배송|결제|원$/.test(cand)&&cand.length>=1&&cand.length<=15)
+    cand=stripFieldLabel(cand);
+    if(!mainName&&!/[0-9]{6,}|오전|오후|취소|완료|주문|배송|결제|원$/.test(cand)&&cand.length>=1&&cand.length<=15)
       mainName=cand;
   }
 
   // ── 주소 ──
-  let mainAddr='';
+  let mainAddr=stripFieldLabel(explicitField('주소|배송지'));
   for(const l of lines){
-    if(addrReg.test(l)){ mainAddr=l.replace(/^\(?\d{5}\)?\s*/,'').trim(); break; }
+    if(!mainAddr&&addrReg.test(l)){ mainAddr=l.replace(/^\(?\d{5}\)?\s*/,'').trim(); break; }
   }
 
   // ── 파이프(|) 구분 옵션 라인 파싱 ──
@@ -125,7 +152,7 @@ function parseText(){
   function parseScheduleOption(val){
     const s=String(val||'').trim();
     if(!s) return null;
-    const parts=s.split(/\s*[-–—~]\s*/).filter(Boolean);
+    const parts=s.split(/\s*(?:->|→|[-–—~])\s*/).filter(Boolean);
     const cookPart=parts.find(p=>/조리/.test(p))||parts[0]||s;
     const arrivePart=parts.find(p=>/도착|배송/.test(p))||parts[1]||'';
     const cookDays=daysFromText(cookPart);
@@ -234,6 +261,38 @@ function parseText(){
     }
     if(opts.door||opts.set||opts.type||opts.onceDate) break; // 옵션 라인 찾았으면 중단
   }
+  const explicitSet=explicitField('세트|상품');
+  if(explicitSet&&!opts.set){
+    const sm=explicitSet.match(/([ABC])\s*세트/i);
+    if(sm) opts.set=sm[1].toUpperCase();
+  }
+  const explicitFreq=explicitField('배송\\s*주기|주기');
+  if(explicitFreq&&!opts.type){
+    const fm=explicitFreq.match(/주\s*(\d+)\s*회/i) || explicitFreq.match(/(\d+)\s*회/);
+    if(fm) opts.type=parseInt(fm[1],10);
+  }
+  const explicitTotal=explicitField('총\\s*구독\\s*횟수|총\\s*횟수|횟수');
+  if(explicitTotal&&!opts.total){
+    const tm=explicitTotal.match(/(\d+)\s*회?/) || explicitTotal.match(/^(\d+)$/);
+    if(tm) opts.total=parseInt(tm[1],10);
+  }
+  const explicitSchedule=explicitField('배송\\s*일정|일정');
+  if(explicitSchedule&&!opts.cookDays){
+    const parsed=parseScheduleOption(explicitSchedule);
+    if(parsed){
+      opts.cookDays=parsed.cookDays;
+      opts.arriveDays=parsed.arriveDays;
+      opts.isDirect=sameDays(parsed.cookDays, parsed.arriveDays);
+    }
+  }
+  const explicitStart=explicitField('시작일');
+  if(explicitStart){
+    const startDate=parseHopeDateValue(explicitStart) || (explicitStart.match(/^\d{4}-\d{2}-\d{2}$/) ? explicitStart : '');
+    if(startDate) opts.startDate=startDate;
+  }
+  const explicitDeliveryMethod=explicitField('배송방식');
+  if(/직접\s*배송|직배송/.test(explicitDeliveryMethod)) opts.isDirect=true;
+  if(/택배/.test(explicitDeliveryMethod)) opts.isDirect=false;
   // SCH 인덱스 역산 (모달 자동선택용)
   if(opts.type&&opts.cookDays){
     const schList=SCH[String(opts.type)]||[];
@@ -243,7 +302,7 @@ function parseText(){
   }
 
   // ── 현관번호 / 요청사항 ──
-  let door=opts.door||'', request='';
+  let door=opts.door||stripFieldLabel(explicitField('현관번호|현관|비밀번호')), request=stripFieldLabel(explicitField('요청사항|특이사항'));
   for(let i=0;i<lines.length;i++){
     const l=lines[i];
     if(/현관|비밀번호/i.test(l)&&!door){
@@ -259,8 +318,10 @@ function parseText(){
       // "x", "없음" 등 비어있는 값 제거
       if(/^x$|없음|해당없음/i.test(door)) door='';
     }
-    if(/배송\s*전|미리\s*연락|부재|문\s*앞|두고\s*가|놓아/i.test(l)) request=l;
+    if(!request&&/배송\s*전|미리\s*연락|부재|문\s*앞|두고\s*가|놓아/i.test(l)) request=l;
   }
+  if(/^x$|없음|해당없음|-$/i.test(door)) door='';
+  if(/^-+$/.test(request)) request='';
 
   // ── 복수 주문 감지: "-001", "-002" 등 섹션번호로 분리 ──
   // 섹션번호 패턴: 주문번호-001, 주문번호-002 ...
@@ -344,7 +405,17 @@ function parseText(){
   for(const l of lines){
     if(/^\d{15,20}$/.test(l)){ parsedOrderNum=l; break; }
   }
-  const orderStatus=(lines.find(l=>/배송\s*보류|배송\s*중|배송\s*완료|결제\s*완료|입금\s*완료|취소|환불/.test(l))||'').trim();
+  if(!parsedOrderNum){
+    const om=raw.match(/주문\s*번호\s*[:：]?\s*(\d{12,20})/) || raw.match(/주문번호\s*[:：]?\s*(\d{12,20})/);
+    if(om) parsedOrderNum=om[1];
+  }
+  parsedOrderNum=stripFieldLabel(explicitField('주문번호'))||parsedOrderNum;
+  const explicitMemo=stripFieldLabel(explicitField('메모|내부\\s*메모'));
+  if(!parsedOrderNum&&explicitMemo){
+    const mm=explicitMemo.match(/주문\s*번호\s*[:：]?\s*(\d{12,20})/) || explicitMemo.match(/주문번호\s*[:：]?\s*(\d{12,20})/);
+    if(mm) parsedOrderNum=mm[1];
+  }
+  const orderStatus=stripFieldLabel(explicitField('상태'))||(lines.find(l=>/배송\s*보류|배송\s*중|배송\s*완료|결제\s*완료|입금\s*완료|취소|환불/.test(l))||'').trim();
   const isDirectByText=lines.some(l=>/직접\s*배송|직배송/.test(l));
   const p={name:mainName,phone:mainPhone,addr:mainAddr,door,request,set:'',productId:'',qty:1,orderType:'once',orderNum:parsedOrderNum};
 
@@ -373,13 +444,26 @@ function parseText(){
   if(opts.isDirect!==undefined) p.isDirect=opts.isDirect;
   if(opts.schIdx!==undefined)   p.schIdx=opts.schIdx;
   if(opts.onceDate) p.onceDate=opts.onceDate;
+  if(opts.startDate) p.startDate=opts.startDate;
   if(isDirectByText) p.isDirect=true;
-  if(p.orderType==='sub'&&p.type&&p.cookDays){
+  if(p.type) p.orderType='sub';
+  if(p.orderType==='sub'&&p.type&&p.cookDays&&!p.startDate){
     const baseDate=parseOrderBaseDate();
     const deliveryDays=p.isDirect?p.cookDays:(p.arriveDays&&p.arriveDays.length?p.arriveDays:p.cookDays);
     p.startDate=nextScheduleDate(baseDate, deliveryDays, true);
   }
-  if(orderStatus||parsedOrderNum){
+  const existing=findExistingCustomerByNamePhone(p.name, p.phone);
+  if(existing){
+    if(!p.addr) p.addr=existing.addr||'';
+    if(!p.door) p.door=existing.door||'';
+    if(!p.request) p.request=existing.request||'';
+    p._existingCustomer=true;
+  }
+  if(explicitMemo){
+    let memoText=explicitMemo.replace(/\s*\/\s*$/,'').trim();
+    if(parsedOrderNum&&!new RegExp(parsedOrderNum).test(memoText)) memoText=[memoText, `주문번호: ${parsedOrderNum}`].filter(Boolean).join(' / ');
+    p.memo=/아임웹\s*수동등록/.test(memoText) ? memoText : ['아임웹 수동등록', memoText].filter(Boolean).join(' / ');
+  } else if(orderStatus||parsedOrderNum){
     p.memo=['아임웹 수동등록', orderStatus, parsedOrderNum?`주문번호: ${parsedOrderNum}`:''].filter(Boolean).join(' / ');
   }
 
