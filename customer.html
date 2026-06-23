@@ -283,6 +283,74 @@
   }
   .date-badge .gj-icon { width: 24px; height: 24px; }
 
+  .deadline-timer {
+    background: linear-gradient(135deg, #fffaf0 0%, #fff 100%);
+    border: 1px solid #f0d090;
+    border-radius: var(--radius);
+    padding: 13px 14px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: var(--shadow);
+  }
+  .deadline-timer-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .deadline-timer-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #F8EFE2;
+    color: var(--primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+  }
+  .deadline-timer-icon .gj-icon { width: 23px; height: 23px; }
+  .deadline-timer-label {
+    font-size: 12px;
+    color: var(--text-sub);
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+  .deadline-timer-time {
+    font-size: 24px;
+    line-height: 1;
+    color: var(--primary);
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .3px;
+    white-space: nowrap;
+  }
+  .deadline-timer-sub {
+    font-size: 12px;
+    color: var(--text-sub);
+    text-align: right;
+    line-height: 1.45;
+    flex: 0 0 auto;
+  }
+  .deadline-timer.is-closed {
+    background: #FFF3CD;
+    border-color: #FFCC80;
+  }
+  .deadline-timer.is-closed .deadline-timer-time { color: #9a6500; }
+  .deadline-timer.is-future {
+    background: #F0FFF6;
+    border-color: #B9E7C9;
+  }
+  .deadline-timer.is-future .deadline-timer-icon { background: #E8F5E9; color: var(--success); }
+  @media (max-width: 480px) {
+    .deadline-timer { align-items: flex-start; flex-direction: column; }
+    .deadline-timer-sub { text-align: left; }
+    .deadline-timer-time { font-size: 22px; }
+  }
+
   /* ── 마감 안내 배너 ── */
   .closed-banner {
     background: #FFF3CD;
@@ -1467,6 +1535,16 @@
   <!-- 오늘 주문 탭 -->
   <div id="pane-today" class="content-area">
     <div class="date-badge" id="today-badge"><svg class="gj-icon"><use href="#gj-calendar"></use></svg><span>날짜 로딩중...</span></div>
+    <div class="deadline-timer" id="deadline-timer" style="display:none">
+      <div class="deadline-timer-main">
+        <div class="deadline-timer-icon"><svg class="gj-icon"><use href="#gj-clock"></use></svg></div>
+        <div>
+          <div class="deadline-timer-label" id="deadline-timer-label">주문 마감까지</div>
+          <div class="deadline-timer-time" id="deadline-timer-time">--:--:--</div>
+        </div>
+      </div>
+      <div class="deadline-timer-sub" id="deadline-timer-sub">주문 마감: 오전 9시 20분</div>
+    </div>
 
     <div id="today-meal-card" class="meal-card is-empty">오늘 식단을 불러오는 중...</div>
 
@@ -1939,6 +2017,7 @@ let todayLunch = 0;
 let todaySalad = 0;
 let currentOrderTargetDate = '';
 let orderTargetRefreshTimer = null;
+let deadlineCountdownTimer = null;
 let modalDateStr = '';
 let modalLunch = 0;
 let modalSalad = 0;
@@ -2109,6 +2188,82 @@ function deadlineText() {
   const ampm = h < 12 ? '오전' : '오후';
   const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return `${ampm} ${h12}시${m > 0 ? ` ${m}분` : ''}`;
+}
+
+function deadlineDateForToday(kst = getKST()) {
+  return new Date(Date.UTC(
+    kst.getUTCFullYear(),
+    kst.getUTCMonth(),
+    kst.getUTCDate(),
+    orderDeadline.hour,
+    orderDeadline.minute,
+    0,
+    0
+  ));
+}
+
+function formatCountdown(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function stopDeadlineCountdown() {
+  if (deadlineCountdownTimer) clearInterval(deadlineCountdownTimer);
+  deadlineCountdownTimer = null;
+}
+
+function updateDeadlineTimer(ctx = getOrderTargetContext()) {
+  const box = document.getElementById('deadline-timer');
+  if (!box) return;
+  const label = document.getElementById('deadline-timer-label');
+  const time = document.getElementById('deadline-timer-time');
+  const sub = document.getElementById('deadline-timer-sub');
+  const kst = getKST();
+  const remaining = deadlineDateForToday(kst).getTime() - kst.getTime();
+
+  box.classList.remove('is-closed', 'is-future');
+  box.style.display = 'flex';
+  sub.textContent = `주문 마감: ${deadlineText()}`;
+
+  if (ctx.todayNoDelivery) {
+    box.classList.add('is-closed');
+    label.textContent = '오늘은 배송이 없습니다';
+    time.textContent = ctx.holiday || '휴무일';
+    sub.textContent = '다음 영업일 주문은 오후 1시 이후 확인해주세요';
+    return;
+  }
+  if (ctx.isFuture) {
+    box.classList.add('is-future');
+    label.textContent = `${formatDateKR(ctx.targetDate)} 주문 접수 중`;
+    time.textContent = '접수 가능';
+    sub.textContent = `오늘 마감 후 열린 다음 주문입니다 · 마감 ${deadlineText()}`;
+    return;
+  }
+  if (remaining <= 0 || ctx.todayClosed) {
+    box.classList.add('is-closed');
+    label.textContent = '오늘 주문 마감';
+    time.textContent = '마감됨';
+    sub.textContent = `마감 시간: ${deadlineText()} · 다음 주문은 오후 1시에 열립니다`;
+    return;
+  }
+
+  label.textContent = '오늘 주문 마감까지';
+  time.textContent = formatCountdown(remaining);
+}
+
+function startDeadlineCountdown(ctx = getOrderTargetContext()) {
+  stopDeadlineCountdown();
+  updateDeadlineTimer(ctx);
+  deadlineCountdownTimer = setInterval(() => {
+    const nextCtx = getOrderTargetContext();
+    updateDeadlineTimer(nextCtx);
+    if (nextCtx.lockedUntilNextOpen !== ctx.lockedUntilNextOpen || nextCtx.isFuture !== ctx.isFuture || nextCtx.todayClosed !== ctx.todayClosed) {
+      renderToday();
+    }
+  }, 1000);
 }
 
 function holidayName(dStr) {
@@ -2503,6 +2658,7 @@ function hideLoading() {
   setTimeout(() => el.style.display = 'none', 400);
 }
 function showAuth() {
+  stopDeadlineCountdown();
   resetLoginButton();
   document.getElementById('auth-screen').classList.add('active');
   document.getElementById('main-screen').classList.remove('active');
@@ -2670,6 +2826,7 @@ async function renderToday() {
   const targetNoDelivery = isNoDeliveryDate(targetDate);
 
   document.getElementById('today-badge').innerHTML = `${iconSvg('calendar')}<span>${orderTargetBadgeText(ctx)}</span>`;
+  startDeadlineCountdown(ctx);
   try {
     renderMealMenuCard('today-meal-card', targetDate, await loadMealMenu(targetDate));
   } catch(e) {
