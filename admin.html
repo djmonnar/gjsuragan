@@ -305,6 +305,11 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .admin-inpage-alert.show{opacity:1;transform:translateY(0);pointer-events:auto}
 .admin-inpage-alert strong{display:block;font-size:14px;margin-bottom:4px}
 .admin-inpage-alert span{display:block;font-size:13px;line-height:1.45;color:#e5e7eb}
+.previous-delivery-alert{display:none;margin:12px 28px 0;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:var(--radius);box-shadow:var(--shadow);padding:13px 14px;align-items:center;justify-content:space-between;gap:12px;line-height:1.55}
+.previous-delivery-alert.show{display:flex}
+.previous-delivery-alert strong{display:block;font-size:14px;color:#7c2d12}
+.previous-delivery-alert span{font-size:13px;color:#9a3412}
+.previous-delivery-alert .alert-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 /* 모달 */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:center;justify-content:center;padding:24px}
 .modal-overlay.open{display:flex}
@@ -325,6 +330,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .top-bar{padding:14px 16px}
   .admin-tabs{padding-left:16px;padding-right:16px;overflow-x:auto}
   .controls-bar,.summary-row{padding:12px 16px}
+  .previous-delivery-alert{margin-left:16px;margin-right:16px;align-items:flex-start;flex-direction:column}
   .table-section,.not-submitted-section,.member-section,.event-section,.receipt-section,.settlement-section{padding-left:16px;padding-right:16px}
   .form-grid,.receipt-layout,.settlement-tools{grid-template-columns:1fr}
   .batch-toolbar{gap:8px}
@@ -698,6 +704,17 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <button class="manual-btn" id="order-lock-btn" onclick="toggleOrderLock()"><span>주문 잠금</span></button>
     <button class="manual-btn" onclick="openManualOrderModal()"><svg class="action-icon"><use href="#admin-i-edit"></use></svg><span>수동 배송 입력</span></button>
     <button class="manual-btn" onclick="openBatchEntry()"><svg class="action-icon"><use href="#admin-i-orders"></use></svg><span>일괄 입력</span></button>
+  </div>
+
+  <div class="previous-delivery-alert admin-tab-panel" data-tab="orders" id="previous-delivery-alert">
+    <div>
+      <strong id="previous-delivery-alert-title">이전 영업일 배송 완료 미처리</strong>
+      <span id="previous-delivery-alert-body">정산 누락 방지를 위해 확인해주세요.</span>
+    </div>
+    <div class="alert-actions">
+      <button class="secondary-btn" onclick="goPreviousIncompleteDate()">해당 날짜 보기</button>
+      <button class="danger-btn" onclick="hidePreviousIncompleteAlert()">닫기</button>
+    </div>
   </div>
 
   <div class="summary-row admin-tab-panel" data-tab="orders">
@@ -1661,6 +1678,8 @@ let settlementRows = [];
 let settlementEvents = [];
 let currentOrderRows = [];
 let currentOrderLocked = false;
+let previousIncompleteAlertState = null;
+let previousIncompleteAlertHiddenDate = '';
 let mealMenus = [];
 let mealPdfCandidates = [];
 let activeAdminTab = 'orders';
@@ -1911,6 +1930,14 @@ function holidayName(dStr) {
 }
 function isNoDeliveryDate(dStr) {
   return isWeekendDate(dStr) || Boolean(holidayName(dStr));
+}
+function getPreviousBusinessDay(fromDateStr) {
+  let ds = fromDateStr || dateStr(getKST());
+  for (let i = 0; i < 14; i++) {
+    ds = addDays(ds, -1);
+    if (!isNoDeliveryDate(ds)) return ds;
+  }
+  return '';
 }
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
@@ -3407,6 +3434,71 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
     .sort((a, b) => (a.businessName || '').localeCompare(b.businessName || '', 'ko'));
 }
 
+async function checkPreviousIncompleteDeliveries() {
+  if (!adminUid) return null;
+  const previousDate = getPreviousBusinessDay(dateStr(getKST()));
+  if (!previousDate) {
+    renderPreviousIncompleteAlert(null);
+    return null;
+  }
+  try {
+    const [snap, adminDoc] = await Promise.all([
+      db.collection('orders').doc(previousDate).collection('items').get(),
+      db.collection('users').doc(adminUid).get()
+    ]);
+    const adminData = adminDoc.exists ? adminDoc.data() : {};
+    const deliveredRecords = deliveryRecordsFromData(adminData)[previousDate] || {};
+    const rows = mergeOrdersWithDefaults(previousDate, snap, deliveredRecords)
+      .filter(row => {
+        if (!row || row.selfHoliday || row.deleted || row.orderDeleted) return false;
+        if (row.delivered) return false;
+        return orderTotalQty(row) > 0;
+      });
+    const result = { date: previousDate, count: rows.length, rows };
+    renderPreviousIncompleteAlert(result);
+    return result;
+  } catch(e) {
+    console.warn('이전 영업일 미완료 배송 확인 실패:', e);
+    renderPreviousIncompleteAlert(null);
+    return null;
+  }
+}
+
+function renderPreviousIncompleteAlert(result) {
+  previousIncompleteAlertState = result;
+  const box = document.getElementById('previous-delivery-alert');
+  if (!box) return;
+  if (!result || result.count <= 0 || previousIncompleteAlertHiddenDate === result.date) {
+    box.classList.remove('show');
+    return;
+  }
+  document.getElementById('previous-delivery-alert-title').textContent =
+    `이전 영업일(${formatDateKR(result.date)}) 배송 완료 미처리`;
+  document.getElementById('previous-delivery-alert-body').textContent =
+    `배송 완료 미처리 ${result.count}곳이 있습니다. 정산 누락 방지를 위해 확인해주세요.`;
+  box.classList.add('show');
+}
+
+function hidePreviousIncompleteAlert() {
+  if (previousIncompleteAlertState?.date) {
+    previousIncompleteAlertHiddenDate = previousIncompleteAlertState.date;
+  }
+  renderPreviousIncompleteAlert(previousIncompleteAlertState);
+}
+
+function goPreviousIncompleteDate() {
+  const target = previousIncompleteAlertState?.date;
+  if (!target) return;
+  previousIncompleteAlertHiddenDate = '';
+  currentDateStr = target;
+  updateDateLabel();
+  switchAdminTab('orders');
+  loadOrders();
+  setTimeout(() => {
+    document.querySelector('.table-section[data-tab="orders"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
 // ── 주문 로드 ──
 async function loadOrders() {
   document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="12">불러오는 중...</td></tr>';
@@ -3425,6 +3517,7 @@ async function loadOrders() {
     });
     document.getElementById('not-sub-title').textContent = '🚚 배송 없음';
     document.getElementById('not-submitted-list').innerHTML = '<div class="no-not">공휴일과 주말은 주문 확인 대상에서 제외됩니다.</div>';
+    checkPreviousIncompleteDeliveries();
     return;
   }
 
@@ -3525,8 +3618,10 @@ async function loadOrders() {
     document.getElementById('sum-lunch').innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
     document.getElementById('sum-salad').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
     renderNotSubmitted(orders);
+    checkPreviousIncompleteDeliveries();
   } catch(e) {
     document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="12">불러오기 실패: ' + e.message + '</td></tr>';
+    renderPreviousIncompleteAlert(null);
   }
 }
 
