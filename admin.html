@@ -1028,6 +1028,21 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div style="font-size:12px;color:var(--text-secondary);margin-bottom:24px">현재: <span id="deadline-current-text" style="font-weight:700;color:var(--text)">오전 9시 20분</span></div>
       <hr style="border:none;border-top:1px solid var(--border);margin-bottom:20px">
 
+      <!-- 정산표 기본 비고 -->
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px">월별 정산표 기본 비고</div>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px">
+        정산표를 열 때 자동으로 들어가는 비고 문구입니다. <b>{month}</b>는 정산월 숫자로, <b>{monthLabel}</b>은 2026년 6월 형식으로 바뀝니다.
+      </div>
+      <textarea class="form-textarea" id="settlement-sheet-note-template" rows="4" style="margin-bottom:10px"></textarea>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:20px">
+        <button onclick="saveSettlementSheetNoteTemplate()"
+          style="background:var(--primary);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">비고 저장</button>
+        <button onclick="resetSettlementSheetNoteTemplate()"
+          style="background:#fff;color:var(--primary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">기본 문구로 되돌리기</button>
+        <span id="settlement-sheet-note-saved-msg" style="font-size:12px;color:var(--success);display:none">✅ 저장됨</span>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--border);margin-bottom:20px">
+
       <!-- 커스텀 휴무일 관리 -->
       <div style="font-size:14px;font-weight:700;margin-bottom:10px">배송 휴무일 관리</div>
       <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">법정 공휴일 외 회사 자체 휴무일(여름휴가, 창립기념일 등)을 추가하세요.</div>
@@ -1702,6 +1717,7 @@ const SUPPLIER_INFO = {
   email: 'sun1562@naver.com',
   bank: '농협 302-4578-2271-31 주상훈'
 };
+const DEFAULT_SETTLEMENT_SHEET_NOTE_TEMPLATE = '{month}월정산서 보내드립니다♡\n궁중수라간을 이용해 주셔서 항상 감사드립니다^^\n계좌이체시 꼭! 상호명으로 부탁드립니다!!';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const MEAL_TIME_OPTIONS = [
@@ -1765,6 +1781,7 @@ function isWeekendDate(dStr) {
   return dt.getDay() === 0 || dt.getDay() === 6;
 }
 let adminDeadline = { hour: 9, minute: 20 };
+let settlementSheetNoteTemplate = DEFAULT_SETTLEMENT_SHEET_NOTE_TEMPLATE;
 
 async function loadSettings() {
   try {
@@ -1773,6 +1790,9 @@ async function loadSettings() {
       const d = snap.data();
       if (d.closeHour != null) adminDeadline.hour = d.closeHour;
       if (d.closeMinute != null) adminDeadline.minute = d.closeMinute;
+      if (typeof d.settlementSheetNoteTemplate === 'string') {
+        settlementSheetNoteTemplate = d.settlementSheetNoteTemplate;
+      }
     }
   } catch(e) {}
 }
@@ -1818,6 +1838,48 @@ function renderDeadlineUI() {
   }
   if (hSel) hSel.value = adminDeadline.hour;
   if (mSel) mSel.value = adminDeadline.minute;
+}
+
+function settlementSheetNoteForMonth(month) {
+  const [year, mon] = String(month || currentMonthStr()).split('-');
+  const monthNum = parseInt(mon, 10) || new Date().getMonth() + 1;
+  const monthLabel = year && mon ? `${year}년 ${monthNum}월` : `${monthNum}월`;
+  return String(settlementSheetNoteTemplate || DEFAULT_SETTLEMENT_SHEET_NOTE_TEMPLATE)
+    .replaceAll('{year}', year || '')
+    .replaceAll('{month}', String(monthNum))
+    .replaceAll('{monthLabel}', monthLabel);
+}
+
+function renderSettlementSheetNoteSettings() {
+  const el = document.getElementById('settlement-sheet-note-template');
+  if (el) el.value = settlementSheetNoteTemplate || DEFAULT_SETTLEMENT_SHEET_NOTE_TEMPLATE;
+}
+
+async function saveSettlementSheetNoteTemplate() {
+  const el = document.getElementById('settlement-sheet-note-template');
+  if (!el) return;
+  const value = el.value.trim() || DEFAULT_SETTLEMENT_SHEET_NOTE_TEMPLATE;
+  try {
+    await db.collection('config').doc('settings').set({
+      settlementSheetNoteTemplate: value,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    settlementSheetNoteTemplate = value;
+    renderSettlementSheetNoteSettings();
+    const msg = document.getElementById('settlement-sheet-note-saved-msg');
+    if (msg) {
+      msg.style.display = 'inline';
+      setTimeout(() => msg.style.display = 'none', 2000);
+    }
+    showToast('✅ 정산표 기본 비고가 저장되었습니다.');
+  } catch(e) {
+    showToast('정산표 비고 저장 실패: ' + e.message);
+  }
+}
+
+function resetSettlementSheetNoteTemplate() {
+  const el = document.getElementById('settlement-sheet-note-template');
+  if (el) el.value = DEFAULT_SETTLEMENT_SHEET_NOTE_TEMPLATE;
 }
 
 async function loadCustomHolidays() {
@@ -6461,11 +6523,10 @@ function openSheetModal(uid) {
   if (!row) return;
   sheetTargetUid = uid;
   const month = document.getElementById('settle-month').value || currentMonthStr();
-  const [, mon] = month.split('-');
   document.getElementById('sheet-item-name').value = row.type === 'event' ? (row.user.businessName || '행사도시락') : '월식 1인';
   document.getElementById('sheet-lunch-price').value = row.lunchPrice;
   document.getElementById('sheet-salad-price').value = row.saladPrice;
-  document.getElementById('sheet-note-text').value = `${parseInt(mon)}월정산서 보내드립니다♡\n궁중수라간을 이용해 주셔서 항상 감사드립니다^^\n계좌이체시 꼭! 상호명으로 부탁드립니다!!`;
+  document.getElementById('sheet-note-text').value = settlementSheetNoteForMonth(month);
   renderSheetPreview();
   document.getElementById('sheet-modal').classList.add('open');
 }
@@ -6970,6 +7031,7 @@ function isStatsCountableRecord(uid, row) {
 // ── 설정 탭: 커스텀 휴무일 관리 ─────────────────────────────
 function renderSettingsTab() {
   renderDeadlineUI();
+  renderSettlementSheetNoteSettings();
   renderCustomHolidayList();
   renderLegalHolidayList();
 }
