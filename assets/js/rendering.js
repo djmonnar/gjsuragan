@@ -11,9 +11,10 @@ window.addEventListener('resize', ()=>{
 });
 
 function dashDeliveryRow(c, showGauge = true){
+  const productBadges = `${deliveryProductBadgeHtml(c)}${lastBoxDeliveryBadge(c)}`;
   return `<tr>
     <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-    <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
+    <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${productBadges}</div></td>
     <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
     <td>${c.phone||'-'}</td>
     ${showGauge ? `<td>${gauge(c)}</td>` : ''}
@@ -27,6 +28,23 @@ function escHtml(v){
   return String(v ?? '').replace(/[&<>"']/g, ch => ({
     '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
   }[ch]));
+}
+
+function deliveryProductBadgeHtml(c){
+  const key = c?.productId || c?.set;
+  return `<span class="badge ${productBadgeClass(key)}">${productLabel(key)}</span>`;
+}
+
+function isLastBoxDelivery(c){
+  if(!c?.isDirect) return false;
+  if(c.status !== 'active') return false;
+  return Number(c.remain || 0) === 1;
+}
+
+function lastBoxDeliveryBadge(c){
+  return isLastBoxDelivery(c)
+    ? '<span class="badge" title="마지막 직배송은 보냉가방 대신 박스로 발송" style="background:#fef3c7;color:#92400e;border-color:#f59e0b;font-weight:900;">박스</span>'
+    : '';
 }
 
 const SINGLE_PRODUCT_IDS = ['pork_rib','beef_la','beef_soup'];
@@ -283,7 +301,7 @@ function renderDash(){
     dDirectWrap.style.display = directList.length ? '' : 'none';
     dTodayDirect.innerHTML = directList.map(c=>`<tr>
       <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
+      <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${deliveryProductBadgeHtml(c)}${lastBoxDeliveryBadge(c)}</div></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
       <td>${c.phone||'—'}</td>
       <td>${gauge(c)}</td>
@@ -352,7 +370,7 @@ function renderToday(){
                   <div style="display:flex;align-items:center;gap:8px;">
                     <input type="checkbox" class="ck-direct" data-id="${c.id}">
                     <strong style="font-size:15px;cursor:pointer;color:var(--accent);" onclick="openEdit('${c.id}')">${c.name}</strong>
-                    <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
+                    ${deliveryProductBadgeHtml(c)}${lastBoxDeliveryBadge(c)}
                   </div>
                   ${done
                     ? '<span class="badge b-ok">완료</span>'
@@ -378,7 +396,7 @@ function renderToday(){
             <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
             <td style="white-space:nowrap;">${c.phone}</td>
             <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#c020b0;cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
-            <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
+            <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${deliveryProductBadgeHtml(c)}${lastBoxDeliveryBadge(c)}</div></td>
             <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${scheduleDisp(c)||'—'}</td>
             <td style="font-size:12px;">${c.door||'—'}</td>
             <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
