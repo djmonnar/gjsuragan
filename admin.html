@@ -162,6 +162,25 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .sheet-preview-area .sh-total-row td{font-weight:800;background:#fff8e1}
 .sheet-preview-area .sh-note{margin-top:14px;border:1px solid #888;padding:10px;font-size:12px}
 .sheet-preview-area .sh-note-label{font-weight:700;margin-bottom:4px}
+.settle-sheet{max-width:920px;margin:0 auto;color:#111827}
+.settle-sheet-title{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:2px solid #111827;padding-bottom:12px;margin-bottom:14px}
+.settle-sheet-title h2{margin:0;font-size:24px;letter-spacing:0}
+.settle-sheet-title .month{font-size:14px;font-weight:800;color:#7B3F1A;margin-bottom:4px}
+.settle-sheet-title .brand{text-align:right;font-size:13px;line-height:1.5;color:#4b5563}
+.settle-sheet-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 14px}
+.settle-sheet-box{border:1px solid #d1d5db;background:#f9fafb;border-radius:8px;padding:10px;text-align:center}
+.settle-sheet-box .label{font-size:11px;color:#6b7280;font-weight:800;margin-bottom:5px}
+.settle-sheet-box .value{font-size:19px;font-weight:900;color:#7B3F1A}
+.settle-sheet-box.total{background:#fff8ed;border-color:#f0d090}
+.settle-sheet-box.total .value{color:#c0392b}
+.settle-sheet-meta{margin-bottom:12px}
+.settle-sheet-meta th{width:16%;background:#f8fafc;color:#344054}
+.settle-sheet-meta td{text-align:left}
+.settle-sheet-detail th{background:#f8fafc;color:#344054}
+.settle-sheet-detail .num{text-align:right;font-variant-numeric:tabular-nums}
+.settle-sheet-detail .empty{text-align:center;color:#6b7280;padding:18px}
+.settle-sheet-note{margin-top:14px;border:1px solid #d1d5db;border-radius:8px;padding:12px;background:#fffdf8;font-size:13px}
+.settle-sheet-note-title{font-weight:900;margin-bottom:5px;color:#7B3F1A}
 .settle-check{width:16px;height:16px;cursor:pointer}
 .receipt-item-row{display:grid;grid-template-columns:1.5fr .7fr .85fr .95fr 42px;gap:8px;align-items:end;margin-bottom:8px}
 .receipt-item-row .form-input{margin-bottom:0}
@@ -6294,149 +6313,161 @@ function buildSheetHTML(uid, forPrint) {
   if (!row) return '';
   const month = document.getElementById('settle-month').value || currentMonthStr();
   const [year, mon] = month.split('-');
+  const monthLabel = `${year}년 ${parseInt(mon, 10)}월`;
   const itemName = document.getElementById('sheet-item-name').value || '월식 1인';
   const lunchPrice = parseInt(document.getElementById('sheet-lunch-price').value, 10) || 0;
   const saladPrice = parseInt(document.getElementById('sheet-salad-price').value, 10) || 0;
   const eventPrice = row.eventPrice || row.lunchPrice || lunchPrice || 0;
   const note = document.getElementById('sheet-note-text').value;
-  const user = row.user;
+  const user = row.user || {};
+  const money = value => (parseInt(value, 10) || 0).toLocaleString('ko-KR');
+  const printStyles = forPrint ? `<style>
+    *{box-sizing:border-box}
+    body{font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;margin:0;padding:18mm;color:#111827;font-size:10.5pt;background:#fff}
+    table{width:100%;border-collapse:collapse}
+    td,th{border:1px solid #d1d5db;padding:8px 10px;text-align:center}
+    .settle-sheet{max-width:100%;margin:0 auto;color:#111827}
+    .settle-sheet-title{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:2px solid #111827;padding-bottom:12px;margin-bottom:14px}
+    .settle-sheet-title h2{margin:0;font-size:24px;letter-spacing:0}
+    .settle-sheet-title .month{font-size:14px;font-weight:800;color:#7B3F1A;margin-bottom:4px}
+    .settle-sheet-title .brand{text-align:right;font-size:12px;line-height:1.5;color:#4b5563}
+    .settle-sheet-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 14px}
+    .settle-sheet-box{border:1px solid #d1d5db;background:#f9fafb;border-radius:8px;padding:10px;text-align:center}
+    .settle-sheet-box .label{font-size:10px;color:#6b7280;font-weight:800;margin-bottom:5px}
+    .settle-sheet-box .value{font-size:18px;font-weight:900;color:#7B3F1A}
+    .settle-sheet-box.total{background:#fff8ed;border-color:#f0d090}
+    .settle-sheet-box.total .value{color:#c0392b}
+    .settle-sheet-meta{margin-bottom:12px}
+    .settle-sheet-meta th{width:16%;background:#f8fafc;color:#344054}
+    .settle-sheet-meta td{text-align:left}
+    .settle-sheet-detail th{background:#f8fafc;color:#344054}
+    .settle-sheet-detail .num{text-align:right;font-variant-numeric:tabular-nums}
+    .settle-sheet-detail .empty{text-align:center;color:#6b7280;padding:18px}
+    .settle-sheet-note{margin-top:14px;border:1px solid #d1d5db;border-radius:8px;padding:12px;background:#fffdf8;font-size:10.5pt}
+    .settle-sheet-note-title{font-weight:900;margin-bottom:5px;color:#7B3F1A}
+    @page{size:A4;margin:12mm}
+  </style>` : '';
+  const titleBlock = title => `
+    <div class="settle-sheet-title">
+      <div><div class="month">${escapeHtml(monthLabel)}</div><h2>${escapeHtml(title)}</h2></div>
+      <div class="brand">궁중수라간<br>${escapeHtml(SUPPLIER_INFO.bank || '')}</div>
+    </div>`;
+  const metaTable = rows => `<table class="settle-sheet-meta"><tbody>${rows.map(([label, value]) => `
+    <tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value || '-')}</td></tr>`).join('')}</tbody></table>`;
+  const summaryBox = (label, value, cls = '') => `<div class="settle-sheet-box ${cls}"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div></div>`;
+  const noteBox = text => text ? `<div class="settle-sheet-note"><div class="settle-sheet-note-title">비고</div><div style="white-space:pre-wrap;line-height:1.7">${escapeHtml(text)}</div></div>` : '';
+
   if (row.type === 'event') {
-    const event = row.event;
+    const event = row.event || {};
     const count = row.lunch || 0;
     const price = lunchPrice || row.lunchPrice || 0;
     const totalAmount = count * price;
-    const printStyles = forPrint ? `<style>
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'Pretendard Variable','Pretendard',-apple-system,sans-serif;padding:20px;color:#111;font-size:11pt}
-      table{width:100%;border-collapse:collapse}
-      td,th{border:1px solid #666;padding:6px 8px;text-align:center}
-      th{background:#f0f0f0;font-weight:700}
-      .sh-title{text-align:center;font-size:17pt;font-weight:800;margin-bottom:14px;letter-spacing:1px}
-      .sh-total-row td{font-weight:800;background:#fff8e1}
-      .sh-note{margin-top:14px;border:1px solid #666;padding:10px;font-size:10pt}
-    </style>` : '';
-    return `${printStyles}
-      <div class="sh-title">행사도시락 정산현황-${year}</div>
-      <table style="margin-bottom:12px">
-        <tr><td style="background:#f0f0f0;font-weight:700;width:15%">행사명</td><td style="text-align:left">${escapeHtml(event.name || '')}</td><td style="background:#f0f0f0;font-weight:700;width:15%">공급자상호</td><td style="text-align:left">${SUPPLIER_INFO.name}</td></tr>
-        <tr><td style="background:#f0f0f0;font-weight:700">일시</td><td style="text-align:left">${escapeHtml(`${event.eventDate || ''} ${event.eventTime || ''}`.trim())}</td><td style="background:#f0f0f0;font-weight:700">등록 번호</td><td style="text-align:left">${SUPPLIER_INFO.bizNo}</td></tr>
-        <tr><td style="background:#f0f0f0;font-weight:700">배송장소</td><td style="text-align:left">${escapeHtml(event.place || '')}</td><td style="background:#f0f0f0;font-weight:700">입금계좌</td><td style="text-align:left">${SUPPLIER_INFO.bank}</td></tr>
+    return `${printStyles}<div class="settle-sheet">
+      ${titleBlock('행사도시락 정산서')}
+      ${metaTable([
+        ['행사명', event.name || row.user?.businessName || '행사도시락'],
+        ['일시', `${event.eventDate || ''} ${event.eventTime || ''}`.trim()],
+        ['배송장소', event.place || ''],
+        ['공급자', `${SUPPLIER_INFO.name} / ${SUPPLIER_INFO.bizNo}`],
+      ])}
+      <div class="settle-sheet-summary">
+        ${summaryBox('수량', `${count}개`)}
+        ${summaryBox('단가', `${money(price)}원`)}
+        ${summaryBox('상태', row.status || '-')}
+        ${summaryBox('청구액', `${money(totalAmount)}원`, 'total')}
+      </div>
+      <table class="settle-sheet-detail">
+        <thead><tr><th>날짜</th><th>품목</th><th>수량</th><th>단가</th><th>금액</th></tr></thead>
+        <tbody><tr>
+          <td>${escapeHtml(event.eventDate || month)}</td>
+          <td style="text-align:left">${escapeHtml(itemName || event.name || '행사도시락')}</td>
+          <td>${count}</td>
+          <td class="num">${money(price)}원</td>
+          <td class="num">${money(totalAmount)}원</td>
+        </tr></tbody>
       </table>
-      <table>
-        <thead><tr><th>월</th><th>일</th><th>품목</th><th>단가</th><th>수량</th><th>금액</th></tr></thead>
-        <tbody><tr><td>${parseInt(mon)}</td><td>${parseInt((event.eventDate || `${month}-01`).split('-')[2])}</td><td style="text-align:left">${escapeHtml(itemName || event.name || '행사도시락')}</td><td style="text-align:right">${price.toLocaleString('ko-KR')}</td><td>${count}</td><td style="text-align:right">${totalAmount.toLocaleString('ko-KR')}</td></tr></tbody>
-        <tfoot><tr class="sh-total-row"><td colspan="4" style="text-align:right">합계</td><td>${count}</td><td style="text-align:right;color:#c0392b">${totalAmount.toLocaleString('ko-KR')}</td></tr></tfoot>
-      </table>
-      <div class="sh-note"><div style="font-weight:700;margin-bottom:4px">비고</div><div style="white-space:pre-wrap;line-height:1.7">${escapeHtml(note || event.note || '')}</div></div>`;
+      ${noteBox(note || event.note || '')}
+    </div>`;
   }
 
-  const dates = monthDates(month);
-  let totalLunch = 0, totalSalad = 0, totalEventLunch = 0, totalAmount = 0;
+  let totalLunch = 0, totalSalad = 0, totalEventLunch = 0, subtotal = 0;
+  const detailRows = [];
 
-  const rowsHtml = dates.map(ds => {
-    const rec = row.type === 'manualMonthly'
-      ? (row.daily?.[ds] || {})
-      : ((cachedDeliveryRecords[ds] || {})[uid] || {});
-    const lunch = row.manualOverride ? 0 : (rec.lunchCount ?? rec.lunch ?? 0);
-    const salad = row.manualOverride ? 0 : (rec.saladCount ?? rec.salad ?? 0);
-    const eventLunch = row.manualOverride ? 0 : (rec.eventLunch || 0);
-    const amount = lunch * lunchPrice + salad * saladPrice + eventLunch * eventPrice;
-    totalLunch += lunch;
-    totalSalad += salad;
-    totalEventLunch += eventLunch;
-    totalAmount += amount;
-    const day = parseInt(ds.split('-')[2]);
-    const isZero = lunch === 0 && salad === 0 && eventLunch === 0;
-    return `<tr${isZero ? ' style="color:#bbb"' : ''}>
-      <td>${parseInt(mon)}</td>
-      <td>${day}</td>
-      <td style="text-align:left;padding-left:8px">${escapeHtml(itemName)}</td>
-      <td style="text-align:right">${lunchPrice.toLocaleString('ko-KR')}</td>
-      <td style="text-align:right">${saladPrice.toLocaleString('ko-KR')}</td>
-      <td style="text-align:right">${eventPrice.toLocaleString('ko-KR')}</td>
-      <td>${lunch || ''}</td>
-      <td>${salad || ''}</td>
-      <td>${eventLunch || ''}</td>
-      <td style="text-align:right">${amount > 0 ? amount.toLocaleString('ko-KR') : '0'}</td>
-    </tr>`;
-  }).join('');
-
-  const manualOverrideRow = row.manualOverride ? `<tr>
-    <td>${parseInt(mon)}</td>
-    <td>합계</td>
-    <td style="text-align:left;padding-left:8px">${escapeHtml(itemName)}</td>
-    <td style="text-align:right">${lunchPrice.toLocaleString('ko-KR')}</td>
-    <td style="text-align:right">${saladPrice.toLocaleString('ko-KR')}</td>
-    <td style="text-align:right">${eventPrice.toLocaleString('ko-KR')}</td>
-    <td>${row.lunch || ''}</td>
-    <td>${row.salad || ''}</td>
-    <td>${row.eventLunch || ''}</td>
-    <td style="text-align:right">${manualMonthlyRowAmount(row).toLocaleString('ko-KR')}</td>
-  </tr>` : '';
   if (row.manualOverride) {
     totalLunch = row.lunch || 0;
     totalSalad = row.salad || 0;
     totalEventLunch = row.eventLunch || 0;
-    totalAmount = manualMonthlyRowAmount(row);
+    subtotal = manualMonthlyRowAmount(row);
+    detailRows.push({ date:'합계', lunch:totalLunch, salad:totalSalad, eventLunch:totalEventLunch, amount:subtotal });
+  } else {
+    monthDates(month).forEach(ds => {
+      const rec = row.type === 'manualMonthly'
+        ? (row.daily?.[ds] || {})
+        : ((cachedDeliveryRecords[ds] || {})[uid] || {});
+      const lunch = rec.lunchCount ?? rec.lunch ?? 0;
+      const salad = rec.saladCount ?? rec.salad ?? 0;
+      const eventLunch = rec.eventLunch || 0;
+      const amount = lunch * lunchPrice + salad * saladPrice + eventLunch * eventPrice;
+      totalLunch += lunch;
+      totalSalad += salad;
+      totalEventLunch += eventLunch;
+      subtotal += amount;
+      if (lunch || salad || eventLunch || amount) {
+        detailRows.push({ date:`${parseInt(mon, 10)}/${parseInt(ds.split('-')[2], 10)}`, lunch, salad, eventLunch, amount });
+      }
+    });
   }
 
-  const metaRow = (l1, v1, l2, v2) => `<tr>
-    <td style="background:#f0f0f0;font-weight:700;width:12%;white-space:nowrap">${l1}</td>
-    <td style="width:38%;text-align:left;padding-left:8px">${v1}</td>
-    <td style="background:#f0f0f0;font-weight:700;width:15%;white-space:nowrap">${l2}</td>
-    <td style="text-align:left;padding-left:8px">${v2}</td>
-  </tr>`;
+  const adjustment = parseInt(row.adjust, 10) || 0;
+  const billedTotal = subtotal + adjustment;
+  const detailHtml = detailRows.length
+    ? detailRows.map(item => `<tr>
+        <td>${escapeHtml(item.date)}</td>
+        <td style="text-align:left">${escapeHtml(itemName)}</td>
+        <td>${item.lunch || ''}</td>
+        <td>${item.salad || ''}</td>
+        <td>${item.eventLunch || ''}</td>
+        <td class="num">${money(item.amount)}원</td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" class="empty">정산 대상 배송 내역이 없습니다.</td></tr>';
+  const adjustRow = adjustment ? `<tr>
+    <td colspan="5" style="text-align:right;font-weight:800">조정금액</td>
+    <td class="num" style="font-weight:800">${adjustment > 0 ? '+' : ''}${money(adjustment)}원</td>
+  </tr>` : '';
 
-  const printStyles = forPrint ? `<style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Pretendard Variable','Pretendard',-apple-system,sans-serif;padding:20px;color:#111;font-size:11pt}
-    table{width:100%;border-collapse:collapse}
-    td,th{border:1px solid #666;padding:5px 8px;text-align:center}
-    th{background:#f0f0f0;font-weight:700}
-    .sh-title{text-align:center;font-size:17pt;font-weight:800;margin-bottom:14px;letter-spacing:1px}
-    .sh-total-row td{font-weight:800;background:#fff8e1}
-    .sh-note{margin-top:14px;border:1px solid #666;padding:10px;font-size:10pt}
-    .sh-note-label{font-weight:700;margin-bottom:4px}
-  </style>` : '';
-
-  return `${printStyles}
-  <div class="sh-title">고정거래처 정산현황-${year}</div>
-  <table style="margin-bottom:12px">
-    ${metaRow('상&nbsp;&nbsp;&nbsp;&nbsp;호', escapeHtml(user.businessName || ''), '공급자상호', SUPPLIER_INFO.name)}
-    ${metaRow('이&nbsp;&nbsp;&nbsp;&nbsp;름', '', '등록 번호', SUPPLIER_INFO.bizNo)}
-    ${metaRow('등록 번호', '', '메&nbsp;&nbsp;&nbsp;&nbsp;일', SUPPLIER_INFO.email)}
-    ${metaRow('메&nbsp;&nbsp;&nbsp;&nbsp;일', '', '입금계좌', SUPPLIER_INFO.bank)}
-    ${metaRow('연&nbsp;&nbsp;락&nbsp;&nbsp;처', escapeHtml(user.phone || ''), '', '')}
-  </table>
-  <table>
-    <thead>
-      <tr>
-        <th style="width:5%">월</th>
-        <th style="width:5%">일</th>
-        <th>품목</th>
-        <th>도시락</th>
-        <th>샐러드</th>
-        <th>행사</th>
-        <th>도시락수량</th>
-        <th>샐러드수량</th>
-        <th>행사수량</th>
-        <th>금액</th>
-      </tr>
-    </thead>
-    <tbody>${manualOverrideRow || rowsHtml}</tbody>
-    <tfoot>
-      <tr class="sh-total-row">
-        <td colspan="6" style="text-align:right;font-weight:800">합계</td>
-        <td>${totalLunch}</td>
-        <td>${totalSalad}</td>
-        <td>${totalEventLunch}</td>
-        <td style="text-align:right;font-weight:800;color:#c0392b">${totalAmount.toLocaleString('ko-KR')}</td>
-      </tr>
-    </tfoot>
-  </table>
-  <div class="sh-note">
-    <div class="sh-note-label">비고</div>
-    <div style="white-space:pre-wrap;line-height:1.7;margin-top:4px">${escapeHtml(note)}</div>
+  return `${printStyles}<div class="settle-sheet">
+    ${titleBlock('월별 정산서')}
+    ${metaTable([
+      ['상호', user.businessName || ''],
+      ['연락처', user.phone || ''],
+      ['청구서번호', row.invoiceNo || '미발행'],
+      ['납부기한', row.dueDate || ''],
+      ['공급자', `${SUPPLIER_INFO.name} / ${SUPPLIER_INFO.bizNo}`],
+    ])}
+    <div class="settle-sheet-summary">
+      ${summaryBox('도시락', `${totalLunch}개`)}
+      ${summaryBox('샐러드', `${totalSalad}개`)}
+      ${summaryBox('행사', `${totalEventLunch}개`)}
+      ${summaryBox('청구액', `${money(billedTotal)}원`, 'total')}
+    </div>
+    <table class="settle-sheet-detail">
+      <thead>
+        <tr><th style="width:12%">날짜</th><th>품목</th><th style="width:12%">도시락</th><th style="width:12%">샐러드</th><th style="width:12%">행사</th><th style="width:18%">금액</th></tr>
+      </thead>
+      <tbody>${detailHtml}</tbody>
+      <tfoot>
+        <tr class="sh-total-row"><td colspan="2" style="text-align:right">합계</td><td>${totalLunch}</td><td>${totalSalad}</td><td>${totalEventLunch}</td><td class="num">${money(subtotal)}원</td></tr>
+        ${adjustRow}
+        <tr class="sh-total-row"><td colspan="5" style="text-align:right">최종 청구액</td><td class="num" style="color:#c0392b">${money(billedTotal)}원</td></tr>
+      </tfoot>
+    </table>
+    <div class="settle-sheet-note">
+      <div class="settle-sheet-note-title">단가 및 안내</div>
+      <div style="line-height:1.8">
+        도시락 ${money(lunchPrice)}원 · 샐러드 ${money(saladPrice)}원${totalEventLunch ? ` · 행사 ${money(eventPrice)}원` : ''}<br>
+        <span style="white-space:pre-wrap">${escapeHtml(note)}</span>
+      </div>
+    </div>
   </div>`;
 }
 
