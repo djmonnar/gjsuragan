@@ -55,6 +55,17 @@ function dlExp(){
   toast('파일 저장 완료','ok');
 }
 
+function openImwebPasteTool(){
+  goTab('import');
+  setTimeout(()=>{
+    const area=document.getElementById('pasteArea');
+    if(area){
+      area.focus();
+      area.scrollIntoView({behavior:'smooth',block:'center'});
+    }
+  },80);
+}
+
 // ════════════════════════════════════════
 // 텍스트 파싱
 // ════════════════════════════════════════
@@ -93,6 +104,51 @@ function parseText(){
   // 형식: "현관비밀번호(없으면 x): #1303#|세트 선택(필수): B세트|횟수 선택(필수): 주 1회(총 4회)|배송 요일 선택: 수요일 조리 - 수요일 도착"
   const DAYS_KO={'월':1,'화':2,'수':3,'목':4,'금':5,'토':6,'일':0};
   let opts={};
+  function fmtDate(dt){
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  }
+  function sameDay(a,b){
+    return a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+  }
+  function daysFromText(text){
+    const out=[];
+    const chars=String(text||'').match(/[월화수목금토일]/g)||[];
+    chars.forEach(ch=>{
+      const day=DAYS_KO[ch];
+      if(day!==undefined&&!out.includes(day)) out.push(day);
+    });
+    return out;
+  }
+  function sameDays(a,b){
+    return Array.isArray(a)&&Array.isArray(b)&&a.length===b.length&&a.every((v,i)=>v===b[i]);
+  }
+  function parseScheduleOption(val){
+    const s=String(val||'').trim();
+    if(!s) return null;
+    const parts=s.split(/\s*[-–—~]\s*/).filter(Boolean);
+    const cookPart=parts.find(p=>/조리/.test(p))||parts[0]||s;
+    const arrivePart=parts.find(p=>/도착|배송/.test(p))||parts[1]||'';
+    const cookDays=daysFromText(cookPart);
+    const arriveDays=daysFromText(arrivePart);
+    if(!cookDays.length&&!arriveDays.length) return null;
+    return {
+      cookDays:cookDays.length?cookDays:arriveDays,
+      arriveDays:arriveDays.length?arriveDays:cookDays,
+    };
+  }
+  function nextScheduleDate(base, days, forceFuture){
+    if(!Array.isArray(days)||!days.length) return '';
+    const start=new Date(base.getFullYear(), base.getMonth(), base.getDate());
+    for(let offset=0;offset<14;offset++){
+      const dt=new Date(start);
+      dt.setDate(start.getDate()+offset);
+      if(days.includes(dt.getDay())){
+        if(forceFuture&&sameDay(dt,start)) continue;
+        return fmtDate(dt);
+      }
+    }
+    return '';
+  }
   function parseOrderBaseDate(){
     for(const l of lines){
       let m=l.match(/^(\d{2})-(\d{2})-(\d{2})\s*(오전|오후)?\s*(\d{1,2})?:?(\d{2})?/);
@@ -168,11 +224,11 @@ function parseText(){
         const fm=val.match(/주\s*(\d+)\s*회/i); if(fm) opts.type=parseInt(fm[1]);
         const tm=val.match(/총\s*(\d+)\s*회/i); if(tm) opts.total=parseInt(tm[1]);
       } else if(/배송\s*요일/i.test(key)){
-        const dms=[...val.matchAll(/([월화수목금토일])요일/g)].map(m=>DAYS_KO[m[1]]);
-        if(dms.length>=1){
-          opts.cookDays=[dms[0]];
-          opts.arriveDays=dms.length>=2?[dms[1]]:[dms[0]];
-          opts.isDirect=(dms.length<2||dms[0]===dms[1]);
+        const parsed=parseScheduleOption(val);
+        if(parsed){
+          opts.cookDays=parsed.cookDays;
+          opts.arriveDays=parsed.arriveDays;
+          opts.isDirect=sameDays(parsed.cookDays, parsed.arriveDays);
         }
       }
     }
@@ -288,6 +344,8 @@ function parseText(){
   for(const l of lines){
     if(/^\d{15,20}$/.test(l)){ parsedOrderNum=l; break; }
   }
+  const orderStatus=(lines.find(l=>/배송\s*보류|배송\s*중|배송\s*완료|결제\s*완료|입금\s*완료|취소|환불/.test(l))||'').trim();
+  const isDirectByText=lines.some(l=>/직접\s*배송|직배송/.test(l));
   const p={name:mainName,phone:mainPhone,addr:mainAddr,door,request,set:'',productId:'',qty:1,orderType:'once',orderNum:parsedOrderNum};
 
   for(let i=0;i<lines.length;i++){
@@ -315,15 +373,31 @@ function parseText(){
   if(opts.isDirect!==undefined) p.isDirect=opts.isDirect;
   if(opts.schIdx!==undefined)   p.schIdx=opts.schIdx;
   if(opts.onceDate) p.onceDate=opts.onceDate;
+  if(isDirectByText) p.isDirect=true;
+  if(p.orderType==='sub'&&p.type&&p.cookDays){
+    const baseDate=parseOrderBaseDate();
+    const deliveryDays=p.isDirect?p.cookDays:(p.arriveDays&&p.arriveDays.length?p.arriveDays:p.cookDays);
+    p.startDate=nextScheduleDate(baseDate, deliveryDays, true);
+  }
+  if(orderStatus||parsedOrderNum){
+    p.memo=['아임웹 수동등록', orderStatus, parsedOrderNum?`주문번호: ${parsedOrderNum}`:''].filter(Boolean).join(' / ');
+  }
 
   parsedData=p;
   const prodDisplay=p.productId?productLabel(p.productId):(p.set?p.set+'세트':'(직접 선택)');
-  document.getElementById('parseRows').innerHTML=[
+  const previewRows=[
     ['이름',p.name||'(미인식)'],['연락처',p.phone||'(미인식)'],
     ['주소',p.addr||'(미인식)'],['현관번호',p.door||'—'],
     ['요청사항',p.request||'—'],['상품',prodDisplay],
     ['수량',p.qty+'개'],['유형',p.orderType==='sub'?'정기배송':'선택주문'],
-  ].map(([k,v])=>`<div class="prr"><div class="prk">${k}</div><div class="prv">${v}</div></div>`).join('');
+  ];
+  if(p.orderType==='sub'){
+    previewRows.push(['주기',p.type?`주 ${p.type}회 / 총 ${p.total||''}회`:'(미인식)']);
+    previewRows.push(['시작일',p.startDate||'(확인 필요)']);
+  }
+  if(p.isDirect!==undefined) previewRows.push(['배송방식',p.isDirect?'직배송':'택배']);
+  if(p.memo) previewRows.push(['메모',p.memo]);
+  document.getElementById('parseRows').innerHTML=previewRows.map(([k,v])=>`<div class="prr"><div class="prk">${k}</div><div class="prv">${v}</div></div>`).join('');
   document.getElementById('parseResult').classList.add('on');
   toast('인식 완료. 확인 후 등록하세요','info');
 }
@@ -340,7 +414,7 @@ function regParsed(){
   document.getElementById('pm-addr').value  = p.addr  || '';
   document.getElementById('pm-door').value  = p.door  || '';
   document.getElementById('pm-req').value   = p.request || '';
-  document.getElementById('pm-memo').value  = '';
+  document.getElementById('pm-memo').value  = p.memo || '';
 
   if(p._multi){
     // ── 복수 주문 모드 ──
