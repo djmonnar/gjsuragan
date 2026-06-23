@@ -1090,7 +1090,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <li>날짜를 선택하면 해당 날짜의 업체별 주문이 보입니다.</li>
           <li>수량이 실제 배송과 다르면 도시락/샐러드 숫자를 수정합니다.</li>
           <li>배송 나간 업체만 체크한 뒤 <b>배송 완료</b>를 누릅니다.</li>
-          <li>배송 완료된 건만 정산에 반영됩니다.</li>
+          <li>배송 완료된 건은 정산에 자동 반영되고 청구완료 상태로 저장됩니다.</li>
         </ol>
         <div class="manual-tip">고객이 자체 휴무로 보낸 날은 휴무 표시가 뜨며 배송 완료 대상에서 제외됩니다.</div>
       </div>
@@ -1117,7 +1117,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <ol>
           <li>정산월을 선택하고 <b>불러오기</b>를 누릅니다.</li>
           <li>업체별 도시락, 샐러드, 행사 수량과 금액을 확인합니다.</li>
-          <li>입금 상태는 미정산, 청구완료, 입금완료, 보류로 관리합니다.</li>
+          <li>배송완료 후 청구완료는 자동 처리되며, 정산 탭에서는 입금완료와 보류만 필요할 때 조정합니다.</li>
           <li>필요하면 정산표, 카톡 내보내기, 영수증을 사용합니다.</li>
         </ol>
       </div>
@@ -2227,6 +2227,103 @@ async function saveSettlementItem(month, uid, row, data, options = {}) {
   applySettlementToUserCache(uid, month, payload);
   return payload;
 }
+
+async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
+  const month = String(deliveryDate || currentDateStr).slice(0, 7);
+  const targetUids = [...new Set((uids || []).filter(Boolean))];
+  if (!month || targetUids.length === 0) return { billed: 0, skipped: 0 };
+
+  const [adminDoc, settlementItems] = await Promise.all([
+    db.collection('users').doc(adminUid).get(),
+    loadSettlementItems(month).catch(() => ({}))
+  ]);
+  const adminData = adminDoc.exists ? adminDoc.data() : {};
+  const deliveryRecords = deliveryRecordsFromData(adminData);
+  let billed = 0;
+  let skipped = 0;
+
+  for (const uid of targetUids) {
+    const user = allUsers[uid] || deletedUsers[uid] || {};
+    const saved = settlementItems[uid] || user.settlements?.[month] || {};
+    if (saved.status === '보류') {
+      skipped++;
+      continue;
+    }
+
+    let lunch = 0;
+    let salad = 0;
+    let eventLunch = 0;
+    let eventPrice = userLunchPrice(user) || 0;
+    const daily = {};
+
+    monthDates(month).forEach(ds => {
+      const record = (deliveryRecords[ds] || {})[uid];
+      if (!record || record.deleted || record.orderDeleted || !record.delivered) return;
+      const dl = orderLunchQty(record);
+      const dsalad = orderSaladQty(record);
+      const de = orderEventLunchQty(record);
+      const recordEventPrice = orderEventLunchPrice(record);
+      lunch += dl;
+      salad += dsalad;
+      eventLunch += de;
+      if (recordEventPrice) eventPrice = recordEventPrice;
+      if (dl || dsalad || de) daily[ds] = { lunch: dl, salad: dsalad, eventLunch: de };
+    });
+
+    if ((lunch + salad + eventLunch) <= 0) continue;
+
+    const lunchPrice = userLunchPrice(user) || 0;
+    const saladPrice = userSaladPrice(user) || 0;
+    const amount = lunch * lunchPrice + salad * saladPrice + eventLunch * eventPrice;
+    const adjust = parseInt(saved.adjust, 10) || 0;
+    const payments = saved.payments || [];
+    const paidTotal = settlementPaidTotal(saved);
+    const status = paidTotal > 0 && paidTotal >= (amount + adjust) ? '입금완료' : '청구완료';
+    const invoiceNo = saved.invoiceNo || await generateInvoiceNo(month);
+    const dueDate = saved.dueDate || defaultDueDate(month);
+    const row = {
+      uid,
+      user,
+      lunch,
+      salad,
+      eventLunch,
+      lunchPrice,
+      saladPrice,
+      eventPrice,
+      amount,
+      dateBreakdown: daily
+    };
+
+    await saveSettlementItem(month, uid, row, {
+      status,
+      note: saved.note || '',
+      amount,
+      adjust,
+      invoiceNo,
+      dueDate,
+      payments,
+      paidDate: saved.paidDate || (payments.length ? payments[payments.length - 1].date : ''),
+      paidAmount: paidTotal,
+      lunchTotal: lunch,
+      saladTotal: salad,
+      eventLunchTotal: eventLunch,
+      lunch,
+      salad,
+      eventLunch,
+      lunchPrice,
+      saladPrice,
+      eventPrice,
+      daily,
+      autoBilled: true,
+      autoBilledAt: new Date().toISOString()
+    });
+    settlementItems[uid] = { ...saved, invoiceNo, status };
+    billed++;
+  }
+
+  return { billed, skipped };
+}
+
 function nestedDeliveryUpdate(date, uid, value) {
   return { deliveryRecords: { [date]: { [uid]: value } } };
 }
@@ -3647,6 +3744,7 @@ async function completeSelectedDeliveries() {
     return;
   }
   const updates = { deliveryRecords: { [currentDateStr]: {} } };
+  const completedUids = [];
   checked.forEach(cb => {
     const uid = cb.value;
     const rowEl = cb.closest('tr');
@@ -3687,11 +3785,20 @@ async function completeSelectedDeliveries() {
       source: row.source === 'manual' ? 'adminManual' : (row.source === 'default' ? 'adminDefault' : 'order'),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
+    completedUids.push(uid);
   });
   try {
     await db.collection('users').doc(adminUid).set(updates, { merge: true });
-    showToast(`✅ ${checked.length}곳 배송 완료 처리되었습니다.`);
+    try {
+      const result = await autoBillCompletedDeliveries(currentDateStr, completedUids);
+      const skippedText = result.skipped ? ` / 보류 ${result.skipped}곳 제외` : '';
+      showToast(`✅ ${completedUids.length}곳 배송 완료 · 정산 ${result.billed}곳 자동 청구완료${skippedText}`);
+    } catch(settlementError) {
+      console.error('정산 자동 반영 실패:', settlementError);
+      showToast(`✅ ${completedUids.length}곳 배송 완료 처리됨 · 정산 자동 반영은 실패했습니다.`);
+    }
     loadOrders();
+    if (activeAdminTab === 'settlements') loadSettlements();
   } catch(e) {
     showToast('배송 완료 처리 실패: ' + e.message);
   }
