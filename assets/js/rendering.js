@@ -417,12 +417,12 @@ function renderToday(){
   const ctb = document.getElementById('courierList');
   if(ctb){
     ctb.innerHTML = !filteredCourier.length
-      ? `<tr><td colspan="13"><div class="empty"><div class="ei empty-mark">택</div><div>${courierList.length ? '필터에 맞는 택배 없음' : '택배 없음'}</div></div></td></tr>`
+      ? `<tr><td colspan="15"><div class="empty"><div class="ei empty-mark">택</div><div>${courierList.length ? '필터에 맞는 택배 없음' : '택배 없음'}</div></div></td></tr>`
       : (window.innerWidth <= 768
           ? filteredCourier.map(c => {
               const done = (c.deliveredDates||[]).includes(ds);
               return `<tr class="${done?'trd':''}">
-                <td colspan="13" style="padding:0;border:none;">
+                <td colspan="15" style="padding:0;border:none;">
                   <div style="background:var(--surface);border:1px solid rgba(3,102,214,.15);border-radius:10px;margin:4px 0;padding:12px 14px;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -444,6 +444,10 @@ function renderToday(){
                       <div style="font-size:11px;color:var(--text3);">${c.scheduleName||''}</div>
                       <div>${gauge(c)}</div>
                     </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;">
+                      ${typeof logenStatusBadgeHtml==='function'?logenStatusBadgeHtml(c, ds):''}
+                      ${typeof logenSlipNoHtml==='function'?logenSlipNoHtml(c, ds):''}
+                    </div>
                   </div>
                 </td>
               </tr>`;
@@ -462,6 +466,8 @@ function renderToday(){
                 <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
                 <td style="font-size:12px;font-weight:700;">${c.qty || c.total || 1}</td>
                 <td>${gauge(c)}</td>
+                <td>${typeof logenStatusBadgeHtml==='function'?logenStatusBadgeHtml(c, ds):'—'}</td>
+                <td>${typeof logenSlipNoHtml==='function'?logenSlipNoHtml(c, ds):'—'}</td>
                 <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
                 <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">완료</button>`}</td>
               </tr>`;
