@@ -43,6 +43,11 @@ const ALLOW_STATUS  = [
   'DELIVERY_HOLD', 'DELIVERY_ON_HOLD', 'DELIVERY_PENDING', 'HOLD', 'HOLDING', 'ON_HOLD',
   '배송보류', '배송 보류'
 ];
+const IMWEB_HOLD_QUERY_STATUSES = [
+  'delivery_hold', 'delivery_on_hold', 'delivery_pending',
+  'DELIVERY_HOLD', 'DELIVERY_ON_HOLD', 'DELIVERY_PENDING',
+  '배송보류'
+];
 
 const SINGLE_PROD_MAP = {
   'pork_rib' : '수제 돼지양념갈비',
@@ -620,21 +625,32 @@ function getImwebToken() {
 }
 
 function getImwebOrders(token) {
-  const limit = 100;
-  let page = 1;
   const all = [];
   const seen = new Set();
+
+  appendImwebOrders_(token, '', all, seen);
+  IMWEB_HOLD_QUERY_STATUSES.forEach(function(status) {
+    appendImwebOrders_(token, status, all, seen);
+  });
+
+  return all;
+}
+
+function appendImwebOrders_(token, status, all, seen) {
+  const limit = 100;
+  let page = 1;
   let lastFirstOrderNo = '';
 
   while (page <= 20) {
-    const url = 'https://api.imweb.me/v2/shop/orders?limit=' + limit + '&page=' + page;
+    let url = 'https://api.imweb.me/v2/shop/orders?limit=' + limit + '&page=' + page;
+    if (status) url += '&status=' + encodeURIComponent(status);
     const res = UrlFetchApp.fetch(url, {
       method:'get', headers:{'Content-Type':'application/json','access-token':token},
       muteHttpExceptions:true,
     });
     const json = JSON.parse(res.getContentText());
     if (json.code !== 200) {
-      Logger.log('주문 오류: ' + json.msg);
+      Logger.log('주문 오류' + (status ? ' (' + status + ')' : '') + ': ' + json.msg);
       break;
     }
     const list = (json.data && json.data.list) || [];
@@ -655,7 +671,6 @@ function getImwebOrders(token) {
     if (list.length < limit) break;
     page++;
   }
-  return all;
 }
 
 function getOrderProdOrders(token, orderNo) {
