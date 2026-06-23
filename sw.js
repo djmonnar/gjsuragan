@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v29-settlement-note-settings';
+const CACHE = 'gjsuragan-v30-customer-midnight-refresh';
 const PRECACHE = [
   './customer.html',
   './admin.html',

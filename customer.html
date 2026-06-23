@@ -2361,15 +2361,26 @@ function orderTargetBadgeText(ctx) {
   return `${formatDateKR(ctx.targetDate)} ${addCalendarDays(ctx.today, 1) === ctx.targetDate ? '내일 주문' : '다음 주문'}`;
 }
 
+function mealMenuDefaultTitle(dStr) {
+  const today = dateStr(getKST());
+  if (dStr === today) return '오늘의 식단';
+  if (dStr === addCalendarDays(today, 1)) return '내일의 식단';
+  return `${formatDateKR(dStr)} 식단`;
+}
+
 function scheduleOrderTargetRefresh() {
   if (orderTargetRefreshTimer) clearTimeout(orderTargetRefreshTimer);
   const kst = getKST();
-  if (isClosed()) return;
-  const h = kst.getUTCHours();
-  const m = kst.getUTCMinutes();
-  const s = kst.getUTCSeconds();
-  const ms = kst.getUTCMilliseconds();
-  const wait = Math.max(1000, ((orderDeadline.hour - h) * 60 + (orderDeadline.minute - m)) * 60000 - s * 1000 - ms + 1000);
+  const nextMidnight = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate() + 1, 0, 0, 1, 0);
+  const waits = [Math.max(1000, nextMidnight - kst.getTime())];
+  if (!isClosed()) {
+    const h = kst.getUTCHours();
+    const m = kst.getUTCMinutes();
+    const s = kst.getUTCSeconds();
+    const ms = kst.getUTCMilliseconds();
+    waits.push(Math.max(1000, ((orderDeadline.hour - h) * 60 + (orderDeadline.minute - m)) * 60000 - s * 1000 - ms + 1000));
+  }
+  const wait = Math.min(...waits);
   orderTargetRefreshTimer = setTimeout(() => {
     if (currentUser) renderToday();
   }, wait);
@@ -2468,7 +2479,7 @@ function renderMealMenuCard(targetId, dStr, menu) {
     `;
     return;
   }
-  const title = menu.title || '오늘의 식단';
+  const title = menu.title || mealMenuDefaultTitle(dStr);
   el.className = 'meal-card';
   el.innerHTML = `
     <div class="meal-head">
