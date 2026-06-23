@@ -1079,7 +1079,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       </div>
       <div class="manual-contact-box">
         <strong>기본 흐름</strong>
-        <span>주문 확인 → 수량 수정 → 배송 완료 → 정산 확인</span>
+        <span>주문 확인 → 수량 수정 → 배송 완료</span>
       </div>
     </div>
 
@@ -1090,7 +1090,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <li>날짜를 선택하면 해당 날짜의 업체별 주문이 보입니다.</li>
           <li>수량이 실제 배송과 다르면 도시락/샐러드 숫자를 수정합니다.</li>
           <li>배송 나간 업체만 체크한 뒤 <b>배송 완료</b>를 누릅니다.</li>
-          <li>배송 완료된 건은 정산에 자동 반영되고 청구완료 상태로 저장됩니다.</li>
+          <li>배송 완료된 건은 정산에 자동 반영됩니다. 직원 업무는 여기서 끝납니다.</li>
         </ol>
         <div class="manual-tip">고객이 자체 휴무로 보낸 날은 휴무 표시가 뜨며 배송 완료 대상에서 제외됩니다.</div>
       </div>
@@ -1115,9 +1115,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="manual-card">
         <div class="manual-card-title">4. 정산</div>
         <ol>
-          <li>정산월을 선택하고 <b>불러오기</b>를 누릅니다.</li>
-          <li>업체별 도시락, 샐러드, 행사 수량과 금액을 확인합니다.</li>
-          <li>배송완료 후 청구완료는 자동 처리되며, 정산 탭에서는 입금완료와 보류만 필요할 때 조정합니다.</li>
+          <li>월말에 사장님이 정산월을 선택하고 <b>불러오기</b>를 누릅니다.</li>
+          <li>주문 탭에서 배송완료한 도시락, 샐러드, 행사 수량과 금액만 확인합니다.</li>
+          <li>정산 탭에서는 입금완료, 보류, 조정금액처럼 예외만 수정합니다.</li>
           <li>필요하면 정산표, 카톡 내보내기, 영수증을 사용합니다.</li>
         </ol>
       </div>
@@ -1145,7 +1145,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <label><input type="checkbox"> 실제 배송 수량으로 수정</label>
       <label><input type="checkbox"> 배송 완료 처리</label>
       <label><input type="checkbox"> 행사도시락 누락 여부 확인</label>
-      <label><input type="checkbox"> 정산 탭 금액 반영 확인</label>
+      <label><input type="checkbox"> 오늘 업무 종료</label>
     </div>
   </div>
 
@@ -1178,14 +1178,14 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         </div>
         <div class="settle-filter-tabs">
           <button class="settle-tab-btn active" data-filter="all" onclick="setSettleFilter('all')">전체</button>
-          <button class="settle-tab-btn" data-filter="미정산" onclick="setSettleFilter('미정산')">미정산</button>
+          <button class="settle-tab-btn" data-filter="미정산" onclick="setSettleFilter('미정산')">확인필요</button>
           <button class="settle-tab-btn overdue-tab" data-filter="연체" onclick="setSettleFilter('연체')">연체</button>
-          <button class="settle-tab-btn" data-filter="청구완료" onclick="setSettleFilter('청구완료')">청구완료</button>
+          <button class="settle-tab-btn" data-filter="청구완료" onclick="setSettleFilter('청구완료')">청구확인</button>
           <button class="settle-tab-btn" data-filter="입금완료" onclick="setSettleFilter('입금완료')">입금완료</button>
           <button class="settle-tab-btn" data-filter="보류" onclick="setSettleFilter('보류')">보류</button>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--sub)">배송 완료 처리된 건만 반영됩니다. 단가는 회원 관리의 업체별 단가를 사용합니다.</div>
+      <div style="font-size:12px;color:var(--sub)">정산은 주문 탭에서 배송완료한 결과를 월말에 확인하는 화면입니다. 평소 직원 업무는 주문 탭에서 끝납니다.</div>
       <!-- 엑셀 가져오기 (접기 가능) -->
       <details style="margin-top:10px">
         <summary style="font-size:13px;font-weight:700;color:var(--sub);cursor:pointer">📂 거래처 엑셀 가져오기</summary>
@@ -1234,7 +1234,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <div style="height:170px;position:relative"><canvas id="settle-bar-chart"></canvas></div>
         </div>
         <div class="settle-chart-card donut-card">
-          <div class="settle-chart-title">이번달 상태별</div>
+          <div class="settle-chart-title">월말 확인 상태</div>
           <div style="height:170px;position:relative"><canvas id="settle-donut-chart"></canvas></div>
         </div>
       </div>
@@ -1244,8 +1244,8 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <div class="batch-toolbar" id="settle-batch-toolbar" style="display:none">
       <label><input type="checkbox" id="settle-check-all" onchange="toggleAllSettlements(this.checked)"> 전체 선택</label>
       <select class="batch-status-select" id="batch-status-select">
-        <option value="">상태 일괄변경</option>
-        <option>미정산</option><option>청구완료</option><option>입금완료</option><option>보류</option>
+        <option value="">월말 상태 일괄정리</option>
+        <option value="청구완료">청구확인</option><option>입금완료</option><option>보류</option><option value="미정산">확인필요</option>
       </select>
       <button class="batch-apply-btn" onclick="bulkUpdateSettlement()">✅ 일괄 적용</button>
       <button class="export-btn" onclick="exportSettlementCSV()">📊 엑셀 내보내기</button>
@@ -1555,9 +1555,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <!-- 상태 + 청구서 번호 -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div>
-        <label class="form-label">상태</label>
+        <label class="form-label">월말 확인 상태</label>
         <select class="form-input" id="settle-edit-status" onchange="updatePaymentSummary()">
-          <option>미정산</option><option>청구완료</option><option>입금완료</option><option>보류</option>
+          <option value="청구완료">청구확인</option><option>입금완료</option><option>보류</option><option value="미정산">확인필요</option>
         </select>
       </div>
       <div>
@@ -1876,6 +1876,14 @@ function dueDateBadgeHtml(row) {
   const remaining = Math.floor((due - today) / 86400000);
   if (remaining <= 3) return `<span class="due-badge soon">D-${remaining}</span>`;
   return `<span class="due-badge ok">${row.dueDate.slice(5).replace('-','/')}</span>`;
+}
+function settlementStatusLabel(status) {
+  return ({
+    '미정산': '확인필요',
+    '청구완료': '청구확인',
+    '입금완료': '입금완료',
+    '보류': '보류'
+  })[status] || status || '-';
 }
 function filterMatchesRow(row) {
   if (currentSettleFilter === 'all') return true;
@@ -3844,7 +3852,7 @@ async function completeSelectedDeliveries() {
     try {
       const result = await autoBillCompletedDeliveries(currentDateStr, completedUids);
       const skippedText = result.skipped ? ` / 보류 ${result.skipped}곳 제외` : '';
-      showToast(`✅ ${completedUids.length}곳 배송 완료 · 정산 ${result.billed}곳 자동 청구완료${skippedText}`);
+      showToast(`✅ ${completedUids.length}곳 배송 완료 · 정산 ${result.billed}곳 자동 반영${skippedText}`);
     } catch(settlementError) {
       console.error('정산 자동 반영 실패:', settlementError);
       showToast(`✅ ${completedUids.length}곳 배송 완료 처리됨 · 정산 자동 반영은 실패했습니다.`);
@@ -5982,7 +5990,7 @@ function renderSettlements() {
           <td>${row.invoiceNo ? `<span class="invoice-no">${escapeHtml(row.invoiceNo)}</span>` : '<span style="color:var(--sub);font-size:12px">-</span>'}</td>
           <td>${dueDateBadgeHtml(row)}</td>
           <td class="${balanceClass}">${formatMoney(balance)}</td>
-          <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(row.status)}</span></td>
+          <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span></td>
           <td class="note-cell">${row.note ? escapeHtml(row.note) : '<span style="color:var(--sub)">-</span>'}</td>
           <td>
             <div class="inline-actions">
@@ -6016,7 +6024,7 @@ function renderSettlements() {
         <td class="qty-cell">${row.lunch || 0}</td>
         <td>${formatMoney(row.lunchPrice || 0)}</td>
         <td>${formatMoney(billed)}${adjustLabel}</td>
-        <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(row.status)}</span></td>
+        <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span></td>
         <td class="note-cell">${row.note ? escapeHtml(row.note) : '<span style="color:var(--sub)">-</span>'}</td>
         <td>
           <div class="inline-actions">
@@ -6943,7 +6951,7 @@ async function renderSettlementCharts() {
   settlementChartDonut = new Chart(donutCtx, {
     type: 'doughnut',
     data: {
-      labels: Object.keys(counts),
+      labels: Object.keys(counts).map(settlementStatusLabel),
       datasets: [{ data: Object.values(counts), backgroundColor: ['#fff3e0','#e3f2fd','#e8f5e9','#f3e5f5'], borderColor: ['#e65100','#1565c0','#1e6e40','#6a1b9a'], borderWidth: 2 }]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 12 } } } }
