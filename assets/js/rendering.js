@@ -726,7 +726,18 @@ async function editOnceDate(id, currentDate){
   if(!newDate) return;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(newDate)){ toast('날짜 형식이 올바르지 않습니다 (YYYY-MM-DD)','er'); return; }
   try{
-    await window.__DB.collection('customers').doc(id).update({onceDate:newDate, startDate:newDate});
+    const prod = customerProductKey(c);
+    const qty = parseInt(c.qty || c.total || 1) || 1;
+    const updateData = {
+      onceDate:newDate,
+      startDate:newDate,
+      needsReview:false,
+      reviewReason:''
+    };
+    if(prod){
+      updateData.scheduleName = productLabel(prod) + (qty > 1 ? ' x' + qty + '개' : '');
+    }
+    await window.__DB.collection('customers').doc(id).update(updateData);
     toast(`${c.name} 배송일 → ${newDate} 변경 완료`,'ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
 }

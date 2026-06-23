@@ -485,17 +485,20 @@ async function saveEdit(){
       upd.cookDays = sch.c;
       upd.arriveDays = sch.a;
       upd.startDate = sd;
+      upd.needsReview = false;
+      upd.reviewReason = '';
     }
 
   } else {
     const od = g('eodate');
+    if(!od){ toast('배송 예정일을 선택하세요','er'); return; }
+    if(!esVal){ toast('상품을 선택하세요','er'); return; }
 
-    if(od){
-      upd.onceDate = od;
-      upd.startDate = od;
-    }
-
+    upd.onceDate = od;
+    upd.startDate = od;
     upd.scheduleName = productLabel(esVal) || esVal;
+    upd.needsReview = false;
+    upd.reviewReason = '';
   }
 
   try{
