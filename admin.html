@@ -3703,6 +3703,17 @@ async function saveInlineQty(uid) {
   const values = orderQtyValuesFromRow(rowEl);
   const row = currentOrderRows.find(item => item.uid === uid) || {};
   const user = allUsers[uid] || deletedUsers[uid] || {};
+  const lunchPrice = orderLunchPrice(row, user);
+  const saladPrice = orderSaladPrice(row, user);
+  const eventLunchPrice = orderEventLunchPrice(row);
+  const items = buildOrderItems({
+    lunchQty: values.lunch,
+    lunchPrice,
+    saladQty: values.salad,
+    saladPrice,
+    eventLunchQty: values.event,
+    eventLunchPrice
+  });
   try {
     await db.collection('orders').doc(currentDateStr).collection('items').doc(uid).set({
       lunchCount: values.lunch,
@@ -3714,6 +3725,47 @@ async function saveInlineQty(uid) {
       submittedBy: adminUid,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
+
+    if (row.delivered) {
+      await db.collection('users').doc(adminUid).set({
+        deliveryRecords: {
+          [currentDateStr]: {
+            [uid]: {
+              ...(cachedDeliveryRecords[currentDateStr]?.[uid] || {}),
+              uid,
+              businessName: user.businessName || row.businessName || '-',
+              lunchCount: values.lunch,
+              saladCount: values.salad,
+              lunchQty: values.lunch,
+              lunchPrice,
+              saladQty: values.salad,
+              saladPrice,
+              eventLunchQty: values.event,
+              eventLunchPrice,
+              eventPrice: eventLunchPrice,
+              totalQty: values.lunch + values.salad + values.event,
+              totalAmount: items.reduce((sum, item) => sum + item.amount, 0),
+              items,
+              orderDeleted: false,
+              deleted: false,
+              delivered: true,
+              deliveredAt: cachedDeliveryRecords[currentDateStr]?.[uid]?.deliveredAt || row.deliveredAt || firebase.firestore.FieldValue.serverTimestamp(),
+              deliveredBy: cachedDeliveryRecords[currentDateStr]?.[uid]?.deliveredBy || row.deliveredBy || adminUid,
+              adminAdjusted: true,
+              adminManual: row.source === 'manual' || Boolean(row.adminManual),
+              source: row.source === 'manual' ? 'adminManual' : (row.source === 'default' ? 'adminDefault' : 'order'),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }
+          }
+        }
+      }, { merge: true });
+      const result = await autoBillCompletedDeliveries(currentDateStr, [uid]);
+      const skippedText = result.skipped ? ' / 보류 상태라 정산 제외' : '';
+      showToast(`✅ ${user.businessName || row.businessName || '주문'} 수량 저장 · 정산 ${result.billed ? '반영됨' : '유지됨'}${skippedText}`);
+      if (activeAdminTab === 'settlements') loadSettlements();
+      return;
+    }
+
     showToast(`✅ ${user.businessName || row.businessName || '주문'} 수량 저장됨`);
   } catch(e) {
     showToast('저장 실패: ' + e.message, 'error');
@@ -7245,19 +7297,40 @@ async function saveBreakdownEdits(uid) {
       changed = true;
       if (row.type === 'manualMonthly') continue;
       const existing = (cachedDeliveryRecords[ds] || {})[uid] || {};
+      const lunchPrice = existing.lunchPrice ?? row.lunchPrice ?? userLunchPrice(row.user || {}) ?? 0;
+      const saladPrice = existing.saladPrice ?? row.saladPrice ?? userSaladPrice(row.user || {}) ?? 0;
+      const eventLunchPrice = existing.eventLunchPrice ?? existing.eventPrice ?? row.eventPrice ?? row.lunchPrice ?? 0;
+      const items = buildOrderItems({
+        lunchQty: newLunch,
+        lunchPrice,
+        saladQty: newSalad,
+        saladPrice,
+        eventLunchQty: newEventLunch,
+        eventLunchPrice
+      });
       updates[`deliveryRecords.${ds}.${uid}`] = {
         ...existing,
         lunchCount: newLunch,
         saladCount: newSalad,
-        delivered: newLunch > 0 || newSalad > 0,
+        lunchQty: newLunch,
+        lunchPrice,
+        saladQty: newSalad,
+        saladPrice,
+        eventLunchQty: newEventLunch,
+        eventLunchPrice,
+        eventPrice: eventLunchPrice,
+        totalQty: newLunch + newSalad + newEventLunch,
+        totalAmount: items.reduce((sum, item) => sum + item.amount, 0),
+        items,
+        delivered: newLunch > 0 || newSalad > 0 || newEventLunch > 0,
         updatedAt: new Date().toISOString()
       };
     }
   }
   if (!changed) { showToast('변경 사항이 없습니다.'); return; }
   try {
+    const month = document.getElementById('settle-month').value || currentMonthStr();
     if (row.type === 'manualMonthly') {
-      const month = document.getElementById('settle-month').value || currentMonthStr();
       const lunch = Object.values(newDaily).reduce((sum, day) => sum + (day.lunch || 0), 0);
       const salad = Object.values(newDaily).reduce((sum, day) => sum + (day.salad || 0), 0);
       const eventLunch = Object.values(newDaily).reduce((sum, day) => sum + (day.eventLunch || 0), 0);
@@ -7272,8 +7345,9 @@ async function saveBreakdownEdits(uid) {
       });
     } else {
       await db.collection('users').doc(adminUid).update(updates);
+      await autoBillCompletedDeliveries(dates[0] || `${month}-01`, [uid]);
     }
-    showToast('✅ 배송 내역이 저장되었습니다. 정산을 다시 불러옵니다...');
+    showToast('✅ 배송 내역과 정산이 저장되었습니다. 정산을 다시 불러옵니다...');
     loadSettlements();
   } catch(e) {
     showToast('저장 실패: ' + e.message);

@@ -1259,6 +1259,17 @@
   .cust-payment-row .p-date{color:var(--text-secondary)}
   .cust-payment-row .p-amt{font-weight:700;color:var(--primary);text-align:right}
 .cust-payment-row .p-note{color:var(--text-secondary);font-size:12px}
+.cust-unit-row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.cust-unit-chip{background:#fff8ed;border:1px solid #efd7bd;color:var(--primary);border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}
+.cust-detail-wrap{margin-top:12px;border-top:1px solid var(--border);padding-top:12px}
+.cust-detail-title{font-size:13px;font-weight:800;color:var(--text);margin-bottom:8px}
+.cust-detail-scroll{overflow-x:auto;border:1px solid var(--border);border-radius:8px}
+.cust-detail-table{width:100%;border-collapse:collapse;min-width:420px;font-size:12px}
+.cust-detail-table th,.cust-detail-table td{padding:8px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
+.cust-detail-table th:first-child,.cust-detail-table td:first-child{text-align:left}
+.cust-detail-table th{background:#f8f6f2;color:var(--text-secondary);font-weight:800}
+.cust-detail-table tbody tr:last-child td{border-bottom:none}
+.cust-detail-table tfoot td{background:#fff8ed;color:var(--primary);font-weight:900}
 .cust-print-btn{background:#fff;color:var(--primary);border:1.5px solid var(--primary);border-radius:8px;padding:10px 16px;font:inherit;font-size:14px;font-weight:800;cursor:pointer;white-space:nowrap}
 .cust-print-btn:hover{background:#fff8ed}
 .btn-call{color:#1e6e40}
@@ -2744,6 +2755,81 @@ function custDueBadge(dueDate) {
   return `<span class="cust-due-badge ok">${dueDate}</span>`;
 }
 
+function customerSettlementQty(s, totalKey, legacyKey) {
+  return Number(s?.[totalKey] ?? s?.[legacyKey] ?? 0) || 0;
+}
+
+function customerSettlementPrices(s) {
+  return {
+    lunch: Number(s?.lunchPrice ?? userProfile?.lunchPrice ?? userProfile?.priceLunch ?? 0) || 0,
+    salad: Number(s?.saladPrice ?? userProfile?.saladPrice ?? userProfile?.priceSalad ?? 0) || 0,
+    eventLunch: Number(s?.eventPrice ?? s?.eventLunchPrice ?? s?.lunchPrice ?? userProfile?.lunchPrice ?? 0) || 0
+  };
+}
+
+function customerSettlementDailyRows(s) {
+  const daily = s?.daily || s?.dateBreakdown || {};
+  const prices = customerSettlementPrices(s);
+  return Object.keys(daily).sort().map(ds => {
+    const day = daily[ds] || {};
+    const lunch = Number(day.lunch ?? day.lunchCount ?? day.lunchQty ?? 0) || 0;
+    const salad = Number(day.salad ?? day.saladCount ?? day.saladQty ?? 0) || 0;
+    const eventLunch = Number(day.eventLunch ?? day.eventLunchCount ?? day.eventLunchQty ?? day.event ?? 0) || 0;
+    return {
+      date: ds,
+      label: formatDateKR(ds),
+      lunch,
+      salad,
+      eventLunch,
+      amount: lunch * prices.lunch + salad * prices.salad + eventLunch * prices.eventLunch
+    };
+  }).filter(row => row.lunch || row.salad || row.eventLunch);
+}
+
+function renderCustomerSettlementDailyDetail(s) {
+  const rows = customerSettlementDailyRows(s);
+  const prices = customerSettlementPrices(s);
+  const hasEventLunch = rows.some(row => row.eventLunch > 0) || customerSettlementQty(s, 'eventLunchTotal', 'eventLunch') > 0;
+  const totalLunch = customerSettlementQty(s, 'lunchTotal', 'lunch');
+  const totalSalad = customerSettlementQty(s, 'saladTotal', 'salad');
+  const totalEventLunch = customerSettlementQty(s, 'eventLunchTotal', 'eventLunch');
+  const totalAmount = rows.reduce((sum, row) => sum + row.amount, 0);
+
+  const unitChips = [
+    `<span class="cust-unit-chip">도시락 ${prices.lunch.toLocaleString()}원</span>`,
+    `<span class="cust-unit-chip">샐러드 ${prices.salad.toLocaleString()}원</span>`
+  ];
+  if (hasEventLunch) unitChips.push(`<span class="cust-unit-chip">행사 ${prices.eventLunch.toLocaleString()}원</span>`);
+
+  const body = rows.length
+    ? rows.map(row => `
+      <tr>
+        <td>${escapeHtml(row.label)}</td>
+        <td>${row.lunch ? `${row.lunch}개` : '-'}</td>
+        <td>${row.salad ? `${row.salad}개` : '-'}</td>
+        ${hasEventLunch ? `<td>${row.eventLunch ? `${row.eventLunch}개` : '-'}</td>` : ''}
+        <td>${row.amount.toLocaleString()}원</td>
+      </tr>`).join('')
+    : `<tr><td colspan="${hasEventLunch ? 5 : 4}" style="text-align:center;color:var(--text-secondary)">일별 내역이 없습니다.</td></tr>`;
+
+  return `
+    <div class="cust-unit-row">${unitChips.join('')}</div>
+    <div class="cust-detail-wrap">
+      <div class="cust-detail-title">일별 이용 내역</div>
+      <div class="cust-detail-scroll">
+        <table class="cust-detail-table">
+          <thead>
+            <tr><th>날짜</th><th>도시락</th><th>샐러드</th>${hasEventLunch ? '<th>행사</th>' : ''}<th>금액</th></tr>
+          </thead>
+          <tbody>${body}</tbody>
+          <tfoot>
+            <tr><td>합계</td><td>${totalLunch}개</td><td>${totalSalad}개</td>${hasEventLunch ? `<td>${totalEventLunch}개</td>` : ''}<td>${totalAmount.toLocaleString()}원</td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>`;
+}
+
 function renderCustomerSettlementDetail(s) {
   const billed = (s.amount || 0) + (s.adjust || 0);
   let payments = s.payments || [];
@@ -2769,15 +2855,19 @@ function renderCustomerSettlementDetail(s) {
     ? `<div class="cust-ph-title">입금 이력</div>` +
       payments.map(p => `
         <div class="cust-payment-row">
-          <span class="p-date">${p.date || '-'}</span>
+          <span class="p-date">${escapeHtml(p.date || '-')}</span>
           <span class="p-amt">${(parseInt(p.amount,10)||0).toLocaleString()}원</span>
-          <span class="p-note">${p.note || ''}</span>
+          <span class="p-note">${escapeHtml(p.note || '')}</span>
         </div>`).join('')
     : '';
 
   const noteHtml = s.note
-    ? `<div class="cust-meta-row" style="margin-top:8px">메모 <span>${s.note}</span></div>`
+    ? `<div class="cust-meta-row" style="margin-top:8px">메모 <span>${escapeHtml(s.note)}</span></div>`
     : '';
+  const totalLunch = customerSettlementQty(s, 'lunchTotal', 'lunch');
+  const totalSalad = customerSettlementQty(s, 'saladTotal', 'salad');
+  const totalEventLunch = customerSettlementQty(s, 'eventLunchTotal', 'eventLunch');
+  const eventSummary = totalEventLunch ? `&emsp;행사 <span>${totalEventLunch}개</span>` : '';
 
   return `
     <div class="cust-invoice-card">
@@ -2796,7 +2886,8 @@ function renderCustomerSettlementDetail(s) {
           <div class="value">${balance <= 0 ? '없음' : balance.toLocaleString() + '원'}</div>
         </div>
       </div>
-      <div class="cust-meta-row">${iconSvg('lunch')} 도시락 <span>${s.lunchTotal || 0}개</span>&emsp;${iconSvg('salad')} 샐러드 <span>${s.saladTotal || 0}개</span>${s.adjust ? `&emsp;조정 <span>${s.adjust > 0 ? '+' : ''}${s.adjust.toLocaleString()}원</span>` : ''}</div>
+      <div class="cust-meta-row">${iconSvg('lunch')} 도시락 <span>${totalLunch}개</span>&emsp;${iconSvg('salad')} 샐러드 <span>${totalSalad}개</span>${eventSummary}${s.adjust ? `&emsp;조정 <span>${s.adjust > 0 ? '+' : ''}${s.adjust.toLocaleString()}원</span>` : ''}</div>
+      ${renderCustomerSettlementDailyDetail(s)}
       ${paymentRows}
       ${noteHtml}
     </div>`;
@@ -2822,6 +2913,23 @@ function customerSettlementPrintHtml(s, month) {
   const titleMonth = year && mon ? `${year}년 ${parseInt(mon, 10)}월` : month;
   const customerName = userProfile?.businessName || currentUser?.email || '';
   const issuedAt = dateStr(getKST());
+  const detailRows = customerSettlementDailyRows(s);
+  const prices = customerSettlementPrices(s);
+  const totalLunch = customerSettlementQty(s, 'lunchTotal', 'lunch');
+  const totalSalad = customerSettlementQty(s, 'saladTotal', 'salad');
+  const totalEventLunch = customerSettlementQty(s, 'eventLunchTotal', 'eventLunch');
+  const hasEventLunch = detailRows.some(row => row.eventLunch > 0) || totalEventLunch > 0;
+  const detailAmount = detailRows.reduce((sum, row) => sum + row.amount, 0);
+  const detailRowsHtml = detailRows.length
+    ? detailRows.map(row => `
+      <tr>
+        <td>${escapeHtml(row.label)}</td>
+        <td class="num">${row.lunch ? row.lunch + '개' : '-'}</td>
+        <td class="num">${row.salad ? row.salad + '개' : '-'}</td>
+        ${hasEventLunch ? `<td class="num">${row.eventLunch ? row.eventLunch + '개' : '-'}</td>` : ''}
+        <td class="num">${row.amount.toLocaleString()}원</td>
+      </tr>`).join('')
+    : `<tr><td colspan="${hasEventLunch ? 5 : 4}" class="empty">일별 내역이 없습니다.</td></tr>`;
   const paymentRows = payments.length
     ? payments.map(p => `
       <tr>
@@ -2856,6 +2964,10 @@ function customerSettlementPrintHtml(s, month) {
     .box .value{font-size:22px;font-weight:900;color:#7B3F1A}
     .box.balance .value{color:${balance <= 0 ? '#1e6e40' : '#c0392b'}}
     .section-title{font-size:15px;font-weight:900;margin:20px 0 8px}
+    .detail th{width:auto;text-align:center}
+    .detail td{text-align:right}
+    .detail td:first-child{text-align:left}
+    .detail tfoot td{background:#fff8ed;font-weight:900;color:#7B3F1A}
     .num{text-align:right;font-variant-numeric:tabular-nums}
     .empty{text-align:center;color:#6b7280}
     .account{background:#fff8ed;border:1px solid #f0d090;padding:12px 14px;font-size:14px;line-height:1.7;margin-top:18px}
@@ -2885,8 +2997,9 @@ function customerSettlementPrintHtml(s, month) {
         ${customerPrintRow('정산월', titleMonth || '-')}
         ${customerPrintRow('정산 상태', s.status || '-')}
         ${customerPrintRow('납부기한', s.dueDate || '-')}
-        ${customerPrintRow('도시락', `${s.lunchTotal || 0}개`)}
-        ${customerPrintRow('샐러드', `${s.saladTotal || 0}개`)}
+        ${customerPrintRow('도시락', `${totalLunch}개 · 단가 ${prices.lunch.toLocaleString()}원`)}
+        ${customerPrintRow('샐러드', `${totalSalad}개 · 단가 ${prices.salad.toLocaleString()}원`)}
+        ${hasEventLunch ? customerPrintRow('행사도시락', `${totalEventLunch}개 · 단가 ${prices.eventLunch.toLocaleString()}원`) : ''}
         ${s.adjust ? customerPrintRow('조정금액', `${s.adjust > 0 ? '+' : ''}${s.adjust.toLocaleString()}원`) : ''}
         ${noteRow}
       </tbody>
@@ -2896,6 +3009,16 @@ function customerSettlementPrintHtml(s, month) {
       <div class="box"><div class="label">입금액</div><div class="value">${paidTotal.toLocaleString()}원</div></div>
       <div class="box balance"><div class="label">잔액</div><div class="value">${balance <= 0 ? '없음' : balance.toLocaleString() + '원'}</div></div>
     </div>
+    <div class="section-title">일별 이용 내역</div>
+    <table class="detail">
+      <thead>
+        <tr><th>날짜</th><th>도시락</th><th>샐러드</th>${hasEventLunch ? '<th>행사</th>' : ''}<th>금액</th></tr>
+      </thead>
+      <tbody>${detailRowsHtml}</tbody>
+      <tfoot>
+        <tr><td>합계</td><td class="num">${totalLunch}개</td><td class="num">${totalSalad}개</td>${hasEventLunch ? `<td class="num">${totalEventLunch}개</td>` : ''}<td class="num">${detailAmount.toLocaleString()}원</td></tr>
+      </tfoot>
+    </table>
     <div class="section-title">입금 이력</div>
     <table>
       <thead><tr><th>입금일</th><th>금액</th><th>비고</th></tr></thead>
