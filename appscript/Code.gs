@@ -46,7 +46,7 @@ const ALLOW_STATUS  = [
 const IMWEB_HOLD_QUERY_STATUSES = [
   'delivery_hold', 'delivery_on_hold', 'delivery_pending',
   'DELIVERY_HOLD', 'DELIVERY_ON_HOLD', 'DELIVERY_PENDING',
-  '배송보류'
+  '배송보류', '배송 보류'
 ];
 
 const SINGLE_PROD_MAP = {
@@ -265,20 +265,63 @@ function syncImwebOrders() {
   }
 }
 
+function addOptionValue_(vals, seen, value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text || text.length > 200) return;
+  if (/^\d+$/.test(text)) return;
+  if (/^[\d,]+원$/.test(text)) return;
+  if (seen[text]) return;
+  seen[text] = true;
+  vals.push(text);
+}
+
+function collectOptionValues_(node, vals, seen, keyName, depth) {
+  if (!node || depth > 6) return;
+
+  if (Array.isArray(node)) {
+    node.forEach(function(item) {
+      collectOptionValues_(item, vals, seen, keyName, depth + 1);
+    });
+    return;
+  }
+
+  if (typeof node !== 'object') {
+    if (/value|name|text|option|옵션|선택|요일|횟수|세트/i.test(String(keyName || ''))) {
+      addOptionValue_(vals, seen, node);
+    }
+    return;
+  }
+
+  Object.keys(node).forEach(function(key) {
+    const value = node[key];
+    const keyText = String(key || '');
+
+    if (Array.isArray(value) && /value_name_list|value_list|values|option_values/i.test(keyText)) {
+      value.forEach(function(v) {
+        if (v !== null && typeof v === 'object') {
+          collectOptionValues_(v, vals, seen, keyText, depth + 1);
+        } else {
+          addOptionValue_(vals, seen, v);
+        }
+      });
+      return;
+    }
+
+    if (value !== null && typeof value === 'object') {
+      collectOptionValues_(value, vals, seen, keyText, depth + 1);
+      return;
+    }
+
+    if (/value_name|value_text|option_value|option_name|name|title|text|content|label|value|옵션|선택|요일|횟수|세트/i.test(keyText)) {
+      addOptionValue_(vals, seen, value);
+    }
+  });
+}
+
 function getOptionValues(item) {
   const vals = [];
-  (item.options || []).forEach(function(og) {
-    // Imweb API는 배열-of-배열 또는 배열-of-객체 두 가지 구조로 올 수 있음
-    const optList = Array.isArray(og) ? og : [og];
-    optList.forEach(function(opt) {
-      if (!opt) return;
-      if (Array.isArray(opt.value_name_list) && opt.value_name_list.length) {
-        opt.value_name_list.forEach(function(v) { vals.push(String(v)); });
-      } else if (opt.value_name) {
-        vals.push(String(opt.value_name));
-      }
-    });
-  });
+  const seen = {};
+  collectOptionValues_(item && item.options, vals, seen, '', 0);
   return vals;
 }
 
