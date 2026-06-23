@@ -2033,6 +2033,7 @@ const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
 let customHolidays = {};
 let orderDeadline = { hour: 9, minute: 20 };
+const DEFAULT_MEAL_PRICE = 8000;
 const MEAL_TIME_OPTIONS = [
   '10:30','10:40','10:50',
   '11:00','11:10','11:20','11:30','11:40','11:50',
@@ -2636,6 +2637,10 @@ async function doRegister() {
       deliveryPlace, deliveryPlaceDetail,
       mealTime,
       defaultLunch: lunch, defaultSalad: salad,
+      lunchPrice: DEFAULT_MEAL_PRICE,
+      saladPrice: DEFAULT_MEAL_PRICE,
+      priceLunch: DEFAULT_MEAL_PRICE,
+      priceSalad: DEFAULT_MEAL_PRICE,
       sameDailyMeal, weekdayMeals,
       privacyConsent: true,
       privacyConsentAt: firebase.firestore.FieldValue.serverTimestamp(),

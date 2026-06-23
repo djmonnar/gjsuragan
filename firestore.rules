@@ -46,6 +46,14 @@ service cloud.firestore {
       return !(field in data.keys()) || safeCount(data[field]);
     }
 
+    function safePrice(value) {
+      return (value is int || value is float) && value >= 0 && value <= 100000;
+    }
+
+    function optionalSafePrice(data, field) {
+      return !(field in data.keys()) || safePrice(data[field]);
+    }
+
     function userProfileKeys() {
       return [
         'businessName',
@@ -56,6 +64,29 @@ service cloud.firestore {
         'mealTime',
         'defaultLunch',
         'defaultSalad',
+        'sameDailyMeal',
+        'weekdayMeals',
+        'createdAt',
+        'updatedAt',
+        'privacyConsent',
+        'privacyConsentAt'
+      ];
+    }
+
+    function userCreateKeys() {
+      return [
+        'businessName',
+        'email',
+        'phone',
+        'deliveryPlace',
+        'deliveryPlaceDetail',
+        'mealTime',
+        'defaultLunch',
+        'defaultSalad',
+        'lunchPrice',
+        'saladPrice',
+        'priceLunch',
+        'priceSalad',
         'sameDailyMeal',
         'weekdayMeals',
         'createdAt',
@@ -104,6 +135,10 @@ service cloud.firestore {
         && optionalString(data, 'mealTime', 20)
         && optionalSafeCount(data, 'defaultLunch')
         && optionalSafeCount(data, 'defaultSalad')
+        && optionalSafePrice(data, 'lunchPrice')
+        && optionalSafePrice(data, 'saladPrice')
+        && optionalSafePrice(data, 'priceLunch')
+        && optionalSafePrice(data, 'priceSalad')
         && optionalBool(data, 'sameDailyMeal')
         && optionalBool(data, 'privacyConsent')
         && validWeekdayMeals(data)
@@ -114,7 +149,7 @@ service cloud.firestore {
 
     function validUserCreate(userId) {
       return isOwner(userId)
-        && request.resource.data.keys().hasOnly(userProfileKeys())
+        && request.resource.data.keys().hasOnly(userCreateKeys())
         && validUserProfile(request.resource.data)
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.privacyConsent == true
