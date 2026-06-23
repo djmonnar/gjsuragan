@@ -1006,6 +1006,71 @@ function cleanupTerminalImwebOrders_(shouldDelete) {
   Logger.log('=== 정리 결과: 대상 ' + matched + '건 / 삭제 ' + deleted + '건 / 오래된 기존기록 보호 ' + skippedOld + '건 ===');
 }
 
+function cleanupRecentAutoRegisteredPreview() {
+  return cleanupRecentAutoRegistered_(false);
+}
+
+function cleanupRecentAutoRegistered() {
+  return cleanupRecentAutoRegistered_(true);
+}
+
+function cleanupRecentAutoRegistered_(shouldDelete) {
+  const hours = Math.max(1, parseInt(getScriptProperty_('IMWEB_CLEANUP_RECENT_HOURS') || '6', 10) || 6);
+  const orderNoFilterText = getScriptProperty_('IMWEB_CLEANUP_ORDER_NOS');
+  const orderNoFilter = orderNoFilterText
+    ? orderNoFilterText.split(',').map(function(v) { return String(v || '').trim(); }).filter(Boolean)
+    : [];
+  const cutoffMs = Date.now() - (hours * 60 * 60 * 1000);
+  const existingMap = getExistingOrders();
+  const records = [];
+  const seen = {};
+
+  Object.keys(existingMap || {}).forEach(function(key) {
+    const list = Array.isArray(existingMap[key]) ? existingMap[key] : [existingMap[key]];
+    list.forEach(function(record) {
+      const id = String((record && record.id) || '');
+      if (!id || seen[id]) return;
+      seen[id] = true;
+      records.push(record);
+    });
+  });
+
+  const targets = records.filter(function(record) {
+    if (!record || !record.autoRegistered) return false;
+    const orderNo = String(record.orderNum || record.syncKey || '');
+    if (orderNoFilter.length && !orderNoFilter.some(function(no) {
+      return orderNo === no || orderNo.indexOf(no + '-') === 0;
+    })) return false;
+    const createdMs = Date.parse(String(record.createdAt || ''));
+    return isFinite(createdMs) && createdMs >= cutoffMs;
+  });
+
+  Logger.log('=== 최근 자동등록 주문 정리 ' + (shouldDelete ? '실행' : '미리보기') + ' ===');
+  Logger.log('기준: 최근 ' + hours + '시간 / 주문번호 필터: ' + (orderNoFilter.length ? orderNoFilter.join(', ') : '없음'));
+
+  targets
+    .sort(function(a, b) { return String(a.createdAt || '').localeCompare(String(b.createdAt || '')); })
+    .forEach(function(record) {
+      Logger.log(
+        (shouldDelete ? '삭제대상: ' : '미리보기: ') +
+        '#' + String(record.orderNum || record.syncKey || '') +
+        ' / ' + (record.name || '-') +
+        ' / ' + (record.phone || '-') +
+        ' / ' + (record.product || '-') +
+        ' / ' + (record.schedule || '-') +
+        ' / 상태 ' + (record.status || '-') +
+        ' / 생성 ' + (record.createdAt || '-') +
+        ' / doc ' + record.id
+      );
+      if (shouldDelete) deleteFromFirestore(record.id);
+    });
+
+  Logger.log('=== 정리 결과: 대상 ' + targets.length + '건 / 삭제 ' + (shouldDelete ? targets.length : 0) + '건 ===');
+  if (!shouldDelete && !orderNoFilter.length) {
+    Logger.log('주의: 실제 삭제 함수는 위 미리보기 목록 전체를 삭제합니다. 특정 주문번호만 지우려면 Script Properties에 IMWEB_CLEANUP_ORDER_NOS를 콤마로 등록하세요.');
+  }
+}
+
 function formatDate(d) {
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
