@@ -36,12 +36,17 @@ const CANCEL_STATUS = [
 ];
 const ALLOW_STATUS  = [
   'pay_done', 'pay_complete', 'payment_complete',
-  'delivery_ready', 'delivery', 'delivering', 'delivered', 'complete', 'standby',
+  'delivery_ready', 'delivery', 'delivering', 'standby',
   'delivery_hold', 'delivery_on_hold', 'delivery_pending', 'hold', 'holding', 'on_hold',
   'PAY_DONE', 'PAY_COMPLETE', 'PAYMENT_COMPLETE',
-  'DELIVERY_READY', 'DELIVERY', 'DELIVERING', 'DELIVERED', 'COMPLETE', 'STANDBY',
+  'DELIVERY_READY', 'DELIVERY', 'DELIVERING', 'STANDBY',
   'DELIVERY_HOLD', 'DELIVERY_ON_HOLD', 'DELIVERY_PENDING', 'HOLD', 'HOLDING', 'ON_HOLD',
   '배송보류', '배송 보류'
+];
+const TERMINAL_STATUS = [
+  'delivered', 'complete', 'order_complete', 'purchase_complete', 'delivery_complete', 'delivery_done',
+  'DELIVERED', 'COMPLETE', 'ORDER_COMPLETE', 'PURCHASE_COMPLETE', 'DELIVERY_COMPLETE', 'DELIVERY_DONE',
+  '배송완료', '배송 완료', '거래종료', '구매확정', '구매 확정'
 ];
 const IMWEB_HOLD_QUERY_STATUSES = [
   'delivery_hold',
@@ -77,7 +82,18 @@ function isAllowStatus(status) {
     if (normalizeOrderStatus(ALLOW_STATUS[i]) === normalized) return true;
   }
 
-  return /complete|paydone|paycomplete|delivery|delivering|delivered|standby|deliveryhold|deliveryonhold|deliverypending|결제완료|배송준비|배송중|배송완료|배송보류/.test(normalized);
+  return /paydone|paycomplete|paymentcomplete|deliveryready|delivering|standby|deliveryhold|deliveryonhold|deliverypending|결제완료|배송준비|배송중|배송보류/.test(normalized);
+}
+
+function isTerminalStatus(status) {
+  const normalized = normalizeOrderStatus(status);
+  if (!normalized) return false;
+
+  for (var i = 0; i < TERMINAL_STATUS.length; i++) {
+    if (normalizeOrderStatus(TERMINAL_STATUS[i]) === normalized) return true;
+  }
+
+  return /delivered|deliverycomplete|deliverydone|ordercomplete|purchasecomplete|shippingcomplete|배송완료|거래종료|구매확정/.test(normalized);
 }
 
 function getImwebOrderStatuses(order, prodOrders) {
@@ -206,6 +222,12 @@ function syncImwebOrders() {
         continue;
       }
 
+      if (orderStatuses.some(isTerminalStatus)) {
+        Logger.log('⏭ 종료상태 건너뜀: ' + orderNo + ' (' + orderStatus + ')');
+        skipped++;
+        continue;
+      }
+
       if (existingMap[orderNo]) {
         Logger.log('⏭ 이미등록: ' + orderNo);
         skipped++;
@@ -237,6 +259,12 @@ function syncImwebOrders() {
           });
           Logger.log('🗑 취소 삭제: ' + orderNo + (cancelInfo.cancelReasonText ? ' / 사유: ' + cancelInfo.cancelReasonText : ''));
         }
+        continue;
+      }
+
+      if (statuses.some(isTerminalStatus)) {
+        Logger.log('⏭ 종료상태 건너뜀: ' + orderNo + ' (' + status + ')');
+        skipped++;
         continue;
       }
 
