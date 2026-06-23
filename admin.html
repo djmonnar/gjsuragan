@@ -757,6 +757,14 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <label class="form-label">시간</label>
           <input class="form-input" type="text" id="event-time" placeholder="예) 11:30 또는 오후 3시">
         </div>
+        <div>
+          <label class="form-label">상호명</label>
+          <input class="form-input" type="text" id="event-business" placeholder="예) 에이치앤엠메디칼">
+        </div>
+        <div>
+          <label class="form-label">연락처</label>
+          <input class="form-input" type="text" id="event-phone" placeholder="예) 010 9797 5077">
+        </div>
         <div class="full">
           <label class="form-label">도시락메뉴/수량</label>
           <div class="event-menu-builder">
@@ -781,6 +789,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       </div>
       <div class="inline-actions">
         <button class="save-btn" style="width:auto" onclick="saveEventLunch()">저장하기</button>
+        <button class="secondary-btn" onclick="copyEventLunchDraftKakao()">카톡 복사</button>
         <button class="secondary-btn" onclick="resetEventForm()">새로 입력</button>
       </div>
       <div class="error-msg" id="event-error"></div>
@@ -4998,7 +5007,7 @@ function switchAdminTab(tab) {
 }
 
 function resetEventForm() {
-  ['event-id','event-name','event-date','event-time','event-place','event-count','event-price','event-note'].forEach(id => {
+  ['event-id','event-name','event-date','event-time','event-business','event-phone','event-place','event-count','event-price','event-note'].forEach(id => {
     document.getElementById(id).value = '';
   });
   pendingPublicEventOrderId = '';
@@ -5148,6 +5157,7 @@ function renderEventLunches() {
       <td>${eventDeliveryBadge(item)}</td>
       <td>
         <div class="inline-actions">
+          <button class="secondary-btn" onclick="copyEventLunchKakao('${item.id}')">카톡복사</button>
           ${item.source === 'publicEventOrder'
             ? `<button class="secondary-btn" onclick="registerPublicEventOrder('${item.id}')">수정</button><button class="save-btn" style="width:auto;padding:8px 10px" onclick="completePublicEventOrder('${item.id}')">배송완료</button><button class="danger-btn" onclick="deletePublicEventOrder('${item.id}')">삭제</button>`
             : `<button class="secondary-btn" onclick="editEventLunch('${item.id}')">수정</button><button class="save-btn" style="width:auto;padding:8px 10px" onclick="toggleEventDelivered('${item.id}')">${item.delivered ? '완료취소' : '배송완료'}</button><button class="danger-btn" onclick="deleteEventLunch('${item.id}')">삭제</button>`}
@@ -5206,6 +5216,116 @@ function eventAveragePrice(item) {
   const qty = eventOrderTotalQty(item) || Number(item.count || 0) || 0;
   const amount = eventOrderTotalAmount(item);
   return qty > 0 ? Math.round(amount / qty) : (Number(item.price || 0) || 0);
+}
+
+function eventNoteField(item, label) {
+  const note = String(eventRequestNote(item) || item.note || '');
+  const re = new RegExp(`${label}\\s*[:：]\\s*([^\\n]+)`, 'i');
+  const m = note.match(re);
+  return m ? m[1].trim() : '';
+}
+
+function eventKakaoDate(dStr) {
+  if (!dStr) return '-';
+  const dt = new Date(`${dStr}T00:00:00+09:00`);
+  if (Number.isNaN(dt.getTime())) return dStr;
+  const days = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
+  return `${dt.getMonth() + 1}월${dt.getDate()}일 ${days[dt.getDay()]}`;
+}
+
+function eventKakaoBusinessName(item) {
+  const name = eventCustomerName(item);
+  if (name && name !== '행사도시락') return name;
+  return eventNoteField(item, '상호명') || '-';
+}
+
+function eventKakaoPhone(item) {
+  return item.contactPhone || eventNoteField(item, '연락처') || '-';
+}
+
+function eventKakaoRequest(item) {
+  const request = item.requestNote || eventNoteField(item, '요청사항');
+  if (request) return request;
+  const note = String(item.note || '').split('\n')
+    .filter(line => !/^\s*(상호명|연락처|요청사항|결제)\s*[:：]/.test(line))
+    .join('\n')
+    .trim();
+  return note || '-';
+}
+
+function eventKakaoMenuQty(item) {
+  if (Array.isArray(item.items) && item.items.length) {
+    return item.items
+      .map(row => `${row.name || row.menu || '도시락'} ${Number(row.qty || row.count || 0) || 0}개`)
+      .join('\n');
+  }
+  return eventOrderItemsSummary(item) || item.name || '-';
+}
+
+function buildEventLunchKakaoText(item) {
+  return [
+    '<행사도시락주문>',
+    '',
+    `상호명: ${eventKakaoBusinessName(item)}`,
+    '',
+    `장소: ${item.place || '-'}`,
+    '',
+    `시간: ${item.eventTime || '-'}`,
+    '',
+    `날짜: ${eventKakaoDate(item.eventDate)}`,
+    '',
+    `도시락메뉴/수량: ${eventKakaoMenuQty(item)}`,
+    '',
+    `요청사항: ${eventKakaoRequest(item)}`,
+    `연락처: ${eventKakaoPhone(item)}`
+  ].join('\n');
+}
+
+async function copyTextToClipboard(text, successMessage) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      showToast(successMessage || '복사되었습니다.');
+    } else {
+      window.prompt('복사하세요:', text);
+    }
+  } catch(e) {
+    window.prompt('복사하세요:', text);
+  }
+}
+
+function currentEventDraftForKakao() {
+  syncAdminEventHiddenFields();
+  const businessName = document.getElementById('event-business')?.value.trim() || '';
+  const contactPhone = document.getElementById('event-phone')?.value.trim() || '';
+  return {
+    businessName: businessName || '행사도시락',
+    contactPhone,
+    eventDate: document.getElementById('event-date')?.value || '',
+    eventTime: document.getElementById('event-time')?.value.trim() || '',
+    place: document.getElementById('event-place')?.value.trim() || '',
+    note: document.getElementById('event-note')?.value.trim() || '',
+    requestNote: document.getElementById('event-note')?.value.trim() || '',
+    items: adminEventDraftItems.map(item => ({ ...item }))
+  };
+}
+
+function copyEventLunchDraftKakao() {
+  const item = currentEventDraftForKakao();
+  if (!item.eventDate && !item.eventTime && !item.place && !item.items.length) {
+    showToast('복사할 행사도시락 내용을 먼저 입력해주세요.');
+    return;
+  }
+  copyTextToClipboard(buildEventLunchKakaoText(item), '✅ 행사도시락 카톡 문구를 복사했습니다.');
+}
+
+function copyEventLunchKakao(id) {
+  const item = eventLunches.find(e => e.id === id);
+  if (!item) {
+    showToast('행사도시락 내역을 찾지 못했습니다.');
+    return;
+  }
+  copyTextToClipboard(buildEventLunchKakaoText(item), '✅ 행사도시락 카톡 문구를 복사했습니다.');
 }
 
 function eventDeliveryBadge(item) {
@@ -5295,6 +5415,8 @@ async function registerPublicEventOrder(id) {
   document.getElementById('event-id').value = `event_${id}`;
   document.getElementById('event-date').value = item.eventDate || '';
   document.getElementById('event-time').value = item.eventTime || '';
+  document.getElementById('event-business').value = item.businessName || '';
+  document.getElementById('event-phone').value = item.contactPhone || '';
   document.getElementById('event-place').value = item.place || '';
   document.getElementById('event-note').value = [
     item.businessName ? `상호명: ${item.businessName}` : '',
@@ -5346,6 +5468,8 @@ async function saveEventLunch() {
   const name = document.getElementById('event-name').value.trim();
   const eventDate = document.getElementById('event-date').value;
   const eventTime = document.getElementById('event-time').value;
+  const businessName = document.getElementById('event-business')?.value.trim() || '';
+  const contactPhone = document.getElementById('event-phone')?.value.trim() || '';
   const place = document.getElementById('event-place').value.trim();
   const count = parseInt(document.getElementById('event-count').value, 10) || 0;
   const price = parseInt(document.getElementById('event-price').value, 10) || 0;
@@ -5366,7 +5490,8 @@ async function saveEventLunch() {
   const payload = {
     kind: 'eventLunch',
     uid: docId,
-    businessName: sourceOrder?.businessName || existingEvent?.businessName || '행사도시락',
+    businessName: businessName || sourceOrder?.businessName || existingEvent?.businessName || '행사도시락',
+    contactPhone: contactPhone || sourceOrder?.contactPhone || existingEvent?.contactPhone || '',
     name, eventDate, eventTime, place, count, price, note,
     items,
     paymentCash: Boolean(sourceOrder?.paymentCash ?? existingEvent?.paymentCash),
@@ -5414,6 +5539,8 @@ function editEventLunch(id) {
   document.getElementById('event-id').value = item.id;
   document.getElementById('event-date').value = item.eventDate || '';
   document.getElementById('event-time').value = item.eventTime || '';
+  document.getElementById('event-business').value = item.businessName && item.businessName !== '행사도시락' ? item.businessName : eventNoteField(item, '상호명');
+  document.getElementById('event-phone').value = item.contactPhone || eventNoteField(item, '연락처');
   document.getElementById('event-place').value = item.place || '';
   document.getElementById('event-note').value = item.note || '';
   pendingPublicEventOrderId = '';
