@@ -1094,3 +1094,14 @@ function installFiveMinuteSyncTrigger() {
 
   Logger.log('syncImwebOrders 5분 자동 동기화 트리거 설치 완료');
 }
+
+function pauseImwebSyncTrigger() {
+  let removed = 0;
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction && trigger.getHandlerFunction() === 'syncImwebOrders') {
+      ScriptApp.deleteTrigger(trigger);
+      removed++;
+    }
+  });
+  Logger.log('syncImwebOrders 자동 동기화 트리거 중지 완료: ' + removed + '개 삭제');
+}
