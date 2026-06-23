@@ -1047,6 +1047,11 @@ function cleanupRecentAutoRegistered_(shouldDelete) {
 
   Logger.log('=== 최근 자동등록 주문 정리 ' + (shouldDelete ? '실행' : '미리보기') + ' ===');
   Logger.log('기준: 최근 ' + hours + '시간 / 주문번호 필터: ' + (orderNoFilter.length ? orderNoFilter.join(', ') : '없음'));
+  if (shouldDelete && !orderNoFilter.length) {
+    Logger.log('중단: 안전을 위해 IMWEB_CLEANUP_ORDER_NOS에 삭제할 주문번호를 콤마로 등록한 뒤 다시 실행하세요.');
+    Logger.log('예: 202606230000001,202606230000002');
+    return;
+  }
 
   targets
     .sort(function(a, b) { return String(a.createdAt || '').localeCompare(String(b.createdAt || '')); })
@@ -1067,7 +1072,7 @@ function cleanupRecentAutoRegistered_(shouldDelete) {
 
   Logger.log('=== 정리 결과: 대상 ' + targets.length + '건 / 삭제 ' + (shouldDelete ? targets.length : 0) + '건 ===');
   if (!shouldDelete && !orderNoFilter.length) {
-    Logger.log('주의: 실제 삭제 함수는 위 미리보기 목록 전체를 삭제합니다. 특정 주문번호만 지우려면 Script Properties에 IMWEB_CLEANUP_ORDER_NOS를 콤마로 등록하세요.');
+    Logger.log('주의: 실제 삭제 함수는 IMWEB_CLEANUP_ORDER_NOS에 주문번호를 등록해야만 동작합니다.');
   }
 }
 
