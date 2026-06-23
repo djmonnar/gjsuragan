@@ -44,9 +44,8 @@ const ALLOW_STATUS  = [
   '배송보류', '배송 보류'
 ];
 const IMWEB_HOLD_QUERY_STATUSES = [
-  'delivery_hold', 'delivery_on_hold', 'delivery_pending',
-  'DELIVERY_HOLD', 'DELIVERY_ON_HOLD', 'DELIVERY_PENDING',
-  '배송보류', '배송 보류'
+  'delivery_hold',
+  '배송 보류'
 ];
 
 const SINGLE_PROD_MAP = {
@@ -182,6 +181,37 @@ function syncImwebOrders() {
 
     for (const order of orders) {
       const orderNo = String(order.order_no || '');
+      const orderStatuses = getImwebOrderStatuses(order, []);
+      const orderStatus = orderStatuses[0] || '';
+
+      if (orderStatuses.some(isCancelStatus)) {
+        const recordsToDelete = [];
+        Object.keys(existingMap).forEach(function(key) {
+          if (key === orderNo || key.indexOf(orderNo + '-') === 0) {
+            const records = Array.isArray(existingMap[key]) ? existingMap[key] : [existingMap[key]];
+            records.forEach(function(record) {
+              recordsToDelete.push(record);
+            });
+          }
+        });
+        if (recordsToDelete.length) {
+          const cancelInfo = getImwebCancelInfo(order, []);
+          recordImwebCancel(orderNo, orderStatus, recordsToDelete, cancelInfo);
+          recordsToDelete.forEach(function(record) {
+            deleteFromFirestore(record.id || record);
+            deleted++;
+          });
+          Logger.log('🗑 취소 삭제: ' + orderNo + (cancelInfo.cancelReasonText ? ' / 사유: ' + cancelInfo.cancelReasonText : ''));
+        }
+        continue;
+      }
+
+      if (existingMap[orderNo]) {
+        Logger.log('⏭ 이미등록: ' + orderNo);
+        skipped++;
+        continue;
+      }
+
       const prodOrders = getOrderProdOrders(token, orderNo);
       if (!prodOrders || !prodOrders.length) { skipped++; continue; }
 
