@@ -1259,6 +1259,8 @@
   .cust-payment-row .p-date{color:var(--text-secondary)}
   .cust-payment-row .p-amt{font-weight:700;color:var(--primary);text-align:right}
 .cust-payment-row .p-note{color:var(--text-secondary);font-size:12px}
+.cust-print-btn{background:#fff;color:var(--primary);border:1.5px solid var(--primary);border-radius:8px;padding:10px 16px;font:inherit;font-size:14px;font-weight:800;cursor:pointer;white-space:nowrap}
+.cust-print-btn:hover{background:#fff8ed}
 .btn-call{color:#1e6e40}
 .btn-call:hover{background:#e8f5e9}
 .self-holiday-btn{width:100%;padding:15px;border:1.5px solid #e74c3c;background:#fff;color:#c0392b;border-radius:8px;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:8px;transition:.15s}
@@ -1635,6 +1637,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
       <input type="month" id="settle-month-input" class="form-input" style="max-width:160px">
       <button class="save-btn" style="padding:10px 16px" onclick="loadCustomerSettlement()">조회</button>
+      <button class="cust-print-btn" id="customer-settle-print-btn" style="display:none" onclick="printCustomerSettlement()">인쇄</button>
     </div>
     <div id="customer-settle-area" style="display:none"></div>
     <div id="customer-settle-empty" style="color:#6b5b4a;font-size:14px;padding:24px 0;text-align:center;display:none">해당 월 정산 내역이 없습니다.</div>
@@ -2011,6 +2014,8 @@ function openInstallGuide() {
 // ───────── 전역 상태 ─────────
 let currentUser = null;
 let userProfile = null;
+let currentCustomerSettlement = null;
+let currentCustomerSettlementMonth = '';
 let customerChangeRequests = [];
 let customerChangeRequestsUnsub = null;
 let todayLunch = 0;
@@ -2792,13 +2797,142 @@ function renderCustomerSettlementDetail(s) {
     </div>`;
 }
 
+function customerSettlementSummary(s) {
+  const billed = (parseInt(s.amount, 10) || 0) + (parseInt(s.adjust, 10) || 0);
+  let payments = s.payments || [];
+  if (payments.length === 0 && s.paidAmount > 0) {
+    payments = [{ amount: s.paidAmount, date: s.paidDate || '', note: '(이전 기록)' }];
+  }
+  const paidTotal = payments.reduce((sum, p) => sum + (parseInt(p.amount, 10) || 0), 0);
+  return { billed, payments, paidTotal, balance: billed - paidTotal };
+}
+
+function customerPrintRow(label, value) {
+  return `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`;
+}
+
+function customerSettlementPrintHtml(s, month) {
+  const { billed, payments, paidTotal, balance } = customerSettlementSummary(s);
+  const [year, mon] = String(month || '').split('-');
+  const titleMonth = year && mon ? `${year}년 ${parseInt(mon, 10)}월` : month;
+  const customerName = userProfile?.businessName || currentUser?.email || '';
+  const issuedAt = dateStr(getKST());
+  const paymentRows = payments.length
+    ? payments.map(p => `
+      <tr>
+        <td>${escapeHtml(p.date || '-')}</td>
+        <td class="num">${(parseInt(p.amount, 10) || 0).toLocaleString()}원</td>
+        <td>${escapeHtml(p.note || '')}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="3" class="empty">입금 이력이 없습니다.</td></tr>';
+  const noteRow = s.note ? customerPrintRow('메모', s.note) : '';
+
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(titleMonth)} 궁중수라간 정산서</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#f3f4f6;color:#111827;font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif}
+    .page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;padding:20mm 18mm}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111827;padding-bottom:14px;margin-bottom:18px}
+    .brand{font-size:15px;font-weight:800;color:#7B3F1A;margin-bottom:5px}
+    h1{margin:0;font-size:30px;letter-spacing:2px}
+    .issued{font-size:12px;color:#6b7280;text-align:right;line-height:1.6}
+    .to{font-size:17px;font-weight:800;margin:14px 0 18px}
+    .to span{border-bottom:1px solid #111827;padding:0 4px}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    th,td{border:1px solid #111827;padding:10px 12px;font-size:14px;text-align:left;vertical-align:middle}
+    th{width:32%;background:#f9fafb;font-weight:800}
+    .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}
+    .box{border:1px solid #111827;padding:14px 12px;text-align:center}
+    .box .label{font-size:12px;color:#6b7280;font-weight:800;margin-bottom:6px}
+    .box .value{font-size:22px;font-weight:900;color:#7B3F1A}
+    .box.balance .value{color:${balance <= 0 ? '#1e6e40' : '#c0392b'}}
+    .section-title{font-size:15px;font-weight:900;margin:20px 0 8px}
+    .num{text-align:right;font-variant-numeric:tabular-nums}
+    .empty{text-align:center;color:#6b7280}
+    .account{background:#fff8ed;border:1px solid #f0d090;padding:12px 14px;font-size:14px;line-height:1.7;margin-top:18px}
+    .sign{text-align:right;margin-top:28px;font-size:18px;font-weight:900}
+    .actions{position:sticky;top:0;background:#fff;padding:10px;text-align:center;border-bottom:1px solid #e5e7eb}
+    .actions button{background:#7B3F1A;color:#fff;border:0;border-radius:6px;padding:9px 18px;font-size:14px;font-weight:800;cursor:pointer}
+    @media print{
+      body{background:#fff}
+      .page{width:auto;min-height:auto;margin:0;padding:0}
+      .actions{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="actions"><button onclick="window.print()">인쇄하기</button></div>
+  <main class="page">
+    <div class="top">
+      <div>
+        <div class="brand">궁중수라간</div>
+        <h1>${escapeHtml(titleMonth)} 정산서</h1>
+      </div>
+      <div class="issued">발행일 ${escapeHtml(issuedAt)}<br>청구서번호 ${escapeHtml(s.invoiceNo || '-')}</div>
+    </div>
+    <div class="to"><span>${escapeHtml(customerName || '-')}</span> 귀하</div>
+    <table>
+      <tbody>
+        ${customerPrintRow('정산월', titleMonth || '-')}
+        ${customerPrintRow('정산 상태', s.status || '-')}
+        ${customerPrintRow('납부기한', s.dueDate || '-')}
+        ${customerPrintRow('도시락', `${s.lunchTotal || 0}개`)}
+        ${customerPrintRow('샐러드', `${s.saladTotal || 0}개`)}
+        ${s.adjust ? customerPrintRow('조정금액', `${s.adjust > 0 ? '+' : ''}${s.adjust.toLocaleString()}원`) : ''}
+        ${noteRow}
+      </tbody>
+    </table>
+    <div class="summary">
+      <div class="box"><div class="label">청구액</div><div class="value">${billed.toLocaleString()}원</div></div>
+      <div class="box"><div class="label">입금액</div><div class="value">${paidTotal.toLocaleString()}원</div></div>
+      <div class="box balance"><div class="label">잔액</div><div class="value">${balance <= 0 ? '없음' : balance.toLocaleString() + '원'}</div></div>
+    </div>
+    <div class="section-title">입금 이력</div>
+    <table>
+      <thead><tr><th>입금일</th><th>금액</th><th>비고</th></tr></thead>
+      <tbody>${paymentRows}</tbody>
+    </table>
+    <div class="account">
+      입금 계좌: 농협 302-4578-2271-31<br>
+      예금주: 주상훈 (궁중수라간)
+    </div>
+    <div class="sign">궁중수라간 배상</div>
+  </main>
+  <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
+</body>
+</html>`;
+}
+
+function printCustomerSettlement() {
+  if (!currentCustomerSettlement || !currentCustomerSettlementMonth) {
+    showToast('먼저 정산 내역을 조회해주세요.', 'error');
+    return;
+  }
+  const win = window.open('', '_blank', 'width=900,height=900');
+  if (!win) {
+    showToast('팝업이 차단되었습니다. 브라우저에서 팝업을 허용해주세요.', 'error');
+    return;
+  }
+  win.document.open();
+  win.document.write(customerSettlementPrintHtml(currentCustomerSettlement, currentCustomerSettlementMonth));
+  win.document.close();
+}
+
 async function loadCustomerSettlement() {
   const month = document.getElementById('settle-month-input').value;
   if (!month || !currentUser) return;
   const area = document.getElementById('customer-settle-area');
   const empty = document.getElementById('customer-settle-empty');
+  const printBtn = document.getElementById('customer-settle-print-btn');
+  currentCustomerSettlement = null;
+  currentCustomerSettlementMonth = '';
   area.style.display = 'none';
   empty.style.display = 'none';
+  if (printBtn) printBtn.style.display = 'none';
   try {
     let s = null;
     const settleSnap = await db.collection('settlements').doc(month).collection('items').doc(currentUser.uid).get();
@@ -2811,8 +2945,11 @@ async function loadCustomerSettlement() {
       s = (data.settlements || {})[month];
     }
     if (!s) { empty.style.display = 'block'; return; }
+    currentCustomerSettlement = s;
+    currentCustomerSettlementMonth = month;
     area.innerHTML = renderCustomerSettlementDetail(s);
     area.style.display = 'block';
+    if (printBtn) printBtn.style.display = 'inline-flex';
   } catch(e) {
     empty.style.display = 'block';
   }
