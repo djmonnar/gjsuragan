@@ -1,5 +1,5 @@
 // Logen courier integration for the delivery-management courier section.
-const LOGEN_DEFAULT_API_BASE = 'https://us-central1-gjsuragan-60505.cloudfunctions.net/api';
+const LOGEN_DEFAULT_API_BASE = 'https://api-rekpg53hvq-uc.a.run.app';
 const LOGEN_STATUS_LABELS = {
   logen_ready: '전송대기',
   logen_registering: '전송중',
