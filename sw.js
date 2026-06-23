@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v28-unified-fcm-sw';
+const CACHE = 'gjsuragan-v29-settlement-note-settings';
 const PRECACHE = [
   './customer.html',
   './admin.html',
