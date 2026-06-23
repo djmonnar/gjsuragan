@@ -863,6 +863,24 @@ function deleteFromFirestore(docId) {
   );
 }
 
+function fsString_(fields, name) {
+  const value = fields && fields[name];
+  if (!value) return '';
+  if (value.stringValue !== undefined) return String(value.stringValue || '');
+  if (value.integerValue !== undefined) return String(value.integerValue || '');
+  if (value.doubleValue !== undefined) return String(value.doubleValue || '');
+  if (value.booleanValue !== undefined) return String(value.booleanValue);
+  return '';
+}
+
+function fsBool_(fields, name) {
+  const value = fields && fields[name];
+  if (!value) return false;
+  if (value.booleanValue !== undefined) return Boolean(value.booleanValue);
+  if (value.stringValue !== undefined) return String(value.stringValue).toLowerCase() === 'true';
+  return false;
+}
+
 function getExistingOrders() {
   const token = getFirebaseToken();
   const projectId = requireConfig_('PROJECT_ID');
@@ -889,6 +907,13 @@ function getExistingOrders() {
           phone:(f.phone && f.phone.stringValue) || '',
           product:(f.productId && f.productId.stringValue) || (f.set && f.set.stringValue) || '',
           schedule:(f.scheduleName && f.scheduleName.stringValue) || (f.onceDate && f.onceDate.stringValue) || '',
+          orderNum:fsString_(f, 'orderNum'),
+          syncKey:fsString_(f, 'syncKey'),
+          status:fsString_(f, 'status'),
+          orderType:fsString_(f, 'orderType'),
+          remain:fsString_(f, 'remain'),
+          createdAt:fsString_(f, 'createdAt'),
+          autoRegistered:fsBool_(f, 'autoRegistered'),
         });
       }
     });
@@ -897,6 +922,88 @@ function getExistingOrders() {
     pageToken = json.nextPageToken;
   }
   return map;
+}
+
+function recordsForOrderNo_(existingMap, orderNo) {
+  const no = String(orderNo || '').trim();
+  const records = [];
+  const seen = {};
+  Object.keys(existingMap || {}).forEach(function(key) {
+    if (key === no || key.indexOf(no + '-') === 0) {
+      const list = Array.isArray(existingMap[key]) ? existingMap[key] : [existingMap[key]];
+      list.forEach(function(record) {
+        const id = String((record && record.id) || record || '');
+        if (!id || seen[id]) return;
+        seen[id] = true;
+        records.push(record);
+      });
+    }
+  });
+  return records;
+}
+
+function isRecentlyAutoRegistered_(record, cutoffMs) {
+  if (!record || !record.autoRegistered) return false;
+  const createdAt = String(record.createdAt || '');
+  const time = createdAt ? Date.parse(createdAt) : NaN;
+  if (!isFinite(time)) return false;
+  return time >= cutoffMs;
+}
+
+function cleanupTerminalImwebOrdersPreview() {
+  return cleanupTerminalImwebOrders_(false);
+}
+
+function cleanupTerminalImwebOrders() {
+  return cleanupTerminalImwebOrders_(true);
+}
+
+function cleanupTerminalImwebOrders_(shouldDelete) {
+  Logger.log('=== 아임웹 종료상태 재유입 주문 정리 ' + (shouldDelete ? '실행' : '미리보기') + ' ===');
+  const token = getImwebToken();
+  if (!token) { Logger.log('토큰 발급 실패'); return; }
+
+  const cutoffMs = Date.now() - (48 * 60 * 60 * 1000);
+  const existingMap = getExistingOrders();
+  const orders = getImwebOrders(token);
+  let matched = 0;
+  let deleted = 0;
+  let skippedOld = 0;
+
+  orders.forEach(function(order) {
+    const orderNo = String(order.order_no || '');
+    if (!orderNo) return;
+
+    const localRecords = recordsForOrderNo_(existingMap, orderNo);
+    if (!localRecords.length) return;
+
+    const statuses = getImwebOrderStatuses(order, []);
+    if (!statuses.some(isTerminalStatus)) return;
+
+    const targets = localRecords.filter(function(record) {
+      return isRecentlyAutoRegistered_(record, cutoffMs);
+    });
+    if (!targets.length) {
+      skippedOld += localRecords.length;
+      return;
+    }
+
+    matched += targets.length;
+    Logger.log(
+      (shouldDelete ? '삭제대상: ' : '미리보기: ') +
+      orderNo + ' / ' +
+      targets.map(function(r) { return (r.name || '-') + '(' + r.id + ', ' + (r.createdAt || '-') + ')'; }).join(', ')
+    );
+
+    if (shouldDelete) {
+      targets.forEach(function(record) {
+        deleteFromFirestore(record.id);
+        deleted++;
+      });
+    }
+  });
+
+  Logger.log('=== 정리 결과: 대상 ' + matched + '건 / 삭제 ' + deleted + '건 / 오래된 기존기록 보호 ' + skippedOld + '건 ===');
 }
 
 function formatDate(d) {
