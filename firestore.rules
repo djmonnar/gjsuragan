@@ -16,6 +16,11 @@ service cloud.firestore {
         && request.auth.token.email in adminEmails();
     }
 
+    function isDriverAnon() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
     function isOwner(userId) {
       return signedIn() && request.auth.uid == userId;
     }
@@ -375,6 +380,17 @@ service cloud.firestore {
         && optionalString(request.resource.data, 'disabledReason', 120);
     }
 
+    function validDriverCustomerUpdate() {
+      return isDriverAnon()
+        && resource.data.isDirect == true
+        && request.resource.data.isDirect == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['remain', 'deliveredDates', 'status'])
+        && optionalSafeCount(request.resource.data, 'remain')
+        && request.resource.data.deliveredDates is list
+        && request.resource.data.deliveredDates.size() <= 100
+        && request.resource.data.status in ['active', 'pause', 'end'];
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAdmin() || validUserCreate(userId);
@@ -443,11 +459,13 @@ service cloud.firestore {
     }
 
     match /deliveryCoords/{document=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAdmin() || isDriverAnon();
     }
 
     match /customers/{document=**} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin() || (isDriverAnon() && resource.data.isDirect == true);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || validDriverCustomerUpdate();
     }
 
     match /imwebCancelLogs/{document=**} {

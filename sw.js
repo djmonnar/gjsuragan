@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v43-driver-map-page';
+const CACHE = 'gjsuragan-v44-driver-map-no-login';
 const PRECACHE = [
   './customer.html',
   './admin.html',
