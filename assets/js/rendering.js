@@ -399,7 +399,7 @@ function renderToday(){
                   }
                 </div>
                 <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">연락처 ${c.phone}</div>
-                <div style="font-size:12px;color:#c020b0;cursor:pointer;margin-bottom:4px;" onclick="showAddrModal('${c.id}')">주소 ${c.addr}</div>
+                <div class="delivery-address-card" onclick="showAddrModal('${c.id}')"><span class="delivery-address-label">배송지</span>${c.addr||'주소 미입력'}</div>
                 ${c.door ? `<div style="font-size:12px;color:var(--text3);">현관: ${c.door}</div>` : ''}
                 ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">요청: ${c.request}</div>` : ''}
                 <div style="font-size:11px;color:var(--text3);margin-top:4px;">${scheduleDisp(c)}</div>
@@ -416,7 +416,7 @@ function renderToday(){
             <td><input type="checkbox" class="ck-direct" data-id="${c.id}"></td>
             <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
             <td style="white-space:nowrap;">${c.phone}</td>
-            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#c020b0;cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
+            <td class="delivery-address-cell" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr||'주소 미입력'}</td>
             <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${deliveryProductBadgeHtml(c)}${deliveryFirstOrderBadge(c)}${lastBoxDeliveryBadge(c)}</div></td>
             <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${scheduleDisp(c)||'—'}</td>
             <td style="font-size:12px;">${c.door||'—'}</td>
@@ -459,7 +459,7 @@ function renderToday(){
                       }
                     </div>
                     <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">연락처 ${c.phone}</div>
-                    <div style="font-size:12px;color:var(--accent);cursor:pointer;margin-bottom:4px;" onclick="showAddrModal('${c.id}')">주소 ${c.addr}</div>
+                    <div class="delivery-address-card" onclick="showAddrModal('${c.id}')"><span class="delivery-address-label">배송지</span>${c.addr||'주소 미입력'}</div>
                     ${c.door ? `<div style="font-size:12px;color:var(--text3);">현관: ${c.door}</div>` : ''}
                     ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">요청: ${c.request}</div>` : ''}
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
@@ -480,7 +480,7 @@ function renderToday(){
                 <td><input type="checkbox" class="ck-courier" data-id="${c.id}"></td>
                 <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
                 <td style="white-space:nowrap;">${c.phone}</td>
-                <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
+                <td class="delivery-address-cell" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr||'주소 미입력'}</td>
                 <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;"><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>${deliveryFirstOrderBadge(c)}</div></td>
                 <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
                 <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||''}</td>

@@ -131,6 +131,43 @@ tbody tr:last-child td{border-bottom:none;}
 .trc{cursor:pointer;}
 .trc.sel{background:var(--accent-xl)!important;}
 .trd{opacity:.45;}
+.delivery-address-cell{
+  min-width:300px;
+  width:32%;
+  max-width:520px;
+  white-space:normal;
+  line-height:1.5;
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+  font-size:12.5px;
+  color:var(--accent);
+  cursor:pointer;
+  text-decoration:underline dotted;
+}
+.delivery-address-card{
+  margin:8px 0 6px;
+  padding:9px 11px;
+  background:rgba(26,107,60,.055);
+  border:1px solid rgba(26,107,60,.16);
+  border-radius:10px;
+  color:var(--accent);
+  cursor:pointer;
+  line-height:1.55;
+  font-size:13px;
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+}
+.delivery-address-label{
+  display:block;
+  margin-bottom:2px;
+  color:var(--text3);
+  font-size:11px;
+  font-weight:700;
+}
+#today-direct-section .delivery-address-cell{color:#c020b0;}
+#today-direct-section .delivery-address-card{color:#c020b0;background:rgba(192,32,176,.055);border-color:rgba(192,32,176,.16);}
+#today-direct-section .tw table,
+#today-courier-section .tw table{min-width:1180px;}
 
 /* ── 뱃지 ── */
 .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;border:1px solid transparent;}

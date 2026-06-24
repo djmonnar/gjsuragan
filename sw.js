@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v34-closed-order-card';
+const CACHE = 'gjsuragan-v35-delivery-address';
 const PRECACHE = [
   './customer.html',
   './admin.html',
