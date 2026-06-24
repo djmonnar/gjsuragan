@@ -314,7 +314,7 @@ function naverPoint(point) {
 async function fetchNaverDrivingLeg(start, goal, keys, cache) {
   const cacheKey = `${naverPoint(start)}>${naverPoint(goal)}`;
   if (cache.has(cacheKey)) return cache.get(cacheKey);
-  const url = new URL('https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving');
+  const url = new URL('https://maps.apigw.ntruss.com/map-direction/v1/driving');
   url.searchParams.set('start', naverPoint(start));
   url.searchParams.set('goal', naverPoint(goal));
   url.searchParams.set('option', 'trafast');
