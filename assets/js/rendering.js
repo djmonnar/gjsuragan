@@ -11,7 +11,7 @@ window.addEventListener('resize', ()=>{
 });
 
 function dashDeliveryRow(c, showGauge = true){
-  const productBadges = `${deliveryProductBadgeHtml(c)}${lastBoxDeliveryBadge(c)}`;
+  const productBadges = `${deliveryProductBadgeHtml(c)}${deliveryFirstOrderBadge(c)}${lastBoxDeliveryBadge(c)}`;
   return `<tr>
     <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
     <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${productBadges}</div></td>
@@ -45,6 +45,27 @@ function lastBoxDeliveryBadge(c){
   return isLastBoxDelivery(c)
     ? '<span class="badge" title="마지막 직배송은 보냉가방 대신 박스로 발송" style="background:#fef3c7;color:#92400e;border-color:#f59e0b;font-weight:900;">박스</span>'
     : '';
+}
+
+function customerDeliveredCount(c){
+  return Array.isArray(c?.deliveredDates) ? c.deliveredDates.filter(Boolean).length : 0;
+}
+
+function customerIsFirstOrder(c){
+  if(!c || c.status === 'end') return false;
+  const key = customerGroupKey(c);
+  if(!key) return false;
+  const sameCustomerOrders = (custs || []).filter(item => customerGroupKey(item) === key);
+  if(sameCustomerOrders.length !== 1) return false;
+  return customerDeliveredCount(c) === 0;
+}
+
+function firstOrderBadgeHtml(){
+  return '<span class="badge" title="이 고객의 첫 배송 전 주문" style="background:#ecfdf5;color:#047857;border-color:#86efac;font-weight:900;letter-spacing:.2px;">첫주문</span>';
+}
+
+function deliveryFirstOrderBadge(c){
+  return customerIsFirstOrder(c) ? firstOrderBadgeHtml() : '';
 }
 
 const SINGLE_PRODUCT_IDS = ['pork_rib','beef_la','beef_soup'];
@@ -301,7 +322,7 @@ function renderDash(){
     dDirectWrap.style.display = directList.length ? '' : 'none';
     dTodayDirect.innerHTML = directList.map(c=>`<tr>
       <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-      <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${deliveryProductBadgeHtml(c)}${lastBoxDeliveryBadge(c)}</div></td>
+      <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${deliveryProductBadgeHtml(c)}${deliveryFirstOrderBadge(c)}${lastBoxDeliveryBadge(c)}</div></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
       <td>${c.phone||'—'}</td>
       <td>${gauge(c)}</td>
@@ -370,7 +391,7 @@ function renderToday(){
                   <div style="display:flex;align-items:center;gap:8px;">
                     <input type="checkbox" class="ck-direct" data-id="${c.id}">
                     <strong style="font-size:15px;cursor:pointer;color:var(--accent);" onclick="openEdit('${c.id}')">${c.name}</strong>
-                    ${deliveryProductBadgeHtml(c)}${lastBoxDeliveryBadge(c)}
+                    ${deliveryProductBadgeHtml(c)}${deliveryFirstOrderBadge(c)}${lastBoxDeliveryBadge(c)}
                   </div>
                   ${done
                     ? '<span class="badge b-ok">완료</span>'
@@ -396,7 +417,7 @@ function renderToday(){
             <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
             <td style="white-space:nowrap;">${c.phone}</td>
             <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#c020b0;cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
-            <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${deliveryProductBadgeHtml(c)}${lastBoxDeliveryBadge(c)}</div></td>
+            <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${deliveryProductBadgeHtml(c)}${deliveryFirstOrderBadge(c)}${lastBoxDeliveryBadge(c)}</div></td>
             <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${scheduleDisp(c)||'—'}</td>
             <td style="font-size:12px;">${c.door||'—'}</td>
             <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
@@ -429,6 +450,7 @@ function renderToday(){
                         <input type="checkbox" class="ck-courier" data-id="${c.id}">
                         <strong style="font-size:15px;cursor:pointer;color:var(--accent);" onclick="openEdit('${c.id}')">${c.name}</strong>
                         <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
+                        ${deliveryFirstOrderBadge(c)}
                         <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span>
                       </div>
                       ${done
@@ -459,7 +481,7 @@ function renderToday(){
                 <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
                 <td style="white-space:nowrap;">${c.phone}</td>
                 <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline dotted;" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr}</td>
-                <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
+                <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;"><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>${deliveryFirstOrderBadge(c)}</div></td>
                 <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
                 <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||''}</td>
                 <td style="font-size:12px;">${c.door||'—'}</td>
@@ -929,6 +951,14 @@ function customerGroupNewBadge(g){
   return (g?.orders || []).some(customerIsNewOrder) ? customerNewBadgeHtml() : '';
 }
 
+function customerOrderFirstBadge(c){
+  return customerIsFirstOrder(c) ? firstOrderBadgeHtml() : '';
+}
+
+function customerGroupFirstBadge(g){
+  return (g?.orders || []).some(customerIsFirstOrder) ? firstOrderBadgeHtml() : '';
+}
+
 const RISK_ORDER_DISMISS_KEY = 'gjs-risk-order-dismissed-v1';
 let __riskOrderAlertOpen = false;
 let __riskOrderSessionHidden = new Set();
@@ -1052,6 +1082,7 @@ function checkRiskOrderAlert(){
               ${customerText(c.name || '-')}
               ${customerRiskBadge(c)}
               ${customerOrderNewBadge(c)}
+              ${customerOrderFirstBadge(c)}
             </div>
             <div style="font-size:12px;color:#6b7280;margin-top:4px;">${orderNo ? '#' + customerText(orderNo) + ' · ' : ''}${customerText(c.phone || '-')}</div>
           </div>
@@ -1277,6 +1308,7 @@ function customerGroupOrderSummary(c){
           <span class="badge ${customerOrderTypeBadge(c)}">${customerText(customerOrderTypeLabel(c))}</span>
           <span class="badge b-${c.status}">${customerText(status)}</span>
           ${customerOrderNewBadge(c)}
+          ${customerOrderFirstBadge(c)}
         </div>
         <div style="font-size:11px;color:var(--text3);">${orderNo ? '#' + customerText(orderNo) : ''}</div>
       </div>
@@ -1454,6 +1486,7 @@ function customerGroupOrderSummary(c, idx){
       <button class="btn btn-g sm" style="width:100%;justify-content:space-between;text-align:left;display:flex;align-items:center;gap:8px;padding:8px 10px;" onclick="customerToggleOrder(${idx},'${customerJsArg(c.id)}')">
         <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${customerText(customerOrderButtonLabel(c))}</span>
         ${customerOrderNewBadge(c)}
+        ${customerOrderFirstBadge(c)}
         <span>${isOpen ? '접기' : '보기'}</span>
       </button>
       ${!isOpen ? '' : `<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:6px;background:var(--surface);">
@@ -1464,6 +1497,7 @@ function customerGroupOrderSummary(c, idx){
             <span class="badge b-${c.status}">${customerText(status)}</span>
             ${customerRiskBadge(c)}
             ${customerOrderNewBadge(c)}
+            ${customerOrderFirstBadge(c)}
           </div>
           <div style="font-size:11px;color:var(--text3);">${orderNo ? '#' + customerText(orderNo) : ''}</div>
         </div>
@@ -1510,7 +1544,7 @@ function showCustomerGroup(idx, keepExpanded = false){
       <div class="dph">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;">
           <div>
-            <div style="font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${customerText(g.name || latest.name || '-')} ${customerGroupRiskBadge(g)} ${customerGroupNewBadge(g)}</div>
+            <div style="font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${customerText(g.name || latest.name || '-')} ${customerGroupRiskBadge(g)} ${customerGroupNewBadge(g)} ${customerGroupFirstBadge(g)}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:2px;">${g.orders.length > 1 ? '재주문 ' + g.orders.length + '건' : '주문 1건'}</div>
           </div>
           <span class="badge b-${status.cls}">${customerText(status.label)}</span>
@@ -1571,6 +1605,7 @@ function renderCust(){
                 <strong style="font-size:14px;">${customerText(g.name || '-')}</strong>
                 ${customerGroupRiskBadge(g)}
                 ${customerGroupNewBadge(g)}
+                ${customerGroupFirstBadge(g)}
                 ${customerProductChips(g)}
                 ${customerTypeChips(g)}
               </div>
@@ -1595,6 +1630,7 @@ function renderCust(){
           <strong>${customerText(g.name || '-')}</strong>
           ${customerGroupRiskBadge(g)}
           ${customerGroupNewBadge(g)}
+          ${customerGroupFirstBadge(g)}
           ${customerOrderCountHtml(g)}
         </td>
         <td style="white-space:nowrap;">${customerText(g.phone || '-')}</td>

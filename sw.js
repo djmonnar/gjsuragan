@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v30-customer-midnight-refresh';
+const CACHE = 'gjsuragan-v31-first-order-badge';
 const PRECACHE = [
   './customer.html',
   './admin.html',
