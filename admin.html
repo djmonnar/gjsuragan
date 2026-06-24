@@ -7621,30 +7621,47 @@ function openAddressSearch(mainInputId, detailInputId) {
 const NAVER_CLIENT_ID = 'd4sg126q46';
 let naverMapInstance = null;
 let mapScriptLoaded = false;
+let mapScriptLoadingPromise = null;
 let mapMarkers = [];
 let mapNoOrderMarkers = [];
 let mapHideNoOrder = false;
 
 function loadNaverMapScript() {
-  return new Promise((resolve, reject) => {
-    if (mapScriptLoaded && window.naver?.maps) { resolve(); return; }
-    window.navermap_authFailure = () => {
-      mapScriptLoaded = false;
-      reject(new Error('네이버 지도 Open API 인증이 실패했습니다. Client ID와 Web 서비스 URL 등록을 확인해주세요.'));
+  if (mapScriptLoaded && window.naver?.maps?.Map) return Promise.resolve();
+  if (mapScriptLoadingPromise) return mapScriptLoadingPromise;
+  mapScriptLoadingPromise = new Promise((resolve, reject) => {
+    const cleanup = () => {
+      try { delete window.__gjsNaverMapReady; } catch(e) { window.__gjsNaverMapReady = undefined; }
     };
-    const script = document.createElement('script');
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_CLIENT_ID}&submodules=geocoder`;
-    script.onload = () => {
+    window.__gjsNaverMapReady = () => {
       if (!window.naver?.maps?.Map || !window.naver?.maps?.LatLng) {
+        cleanup();
+        mapScriptLoadingPromise = null;
         reject(new Error('네이버 지도 SDK가 정상 초기화되지 않았습니다.'));
         return;
       }
+      cleanup();
       mapScriptLoaded = true;
       resolve();
     };
-    script.onerror = () => reject(new Error('네이버 지도 SDK 스크립트를 불러오지 못했습니다.'));
+    window.navermap_authFailure = () => {
+      cleanup();
+      mapScriptLoaded = false;
+      mapScriptLoadingPromise = null;
+      reject(new Error('네이버 지도 Open API 인증이 실패했습니다. Client ID와 Web 서비스 URL 등록을 확인해주세요.'));
+    };
+    const script = document.createElement('script');
+    script.id = 'naver-map-sdk';
+    script.async = true;
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_CLIENT_ID}&submodules=geocoder&callback=__gjsNaverMapReady`;
+    script.onerror = () => {
+      cleanup();
+      mapScriptLoadingPromise = null;
+      reject(new Error('네이버 지도 SDK 스크립트를 불러오지 못했습니다.'));
+    };
     document.head.appendChild(script);
   });
+  return mapScriptLoadingPromise;
 }
 
 async function loadDeliveryMap(forceRefresh = false) {
@@ -7665,13 +7682,15 @@ async function initDeliveryMap(forceRefresh) {
   if (!mapEl) return;
 
   if (!naverMapInstance) {
-    const mapOptions = {
-      center: new naver.maps.LatLng(35.1950, 128.0910),
-      zoom: 15
-    };
-    const normalMapType = naver.maps.MapTypeId && naver.maps.MapTypeId.NORMAL;
-    if (normalMapType) mapOptions.mapTypeId = normalMapType;
-    naverMapInstance = new naver.maps.Map(mapEl, mapOptions);
+    try {
+      naverMapInstance = new naver.maps.Map('delivery-map', {
+        center: new naver.maps.LatLng(35.1950, 128.0910),
+        zoom: 15
+      });
+    } catch(e) {
+      console.error('네이버 지도 초기화 실패:', e);
+      throw new Error(`네이버 지도 초기화 실패: ${e.message}`);
+    }
   }
 
   mapMarkers.forEach(m => m.setMap(null));
@@ -7689,11 +7708,17 @@ async function initDeliveryMap(forceRefresh) {
   currentOrderRows.forEach(r => { todayOrders[r.uid] = r; });
 
   let done = 0;
+  let failed = 0;
   for (const [uid, user] of members) {
     const address = user.deliveryPlace || user.address || '';
-    await placeDeliveryMarker(uid, user, address, todayOrders[uid], forceRefresh);
+    try {
+      await placeDeliveryMarker(uid, user, address, todayOrders[uid], forceRefresh);
+    } catch(e) {
+      failed++;
+      console.warn('회원 배송지 마커 표시 실패:', uid, user.businessName, e);
+    }
     done++;
-    if (statusEl) statusEl.textContent = `주소 조회 중... ${done}/${members.length}`;
+    if (statusEl) statusEl.textContent = `주소 조회 중... ${done}/${members.length}${failed ? ` · 실패 ${failed}` : ''}`;
     await new Promise(r => setTimeout(r, 120));
   }
   // 행사도시락 마커 (배송완료 제외)
@@ -7726,32 +7751,36 @@ async function initDeliveryMap(forceRefresh) {
         }
       }
       if (!coords) continue;
-      const marker = new naver.maps.Marker({
-        position: new naver.maps.LatLng(coords.lat, coords.lng),
-        map: naverMapInstance,
-        icon: {
-          content: `<div style="width:14px;height:14px;border-radius:50%;background:#f79009;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
-          anchor: new naver.maps.Point(7, 7)
-        }
-      });
-      const infoContent = `
-        <div class="map-info-window">
-          <div class="iw-name">🎉 행사 — ${escapeHtml(order.businessName || '-')}</div>
-          <div class="iw-addr">${escapeHtml(address)}${order.placeDetail ? ' ' + escapeHtml(order.placeDetail) : ''}</div>
-          <div style="font-size:12px;color:#667085">행사일: ${order.eventDate || '-'} ${order.eventTime || ''}</div>
-          <div style="font-size:12px;color:#667085">${escapeHtml((order.menuText || '').slice(0, 60))}</div>
-        </div>`;
-      const infoWindow = new naver.maps.InfoWindow({ content: infoContent, borderWidth: 1, borderColor: '#d0d5dd', backgroundColor: '#fff' });
-      naver.maps.Event.addListener(marker, 'click', () => {
-        if (infoWindow.getMap()) { infoWindow.close(); return; }
-        infoWindow.open(naverMapInstance, marker);
-      });
-      mapMarkers.push(marker);
+      try {
+        const marker = new naver.maps.Marker({
+          position: new naver.maps.LatLng(coords.lat, coords.lng),
+          map: naverMapInstance,
+          icon: {
+            content: `<div style="width:14px;height:14px;border-radius:50%;background:#f79009;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
+            anchor: new naver.maps.Point(7, 7)
+          }
+        });
+        const infoContent = `
+          <div class="map-info-window">
+            <div class="iw-name">🎉 행사 — ${escapeHtml(order.businessName || '-')}</div>
+            <div class="iw-addr">${escapeHtml(address)}${order.placeDetail ? ' ' + escapeHtml(order.placeDetail) : ''}</div>
+            <div style="font-size:12px;color:#667085">행사일: ${order.eventDate || '-'} ${order.eventTime || ''}</div>
+            <div style="font-size:12px;color:#667085">${escapeHtml((order.menuText || '').slice(0, 60))}</div>
+          </div>`;
+        const infoWindow = new naver.maps.InfoWindow({ content: infoContent, borderWidth: 1, borderColor: '#d0d5dd', backgroundColor: '#fff' });
+        naver.maps.Event.addListener(marker, 'click', () => {
+          if (infoWindow.getMap()) { infoWindow.close(); return; }
+          infoWindow.open(naverMapInstance, marker);
+        });
+        mapMarkers.push(marker);
+      } catch(e) {
+        console.warn('행사도시락 마커 표시 실패:', order.id, e);
+      }
       await new Promise(r => setTimeout(r, 120));
     }
   }
 
-  if (statusEl) statusEl.textContent = `${members.length}개 업체 표시됨. 마커를 클릭하면 상세 정보를 볼 수 있습니다.`;
+  if (statusEl) statusEl.textContent = `${members.length}개 업체 표시됨${failed ? ` · 주소 실패 ${failed}곳` : ''}. 마커를 클릭하면 상세 정보를 볼 수 있습니다.`;
 }
 
 async function placeDeliveryMarker(uid, user, address, orderRow, forceRefresh) {
@@ -7790,34 +7819,38 @@ async function placeDeliveryMarker(uid, user, address, orderRow, forceRefresh) {
     return;
   }
 
-  const marker = new naver.maps.Marker({
-    position: markerPos,
-    map: naverMapInstance,
-    icon: {
-      content: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
-      anchor: new naver.maps.Point(7, 7)
+  try {
+    const marker = new naver.maps.Marker({
+      position: markerPos,
+      map: naverMapInstance,
+      icon: {
+        content: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
+        anchor: new naver.maps.Point(7, 7)
+      }
+    });
+
+    const infoContent = `
+      <div class="map-info-window">
+        <div class="iw-name">${escapeHtml(user.businessName || '-')}</div>
+        ${user.mealTime ? `<div style="font-size:13px;font-weight:700;color:var(--primary);margin-bottom:3px">⏰ 식사시간 ${user.mealTime}</div>` : ''}
+        <div class="iw-addr">${escapeHtml(address || '주소 미입력')}</div>
+        ${user.deliveryPlaceDetail ? `<div style="font-size:12px;color:#4b5563;margin-top:1px">└ ${escapeHtml(user.deliveryPlaceDetail)}</div>` : ''}
+        ${hasOrder ? `<div class="iw-qty">🍱 도시락 ${lunch}개 · 샐러드 ${salad}개</div>` : '<div style="color:#98a2b3;font-size:12px;margin-top:4px">오늘 주문 없음</div>'}
+      </div>`;
+    const infoWindow = new naver.maps.InfoWindow({ content: infoContent, borderWidth: 1, borderColor: '#d0d5dd', backgroundColor: '#fff' });
+
+    naver.maps.Event.addListener(marker, 'click', () => {
+      if (infoWindow.getMap()) { infoWindow.close(); return; }
+      infoWindow.open(naverMapInstance, marker);
+    });
+
+    mapMarkers.push(marker);
+    if (!hasOrder) {
+      mapNoOrderMarkers.push(marker);
+      if (mapHideNoOrder) marker.setMap(null);
     }
-  });
-
-  const infoContent = `
-    <div class="map-info-window">
-      <div class="iw-name">${escapeHtml(user.businessName || '-')}</div>
-      ${user.mealTime ? `<div style="font-size:13px;font-weight:700;color:var(--primary);margin-bottom:3px">⏰ 식사시간 ${user.mealTime}</div>` : ''}
-      <div class="iw-addr">${escapeHtml(address || '주소 미입력')}</div>
-      ${user.deliveryPlaceDetail ? `<div style="font-size:12px;color:#4b5563;margin-top:1px">└ ${escapeHtml(user.deliveryPlaceDetail)}</div>` : ''}
-      ${hasOrder ? `<div class="iw-qty">🍱 도시락 ${lunch}개 · 샐러드 ${salad}개</div>` : '<div style="color:#98a2b3;font-size:12px;margin-top:4px">오늘 주문 없음</div>'}
-    </div>`;
-  const infoWindow = new naver.maps.InfoWindow({ content: infoContent, borderWidth: 1, borderColor: '#d0d5dd', backgroundColor: '#fff' });
-
-  naver.maps.Event.addListener(marker, 'click', () => {
-    if (infoWindow.getMap()) { infoWindow.close(); return; }
-    infoWindow.open(naverMapInstance, marker);
-  });
-
-  mapMarkers.push(marker);
-  if (!hasOrder) {
-    mapNoOrderMarkers.push(marker);
-    if (mapHideNoOrder) marker.setMap(null);
+  } catch(e) {
+    console.warn('배송지 마커 생성 실패:', uid, e);
   }
 }
 

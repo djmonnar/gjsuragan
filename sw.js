@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v36-map-loader';
+const CACHE = 'gjsuragan-v37-naver-map-callback';
 const PRECACHE = [
   './customer.html',
   './admin.html',
