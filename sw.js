@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v41-route-map-touch-lock';
+const CACHE = 'gjsuragan-v42-route-order';
 const PRECACHE = [
   './customer.html',
   './admin.html',

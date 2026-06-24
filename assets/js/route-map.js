@@ -1,5 +1,6 @@
 const ROUTE_NAVER_CLIENT_ID = 'd4sg126q46';
 const ROUTE_KAKAO_JS_KEY = '8dd270cf2311e687a085b2db5157b1f7';
+const ROUTE_ORIGIN_ADDRESS = '경상남도 진주시 동진로107번길 8 돌담';
 let routeNaverLoaded = false;
 let routeNaverLoading = null;
 let routeKakaoLoaded = false;
@@ -10,6 +11,8 @@ let routeKakaoMapInstance = null;
 let routeKakaoMarkers = [];
 let routeMapToken = 0;
 let routeMapTouchTimer = null;
+let routeOptimizedDate = '';
+let routeOptimizedIds = [];
 
 function routeEsc(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({
@@ -88,6 +91,49 @@ function routeNaverSearchUrl(address) {
 
 function routeKakaoSearchUrl(address) {
   return `https://map.kakao.com/link/search/${encodeURIComponent(address || '')}`;
+}
+
+function routeDistanceKm(a, b) {
+  if (!a || !b) return Number.POSITIVE_INFINITY;
+  const rad = Math.PI / 180;
+  const lat1 = Number(a.lat) * rad;
+  const lat2 = Number(b.lat) * rad;
+  const dLat = (Number(b.lat) - Number(a.lat)) * rad;
+  const dLng = (Number(b.lng) - Number(a.lng)) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function routeApplyOptimizedOrder(list, ds) {
+  if (routeOptimizedDate !== ds || !routeOptimizedIds.length) return list;
+  const rank = new Map(routeOptimizedIds.map((id, idx) => [id, idx]));
+  return [...list].sort((a, b) => {
+    const ar = rank.has(a.id) ? rank.get(a.id) : 9999;
+    const br = rank.has(b.id) ? rank.get(b.id) : 9999;
+    if (ar !== br) return ar - br;
+    return String(a.name || '').localeCompare(String(b.name || ''), 'ko');
+  });
+}
+
+function routeNearestOrder(items, origin) {
+  const remaining = [...items];
+  const ordered = [];
+  let current = origin;
+  while (remaining.length) {
+    let bestIdx = 0;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < remaining.length; i++) {
+      const d = routeDistanceKm(current, remaining[i].coords);
+      if (d < bestDistance) {
+        bestDistance = d;
+        bestIdx = i;
+      }
+    }
+    const [next] = remaining.splice(bestIdx, 1);
+    ordered.push(next);
+    current = next.coords;
+  }
+  return ordered;
 }
 
 function setRouteMapTouchEnabled(enabled) {
@@ -236,6 +282,44 @@ function renderRouteSummary(list, ds) {
     <div class="route-stat"><span>남음</span><b>${Math.max(total - done, 0)}</b></div>`;
 }
 
+async function optimizeRouteOrder(forceRefresh = false) {
+  const ds = routeDateValue();
+  const status = document.getElementById('routeMapStatus');
+  const list = routeDirectList(ds).filter(c => !routeIsDone(c, ds) && c.addr);
+  if (list.length < 2) {
+    toast('추천 순서를 계산할 배송지가 2곳 이상 필요합니다.', 'info');
+    return;
+  }
+  try {
+    if (status) status.textContent = '돌담 출발 기준 추천 순서를 계산하는 중...';
+    const origin = await routeCoordsForAddress('__route_origin_doldam', ROUTE_ORIGIN_ADDRESS, forceRefresh, 'auto');
+    if (!origin) throw new Error('출발지 좌표를 찾지 못했습니다.');
+
+    const items = [];
+    const failed = [];
+    for (const c of list) {
+      const coords = await routeCoordsFor(c, forceRefresh, 'auto');
+      if (coords) items.push({ customer: c, coords });
+      else failed.push(c);
+    }
+    if (items.length < 2) throw new Error('좌표를 찾은 배송지가 부족합니다.');
+
+    const ordered = routeNearestOrder(items, origin);
+    routeOptimizedDate = ds;
+    routeOptimizedIds = [
+      ...ordered.map(item => item.customer.id),
+      ...failed.map(c => c.id)
+    ];
+    renderRouteMap(false, false);
+    const preview = ordered.slice(0, 4).map(item => item.customer.name || '-').join(' → ');
+    toast(`추천 순서 적용: 돌담 → ${preview}${ordered.length > 4 ? ' ...' : ''}`, 'ok');
+    if (status) status.textContent = `추천 순서 적용됨 · 돌담 출발 · 좌표 ${items.length}곳${failed.length ? ` · 주소 실패 ${failed.length}곳` : ''}`;
+  } catch(e) {
+    toast('추천 순서 계산 실패: ' + (e.message || e), 'er');
+    if (status) status.textContent = '추천 순서 계산 실패: ' + (e.message || e);
+  }
+}
+
 function loadRouteNaverScript() {
   if (routeNaverLoaded && window.naver?.maps?.Map) return Promise.resolve();
   if (routeNaverLoading) return routeNaverLoading;
@@ -347,12 +431,26 @@ function routeKakaoGeocode(address) {
   });
 }
 
-async function routeCoordsFor(c, forceRefresh, provider = 'naver') {
-  const address = c.addr || '';
+async function routeGeocodeWithFallback(address) {
+  let coords = null;
+  try {
+    await loadRouteNaverScript();
+    coords = await routeGeocode(address);
+  } catch(e) {}
+  if (coords) return coords;
+  try {
+    await loadRouteKakaoScript();
+    coords = await routeKakaoGeocode(address);
+  } catch(e) {}
+  return coords;
+}
+
+async function routeCoordsForAddress(cacheId, address, forceRefresh = false, provider = 'auto') {
   if (!address) return null;
+  const docId = String(cacheId || address).replace(/[\/#?]/g, '_').slice(0, 120);
   if (!forceRefresh && window.__DB) {
     try {
-      const snap = await window.__DB.collection('deliveryCoords').doc(c.id).get();
+      const snap = await window.__DB.collection('deliveryCoords').doc(docId).get();
       if (snap.exists) {
         const data = snap.data() || {};
         if (data.address === address && data.lat && data.lng) {
@@ -361,9 +459,13 @@ async function routeCoordsFor(c, forceRefresh, provider = 'naver') {
       }
     } catch(e) {}
   }
-  const coords = provider === 'kakao' ? await routeKakaoGeocode(address) : await routeGeocode(address);
+  const coords = provider === 'kakao'
+    ? await routeKakaoGeocode(address)
+    : provider === 'naver'
+      ? await routeGeocode(address)
+      : await routeGeocodeWithFallback(address);
   if (coords && window.__DB) {
-    window.__DB.collection('deliveryCoords').doc(c.id).set({
+    window.__DB.collection('deliveryCoords').doc(docId).set({
       lat: coords.lat,
       lng: coords.lng,
       address,
@@ -371,6 +473,11 @@ async function routeCoordsFor(c, forceRefresh, provider = 'naver') {
     }, { merge: true }).catch(() => {});
   }
   return coords;
+}
+
+async function routeCoordsFor(c, forceRefresh, provider = 'naver') {
+  const address = c.addr || '';
+  return routeCoordsForAddress(c.id, address, forceRefresh, provider);
 }
 
 async function renderRouteNaverMap(list, ds, forceRefresh) {
@@ -517,7 +624,7 @@ function renderRouteMapFallback(message) {
 function renderRouteMap(forceRefresh = false, skipMap = false) {
   const ds = routeDateValue();
   updateRouteDateDisp();
-  const list = routeDirectList(ds);
+  const list = routeApplyOptimizedOrder(routeDirectList(ds), ds);
   renderRouteSummary(list, ds);
   renderRouteList(list, ds);
   if (skipMap) return;
