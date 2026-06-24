@@ -27,7 +27,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<link rel="stylesheet" href="assets/css/index.css?v=20260624-route2">
+<link rel="stylesheet" href="assets/css/index.css?v=20260624-route3">
 
 
 </head>
@@ -308,7 +308,10 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
   <div class="route-layout">
     <section class="route-map-panel">
       <div class="route-map-status" id="routeMapStatus">지도는 보조 기능입니다. 지도 로드가 안 되어도 아래 배송카드는 사용할 수 있습니다.</div>
-      <div id="routeMap"></div>
+      <div class="route-map-shell" id="routeMapShell">
+        <div id="routeMap"></div>
+        <button class="route-map-touch-btn" id="routeMapTouchBtn" onclick="enableRouteMapTouch(event)">지도 조작</button>
+      </div>
     </section>
     <section class="route-list-panel" id="routeList">
       <div class="empty"><div class="ei empty-mark">직</div><div>직배송 목록을 불러오는 중...</div></div>
@@ -794,7 +797,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 <script src="assets/js/imweb.js?v=20260512-2" defer></script>
 <script src="assets/js/schedule-report.js?v=20260507-3" defer></script>
 <script src="assets/js/rendering.js?v=20260624-route1" defer></script>
-<script src="assets/js/route-map.js?v=20260624-route3" defer></script>
+<script src="assets/js/route-map.js?v=20260624-route4" defer></script>
 <script src="assets/js/import-export.js?v=20260623-imweb-paste-1" defer></script>
 <script src="assets/js/logen.js?v=20260623-1" defer></script>
 <script src="assets/js/ui.js?v=20260624-route1" defer></script>

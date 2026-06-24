@@ -9,6 +9,7 @@ let routeMapMarkers = [];
 let routeKakaoMapInstance = null;
 let routeKakaoMarkers = [];
 let routeMapToken = 0;
+let routeMapTouchTimer = null;
 
 function routeEsc(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({
@@ -87,6 +88,26 @@ function routeNaverSearchUrl(address) {
 
 function routeKakaoSearchUrl(address) {
   return `https://map.kakao.com/link/search/${encodeURIComponent(address || '')}`;
+}
+
+function setRouteMapTouchEnabled(enabled) {
+  const shell = document.getElementById('routeMapShell');
+  const btn = document.getElementById('routeMapTouchBtn');
+  if (!shell) return;
+  shell.classList.toggle('map-touch-on', !!enabled);
+  if (btn) btn.textContent = enabled ? '지도 조작 중' : '지도 조작';
+}
+
+function enableRouteMapTouch(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const shell = document.getElementById('routeMapShell');
+  const enabled = !shell?.classList.contains('map-touch-on');
+  setRouteMapTouchEnabled(enabled);
+  if (routeMapTouchTimer) clearTimeout(routeMapTouchTimer);
+  if (enabled) {
+    routeMapTouchTimer = setTimeout(() => setRouteMapTouchEnabled(false), 20000);
+  }
 }
 
 async function copyRouteText(text, message) {
