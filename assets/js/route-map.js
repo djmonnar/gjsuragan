@@ -1,8 +1,13 @@
 const ROUTE_NAVER_CLIENT_ID = 'd4sg126q46';
+const ROUTE_KAKAO_JS_KEY = '8dd270cf2311e687a085b2db5157b1f7';
 let routeNaverLoaded = false;
 let routeNaverLoading = null;
+let routeKakaoLoaded = false;
+let routeKakaoLoading = null;
 let routeMapInstance = null;
 let routeMapMarkers = [];
+let routeKakaoMapInstance = null;
+let routeKakaoMarkers = [];
 let routeMapToken = 0;
 
 function routeEsc(value) {
@@ -241,6 +246,43 @@ function loadRouteNaverScript() {
   return routeNaverLoading;
 }
 
+function loadRouteKakaoScript() {
+  if (routeKakaoLoaded && window.kakao?.maps?.Map && window.kakao?.maps?.services?.Geocoder) {
+    return Promise.resolve();
+  }
+  if (routeKakaoLoading) return routeKakaoLoading;
+  routeKakaoLoading = new Promise((resolve, reject) => {
+    const existing = document.getElementById('route-kakao-map-sdk');
+    if (existing) existing.remove();
+    const script = document.createElement('script');
+    script.id = 'route-kakao-map-sdk';
+    script.async = true;
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${ROUTE_KAKAO_JS_KEY}&libraries=services&autoload=false`;
+    script.onload = () => {
+      if (!window.kakao?.maps?.load) {
+        routeKakaoLoading = null;
+        reject(new Error('카카오 지도 SDK 초기화 실패'));
+        return;
+      }
+      window.kakao.maps.load(() => {
+        if (!window.kakao?.maps?.Map || !window.kakao?.maps?.services?.Geocoder) {
+          routeKakaoLoading = null;
+          reject(new Error('카카오 지도 services 초기화 실패'));
+          return;
+        }
+        routeKakaoLoaded = true;
+        resolve();
+      });
+    };
+    script.onerror = () => {
+      routeKakaoLoading = null;
+      reject(new Error('카카오 지도 스크립트를 불러오지 못했습니다.'));
+    };
+    document.head.appendChild(script);
+  });
+  return routeKakaoLoading;
+}
+
 function routeGeocode(address) {
   return new Promise(resolve => {
     if (!address || !window.naver?.maps?.Service?.geocode) {
@@ -258,7 +300,24 @@ function routeGeocode(address) {
   });
 }
 
-async function routeCoordsFor(c, forceRefresh) {
+function routeKakaoGeocode(address) {
+  return new Promise(resolve => {
+    if (!address || !window.kakao?.maps?.services?.Geocoder) {
+      resolve(null);
+      return;
+    }
+    const geocoder = new window.kakao.maps.services.Geocoder();
+    geocoder.addressSearch(address, (result, status) => {
+      if (status !== window.kakao.maps.services.Status.OK || !Array.isArray(result) || !result.length) {
+        resolve(null);
+        return;
+      }
+      resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
+    });
+  });
+}
+
+async function routeCoordsFor(c, forceRefresh, provider = 'naver') {
   const address = c.addr || '';
   if (!address) return null;
   if (!forceRefresh && window.__DB) {
@@ -272,7 +331,7 @@ async function routeCoordsFor(c, forceRefresh) {
       }
     } catch(e) {}
   }
-  const coords = await routeGeocode(address);
+  const coords = provider === 'kakao' ? await routeKakaoGeocode(address) : await routeGeocode(address);
   if (coords && window.__DB) {
     window.__DB.collection('deliveryCoords').doc(c.id).set({
       lat: coords.lat,
@@ -350,6 +409,72 @@ async function renderRouteNaverMap(list, ds, forceRefresh) {
   if (status) status.textContent = `지도 표시 ${mapped}곳${failed ? ` · 주소 실패 ${failed}곳` : ''}`;
 }
 
+async function renderRouteKakaoMap(list, ds, forceRefresh) {
+  const token = ++routeMapToken;
+  const status = document.getElementById('routeMapStatus');
+  const mapEl = document.getElementById('routeMap');
+  if (status) status.textContent = '카카오 지도를 불러오는 중...';
+  if (mapEl) {
+    mapEl.innerHTML = '';
+    routeKakaoMapInstance = null;
+  }
+  await loadRouteKakaoScript();
+  if (token !== routeMapToken) return;
+
+  if (!mapEl) return;
+  if (!routeKakaoMapInstance) {
+    routeKakaoMapInstance = new window.kakao.maps.Map(mapEl, {
+      center: new window.kakao.maps.LatLng(35.1950, 128.0910),
+      level: 6
+    });
+  }
+
+  routeKakaoMarkers.forEach(marker => marker.setMap(null));
+  routeKakaoMarkers = [];
+
+  const targets = list.filter(c => c.addr);
+  if (!targets.length) {
+    if (status) status.textContent = '지도에 표시할 주소가 없습니다.';
+    return;
+  }
+
+  let mapped = 0;
+  let failed = 0;
+  let firstPos = null;
+  const bounds = new window.kakao.maps.LatLngBounds();
+  for (const c of targets) {
+    const coords = await routeCoordsFor(c, forceRefresh, 'kakao');
+    if (token !== routeMapToken) return;
+    if (!coords) {
+      failed++;
+      continue;
+    }
+    const done = routeIsDone(c, ds);
+    const pos = new window.kakao.maps.LatLng(coords.lat, coords.lng);
+    const marker = new window.kakao.maps.Marker({
+      position: pos,
+      map: routeKakaoMapInstance
+    });
+    const info = new window.kakao.maps.InfoWindow({
+      content: `<div class="map-info-window"><div class="iw-name">${routeEsc(c.name || '-')}</div><div class="iw-addr">${routeEsc(c.addr || '-')}</div><div class="iw-qty">${routeEsc(routeQtyLabel(c))}</div>${done ? '<div class="iw-qty">방문 완료</div>' : ''}</div>`
+    });
+    window.kakao.maps.event.addListener(marker, 'click', () => {
+      focusRouteCard(c.id);
+      info.open(routeKakaoMapInstance, marker);
+    });
+    routeKakaoMarkers.push(marker);
+    bounds.extend(pos);
+    if (!firstPos) firstPos = pos;
+    mapped++;
+    if (status) status.textContent = `카카오 지도 표시 중... ${mapped}/${targets.length}`;
+    await new Promise(resolve => setTimeout(resolve, 80));
+  }
+
+  if (mapped > 1) routeKakaoMapInstance.setBounds(bounds);
+  else if (firstPos) routeKakaoMapInstance.setCenter(firstPos);
+  if (status) status.textContent = `카카오 지도 표시 ${mapped}곳${failed ? ` · 주소 실패 ${failed}곳` : ''}`;
+}
+
 function renderRouteMapFallback(message) {
   const status = document.getElementById('routeMapStatus');
   const map = document.getElementById('routeMap');
@@ -374,8 +499,19 @@ function renderRouteMap(forceRefresh = false, skipMap = false) {
     if (map) map.innerHTML = '';
     return;
   }
-  renderRouteNaverMap(list, ds, forceRefresh).catch(error => {
-    console.warn('배송지도 로드 실패:', error);
-    renderRouteMapFallback('지도 로드 실패: ' + error.message);
+  renderRouteNaverMap(list, ds, forceRefresh).catch(naverError => {
+    console.warn('배송지도 네이버 로드 실패:', naverError);
+    const status = document.getElementById('routeMapStatus');
+    if (status) status.textContent = '네이버 지도 실패. 카카오 지도로 전환 중...';
+    if (map) {
+      routeMapMarkers.forEach(marker => marker.setMap(null));
+      routeMapMarkers = [];
+      routeMapInstance = null;
+      map.innerHTML = '';
+    }
+    renderRouteKakaoMap(list, ds, forceRefresh).catch(kakaoError => {
+      console.warn('배송지도 카카오 로드 실패:', kakaoError);
+      renderRouteMapFallback(`지도 로드 실패: 네이버(${naverError.message}) / 카카오(${kakaoError.message})`);
+    });
   });
 }

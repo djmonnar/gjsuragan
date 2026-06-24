@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v38-driver-route-map';
+const CACHE = 'gjsuragan-v39-kakao-route-fallback';
 const PRECACHE = [
   './customer.html',
   './admin.html',
