@@ -458,8 +458,22 @@
     background: #F0FFF6;
   }
   .order-card.closed-card {
-    opacity: 0.7;
-    background: #F8F8F8;
+    background: #F3F4F6;
+    border-color: #D1D5DB;
+    box-shadow: none;
+    color: #6B7280;
+  }
+  .order-card.closed-card:hover { transform: none; box-shadow: none; }
+  .order-card.closed-card .qty-icon { background: #E5E7EB; color: #9CA3AF; }
+  .order-card.closed-card .qty-name,
+  .order-card.closed-card .qty-value { color: #6B7280; }
+  .order-card.closed-card .qty-control { background: #EEF0F3; }
+  .order-card.closed-card .qty-btn { color: #9CA3AF; }
+  .order-card.closed-card .note-area,
+  .order-card.closed-card .default-apply-notice {
+    background: #F9FAFB;
+    color: #9CA3AF;
+    border-color: #E5E7EB;
   }
 
   .card-label {
@@ -3338,6 +3352,8 @@ async function renderToday() {
     db.collection('orderLocks').doc(targetDate).get().catch(() => null)
   ]);
   const targetLocked = !!lockSnap?.exists;
+  const orderClosed = targetNoDelivery || targetLocked || (ctx.isToday && ctx.closed);
+  document.getElementById('today-card')?.classList.toggle('closed-card', orderClosed);
 
   const submitBtn = document.getElementById('submit-btn');
 
@@ -3367,7 +3383,7 @@ async function renderToday() {
     setCardSubmitted(false, null, hasDefault);
   }
 
-  if (targetNoDelivery || targetLocked || (ctx.isToday && ctx.closed)) {
+  if (orderClosed) {
     submitBtn.disabled = true;
     submitBtn.textContent = targetLocked ? '주문 마감됨' : targetNoDelivery ? '배송 없음' : '오늘 주문 마감됨';
     document.getElementById('default-apply-notice').style.display = 'none';
