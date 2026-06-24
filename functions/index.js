@@ -11,6 +11,8 @@ admin.initializeApp();
 const db = admin.firestore();
 const TIMEZONE = 'Asia/Seoul';
 const MAX_PENDING_PER_BATCH = 20;
+const NAVER_DIRECTION_CANDIDATE_LIMIT = Number(process.env.NAVER_DIRECTION_CANDIDATE_LIMIT || 6);
+const NAVER_DIRECTION_MAX_STOPS = Number(process.env.NAVER_DIRECTION_MAX_STOPS || 25);
 const ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html#changeRequests';
 const ORDER_ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html';
 const EVENT_ORDER_ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html#eventOrders';
@@ -157,7 +159,9 @@ exports.api = onRequest(async (req, res) => {
 
   const pathname = new URL(req.url, 'https://gjsuragan.local').pathname;
   try {
-    const user = await verifyAdminRequest(req);
+    const user = pathname === '/api/route/optimize' || pathname === '/route/optimize'
+      ? await verifyRouteRequest(req)
+      : await verifyAdminRequest(req);
     if (pathname === '/api/logen/register-orders' || pathname === '/logen/register-orders') {
       const result = await handleLogenRegister(req.body || {}, user);
       sendJson(res, 200, { ok: true, ...result });
@@ -165,6 +169,11 @@ exports.api = onRequest(async (req, res) => {
     }
     if (pathname === '/api/logen/inquiry-slip-nos' || pathname === '/logen/inquiry-slip-nos') {
       const result = await handleLogenSlipInquiry(req.body || {}, user);
+      sendJson(res, 200, { ok: true, ...result });
+      return;
+    }
+    if (pathname === '/api/route/optimize' || pathname === '/route/optimize') {
+      const result = await handleRouteOptimize(req.body || {}, user);
       sendJson(res, 200, { ok: true, ...result });
       return;
     }
@@ -206,6 +215,186 @@ async function verifyAdminRequest(req) {
     throw error;
   }
   return decoded;
+}
+
+async function verifyRouteRequest(req) {
+  const auth = String(req.headers.authorization || '');
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    const error = new Error('Missing Firebase ID token');
+    error.status = 401;
+    throw error;
+  }
+  const decoded = await admin.auth().verifyIdToken(match[1]);
+  const email = String(decoded.email || '').toLowerCase();
+  const provider = decoded.firebase?.sign_in_provider || '';
+  const allowedAdmins = String(process.env.LOGEN_ADMIN_EMAILS || 'sun1562@naver.com')
+    .split(',')
+    .map(v => v.trim().toLowerCase())
+    .filter(Boolean);
+  if (provider === 'anonymous' || (email && allowedAdmins.includes(email))) {
+    return decoded;
+  }
+  const error = new Error('Route permission required');
+  error.status = 403;
+  throw error;
+}
+
+function readNaverDirectionKeys() {
+  const keyId = process.env.NAVER_DIRECTIONS_KEY_ID
+    || process.env.NAVER_MAPS_API_KEY_ID
+    || process.env.NCP_MAPS_API_KEY_ID
+    || '';
+  const key = process.env.NAVER_DIRECTIONS_KEY
+    || process.env.NAVER_MAPS_API_KEY
+    || process.env.NCP_MAPS_API_KEY
+    || '';
+  if (!keyId || !key) {
+    const error = new Error('Naver Directions API keys are not configured');
+    error.status = 503;
+    throw error;
+  }
+  return { keyId, key };
+}
+
+function validRoutePoint(point) {
+  const lat = Number(point?.lat);
+  const lng = Number(point?.lng);
+  return Number.isFinite(lat)
+    && Number.isFinite(lng)
+    && lat >= 32 && lat <= 39
+    && lng >= 124 && lng <= 132;
+}
+
+function normalizeRoutePoint(point) {
+  return {
+    id: String(point.id || '').slice(0, 120),
+    name: String(point.name || '').slice(0, 120),
+    lat: Number(point.lat),
+    lng: Number(point.lng)
+  };
+}
+
+function validateRouteOptimizePayload(body) {
+  const origin = normalizeRoutePoint(body.origin || {});
+  const stops = Array.isArray(body.stops) ? body.stops.map(normalizeRoutePoint) : [];
+  if (!validRoutePoint(origin)) {
+    const error = new Error('origin must include valid lat/lng');
+    error.status = 400;
+    throw error;
+  }
+  const validStops = stops.filter(stop => stop.id && validRoutePoint(stop));
+  if (validStops.length < 2) {
+    const error = new Error('At least two stops are required');
+    error.status = 400;
+    throw error;
+  }
+  if (validStops.length > NAVER_DIRECTION_MAX_STOPS) {
+    const error = new Error(`Too many stops. Max ${NAVER_DIRECTION_MAX_STOPS}`);
+    error.status = 400;
+    throw error;
+  }
+  return { origin, stops: validStops };
+}
+
+function distanceKm(a, b) {
+  const rad = Math.PI / 180;
+  const lat1 = Number(a.lat) * rad;
+  const lat2 = Number(b.lat) * rad;
+  const dLat = (Number(b.lat) - Number(a.lat)) * rad;
+  const dLng = (Number(b.lng) - Number(a.lng)) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function naverPoint(point) {
+  return `${Number(point.lng).toFixed(7)},${Number(point.lat).toFixed(7)}`;
+}
+
+async function fetchNaverDrivingLeg(start, goal, keys, cache) {
+  const cacheKey = `${naverPoint(start)}>${naverPoint(goal)}`;
+  if (cache.has(cacheKey)) return cache.get(cacheKey);
+  const url = new URL('https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving');
+  url.searchParams.set('start', naverPoint(start));
+  url.searchParams.set('goal', naverPoint(goal));
+  url.searchParams.set('option', 'trafast');
+  const response = await fetch(url, {
+    headers: {
+      'X-NCP-APIGW-API-KEY-ID': keys.keyId,
+      'X-NCP-APIGW-API-KEY': keys.key
+    }
+  });
+  const text = await response.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch(e) {
+    data = {};
+  }
+  if (!response.ok || data.code !== 0) {
+    const message = data.message || text || `Naver Directions HTTP ${response.status}`;
+    const error = new Error(message);
+    error.status = response.status || 502;
+    throw error;
+  }
+  const summary = data.route?.trafast?.[0]?.summary || {};
+  const leg = {
+    distance: Number(summary.distance || 0),
+    duration: Number(summary.duration || 0),
+    tollFare: Number(summary.tollFare || 0),
+    fuelPrice: Number(summary.fuelPrice || 0)
+  };
+  cache.set(cacheKey, leg);
+  return leg;
+}
+
+async function handleRouteOptimize(body) {
+  const { origin, stops } = validateRouteOptimizePayload(body);
+  const keys = readNaverDirectionKeys();
+  const cache = new Map();
+  const remaining = [...stops];
+  const ordered = [];
+  const legs = [];
+  let current = origin;
+
+  while (remaining.length) {
+    const candidates = [...remaining]
+      .sort((a, b) => distanceKm(current, a) - distanceKm(current, b))
+      .slice(0, Math.max(1, NAVER_DIRECTION_CANDIDATE_LIMIT));
+    const scored = [];
+    for (const candidate of candidates) {
+      const leg = await fetchNaverDrivingLeg(current, candidate, keys, cache);
+      scored.push({ candidate, leg });
+    }
+    scored.sort((a, b) => {
+      if (a.leg.duration !== b.leg.duration) return a.leg.duration - b.leg.duration;
+      return a.leg.distance - b.leg.distance;
+    });
+    const best = scored[0];
+    ordered.push(best.candidate);
+    legs.push({
+      fromId: current.id || 'origin',
+      toId: best.candidate.id,
+      distance: best.leg.distance,
+      duration: best.leg.duration
+    });
+    const idx = remaining.findIndex(stop => stop.id === best.candidate.id);
+    if (idx >= 0) remaining.splice(idx, 1);
+    current = best.candidate;
+  }
+
+  const totalDistance = legs.reduce((sum, leg) => sum + Number(leg.distance || 0), 0);
+  const totalDuration = legs.reduce((sum, leg) => sum + Number(leg.duration || 0), 0);
+  return {
+    provider: 'naver-directions5',
+    algorithm: 'nearest-driving-duration',
+    candidateLimit: NAVER_DIRECTION_CANDIDATE_LIMIT,
+    order: ordered.map(stop => stop.id),
+    stops: ordered,
+    legs,
+    totalDistance,
+    totalDuration
+  };
 }
 
 function validateLogenPayload(body) {

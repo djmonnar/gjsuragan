@@ -1,6 +1,7 @@
 const ROUTE_NAVER_CLIENT_ID = 'd4sg126q46';
 const ROUTE_KAKAO_JS_KEY = '8dd270cf2311e687a085b2db5157b1f7';
 const ROUTE_ORIGIN_ADDRESS = '경상남도 진주시 동진로107번길 8 돌담';
+const ROUTE_DEFAULT_API_BASE = 'https://api-rekpg53hvq-uc.a.run.app';
 let routeNaverLoaded = false;
 let routeNaverLoading = null;
 let routeKakaoLoaded = false;
@@ -91,6 +92,41 @@ function routeNaverSearchUrl(address) {
 
 function routeKakaoSearchUrl(address) {
   return `https://map.kakao.com/link/search/${encodeURIComponent(address || '')}`;
+}
+
+function routeApiBase() {
+  return (localStorage.getItem('gjsRouteApiBase') || ROUTE_DEFAULT_API_BASE).replace(/\/+$/, '');
+}
+
+async function routeIdToken() {
+  const user = window.__AUTH?.currentUser;
+  if (!user) throw new Error('배송지도 인증을 확인해주세요.');
+  return user.getIdToken();
+}
+
+async function postRouteApi(path, payload) {
+  const token = await routeIdToken();
+  const res = await fetch(`${routeApiBase()}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch(e) { data = { ok:false, error:text }; }
+  if (!res.ok || data.ok === false) throw new Error(data.error || text || `HTTP ${res.status}`);
+  return data;
+}
+
+function routeDurationLabel(ms) {
+  const minutes = Math.round(Number(ms || 0) / 60000);
+  if (!minutes) return '';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h ? `${h}시간 ${m}분` : `${m}분`;
 }
 
 function routeDistanceKm(a, b) {
@@ -304,7 +340,29 @@ async function optimizeRouteOrder(forceRefresh = false) {
     }
     if (items.length < 2) throw new Error('좌표를 찾은 배송지가 부족합니다.');
 
-    const ordered = routeNearestOrder(items, origin);
+    let ordered = [];
+    let routeMeta = null;
+    try {
+      const road = await postRouteApi('/api/route/optimize', {
+        origin: { id: 'origin', name: '돌담', lat: origin.lat, lng: origin.lng },
+        stops: items.map(item => ({
+          id: item.customer.id,
+          name: item.customer.name || '',
+          lat: item.coords.lat,
+          lng: item.coords.lng
+        }))
+      });
+      const byId = new Map(items.map(item => [item.customer.id, item]));
+      ordered = (road.order || []).map(id => byId.get(id)).filter(Boolean);
+      if (ordered.length !== items.length) {
+        const picked = new Set(ordered.map(item => item.customer.id));
+        ordered.push(...items.filter(item => !picked.has(item.customer.id)));
+      }
+      routeMeta = road;
+    } catch(serverError) {
+      console.warn('도로시간 추천 실패, 직선거리로 대체:', serverError);
+      ordered = routeNearestOrder(items, origin);
+    }
     routeOptimizedDate = ds;
     routeOptimizedIds = [
       ...ordered.map(item => item.customer.id),
@@ -312,8 +370,10 @@ async function optimizeRouteOrder(forceRefresh = false) {
     ];
     renderRouteMap(false, false);
     const preview = ordered.slice(0, 4).map(item => item.customer.name || '-').join(' → ');
-    toast(`추천 순서 적용: 돌담 → ${preview}${ordered.length > 4 ? ' ...' : ''}`, 'ok');
-    if (status) status.textContent = `추천 순서 적용됨 · 돌담 출발 · 좌표 ${items.length}곳${failed.length ? ` · 주소 실패 ${failed.length}곳` : ''}`;
+    const routeLabel = routeMeta ? '도로시간 기준' : '직선거리 기준';
+    const duration = routeMeta?.totalDuration ? ` · 예상 ${routeDurationLabel(routeMeta.totalDuration)}` : '';
+    toast(`${routeLabel} 추천 순서 적용: 돌담 → ${preview}${ordered.length > 4 ? ' ...' : ''}`, 'ok');
+    if (status) status.textContent = `${routeLabel} 추천 순서 적용됨 · 돌담 출발 · 좌표 ${items.length}곳${duration}${failed.length ? ` · 주소 실패 ${failed.length}곳` : ''}`;
   } catch(e) {
     toast('추천 순서 계산 실패: ' + (e.message || e), 'er');
     if (status) status.textContent = '추천 순서 계산 실패: ' + (e.message || e);
