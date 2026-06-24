@@ -141,6 +141,7 @@ function focusRouteCard(id) {
   const card = document.getElementById(`route-card-${id}`);
   if (card) {
     card.classList.add('active');
+    if (card.tagName === 'DETAILS') card.open = true;
     card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
@@ -150,37 +151,45 @@ function routeCardHtml(c, ds, index) {
   const phone = routePhoneDigits(c.phone);
   const address = c.addr || '';
   return `
-    <article class="route-card ${done ? 'done' : ''}" id="route-card-${routeEsc(c.id)}">
-      <div class="route-card-top">
-        <div>
-          <div class="route-card-name">
-            <span>${index + 1}. ${routeEsc(c.name || '-')}</span>
-            ${deliveryProductBadgeHtml(c)}
-            ${lastBoxDeliveryBadge(c)}
+    <details class="route-card ${done ? 'done' : ''}" id="route-card-${routeEsc(c.id)}">
+      <summary class="route-card-summary">
+        <div class="route-card-top">
+          <div>
+            <div class="route-card-name">
+              <span>${index + 1}. ${routeEsc(c.name || '-')}</span>
+              ${deliveryProductBadgeHtml(c)}
+              ${lastBoxDeliveryBadge(c)}
+            </div>
+            <div class="route-address-preview">${routeEsc(address || '주소 미입력')}</div>
           </div>
+          <label class="route-done-check" onclick="event.stopPropagation()">
+            <input type="checkbox" ${done ? 'checked' : ''} onchange="routeToggleDone('${routeEsc(c.id)}','${routeEsc(ds)}',this.checked)">
+            갔다
+          </label>
+        </div>
+        <div class="route-card-more">상세 보기</div>
+      </summary>
+      <div class="route-card-detail">
+        <div>
           <div class="route-card-meta">${routeEsc(routeQtyLabel(c))}</div>
         </div>
-        <label class="route-done-check">
-          <input type="checkbox" ${done ? 'checked' : ''} onchange="routeToggleDone('${routeEsc(c.id)}','${routeEsc(ds)}',this.checked)">
-          갔다
-        </label>
+        <div class="route-address" onclick="copyRouteAddress('${routeEsc(c.id)}')">
+          ${routeEsc(address || '주소 미입력')}
+        </div>
+        <div class="route-info-grid">
+          <div class="route-info"><strong>연락처</strong>${routeEsc(c.phone || '-')}</div>
+          <div class="route-info"><strong>현관번호</strong>${routeEsc(c.door || '-')}</div>
+          <div class="route-info"><strong>배송일정</strong>${routeEsc(scheduleDisp(c) || c.scheduleName || '-')}</div>
+          <div class="route-info"><strong>요청사항</strong>${routeEsc(c.request || '-')}</div>
+        </div>
+        <div class="route-actions">
+          <a class="btn btn-s sm" href="${phone ? `tel:${phone}` : '#'}">전화</a>
+          <a class="btn btn-g sm" href="${routeNaverSearchUrl(address)}" target="_blank" rel="noopener">네이버</a>
+          <a class="btn btn-g sm" href="${routeKakaoSearchUrl(address)}" target="_blank" rel="noopener">카카오</a>
+          <button class="btn btn-g sm" onclick="copyRouteAddress('${routeEsc(c.id)}')">주소복사</button>
+        </div>
       </div>
-      <div class="route-address" onclick="copyRouteAddress('${routeEsc(c.id)}')">
-        ${routeEsc(address || '주소 미입력')}
-      </div>
-      <div class="route-info-grid">
-        <div class="route-info"><strong>연락처</strong>${routeEsc(c.phone || '-')}</div>
-        <div class="route-info"><strong>현관번호</strong>${routeEsc(c.door || '-')}</div>
-        <div class="route-info"><strong>배송일정</strong>${routeEsc(scheduleDisp(c) || c.scheduleName || '-')}</div>
-        <div class="route-info"><strong>요청사항</strong>${routeEsc(c.request || '-')}</div>
-      </div>
-      <div class="route-actions">
-        <a class="btn btn-s sm" href="${phone ? `tel:${phone}` : '#'}">전화</a>
-        <a class="btn btn-g sm" href="${routeNaverSearchUrl(address)}" target="_blank" rel="noopener">네이버</a>
-        <a class="btn btn-g sm" href="${routeKakaoSearchUrl(address)}" target="_blank" rel="noopener">카카오</a>
-        <button class="btn btn-g sm" onclick="copyRouteAddress('${routeEsc(c.id)}')">주소복사</button>
-      </div>
-    </article>`;
+    </details>`;
 }
 
 function renderRouteList(list, ds) {

@@ -186,12 +186,18 @@ tbody tr:last-child td{border-bottom:none;}
 .route-map-status{padding:9px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);line-height:1.5;background:var(--surface2);}
 #routeMap{height:520px;min-height:320px;background:var(--bg3);}
 .route-list-panel{display:flex;flex-direction:column;gap:10px;}
-.route-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--sh0);padding:14px;transition:var(--tr);}
+.route-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--sh0);padding:0;transition:var(--tr);overflow:hidden;}
 .route-card.done{opacity:.62;background:var(--surface2);}
 .route-card.active{border-color:var(--accent);box-shadow:0 0 0 3px rgba(26,107,60,.12);}
-.route-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.route-card-summary{display:block;padding:13px 14px;cursor:pointer;list-style:none;}
+.route-card-summary::-webkit-details-marker{display:none;}
+.route-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
 .route-card-name{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:17px;font-weight:900;color:var(--text);}
-.route-card-meta{font-size:12px;color:var(--text3);margin-top:3px;}
+.route-card-meta{font-size:12px;color:var(--text3);margin-bottom:8px;}
+.route-address-preview{margin-top:7px;color:#a01594;font-size:14px;font-weight:700;line-height:1.5;word-break:keep-all;overflow-wrap:anywhere;}
+.route-card-more{margin-top:8px;color:var(--text3);font-size:11px;font-weight:800;text-align:right;}
+.route-card[open] .route-card-more{display:none;}
+.route-card-detail{border-top:1px solid var(--border);padding:11px 14px 14px;background:rgba(248,250,252,.7);}
 .route-done-check{display:flex;align-items:center;gap:6px;background:var(--accent-xl);border:1px solid rgba(26,107,60,.2);color:var(--accent);border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900;white-space:nowrap;}
 .route-done-check input{width:18px;height:18px;}
 .route-address{padding:11px 12px;background:rgba(192,32,176,.055);border:1px solid rgba(192,32,176,.16);border-radius:10px;color:#a01594;font-size:14px;line-height:1.55;word-break:keep-all;overflow-wrap:anywhere;cursor:pointer;}
@@ -519,7 +525,9 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
   .route-layout{grid-template-columns:1fr;gap:10px;}
   .route-map-panel{position:relative;top:auto;}
   #routeMap{height:280px;min-height:240px;}
-  .route-card{padding:13px;border-radius:12px;}
+  .route-card{border-radius:12px;}
+  .route-card-summary{padding:12px;}
+  .route-card-detail{padding:10px 12px 12px;}
   .route-card-top{align-items:flex-start;}
   .route-card-name{font-size:16px;}
   .route-info-grid{grid-template-columns:1fr;}
