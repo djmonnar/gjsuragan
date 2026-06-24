@@ -7628,10 +7628,21 @@ let mapHideNoOrder = false;
 function loadNaverMapScript() {
   return new Promise((resolve, reject) => {
     if (mapScriptLoaded && window.naver?.maps) { resolve(); return; }
+    window.navermap_authFailure = () => {
+      mapScriptLoaded = false;
+      reject(new Error('네이버 지도 Open API 인증이 실패했습니다. Client ID와 Web 서비스 URL 등록을 확인해주세요.'));
+    };
     const script = document.createElement('script');
     script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_CLIENT_ID}&submodules=geocoder`;
-    script.onload = () => { mapScriptLoaded = true; resolve(); };
-    script.onerror = reject;
+    script.onload = () => {
+      if (!window.naver?.maps?.Map || !window.naver?.maps?.LatLng) {
+        reject(new Error('네이버 지도 SDK가 정상 초기화되지 않았습니다.'));
+        return;
+      }
+      mapScriptLoaded = true;
+      resolve();
+    };
+    script.onerror = () => reject(new Error('네이버 지도 SDK 스크립트를 불러오지 못했습니다.'));
     document.head.appendChild(script);
   });
 }
@@ -7654,11 +7665,13 @@ async function initDeliveryMap(forceRefresh) {
   if (!mapEl) return;
 
   if (!naverMapInstance) {
-    naverMapInstance = new naver.maps.Map(mapEl, {
+    const mapOptions = {
       center: new naver.maps.LatLng(35.1950, 128.0910),
-      zoom: 15,
-      mapTypeId: naver.maps.MapTypeId.NORMAL
-    });
+      zoom: 15
+    };
+    const normalMapType = naver.maps.MapTypeId && naver.maps.MapTypeId.NORMAL;
+    if (normalMapType) mapOptions.mapTypeId = normalMapType;
+    naverMapInstance = new naver.maps.Map(mapEl, mapOptions);
   }
 
   mapMarkers.forEach(m => m.setMap(null));
@@ -7817,11 +7830,16 @@ function toggleNoOrderMarkers() {
 
 function geocodeAddress(address) {
   return new Promise(resolve => {
+    if (!address || !naver.maps.Service?.geocode) {
+      resolve(null);
+      return;
+    }
     naver.maps.Service.geocode({ query: address }, (status, response) => {
-      if (status !== naver.maps.Service.Status.OK || !response.v2.addresses.length) {
+      const addresses = response?.v2?.addresses || [];
+      if (status !== naver.maps.Service.Status.OK || !addresses.length) {
         resolve(null); return;
       }
-      const item = response.v2.addresses[0];
+      const item = addresses[0];
       resolve({ lat: parseFloat(item.y), lng: parseFloat(item.x) });
     });
   });

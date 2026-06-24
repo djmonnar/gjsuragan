@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v35-delivery-address';
+const CACHE = 'gjsuragan-v36-map-loader';
 const PRECACHE = [
   './customer.html',
   './admin.html',
