@@ -283,6 +283,68 @@
   }
   .date-badge .gj-icon { width: 24px; height: 24px; }
 
+  .order-slot-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .order-slot-btn {
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 12px 10px;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color .2s, background .2s, transform .15s;
+  }
+  .order-slot-btn:active { transform: scale(.98); }
+  .order-slot-btn.active {
+    border-color: var(--primary);
+    background: #fff8ed;
+    color: var(--primary);
+    box-shadow: var(--shadow);
+  }
+  .order-slot-btn.is-closed {
+    color: var(--text-sub);
+    background: #f7f7f7;
+  }
+  .order-slot-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    font-weight: 900;
+    margin-bottom: 4px;
+  }
+  .order-slot-title .gj-icon { width: 18px; height: 18px; }
+  .order-slot-date {
+    font-size: 12px;
+    color: var(--text-sub);
+    line-height: 1.35;
+  }
+  .meal-open-btn {
+    width: 100%;
+    border: 1.5px solid #ead8bb;
+    background: #fffaf5;
+    color: var(--primary);
+    border-radius: var(--radius);
+    padding: 13px 14px;
+    margin-bottom: 12px;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    box-shadow: var(--shadow);
+  }
+  .meal-open-btn .gj-icon { width: 22px; height: 22px; }
+
   .deadline-timer {
     background: linear-gradient(135deg, #fffaf0 0%, #fff 100%);
     border: 1px solid #f0d090;
@@ -1574,6 +1636,16 @@
   <!-- 오늘 주문 탭 -->
   <div id="pane-today" class="content-area">
     <div class="date-badge" id="today-badge"><svg class="gj-icon"><use href="#gj-calendar"></use></svg><span>날짜 로딩중...</span></div>
+    <div class="order-slot-tabs" id="order-slot-tabs">
+      <button class="order-slot-btn active" id="order-slot-today" type="button" onclick="setActiveOrderSlot('today')">
+        <div class="order-slot-title"><svg class="gj-icon"><use href="#gj-clock"></use></svg>오늘 주문</div>
+        <div class="order-slot-date">날짜 확인 중</div>
+      </button>
+      <button class="order-slot-btn" id="order-slot-tomorrow" type="button" onclick="setActiveOrderSlot('tomorrow')">
+        <div class="order-slot-title"><svg class="gj-icon"><use href="#gj-calendar"></use></svg>내일 주문</div>
+        <div class="order-slot-date">날짜 확인 중</div>
+      </button>
+    </div>
     <div class="deadline-timer" id="deadline-timer" style="display:none">
       <div class="deadline-timer-main">
         <div class="deadline-timer-icon"><svg class="gj-icon"><use href="#gj-clock"></use></svg></div>
@@ -1582,16 +1654,19 @@
           <div class="deadline-timer-time" id="deadline-timer-time">--:--:--</div>
         </div>
       </div>
-      <div class="deadline-timer-sub" id="deadline-timer-sub">주문 마감: 오전 9시 20분</div>
+      <div class="deadline-timer-sub" id="deadline-timer-sub">오늘 주문 마감: 오전 9시 10분</div>
     </div>
 
-    <div id="today-meal-card" class="meal-card is-empty">오늘 식단을 불러오는 중...</div>
+    <button class="meal-open-btn" id="order-meal-open-btn" type="button" onclick="openOrderMealModal()">
+      <span style="display:flex;align-items:center;gap:8px"><svg class="gj-icon"><use href="#gj-meal"></use></svg><span id="order-meal-open-text">식단표 보기</span></span>
+      <span style="font-size:20px">›</span>
+    </button>
 
     <div class="closed-banner" id="closed-banner" style="display:none">
       <span class="icon"><svg class="gj-icon"><use href="#gj-clock"></use></svg></span>
       <div>
         <strong>오늘 주문이 마감되었습니다</strong><br>
-        <span style="font-size:12px" id="closed-banner-time">주문 마감: 오전 9시 20분</span>
+        <span style="font-size:12px" id="closed-banner-time">오늘 주문 마감: 오전 9시 10분</span>
       </div>
     </div>
 
@@ -1847,8 +1922,8 @@
       <div class="help-section-title">2. 주문 탭에서 주문하기</div>
       <ol>
         <li>오전과 점심 전에는 오늘 주문 수량을 확인하고 전송할 수 있습니다.</li>
-        <li>오늘 주문이 마감되면 바로 다음 영업일 주문 화면으로 전환됩니다.</li>
-        <li>오늘이 주말이나 휴무일이어도 다음 영업일 주문을 미리 입력할 수 있습니다.</li>
+        <li>오늘 주문은 오전 9시 10분에 마감됩니다.</li>
+        <li>내일 주문 탭은 미리 열려 있어 다음 배송일 주문을 입력할 수 있습니다.</li>
         <li>수량을 바꾸려면 +, − 버튼을 눌러 조정합니다.</li>
         <li>기본 수량 그대로 받는 경우 아무것도 누르지 않아도 자동 배송됩니다.</li>
         <li>요청사항이 있거나 수량을 바꾸면 메모와 수량을 조정한 뒤 <b>변경사항 저장하기</b>를 누릅니다.</li>
@@ -1909,6 +1984,16 @@
     <div class="submitted-badge" id="modal-submitted-badge" style="display:none">
       <svg class="gj-icon"><use href="#gj-check"></use></svg> 전송 완료
     </div>
+  </div>
+</div>
+
+<!-- 식단표 모달 -->
+<div class="modal-overlay" id="meal-modal">
+  <div class="modal-sheet">
+    <button class="modal-x-btn" onclick="closeMealModal()" aria-label="닫기">×</button>
+    <div class="modal-handle"></div>
+    <div class="modal-date" id="meal-modal-date">식단표</div>
+    <div id="meal-modal-content" class="meal-card is-empty">식단을 불러오는 중...</div>
   </div>
 </div>
 
@@ -2066,6 +2151,8 @@ let customerChangeRequestsUnsub = null;
 let todayLunch = 0;
 let todaySalad = 0;
 let currentOrderTargetDate = '';
+let activeOrderSlot = 'today';
+const orderSlotDrafts = {};
 let orderTargetRefreshTimer = null;
 let deadlineCountdownTimer = null;
 let weekOffset = 0;
@@ -2077,7 +2164,8 @@ const mealMenuCache = {};
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
 let customHolidays = {};
-let orderDeadline = { hour: 9, minute: 20 };
+const FIXED_TODAY_ORDER_DEADLINE = { hour: 9, minute: 10 };
+let orderDeadline = { ...FIXED_TODAY_ORDER_DEADLINE };
 const DEFAULT_MEAL_PRICE = 8000;
 const MEAL_TIME_OPTIONS = [
   '10:30','10:40','10:50',
@@ -2209,15 +2297,7 @@ async function loadCustomHolidays() {
 }
 
 async function loadSettings() {
-  try {
-    const snap = await db.collection('config').doc('settings').get();
-    if (snap.exists) {
-      const d = snap.data();
-      if (d.closeHour != null && d.closeMinute != null) {
-        orderDeadline = { hour: d.closeHour, minute: d.closeMinute };
-      }
-    }
-  } catch(e) {}
+  orderDeadline = { ...FIXED_TODAY_ORDER_DEADLINE };
 }
 
 async function isOrderDateLocked(dStr) {
@@ -2274,27 +2354,27 @@ function updateDeadlineTimer(ctx = getOrderTargetContext()) {
 
   box.classList.remove('is-closed', 'is-future');
   box.style.display = 'flex';
-  sub.textContent = `주문 마감: ${deadlineText()}`;
+  sub.textContent = `오늘 주문 마감: ${deadlineText()}`;
 
-  if (ctx.todayNoDelivery) {
-    box.classList.add('is-closed');
-    label.textContent = '오늘은 배송이 없습니다';
-    time.textContent = ctx.holiday || '휴무일';
-    sub.textContent = '다음 영업일 주문을 미리 받고 있습니다';
-    return;
-  }
   if (ctx.isFuture) {
     box.classList.add('is-future');
     label.textContent = `${formatDateKR(ctx.targetDate)} 주문 접수 중`;
     time.textContent = '접수 가능';
-    sub.textContent = `다음 영업일 주문을 미리 받고 있습니다 · 마감 ${deadlineText()}`;
+    sub.textContent = `오늘 주문 마감과 상관없이 미리 주문할 수 있습니다`;
     return;
   }
-  if (remaining <= 0 || ctx.todayClosed) {
+  if (ctx.noDelivery) {
+    box.classList.add('is-closed');
+    label.textContent = '오늘은 배송이 없습니다';
+    time.textContent = ctx.holiday || '휴무일';
+    sub.textContent = '내일 주문 탭에서 다음 배송일 주문을 미리 입력할 수 있습니다';
+    return;
+  }
+  if (remaining <= 0 || ctx.closed) {
     box.classList.add('is-closed');
     label.textContent = '오늘 주문 마감';
     time.textContent = '마감됨';
-    sub.textContent = `마감 시간: ${deadlineText()} · 다음 영업일 주문을 미리 받고 있습니다`;
+    sub.textContent = `마감 시간: ${deadlineText()} · 내일 주문은 가능합니다`;
     return;
   }
 
@@ -2308,7 +2388,7 @@ function startDeadlineCountdown(ctx = getOrderTargetContext()) {
   deadlineCountdownTimer = setInterval(() => {
     const nextCtx = getOrderTargetContext();
     updateDeadlineTimer(nextCtx);
-    if (nextCtx.targetDate !== ctx.targetDate || nextCtx.isFuture !== ctx.isFuture || nextCtx.todayClosed !== ctx.todayClosed) {
+    if (nextCtx.targetDate !== ctx.targetDate || nextCtx.isFuture !== ctx.isFuture || nextCtx.closed !== ctx.closed) {
       renderToday();
     }
   }, 1000);
@@ -2340,25 +2420,53 @@ function getNextBusinessDay(fromStr) {
 }
 
 function getOrderTargetContext() {
-  const kst = getKST();
-  const today = dateStr(kst);
+  return getOrderSlotContext(activeOrderSlot);
+}
+
+function getOrderSlots() {
+  const today = dateStr(getKST());
   const nextBusinessDay = getNextBusinessDay(today);
-  const todayClosed = isClosed();
-  const todayNoDelivery = isNoDeliveryDate(today);
-  const targetDate = (todayClosed || todayNoDelivery) && nextBusinessDay ? nextBusinessDay : today;
   return {
-    today,
-    targetDate,
-    isFuture: targetDate !== today,
-    todayClosed,
-    todayNoDelivery,
-    holiday: holidayName(today)
+    today: {
+      key: 'today',
+      label: '오늘 주문',
+      targetDate: today,
+      isToday: true,
+      isFuture: false,
+      today,
+      closed: isClosed(),
+      noDelivery: isNoDeliveryDate(today),
+      holiday: holidayName(today)
+    },
+    tomorrow: {
+      key: 'tomorrow',
+      label: nextBusinessDay === addCalendarDays(today, 1) ? '내일 주문' : '다음 주문',
+      targetDate: nextBusinessDay,
+      isToday: false,
+      isFuture: true,
+      today,
+      closed: false,
+      noDelivery: nextBusinessDay ? isNoDeliveryDate(nextBusinessDay) : true,
+      holiday: nextBusinessDay ? holidayName(nextBusinessDay) : ''
+    }
   };
 }
 
+function getOrderSlotContext(slot = activeOrderSlot) {
+  const slots = getOrderSlots();
+  return slots[slot] || slots.today;
+}
+
 function orderTargetBadgeText(ctx) {
-  if (!ctx.isFuture) return `${formatDateKR(ctx.targetDate)} 오늘`;
-  return `${formatDateKR(ctx.targetDate)} ${addCalendarDays(ctx.today, 1) === ctx.targetDate ? '내일 주문' : '다음 주문'}`;
+  if (!ctx) return '주문 날짜 확인 중';
+  return `${formatDateKR(ctx.targetDate)} ${ctx.label}`;
+}
+
+function isActiveOrderSlotClosed(ctx = getOrderSlotContext()) {
+  if (!ctx?.targetDate) return true;
+  if (ctx.noDelivery) return true;
+  if (ctx.isToday && ctx.closed) return true;
+  return false;
 }
 
 function mealMenuDefaultTitle(dStr) {
@@ -2518,6 +2626,32 @@ async function searchMealMenu() {
       target.textContent = '식단 조회 실패: ' + e.message;
     }
   }
+}
+
+function openOrderMealModal() {
+  openMealModal(currentOrderTargetDate || getOrderSlotContext(activeOrderSlot).targetDate);
+}
+
+async function openMealModal(dStr) {
+  if (!dStr) return;
+  const modal = document.getElementById('meal-modal');
+  const dateEl = document.getElementById('meal-modal-date');
+  const content = document.getElementById('meal-modal-content');
+  if (!modal || !content) return;
+  if (dateEl) dateEl.textContent = `${formatDateKR(dStr)} 식단표`;
+  content.className = 'meal-card is-empty';
+  content.textContent = '식단을 불러오는 중...';
+  modal.classList.add('open');
+  try {
+    renderMealMenuCard('meal-modal-content', dStr, await loadMealMenu(dStr));
+  } catch(e) {
+    content.className = 'meal-card is-empty';
+    content.textContent = '식단을 불러오지 못했습니다.';
+  }
+}
+
+function closeMealModal() {
+  document.getElementById('meal-modal')?.classList.remove('open');
 }
 
 // ───────── 인증 ─────────
@@ -3125,32 +3259,65 @@ async function loadCustomerSettlement() {
 }
 
 // ───────── 오늘 주문 렌더링 ─────────
+function captureActiveOrderDraft() {
+  if (!activeOrderSlot || !currentOrderTargetDate) return;
+  orderSlotDrafts[activeOrderSlot] = {
+    targetDate: currentOrderTargetDate,
+    lunch: todayLunch,
+    salad: todaySalad,
+    note: document.getElementById('today-note')?.value || ''
+  };
+}
+
+function setActiveOrderSlot(slot) {
+  if (slot === activeOrderSlot) return;
+  captureActiveOrderDraft();
+  activeOrderSlot = slot === 'tomorrow' ? 'tomorrow' : 'today';
+  renderToday();
+}
+
+function renderOrderSlotTabs(slots) {
+  Object.values(slots).forEach(ctx => {
+    const btn = document.getElementById(`order-slot-${ctx.key}`);
+    if (!btn) return;
+    btn.classList.toggle('active', ctx.key === activeOrderSlot);
+    btn.classList.toggle('is-closed', isActiveOrderSlotClosed(ctx));
+    const title = btn.querySelector('.order-slot-title');
+    const date = btn.querySelector('.order-slot-date');
+    if (title) title.innerHTML = `${iconSvg(ctx.isToday ? 'clock' : 'calendar')}${ctx.label}`;
+    if (date) {
+      const status = ctx.noDelivery
+        ? (ctx.holiday || '배송 없음')
+        : ctx.isToday && ctx.closed
+        ? '마감됨'
+        : '접수 가능';
+      date.textContent = `${formatDateKR(ctx.targetDate)} · ${status}`;
+    }
+  });
+}
+
 async function renderToday() {
-  const ctx = getOrderTargetContext();
+  const slots = getOrderSlots();
+  if (!slots[activeOrderSlot]) activeOrderSlot = 'today';
+  const ctx = slots[activeOrderSlot];
   const targetDate = ctx.targetDate;
   currentOrderTargetDate = targetDate;
   const targetNoDelivery = isNoDeliveryDate(targetDate);
 
   document.getElementById('today-badge').innerHTML = `${iconSvg('calendar')}<span>${orderTargetBadgeText(ctx)}</span>`;
+  renderOrderSlotTabs(slots);
   startDeadlineCountdown(ctx);
-  try {
-    renderMealMenuCard('today-meal-card', targetDate, await loadMealMenu(targetDate));
-  } catch(e) {
-    const el = document.getElementById('today-meal-card');
-    if (el) {
-      el.className = 'meal-card is-empty';
-      el.textContent = '식단을 불러오지 못했습니다.';
-    }
-  }
+  const mealText = document.getElementById('order-meal-open-text');
+  if (mealText) mealText.textContent = `${formatDateKR(targetDate)} 식단표 보기`;
 
   const closedBanner = document.getElementById('closed-banner');
-  if (ctx.todayNoDelivery || ctx.todayClosed) {
+  if (ctx.noDelivery || (ctx.isToday && ctx.closed)) {
     closedBanner.style.display = 'flex';
     closedBanner.innerHTML = `
-      <span class="icon">${ctx.todayNoDelivery ? iconSvg('delivery') : iconSvg('clock')}</span>
+      <span class="icon">${ctx.noDelivery ? iconSvg('delivery') : iconSvg('clock')}</span>
       <div>
-        <strong>${ctx.todayNoDelivery ? (ctx.holiday ? `${ctx.holiday}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다') : '오늘 주문이 마감되었습니다'}</strong><br>
-        <span style="font-size:12px">${ctx.todayNoDelivery ? '다음 영업일 주문을 미리 받고 있습니다.' : '지금은 다음 영업일 주문을 미리 받고 있습니다.'}</span>
+        <strong>${ctx.noDelivery ? (ctx.holiday ? `${ctx.holiday}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다') : '오늘 주문이 마감되었습니다'}</strong><br>
+        <span style="font-size:12px">${ctx.noDelivery ? '내일 주문 탭에서 다음 배송일 주문을 미리 입력할 수 있습니다.' : '내일 주문 탭은 계속 열려 있습니다.'}</span>
       </div>
     `;
   } else if (ctx.isFuture) {
@@ -3176,9 +3343,10 @@ async function renderToday() {
 
   if (snap.exists) {
     const data = snap.data();
-    todayLunch = data.lunchCount;
-    todaySalad = data.saladCount;
-    document.getElementById('today-note').value = data.note || '';
+    const draft = orderSlotDrafts[activeOrderSlot]?.targetDate === targetDate ? orderSlotDrafts[activeOrderSlot] : null;
+    todayLunch = draft ? draft.lunch : data.lunchCount;
+    todaySalad = draft ? draft.salad : data.saladCount;
+    document.getElementById('today-note').value = draft ? draft.note : (data.note || '');
     if (data.selfHoliday) {
       const submitBtn = document.getElementById('submit-btn');
       submitBtn.className = 'submit-btn submitted-btn';
@@ -3191,15 +3359,17 @@ async function renderToday() {
     }
   } else {
     const todayDefault = defaultMealsForDate(targetDate);
-    todayLunch = todayDefault.lunch;
-    todaySalad = todayDefault.salad;
+    const draft = orderSlotDrafts[activeOrderSlot]?.targetDate === targetDate ? orderSlotDrafts[activeOrderSlot] : null;
+    todayLunch = draft ? draft.lunch : todayDefault.lunch;
+    todaySalad = draft ? draft.salad : todayDefault.salad;
+    document.getElementById('today-note').value = draft ? draft.note : '';
     const hasDefault = (todayDefault.lunch + todayDefault.salad) > 0;
     setCardSubmitted(false, null, hasDefault);
   }
 
-  if (targetNoDelivery || targetLocked) {
+  if (targetNoDelivery || targetLocked || (ctx.isToday && ctx.closed)) {
     submitBtn.disabled = true;
-    submitBtn.textContent = targetLocked ? '주문 마감됨' : '배송 없음';
+    submitBtn.textContent = targetLocked ? '주문 마감됨' : targetNoDelivery ? '배송 없음' : '오늘 주문 마감됨';
     document.getElementById('default-apply-notice').style.display = 'none';
     setQtyDisabled(true);
   }
@@ -3254,6 +3424,7 @@ function changeQty(type, delta) {
     todaySalad = Math.max(0, Math.min(50, todaySalad + delta));
     document.getElementById('salad-value').textContent = todaySalad;
   }
+  captureActiveOrderDraft();
 }
 function changeModalQty(type, delta) {
   if (type === 'lunch') {
@@ -3270,7 +3441,8 @@ async function submitOrder(source) {
   let targetDate, lunch, salad;
 
   if (source === 'today') {
-    const ctx = getOrderTargetContext();
+    captureActiveOrderDraft();
+    const ctx = getOrderSlotContext(activeOrderSlot);
     targetDate = ctx.targetDate;
     currentOrderTargetDate = targetDate;
     lunch = todayLunch;
@@ -3288,7 +3460,7 @@ async function submitOrder(source) {
     showToast(holidayName(targetDate) ? `${holidayName(targetDate)}은 배송이 없습니다.` : '토·일은 월식 배송이 없습니다.', 'error');
     return;
   }
-  if (targetDate === dateStr(getKST()) && isClosed()) {
+  if (source === 'today' && getOrderSlotContext(activeOrderSlot).isToday && isClosed()) {
     showToast('오늘 주문은 마감되었습니다.', 'error');
     return;
   }
@@ -3315,6 +3487,7 @@ async function submitOrder(source) {
       });
 
     showToast('주문이 전송되었습니다.', 'success');
+    if (source === 'today') delete orderSlotDrafts[activeOrderSlot];
 
     if (source === 'today') {
       await renderToday();
