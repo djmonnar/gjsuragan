@@ -1,13 +1,13 @@
 // ════════════════════════════════════════
 // 렌더링 통합
 // ════════════════════════════════════════
-function refreshAll(){ renderDash(); renderToday(); renderCust(); renderReport(); renderCancelLogs(); checkRiskOrderAlert(); }
+function refreshAll(){ renderDash(); renderToday(); renderCust(); renderReport(); renderCancelLogs(); if(typeof renderRouteMap==='function') renderRouteMap(false, true); checkRiskOrderAlert(); }
 
 // 화면 크기 변경 시 재렌더링 (모바일↔PC 전환)
 let _resizeTimer;
 window.addEventListener('resize', ()=>{
   clearTimeout(_resizeTimer);
-  _resizeTimer = setTimeout(()=>{ renderToday(); renderCust(); }, 200);
+  _resizeTimer = setTimeout(()=>{ renderToday(); renderCust(); if(typeof renderRouteMap==='function') renderRouteMap(false, true); }, 200);
 });
 
 function dashDeliveryRow(c, showGauge = true){

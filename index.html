@@ -27,7 +27,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<link rel="stylesheet" href="assets/css/index.css?v=20260624-address1">
+<link rel="stylesheet" href="assets/css/index.css?v=20260624-route1">
 
 
 </head>
@@ -88,6 +88,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 <nav class="nav">
   <div class="ni on"  onclick="goTab('dash')"><span class="nav-ico">DB</span>대시보드</div>
   <div class="ni"     onclick="goTab('today')"><span class="nav-ico">DV</span>배송 관리 <span class="nb" id="nBadge">0</span></div>
+  <div class="ni"     onclick="goTab('route')"><span class="nav-ico">MP</span>배송지도</div>
   <div class="ni"     onclick="goTab('report')"><span class="nav-ico">RP</span>주간 · 월간</div>
   <div class="ni"     onclick="goTab('customers')"><span class="nav-ico">CS</span>고객 관리</div>
   <div class="ni"     onclick="goTab('export')"><span class="nav-ico">TX</span>택배 전달</div>
@@ -274,6 +275,45 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
     </div></div>
   </div>
 
+</div>
+
+<!-- ══════════ 배송지도 (직배송 기사 모바일) ══════════ -->
+<div class="page" id="page-route">
+  <div class="route-header">
+    <div class="route-title-wrap">
+      <div class="route-title">직배송 배송지도</div>
+      <div class="route-sub">오늘 직배송 대상만 지도와 카드로 확인합니다.</div>
+    </div>
+    <div class="date-nav route-date-nav">
+      <button class="date-nav-btn" onclick="moveRouteDate(-1)">&#8249;</button>
+      <input type="date" class="inp" id="routeDate" style="width:160px;text-align:center;font-weight:700;" onchange="renderRouteMap()">
+      <button class="date-nav-btn" onclick="moveRouteDate(1)">&#8250;</button>
+      <span class="date-disp" id="routeDateDisp"></span>
+      <button class="date-today-btn" onclick="resetRouteDate()">오늘</button>
+    </div>
+  </div>
+
+  <div class="route-summary" id="routeSummary">
+    <div class="route-stat"><span>직배송</span><b>0</b></div>
+    <div class="route-stat"><span>완료</span><b>0</b></div>
+    <div class="route-stat"><span>남음</span><b>0</b></div>
+  </div>
+
+  <div class="route-toolbar">
+    <label class="route-toggle"><input type="checkbox" id="routeHideDone" onchange="renderRouteMap()"> 미완료만 보기</label>
+    <button class="btn btn-g sm" onclick="copyRouteAddresses()">주소 전체 복사</button>
+    <button class="btn btn-g sm" onclick="renderRouteMap(true)">새로고침</button>
+  </div>
+
+  <div class="route-layout">
+    <section class="route-map-panel">
+      <div class="route-map-status" id="routeMapStatus">지도는 보조 기능입니다. 지도 로드가 안 되어도 아래 배송카드는 사용할 수 있습니다.</div>
+      <div id="routeMap"></div>
+    </section>
+    <section class="route-list-panel" id="routeList">
+      <div class="empty"><div class="ei empty-mark">직</div><div>직배송 목록을 불러오는 중...</div></div>
+    </section>
+  </div>
 </div>
 
 <!-- ══════════ 주간·월간 리포트 ══════════ -->
@@ -750,13 +790,14 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 </div>
 
 
-<script src="assets/js/auth-core.js?v=20260512-4" defer></script>
+<script src="assets/js/auth-core.js?v=20260624-route1" defer></script>
 <script src="assets/js/imweb.js?v=20260512-2" defer></script>
 <script src="assets/js/schedule-report.js?v=20260507-3" defer></script>
-<script src="assets/js/rendering.js?v=20260624-address1" defer></script>
+<script src="assets/js/rendering.js?v=20260624-route1" defer></script>
+<script src="assets/js/route-map.js?v=20260624-route1" defer></script>
 <script src="assets/js/import-export.js?v=20260623-imweb-paste-1" defer></script>
 <script src="assets/js/logen.js?v=20260623-1" defer></script>
-<script src="assets/js/ui.js?v=20260512-1" defer></script>
+<script src="assets/js/ui.js?v=20260624-route1" defer></script>
 
 
 <div id="tw"></div>

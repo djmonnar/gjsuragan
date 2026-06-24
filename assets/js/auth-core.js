@@ -47,6 +47,8 @@ function bootAppOnce(){
   const t = todayStr();
   document.getElementById('dashDate').value = t;
   document.getElementById('todayDate').value = t;
+  const routeDate = document.getElementById('routeDate');
+  if(routeDate) routeDate.value = t;
   document.getElementById('expDate').value = t;
   document.getElementById('asd').value = t;
   document.getElementById('aod').value = t;

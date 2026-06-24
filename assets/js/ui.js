@@ -208,7 +208,7 @@ function clearAdd(){
 }
 
 function goTab(name){
-  const tabs=['dash','today','report','customers','export','import'];
+  const tabs=['dash','today','route','report','customers','export','import'];
   document.querySelectorAll('.ni').forEach((t,i)=>t.classList.toggle('on',tabs[i]===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.getElementById('page-'+name).classList.add('on');
@@ -216,6 +216,7 @@ function goTab(name){
     if(typeof renderDash === 'function') renderDash();
     if(typeof renderCancelLogs === 'function') renderCancelLogs();
   }
+  if(name==='route' && typeof renderRouteMap === 'function') renderRouteMap();
   if(name==='customers') renderCust();
   if(name==='report') renderReport();
 }

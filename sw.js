@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v37-naver-map-callback';
+const CACHE = 'gjsuragan-v38-driver-route-map';
 const PRECACHE = [
   './customer.html',
   './admin.html',
