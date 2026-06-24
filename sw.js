@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v32-customer-order-slots';
+const CACHE = 'gjsuragan-v33-hide-closed-order-duplicate';
 const PRECACHE = [
   './customer.html',
   './admin.html',
