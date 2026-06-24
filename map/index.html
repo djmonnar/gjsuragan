@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>궁중수라간 배송지도</title>
+<link rel="icon" href="../assets/img/suragan-mark.png">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="../assets/css/index.css?v=20260624-route3">
+<style>
+  body{background:var(--bg);}
+  .driver-map-app{display:none;min-height:100vh;}
+  .driver-map-header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .driver-map-brand{display:flex;align-items:center;gap:9px;font-size:18px;font-weight:900;color:var(--text);}
+  .driver-map-brand img{width:30px;height:30px;border-radius:9px;}
+  .driver-map-main{padding:14px;max-width:1180px;margin:0 auto;}
+  .driver-map-main #page-route{display:block;}
+  .driver-map-main .page{padding:0;}
+  .driver-login-note{font-size:12px;color:var(--text3);line-height:1.5;text-align:center;margin-top:10px;}
+  @media (max-width:720px){
+    .driver-map-header{padding:9px 10px;}
+    .driver-map-brand{font-size:16px;}
+    .driver-map-main{padding:10px;}
+  }
+</style>
+<script>
+  const _fbCfg = {
+    apiKey:"AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A",
+    authDomain:"gjsuragan-60505.firebaseapp.com",
+    projectId:"gjsuragan-60505",
+    storageBucket:"gjsuragan-60505.firebasestorage.app",
+    messagingSenderId:"1009198450175",
+    appId:"1:1009198450175:web:4a55da7c2092dba42613ca"
+  };
+  firebase.initializeApp(_fbCfg);
+  window.__AUTH = firebase.auth();
+  window.__DB = firebase.firestore();
+  const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
+</script>
+</head>
+<body>
+<div id="loading"><div class="spin"></div><div style="font-size:13px;color:var(--text3);">로딩 중...</div></div>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <img class="login-logo-img" src="../assets/img/suragan-mark.png" alt="">
+    <div class="login-title">궁중수라간</div>
+    <div class="login-sub">직배송 기사 전용 배송지도</div>
+    <div class="login-form">
+      <input type="email" class="login-inp" id="emailInput" placeholder="이메일 입력" value="sun1562@naver.com">
+      <input type="password" class="login-inp" id="pwInput" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="login-btn" onclick="doLogin()">로그인</button>
+      <div class="login-err" id="loginErr">이메일 또는 비밀번호가 올바르지 않습니다.</div>
+      <div class="login-attempts" id="loginAttempts"></div>
+      <div class="driver-login-note">고객 주소가 표시되는 내부용 화면입니다.</div>
+    </div>
+  </div>
+</div>
+
+<div class="driver-map-app" id="app">
+  <header class="driver-map-header">
+    <div class="driver-map-brand">
+      <img src="../assets/img/suragan-mark.png" alt="">
+      <span>궁중수라간 배송지도</span>
+    </div>
+    <button class="btn btn-g sm" onclick="doLogout()">로그아웃</button>
+  </header>
+
+  <main class="driver-map-main">
+    <div class="page on" id="page-route">
+      <div class="route-header">
+        <div class="route-title-wrap">
+          <div class="route-title">직배송 배송지도</div>
+          <div class="route-sub">돌담 출발 기준으로 오늘 직배송지를 확인합니다.</div>
+        </div>
+        <div class="date-nav route-date-nav">
+          <button class="date-nav-btn" onclick="moveRouteDate(-1)">&#8249;</button>
+          <input type="date" class="inp" id="routeDate" style="width:160px;text-align:center;font-weight:700;" onchange="renderRouteMap()">
+          <button class="date-nav-btn" onclick="moveRouteDate(1)">&#8250;</button>
+          <span class="date-disp" id="routeDateDisp"></span>
+          <button class="date-today-btn" onclick="resetRouteDate()">오늘</button>
+        </div>
+      </div>
+
+      <div class="route-summary" id="routeSummary">
+        <div class="route-stat"><span>직배송</span><b>0</b></div>
+        <div class="route-stat"><span>완료</span><b>0</b></div>
+        <div class="route-stat"><span>남음</span><b>0</b></div>
+      </div>
+
+      <div class="route-toolbar">
+        <label class="route-toggle"><input type="checkbox" id="routeHideDone" onchange="renderRouteMap()"> 미완료만 보기</label>
+        <button class="btn btn-s sm" onclick="optimizeRouteOrder()">추천 순서</button>
+        <button class="btn btn-g sm" onclick="copyRouteAddresses()">주소 전체 복사</button>
+        <button class="btn btn-g sm" onclick="renderRouteMap(true)">새로고침</button>
+      </div>
+
+      <div class="route-layout">
+        <section class="route-map-panel">
+          <div class="route-map-status" id="routeMapStatus">지도는 보조 기능입니다. 지도 로드가 안 되어도 아래 배송카드는 사용할 수 있습니다.</div>
+          <div class="route-map-shell" id="routeMapShell">
+            <div id="routeMap"></div>
+            <button class="route-map-touch-btn" id="routeMapTouchBtn" onclick="enableRouteMapTouch(event)">지도 조작</button>
+          </div>
+        </section>
+        <section class="route-list-panel" id="routeList">
+          <div class="empty"><div class="ei empty-mark">직</div><div>직배송 목록을 불러오는 중...</div></div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="tw"></div>
+
+<script>
+const AUTH_ADMIN_EMAIL = DELIVERY_ADMIN_EMAIL;
+const DAYS = ['일','월','화','수','목','금','토'];
+const PRODUCTS = [
+  { id:'A', label:'A세트' },
+  { id:'B', label:'B세트' },
+  { id:'C', label:'C세트' },
+  { id:'pork_rib', label:'돼지 양념갈비' },
+  { id:'beef_la', label:'양념 LA갈비' },
+  { id:'beef_soup', label:'소고기무국' }
+];
+let custs = [];
+let customersUnsub = null;
+
+function todayStr(){
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+}
+function addDays(dateStr, d){
+  const [y,m,day] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, day + d);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+function dow(ds){
+  const [y,m,d] = ds.split('-').map(Number);
+  return new Date(y, m-1, d).getDay();
+}
+function dateLabel(dateStr){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return `${m}월 ${d}일 (${DAYS[dt.getDay()]})`;
+}
+function wasDeliveredOn(c, ds){
+  return Array.isArray(c.deliveredDates) && c.deliveredDates.includes(ds);
+}
+function isDelivSub(c, ds){
+  if (c.orderType !== 'sub') return false;
+  if (wasDeliveredOn(c, ds)) return true;
+  if (c.status !== 'active' || Number(c.remain || 0) <= 0) return false;
+  if (c.startDate && ds < c.startDate) return false;
+  const d = dow(ds);
+  if (Array.isArray(c.cookDays) && c.cookDays.length) return c.cookDays.includes(d);
+  const cookFromArrive = (c.arriveDays || []).map(a => a === 0 ? 6 : a - 1);
+  return cookFromArrive.includes(d);
+}
+function isDelivOnce(c, ds){
+  if (c.orderType !== 'once') return false;
+  if (wasDeliveredOn(c, ds)) return true;
+  if (c.status !== 'active' || Number(c.remain || 0) <= 0) return false;
+  if (c.startDate && ds < c.startDate) return false;
+  return c.onceDate === ds;
+}
+function isDeliv(c, ds){
+  return isDelivSub(c, ds) || isDelivOnce(c, ds);
+}
+function listFor(ds){
+  return custs.filter(c => isDeliv(c, ds));
+}
+function productLabel(id){
+  return (PRODUCTS.find(p => p.id === id)?.label) || id || '';
+}
+function productBadgeClass(id){
+  if (id === 'A') return 'ba';
+  if (id === 'B') return 'bb';
+  if (id === 'C') return 'bc';
+  if (id === 'pork_rib') return 'b-pork';
+  if (id === 'beef_la' || id === 'beef_soup') return 'b-beef';
+  return 'b-pause';
+}
+function deliveryProductBadgeHtml(c){
+  const id = c.productId || c.set || '';
+  if (!id) return '';
+  return `<span class="badge ${productBadgeClass(id)}">${productLabel(id)}</span>`;
+}
+function lastBoxDeliveryBadge(c){
+  if (c?.isDirect === true && Number(c.remain || 0) === 1) {
+    return '<span class="badge" style="background:#fff7ed;color:#9a3412;border-color:#fed7aa;">박스</span>';
+  }
+  return '';
+}
+function scheduleDisp(c){
+  return c.scheduleName || c.schedule || '';
+}
+function toast(msg, type=''){
+  const wrap = document.getElementById('tw');
+  if (!wrap) {
+    alert(msg);
+    return;
+  }
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+async function markDone(id, dateStr){
+  const c = custs.find(x => x.id === id);
+  if (!c) return;
+  const t = dateStr || todayStr();
+  if ((c.deliveredDates || []).includes(t)) {
+    toast('이미 완료 처리된 날짜입니다.', 'er');
+    return;
+  }
+  const remain = Number(c.remain || 0);
+  if (remain <= 0) {
+    toast('이미 배송 완료된 주문입니다.', 'er');
+    return;
+  }
+  const nextRemain = remain - 1;
+  await window.__DB.collection('customers').doc(id).update({
+    remain: nextRemain,
+    deliveredDates: [...(c.deliveredDates || []), t],
+    status: nextRemain === 0 ? 'end' : c.status
+  });
+  toast(`${c.name || '고객'} 배송완료`, 'ok');
+}
+async function undoMarkDone(id, dateStr){
+  const c = custs.find(x => x.id === id);
+  if (!c) return;
+  if (!confirm(`${c.name || '고객'} [${dateStr}] 배송완료를 취소할까요?`)) return;
+  const dates = (c.deliveredDates || []).filter(d => d !== dateStr);
+  await window.__DB.collection('customers').doc(id).update({
+    remain: Number(c.remain || 0) + 1,
+    deliveredDates: dates,
+    status: c.status === 'end' ? 'active' : c.status
+  });
+  toast(`${c.name || '고객'} 배송완료 취소`, 'ok');
+}
+function showLoginScreen(){
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+function showAppScreen(){
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const routeDate = document.getElementById('routeDate');
+  if (routeDate && !routeDate.value) routeDate.value = todayStr();
+  initFirestore();
+}
+function initFirestore(){
+  if (customersUnsub || !window.__DB) return;
+  customersUnsub = window.__DB.collection('customers').onSnapshot(
+    snap => {
+      custs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+      renderRouteMap(false, false);
+      document.getElementById('loading').style.display = 'none';
+    },
+    err => {
+      toast('배송 목록을 불러오지 못했습니다: ' + err.message, 'er');
+      document.getElementById('routeMapStatus').textContent = '배송 목록 로드 실패: ' + err.message;
+      document.getElementById('loading').style.display = 'none';
+    }
+  );
+}
+function stopFirestore(){
+  if (typeof customersUnsub === 'function') customersUnsub();
+  customersUnsub = null;
+  custs = [];
+}
+async function doLogin(){
+  const email = document.getElementById('emailInput').value.trim();
+  const pw = document.getElementById('pwInput').value;
+  const err = document.getElementById('loginErr');
+  err.style.display = 'none';
+  try {
+    const cred = await window.__AUTH.signInWithEmailAndPassword(email, pw);
+    if (cred.user.email !== AUTH_ADMIN_EMAIL) {
+      await window.__AUTH.signOut();
+      throw new Error('허용된 관리자 계정이 아닙니다.');
+    }
+    document.getElementById('pwInput').value = '';
+    showAppScreen();
+  } catch(e) {
+    err.textContent = e.message || '로그인에 실패했습니다.';
+    err.style.display = 'block';
+  }
+}
+async function doLogout(){
+  stopFirestore();
+  await window.__AUTH.signOut();
+  showLoginScreen();
+}
+window.addEventListener('DOMContentLoaded', () => {
+  const theme = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  window.__AUTH.onAuthStateChanged(async user => {
+    if (user && user.email === AUTH_ADMIN_EMAIL) {
+      showAppScreen();
+    } else {
+      stopFirestore();
+      if (user) await window.__AUTH.signOut();
+      showLoginScreen();
+    }
+  });
+});
+</script>
+<script src="../assets/js/route-map.js?v=20260624-route5" defer></script>
+</body>
+</html>

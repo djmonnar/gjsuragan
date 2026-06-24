@@ -1,9 +1,10 @@
-const CACHE = 'gjsuragan-v42-route-order';
+const CACHE = 'gjsuragan-v43-driver-map-page';
 const PRECACHE = [
   './customer.html',
   './admin.html',
   './event-order.html',
   './links.html',
+  './map/index.html',
   './assets/img/event-lunch-banner.jpg',
   './assets/img/event-menu.jpg',
   './icons/icon.svg',
