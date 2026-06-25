@@ -76,7 +76,7 @@ function parseText(){
 
   const phoneReg=/01[016789]-?\d{3,4}-?\d{4}/;
   const addrReg=/\(?\d{5}\)?\s+.+/;
-  const keyLabels='이름|주문자|수령자|연락처|휴대폰|전화|주소|배송지|현관번호|현관|비밀번호|요청사항|특이사항|메모|내부\\s*메모|상품|세트|배송\\s*주기|주기|배송\\s*일정|일정|총\\s*구독\\s*횟수|총\\s*횟수|횟수|시작일|배송방식|상태|주문번호';
+  const keyLabels='이름|주문자|수령자|연락처|휴대폰|전화|주소|배송지|공동\\s*현관\\s*비밀번호|공동\\s*현관|현관번호|현관|비밀번호|요청사항|특이사항|메모|내부\\s*메모|상품|세트|배송\\s*주기|주기|배송\\s*일정|일정|총\\s*구독\\s*횟수|총\\s*횟수|횟수|시작일|배송방식|상태|주문번호';
   function cleanParsedValue(v){
     return String(v||'')
       .replace(/\s+/g,' ')
@@ -85,6 +85,13 @@ function parseText(){
   }
   function stripFieldLabel(v){
     return cleanParsedValue(v).replace(new RegExp(`^\\s*(?:${keyLabels})\\s*[:：]\\s*`,'i'),'').trim();
+  }
+  function normalizeDoorValue(v){
+    return cleanParsedValue(v)
+      .replace(/^(?:공동\s*)?현관\s*비밀번호\s*[:：]?\s*/i,'')
+      .replace(/^비밀번호\s*[:：]?\s*/i,'')
+      .split(/[|｜]|\s{2,}|\n/)[0]
+      .trim();
   }
   function explicitField(labelRe){
     const re=new RegExp(`(?:^|\\n)\\s*(?:${labelRe})\\s*[:：]\\s*([\\s\\S]*?)(?=(?:\\n\\s*(?:${keyLabels})\\s*[:：])|(?:\\s+(?:${keyLabels})\\s*[:：])|$)`,'i');
@@ -244,7 +251,7 @@ function parseText(){
         if(date) opts.onceDate=date;
         opts.isDirect=true;
       } else if(/현관|비밀번호/i.test(key)){
-        if(val&&!/^x$|없음|해당없음/i.test(val)) opts.door=val;
+        if(val) opts.door=normalizeDoorValue(val);
       } else if(/세트\s*선택|상품/i.test(key)){
         const sm=val.match(/([ABC])세트/i); if(sm) opts.set=sm[1].toUpperCase();
       } else if(/횟수|주기/i.test(key)){
@@ -302,25 +309,24 @@ function parseText(){
   }
 
   // ── 현관번호 / 요청사항 ──
-  let door=opts.door||stripFieldLabel(explicitField('현관번호|현관|비밀번호')), request=stripFieldLabel(explicitField('요청사항|특이사항'));
+  let door=opts.door||normalizeDoorValue(explicitField('공동\\s*현관\\s*비밀번호|공동\\s*현관|현관번호|현관|비밀번호')), request=stripFieldLabel(explicitField('요청사항|특이사항'));
   for(let i=0;i<lines.length;i++){
     const l=lines[i];
-    if(/현관|비밀번호/i.test(l)&&!door){
+    if(/공동\s*현관|현관|비밀번호/i.test(l)&&!door){
       const fullText=l+' '+(lines[i+1]||'');
       // "현관[...]: 값" 형태에서 콜론 뒤 값 추출, | 구분자에서 멈춤
-      const m=fullText.match(/현관[^:：\n]*[:：]\s*(.+)/i)
+      const m=fullText.match(/공동\s*현관[^:：\n]*[:：]\s*(.+)/i)
+             ||fullText.match(/현관[^:：\n]*[:：]\s*(.+)/i)
              ||fullText.match(/비밀번호[^:：\n]*[:：]\s*(.+)/i);
       if(m){
-        door=m[1].split(/[|｜]|\s{2,}|\n/)[0].trim();
+        door=normalizeDoorValue(m[1]);
       } else {
-        door=fullText.replace(/현관\s*비밀번호\s*/i,'').split(/[|｜]|\s{2,}|\n/)[0].trim();
+        door=normalizeDoorValue(fullText);
       }
-      // "x", "없음" 등 비어있는 값 제거
-      if(/^x$|없음|해당없음/i.test(door)) door='';
     }
     if(!request&&/배송\s*전|미리\s*연락|부재|문\s*앞|두고\s*가|놓아/i.test(l)) request=l;
   }
-  if(/^x$|없음|해당없음|-$/i.test(door)) door='';
+  if(/^-+$/.test(door)) door='';
   if(/^-+$/.test(request)) request='';
 
   // ── 복수 주문 감지: "-001", "-002" 등 섹션번호로 분리 ──
@@ -783,9 +789,11 @@ function parseXlRow(r){
 
   // 현관비밀번호: 배송메모에서 추출 시도
   let door = '';
-  const doorMatch = request.match(/현관\s*비밀번호\s*[:：]?\s*(\S+)/i)
-    || request.match(/공동\s*현관\s*[:：]?\s*(\S+)/i);
-  if(doorMatch) door = doorMatch[1];
+  const doorMatch = request.match(/공동\s*현관\s*비밀번호(?:\([^)]*\))?\s*[:：]?\s*([^|｜\n]+)/i)
+    || request.match(/공동\s*현관\s*[:：]?\s*([^|｜\n]+)/i)
+    || request.match(/현관\s*비밀번호(?:\([^)]*\))?\s*[:：]?\s*([^|｜\n]+)/i)
+    || request.match(/비밀번호\s*[:：]?\s*([^|｜\n]+)/i);
+  if(doorMatch) door = String(doorMatch[1] || '').trim();
 
   return { name, phone, addr, door, request, set, orderType: isRegular?'sub':'once', orderNum, orderStatus: status };
 }

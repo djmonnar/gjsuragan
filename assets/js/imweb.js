@@ -365,7 +365,7 @@ async function imwebRegAll(){
       name:     recv.name||'',
       phone:    recv.phone||'',
       addr:     addr,
-      door:     '',
+      door:     iwExtractDoor(recv.memo || ''),
       request:  recv.memo||'',
       memo:     `아임웹 주문번호: ${o.order_no}`,
       set:      prod,
@@ -408,6 +408,15 @@ function initImwebTab(){
   const t = todayStr();
   if(!document.getElementById('iw-from').value) document.getElementById('iw-from').value = addDays(t,-7);
   if(!document.getElementById('iw-to').value)   document.getElementById('iw-to').value   = t;
+}
+
+function iwExtractDoor(text){
+  const source = String(text || '');
+  const match = source.match(/공동\s*현관\s*비밀번호(?:\([^)]*\))?\s*[:：]?\s*([^|｜\n]+)/i)
+    || source.match(/공동\s*현관\s*[:：]?\s*([^|｜\n]+)/i)
+    || source.match(/현관\s*비밀번호(?:\([^)]*\))?\s*[:：]?\s*([^|｜\n]+)/i)
+    || source.match(/비밀번호\s*[:：]?\s*([^|｜\n]+)/i);
+  return match ? String(match[1] || '').trim() : '';
 }
 
 // ════════════════════════════════════════
@@ -497,6 +506,7 @@ function iwParseRow(r){
   const addr     = (String(r[28]||'')+' '+String(r[29]||'')).trim();
   const memo     = String(r[30] || '').trim();
   const orderDate= String(r[36] || '');
+  const door     = iwExtractDoor(memo);
 
   // 상품 파싱
   const combined = prodName + ' ' + optName;
@@ -527,7 +537,7 @@ function iwParseRow(r){
   const tm = optName.match(/총\s*(\d+)회/);
   const total = tm ? parseInt(tm[1]) : 12;
 
-  return { orderNo, status, recv, phone, addr, memo, orderDate,
+  return { orderNo, status, recv, phone, addr, door, memo, orderDate,
            prod, qty, orderType, onceDate, total, schInfo, optName, prodName,
            _excluded: false };
 }
@@ -659,7 +669,7 @@ async function iwRegXl(){
       name:     d.recv,
       phone:    d.phone,
       addr:     d.addr,
-      door:     '',
+      door:     d.door || '',
       request:  d.memo,
       memo:     `아임웹 주문번호: ${orderNum}`,
       set:      prod,
