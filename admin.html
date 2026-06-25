@@ -1315,11 +1315,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <table class="order-table">
       <thead>
         <tr>
-          <th>날짜</th><th>시간</th><th>도시락</th><th style="text-align:center">갯수</th><th>단가</th><th>청구액</th><th>상태</th><th>메모</th><th>관리</th>
+          <th>날짜</th><th>시간</th><th>도시락</th><th style="text-align:center">갯수</th><th>단가</th><th>청구액</th><th>청구서번호</th><th>납부기한</th><th>잔액</th><th>상태</th><th>메모</th><th>관리</th>
         </tr>
       </thead>
       <tbody id="settlement-event-tbody">
-        <tr class="no-order-row"><td colspan="9">행사도시락 내역이 없습니다.</td></tr>
+        <tr class="no-order-row"><td colspan="12">행사도시락 내역이 없습니다.</td></tr>
       </tbody>
     </table>
 
@@ -6118,7 +6118,7 @@ async function loadSettlements() {
     renderSettlementCharts().catch(() => {});
   } catch(e) {
     tbody.innerHTML = `<tr class="no-order-row"><td colspan="13">정산 계산 실패: ${escapeHtml(e.message)}</td></tr>`;
-    eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="9">행사도시락 내역을 불러오지 못했습니다.</td></tr>';
+    eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="12">행사도시락 내역을 불러오지 못했습니다.</td></tr>';
   }
 }
 
@@ -6191,12 +6191,21 @@ function renderSettlements() {
   }
 
   if (settlementEvents.length === 0) {
-    eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="9">선택한 월의 행사도시락이 없습니다.</td></tr>';
+    eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="12">선택한 월의 행사도시락이 없습니다.</td></tr>';
   } else {
-    eventTbody.innerHTML = settlementEvents.map(item => {
-      const row = eventSettlementRow(item);
-      const billed = row.amount + (row.adjust || 0);
+    const eventItems = settlementEvents
+      .map(item => ({ item, row: eventSettlementRow(item) }))
+      .filter(({ row }) => filterMatchesRow(row));
+    if (eventItems.length === 0) {
+      eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="12">해당 조건의 행사도시락이 없습니다.</td></tr>';
+      return;
+    }
+    eventTbody.innerHTML = eventItems.map(({ item, row }) => {
+      const billed = settlementBilledTotal(row);
       const adjustLabel = row.adjust ? `<span style="font-size:11px;color:var(--sub);display:block">${row.adjust > 0 ? '+' : ''}${row.adjust.toLocaleString()}</span>` : '';
+      const paidTotal = settlementPaidTotal(row);
+      const balance = billed - paidTotal;
+      const balanceClass = balance <= 0 ? 'balance-zero' : 'balance-positive';
       return `
       <tr>
         <td>${escapeHtml(item.eventDate || '-')}</td>
@@ -6205,11 +6214,14 @@ function renderSettlements() {
         <td class="qty-cell">${row.lunch || 0}</td>
         <td>${formatMoney(row.lunchPrice || 0)}</td>
         <td>${formatMoney(billed)}${adjustLabel}</td>
+        <td>${row.invoiceNo ? `<span class="invoice-no">${escapeHtml(row.invoiceNo)}</span>` : '<span style="color:var(--sub);font-size:12px">-</span>'}</td>
+        <td>${dueDateBadgeHtml(row)}</td>
+        <td class="${balanceClass}">${formatMoney(balance)}</td>
         <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span></td>
         <td class="note-cell">${row.note ? escapeHtml(row.note) : '<span style="color:var(--sub)">-</span>'}</td>
         <td>
           <div class="inline-actions">
-            <button class="mini-btn" onclick="openSettlementEdit('event:${item.id}')">수정</button>
+            <button class="mini-btn" onclick="openSettlementEdit('event:${item.id}')">입금처리</button>
             <button class="mini-btn" onclick="openSheetModal('event:${item.id}')">정산표</button>
             <button class="kakao-mini-btn" onclick="copySettlementKakao('event:${item.id}')">💬</button>
             <button class="mini-btn" onclick="makeSettlementReceipt('event:${item.id}')">영수증</button>
