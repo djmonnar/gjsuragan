@@ -231,7 +231,7 @@ async function handleKakaoWebhookRequest(req, res) {
     const cmd = kakaoResolveCommand(payload, utterance);
     const customers = await kakaoFetchCustomers();
     if (cmd.type === 'tasks') {
-      sendKakaoResponse(res, await kakaoBuildTodayTasksText(customers));
+      sendKakaoResponse(res, await kakaoBuildTasksText(customers, cmd.date, cmd.label, cmd.dateWord, cmd.nextDateWord));
       return;
     }
     if (cmd.type === 'summary') {
@@ -271,6 +271,7 @@ function kakaoTextResponse(text) {
       ],
       quickReplies: [
         { label: '오늘할일', action: 'message', messageText: '오늘할일' },
+        { label: '내일일정', action: 'message', messageText: '내일 일정' },
         { label: '오늘배송', action: 'message', messageText: '오늘배송' },
         { label: '내일배송', action: 'message', messageText: '내일배송' },
         { label: '모레배송', action: 'message', messageText: '모레배송' },
@@ -367,9 +368,14 @@ function kakaoResolveCommand(payload, utterance) {
   const keyword = String(params.keyword || params.name || params.phone || '').trim();
   const dateParam = String(params.date || '').trim();
   const commandText = `${mode} ${utterance}`;
+  const today = kakaoToday();
 
-  if (/오늘\s*할\s*일|할일|업무|체크|todo|tasks?/i.test(commandText)) {
-    return { type: 'tasks' };
+  if (/(내일|tomorrow).*?(일정|할\s*일|할일|업무|체크|todo|tasks?)|(일정|할\s*일|할일|업무|체크|todo|tasks?).*?(내일|tomorrow)/i.test(commandText)) {
+    return { type: 'tasks', date: kakaoAddDays(today, 1), label: '내일 일정', dateWord: '내일', nextDateWord: '모레' };
+  }
+
+  if (/(오늘|today).*?(일정|할\s*일|할일|업무|체크|todo|tasks?)|(일정|할\s*일|할일|업무|체크|todo|tasks?).*?(오늘|today)|오늘\s*할\s*일|할일|업무|체크|todo|tasks?/i.test(commandText)) {
+    return { type: 'tasks', date: today, label: '오늘 할 일', dateWord: '오늘', nextDateWord: '내일' };
   }
   if (/요약|현황|summary/i.test(commandText)) {
     return { type: 'summary' };
@@ -378,7 +384,6 @@ function kakaoResolveCommand(payload, utterance) {
     return { type: 'customer', keyword: keyword || kakaoExtractKeyword(utterance) };
   }
 
-  const today = kakaoToday();
   const parsedDate = kakaoParseDateText(dateParam || utterance, today);
   if (parsedDate) return { type: 'delivery', date: parsedDate, label: kakaoDateLabel(parsedDate) };
   if (/모레/.test(commandText)) {
@@ -664,66 +669,79 @@ function kakaoIsOpenEventOrder(item) {
   return !['registered', 'deleted', 'done', 'cancelled', 'canceled'].includes(status);
 }
 
-async function kakaoBuildTodayTasksText(customers) {
+function kakaoTaskEventsForDate(openEvents, targetDate, today) {
+  return openEvents.filter(item => {
+    const date = kakaoEventDate(item);
+    if (targetDate <= today) return !date || date <= targetDate;
+    return date === targetDate;
+  });
+}
+
+async function kakaoBuildTasksText(customers, targetDate, label, dateWord, nextDateWord) {
   const today = kakaoToday();
-  const tomorrow = kakaoAddDays(today, 1);
-  const todayList = kakaoListFor(customers, today);
-  const direct = todayList.filter(c => !!c.isDirect);
-  const courier = todayList.filter(c => !c.isDirect);
-  const notDone = todayList.filter(c => !kakaoWasDeliveredOn(c, today));
+  const date = targetDate || today;
+  const nextDate = kakaoAddDays(date, 1);
+  const title = label || (date === today ? '오늘 할 일' : kakaoDateLabel(date).replace(' 배송', ' 일정'));
+  const currentWord = dateWord || (date === today ? '오늘' : '해당일');
+  const followingWord = nextDateWord || '다음날';
+  const targetList = kakaoListFor(customers, date);
+  const direct = targetList.filter(c => !!c.isDirect);
+  const courier = targetList.filter(c => !c.isDirect);
+  const notDone = targetList.filter(c => !kakaoWasDeliveredOn(c, date));
   const needsReview = (customers || []).filter(c => !!c.needsReview);
-  const courierFailed = courier.filter(c => kakaoLogenStatus(c, today) === 'logen_failed');
+  const courierFailed = courier.filter(c => kakaoLogenStatus(c, date) === 'logen_failed');
   const courierSlipWait = courier.filter(c => {
-    const status = kakaoLogenStatus(c, today);
-    const shipment = kakaoLogenShipment(c, today);
+    const status = kakaoLogenStatus(c, date);
+    const shipment = kakaoLogenShipment(c, date);
     return ['logen_registered', 'slip_pending'].includes(status) && !(shipment.slipNo || shipment.invoiceNo);
   });
-  const courierChange = courier.filter(c => kakaoLogenNeedsChange(c, today));
+  const courierChange = courier.filter(c => kakaoLogenNeedsChange(c, date));
   const changeReq = await kakaoFetchCollectionSafe('changeRequests', 100);
   const eventOrders = await kakaoFetchCollectionSafe('eventOrders', 100);
-  const todayMenu = await kakaoFetchDocSafe(`mealMenus/${today}`);
-  const tomorrowMenu = await kakaoFetchDocSafe(`mealMenus/${tomorrow}`);
+  const targetMenu = await kakaoFetchDocSafe(`mealMenus/${date}`);
+  const nextMenu = await kakaoFetchDocSafe(`mealMenus/${nextDate}`);
   const newReq = changeReq.items.filter(item => String(item.status || 'new') === 'new');
   const checkingReq = changeReq.items.filter(item => String(item.status || '') === 'checking');
   const openEvents = eventOrders.items.filter(kakaoIsOpenEventOrder);
-  const todayEvents = openEvents.filter(item => {
-    const date = kakaoEventDate(item);
-    return !date || date <= today;
-  });
+  const targetEvents = kakaoTaskEventsForDate(openEvents, date, today);
   const warnings = [];
   if (!changeReq.ok) warnings.push('변경요청 조회 실패');
   if (!eventOrders.ok) warnings.push('행사도시락 조회 실패');
-  if (!todayMenu.ok || !tomorrowMenu.ok) warnings.push('식단 조회 일부 실패');
+  if (!targetMenu.ok || !nextMenu.ok) warnings.push('식단 조회 일부 실패');
 
   const lines = [
-    '[궁중수라간 오늘 할 일]',
+    `[궁중수라간 ${title}]`,
     new Intl.DateTimeFormat('ko-KR', { timeZone: TIMEZONE, dateStyle: 'medium', timeStyle: 'short' }).format(new Date()) + ' 기준',
     '',
-    `오늘 배송: ${todayList.length}건`,
+    `${currentWord} 배송: ${targetList.length}건`,
     `- 직배송 ${direct.length}건 / 택배 ${courier.length}건`,
     `- 미완료 ${notDone.length}건`,
     '',
     `확인 필요 주문: ${needsReview.length}건`,
     `로젠: 전송실패 ${courierFailed.length}건 / 송장대기 ${courierSlipWait.length}건 / 변경필요 ${courierChange.length}건`,
     `고객 문의/변경요청: 신규 ${newReq.length}건 / 확인중 ${checkingReq.length}건`,
-    `행사도시락 미처리: ${todayEvents.length}건`,
-    `식단: 오늘 ${todayMenu.item ? '등록' : '미등록'} / 내일 ${tomorrowMenu.item ? '등록' : '미등록'}`
+    `행사도시락 ${date <= today ? '미처리' : '예정'}: ${targetEvents.length}건`,
+    `식단: ${currentWord} ${targetMenu.item ? '등록' : '미등록'} / ${followingWord} ${nextMenu.item ? '등록' : '미등록'}`
   ];
 
-  if (needsReview.length || courierFailed.length || courierSlipWait.length || courierChange.length || newReq.length || todayEvents.length || !todayMenu.item || !tomorrowMenu.item) {
+  if (needsReview.length || courierFailed.length || courierSlipWait.length || courierChange.length || newReq.length || targetEvents.length || !targetMenu.item || !nextMenu.item) {
     lines.push('', '[먼저 볼 것]');
     kakaoAppendTaskNames(lines, '확인필요', needsReview);
     kakaoAppendTaskNames(lines, '로젠실패', courierFailed);
     kakaoAppendTaskNames(lines, '송장대기', courierSlipWait);
     kakaoAppendTaskNames(lines, '로젠변경', courierChange);
     kakaoAppendTaskNames(lines, '신규문의', newReq, 'customerName');
-    kakaoAppendTaskNames(lines, '행사', todayEvents, 'businessName');
+    kakaoAppendTaskNames(lines, '행사', targetEvents, 'businessName');
   } else {
     lines.push('', '크게 걸리는 항목은 없습니다.');
   }
   if (warnings.length) lines.push('', '주의: ' + warnings.join(', '));
-  lines.push('', '명령어: 오늘배송 / 고객검색 이름 / 요약');
+  lines.push('', `명령어: ${currentWord}배송 / 고객검색 이름 / 요약`);
   return lines.join('\n');
+}
+
+async function kakaoBuildTodayTasksText(customers) {
+  return kakaoBuildTasksText(customers, kakaoToday(), '오늘 할 일', '오늘', '내일');
 }
 
 function kakaoAppendTaskNames(lines, label, items, nameField) {
