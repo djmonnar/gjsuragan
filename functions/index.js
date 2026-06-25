@@ -423,7 +423,8 @@ function kakaoAddDays(dateStr, offset) {
 }
 
 function kakaoDow(dateStr) {
-  return new Date(`${dateStr}T00:00:00+09:00`).getDay();
+  const [year, month, day] = String(dateStr).split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0)).getUTCDay();
 }
 
 function kakaoDateLabel(dateStr) {
