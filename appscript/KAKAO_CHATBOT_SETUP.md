@@ -44,10 +44,25 @@ KAKAO_ALLOWED_USERS = 123456789,987654321
 
 ## 3. 카카오 챗봇 관리자센터 스킬 URL 연결
 
+권장 연결 방식은 Firebase Functions 프록시입니다. Apps Script 웹 앱 URL은 Google 리다이렉트 때문에 카카오 스킬 테스트에서 `302 FOUND`가 날 수 있습니다.
+
+권장 스킬 URL:
+
+```text
+https://asia-northeast3-gjsuragan-60505.cloudfunctions.net/api/api/kakao/webhook
+```
+
+Functions 환경변수에도 아래 값을 등록해야 합니다.
+
+| 환경변수 | 용도 | 필수 |
+|---|---|---|
+| `KAKAO_ADMIN_PIN` | 카카오 챗봇 관리자 인증 PIN | 예 |
+| `KAKAO_ALLOWED_USERS` | 허용할 카카오 user id 목록. 콤마로 구분 | 선택 |
+
 1. 카카오 i 오픈빌더 관리자센터에서 챗봇을 엽니다.
 2. `스킬` 메뉴에서 새 스킬을 만듭니다.
 3. 스킬명 예시: `궁중수라간 배송조회`
-4. URL에 Apps Script 웹 앱 URL을 입력합니다.
+4. URL에 Firebase Functions 카카오 웹훅 URL을 입력합니다.
 5. Method는 `POST`로 설정합니다.
 6. 응답은 카카오 스킬 응답 JSON을 사용합니다.
 7. 스킬 테스트에서 `오늘배송`을 넣었을 때 `version: "2.0"` 형태의 응답이 오면 정상입니다.
@@ -135,13 +150,17 @@ KAKAO_ALLOWED_USERS = 123456789,987654321
 ## 8. 장애 발생 시 확인할 것
 
 - Apps Script 웹 앱 URL을 GET 접속했을 때 `GJSURAGAN Kakao webhook OK`가 나오는지 확인
+- Functions 카카오 URL을 GET 접속했을 때 `GJSURAGAN Kakao webhook OK`가 나오는지 확인
 - 카카오 스킬 테스트에서 HTTP 오류가 나는지 확인
 - Apps Script `실행` 또는 `실행 로그`에서 오류 메시지 확인
+- Functions 로그에서 `/api/kakao/webhook` 오류 메시지 확인
 - Firestore REST API 접근 권한과 Firebase service account 권한 확인
 - Script Properties 누락 여부 확인
   - `FIREBASE_PROJECT_ID`
   - `FIREBASE_CLIENT_EMAIL`
   - `FIREBASE_PRIVATE_KEY`
+  - `KAKAO_ADMIN_PIN`
+- Functions 환경변수 누락 여부 확인
   - `KAKAO_ADMIN_PIN`
 - `KAKAO_ALLOWED_USERS`를 등록했다면 카카오 payload의 user id가 목록에 포함되어 있는지 확인
 - 새 배포를 만들었는지, 이전 웹 앱 URL을 카카오 스킬에 연결해둔 것은 아닌지 확인

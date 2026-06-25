@@ -11,6 +11,11 @@ admin.initializeApp();
 const db = admin.firestore();
 const TIMEZONE = 'Asia/Seoul';
 const MAX_PENDING_PER_BATCH = 20;
+const KAKAO_SESSION_TTL_MS = 6 * 60 * 60 * 1000;
+const KAKAO_MAX_TEXT = 950;
+const KAKAO_MAX_DELIVERY_ITEMS = 10;
+const KAKAO_MAX_SEARCH_ITEMS = 6;
+const KAKAO_MAX_TASK_ITEMS = 5;
 const NAVER_DIRECTION_CANDIDATE_LIMIT = Number(process.env.NAVER_DIRECTION_CANDIDATE_LIMIT || 6);
 const NAVER_DIRECTION_MAX_STOPS = Number(process.env.NAVER_DIRECTION_MAX_STOPS || 25);
 const ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html#changeRequests';
@@ -153,8 +158,14 @@ exports.api = onRequest({
   vpcConnectorEgressSettings: 'ALL_TRAFFIC'
 }, async (req, res) => {
   setCorsHeaders(res);
+  const pathname = new URL(req.url, 'https://gjsuragan.local').pathname;
+
   if (req.method === 'OPTIONS') {
     res.status(204).send('');
+    return;
+  }
+  if (isKakaoWebhookPath(pathname)) {
+    await handleKakaoWebhookRequest(req, res);
     return;
   }
   if (req.method !== 'POST') {
@@ -162,7 +173,6 @@ exports.api = onRequest({
     return;
   }
 
-  const pathname = new URL(req.url, 'https://gjsuragan.local').pathname;
   try {
     const user = pathname === '/api/route/optimize' || pathname === '/route/optimize'
       ? await verifyRouteRequest(req)
@@ -198,6 +208,559 @@ function setCorsHeaders(res) {
 
 function sendJson(res, status, body) {
   res.status(status).json(body);
+}
+
+function isKakaoWebhookPath(pathname) {
+  return pathname === '/api/kakao/webhook' || pathname === '/kakao/webhook';
+}
+
+async function handleKakaoWebhookRequest(req, res) {
+  if (req.method === 'GET') {
+    res.status(200).type('text/plain').send('GJSURAGAN Kakao webhook OK');
+    return;
+  }
+  if (req.method !== 'POST') {
+    sendKakaoResponse(res, '지원하지 않는 요청 방식입니다.');
+    return;
+  }
+
+  try {
+    const payload = req.body && typeof req.body === 'object' ? req.body : {};
+    const utterance = kakaoUtterance(payload);
+    const auth = await kakaoCheckAuth(payload, utterance);
+
+    if (!auth.ok) {
+      sendKakaoResponse(res, kakaoAuthMessage(auth));
+      return;
+    }
+
+    if (auth.justAuthed) {
+      sendKakaoResponse(res, [
+        '관리자 인증이 완료되었습니다.',
+        '',
+        '조회 명령어',
+        '- 오늘할일',
+        '- 오늘배송',
+        '- 내일배송',
+        '- 모레배송',
+        '- 요약',
+        '- 고객검색 홍길동',
+        '- 2026-06-12 배송'
+      ].join('\n'));
+      return;
+    }
+
+    const cmd = kakaoResolveCommand(payload, utterance);
+    const customers = await kakaoFetchCustomers();
+    if (cmd.type === 'tasks') {
+      sendKakaoResponse(res, await kakaoBuildTodayTasksText(customers));
+      return;
+    }
+    if (cmd.type === 'summary') {
+      sendKakaoResponse(res, kakaoBuildSummaryText(customers));
+      return;
+    }
+    if (cmd.type === 'customer') {
+      sendKakaoResponse(res, kakaoBuildCustomerSearchText(customers, cmd.keyword));
+      return;
+    }
+    sendKakaoResponse(res, kakaoBuildDeliveryText(customers, cmd.date, cmd.label));
+  } catch (error) {
+    logger.warn('Kakao webhook failed', { error: error.message });
+    sendKakaoResponse(res, [
+      '조회 중 오류가 발생했습니다.',
+      'Functions 로그와 환경변수를 확인해주세요.',
+      '',
+      '오류: ' + (error.message || String(error))
+    ].join('\n'));
+  }
+}
+
+function sendKakaoResponse(res, text) {
+  res.status(200).json(kakaoTextResponse(text));
+}
+
+function kakaoTextResponse(text) {
+  return {
+    version: '2.0',
+    template: {
+      outputs: [
+        {
+          simpleText: {
+            text: kakaoTrimText(text)
+          }
+        }
+      ],
+      quickReplies: [
+        { label: '오늘할일', action: 'message', messageText: '오늘할일' },
+        { label: '오늘배송', action: 'message', messageText: '오늘배송' },
+        { label: '내일배송', action: 'message', messageText: '내일배송' },
+        { label: '모레배송', action: 'message', messageText: '모레배송' },
+        { label: '요약', action: 'message', messageText: '요약' },
+        { label: '고객검색', action: 'message', messageText: '고객검색 ' }
+      ]
+    }
+  };
+}
+
+function kakaoTrimText(text) {
+  const s = String(text || '');
+  if (s.length <= KAKAO_MAX_TEXT) return s;
+  return s.slice(0, KAKAO_MAX_TEXT - 24) + '\n...\n일부만 표시했습니다.';
+}
+
+function kakaoUtterance(payload) {
+  return String(payload?.userRequest?.utterance || '').trim();
+}
+
+function kakaoActionParams(payload) {
+  return payload?.action?.params || {};
+}
+
+function kakaoUserKey(payload) {
+  const user = payload?.userRequest?.user || {};
+  const props = user.properties || {};
+  return String(user.id || props.appUserId || props.plusfriendUserKey || props.botUserKey || 'anonymous');
+}
+
+function kakaoAllowedUsers() {
+  return String(process.env.KAKAO_ALLOWED_USERS || '')
+    .split(',')
+    .map(v => v.trim())
+    .filter(Boolean);
+}
+
+async function kakaoCheckAuth(payload, utterance) {
+  const userKey = kakaoUserKey(payload);
+  const allowed = kakaoAllowedUsers();
+  if (allowed.length && !allowed.includes(userKey)) {
+    return { ok: false, reason: 'not_allowed', userKey };
+  }
+
+  const expected = String(process.env.KAKAO_ADMIN_PIN || '').trim();
+  if (!expected) return { ok: false, reason: 'pin_missing' };
+
+  const sessionId = Buffer.from(userKey).toString('base64url').slice(0, 120) || 'anonymous';
+  const sessionRef = db.collection('kakaoBotSessions').doc(sessionId);
+  const session = await sessionRef.get().catch(() => null);
+  const expiresAt = session?.exists ? session.data()?.expiresAt?.toMillis?.() : 0;
+  if (expiresAt && expiresAt > Date.now()) return { ok: true, justAuthed: false };
+
+  const params = kakaoActionParams(payload);
+  let given = String(params.pin || params.adminPin || '').trim();
+  if (!given) {
+    const match = String(utterance || '').match(/(?:인증|핀|pin)\s*[:：]?\s*([^\s]+)/i);
+    given = match ? String(match[1]).trim() : '';
+  }
+
+  if (given && given === expected) {
+    await sessionRef.set({
+      userKey,
+      authedAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + KAKAO_SESSION_TTL_MS)
+    }, { merge: true });
+    return { ok: true, justAuthed: true };
+  }
+
+  return { ok: false, reason: 'need_auth' };
+}
+
+function kakaoAuthMessage(auth) {
+  if (auth.reason === 'not_allowed') {
+    return '허용된 관리자 카카오 계정이 아닙니다.\n\n' +
+      'Functions 환경변수 KAKAO_ALLOWED_USERS에 현재 user id를 등록해야 합니다.\n' +
+      '현재 user id: ' + (auth.userKey || '-');
+  }
+
+  if (auth.reason === 'pin_missing') {
+    return '카카오 챗봇 보안 설정이 아직 없습니다.\n\n' +
+      'Functions 환경변수 KAKAO_ADMIN_PIN을 먼저 등록해주세요.\n' +
+      '고객명, 전화번호, 주소가 포함되므로 인증 없이 조회할 수 없습니다.';
+  }
+
+  return '관리자 인증이 필요합니다.\n\n' +
+    '챗봇에 "인증 관리자PIN" 형식으로 입력한 뒤 다시 조회해주세요.\n' +
+    '예: 인증 1234';
+}
+
+function kakaoResolveCommand(payload, utterance) {
+  const params = kakaoActionParams(payload);
+  const mode = String(params.mode || '').trim();
+  const keyword = String(params.keyword || params.name || params.phone || '').trim();
+  const dateParam = String(params.date || '').trim();
+  const commandText = `${mode} ${utterance}`;
+
+  if (/오늘\s*할\s*일|할일|업무|체크|todo|tasks?/i.test(commandText)) {
+    return { type: 'tasks' };
+  }
+  if (/요약|현황|summary/i.test(commandText)) {
+    return { type: 'summary' };
+  }
+  if (/고객|검색|정보/.test(commandText) || keyword) {
+    return { type: 'customer', keyword: keyword || kakaoExtractKeyword(utterance) };
+  }
+
+  const today = kakaoToday();
+  const parsedDate = kakaoParseDateText(dateParam || utterance, today);
+  if (parsedDate) return { type: 'delivery', date: parsedDate, label: kakaoDateLabel(parsedDate) };
+  if (/모레/.test(commandText)) {
+    const date = kakaoAddDays(today, 2);
+    return { type: 'delivery', date, label: '모레 배송' };
+  }
+  if (/내일|tomorrow/i.test(commandText)) {
+    const date = kakaoAddDays(today, 1);
+    return { type: 'delivery', date, label: '내일 배송' };
+  }
+  return { type: 'delivery', date: today, label: '오늘 배송' };
+}
+
+function kakaoExtractKeyword(utterance) {
+  return String(utterance || '')
+    .replace(/고객검색|고객정보|고객|검색|정보/g, '')
+    .replace(/^[:：\-\s]+/, '')
+    .trim();
+}
+
+function kakaoToday() {
+  return kstDateString(new Date());
+}
+
+function kstDateString(date) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date).reduce((out, part) => {
+    out[part.type] = part.value;
+    return out;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function kakaoAddDays(dateStr, offset) {
+  const [year, month, day] = String(dateStr).split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + offset, 12, 0, 0));
+  return kstDateString(date);
+}
+
+function kakaoDow(dateStr) {
+  return new Date(`${dateStr}T00:00:00+09:00`).getDay();
+}
+
+function kakaoDateLabel(dateStr) {
+  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  const [, month, day] = String(dateStr).split('-').map(Number);
+  return `${month}/${day}(${days[kakaoDow(dateStr)]}) 배송`;
+}
+
+function kakaoParseDateText(text, today) {
+  const s = String(text || '').trim();
+  if (!s) return '';
+  let match = s.match(/(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (match) return kakaoBuildDate(Number(match[1]), Number(match[2]), Number(match[3]));
+  match = s.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/) || s.match(/(?:^|\s)(\d{1,2})[/.](\d{1,2})(?:\s|$)/);
+  if (match) return kakaoBuildDate(Number(today.slice(0, 4)), Number(match[1]), Number(match[2]));
+  return '';
+}
+
+function kakaoBuildDate(year, month, day) {
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return '';
+  return kstDateString(date);
+}
+
+async function kakaoFetchCustomers() {
+  const snap = await db.collection('customers').limit(1000).get();
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+async function kakaoFetchCollectionSafe(collectionId, limit = 100) {
+  try {
+    const snap = await db.collection(collectionId).limit(limit).get();
+    return { ok: true, items: snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) };
+  } catch (error) {
+    return { ok: false, items: [], error: error.message };
+  }
+}
+
+async function kakaoFetchDocSafe(documentPath) {
+  try {
+    const snap = await db.doc(documentPath).get();
+    return { ok: true, item: snap.exists ? { id: snap.id, ...snap.data() } : null };
+  } catch (error) {
+    return { ok: false, item: null, error: error.message };
+  }
+}
+
+function kakaoWasDeliveredOn(c, dateStr) {
+  return Array.isArray(c.deliveredDates) && c.deliveredDates.includes(dateStr);
+}
+
+function kakaoIsDeliverySub(c, dateStr) {
+  if (c.orderType !== 'sub') return false;
+  if (kakaoWasDeliveredOn(c, dateStr)) return true;
+  if (c.status !== 'active' || Number(c.remain || 0) <= 0) return false;
+  if (c.startDate && dateStr < c.startDate) return false;
+  const dow = kakaoDow(dateStr);
+  if (Array.isArray(c.cookDays) && c.cookDays.length > 0) return c.cookDays.includes(dow);
+  const arriveDays = Array.isArray(c.arriveDays) ? c.arriveDays : [];
+  return arriveDays.map(day => day === 0 ? 6 : day - 1).includes(dow);
+}
+
+function kakaoIsDeliveryOnce(c, dateStr) {
+  if (c.orderType !== 'once') return false;
+  if (kakaoWasDeliveredOn(c, dateStr)) return true;
+  if (c.status !== 'active' || Number(c.remain || 0) <= 0) return false;
+  if (c.startDate && dateStr < c.startDate) return false;
+  return c.onceDate === dateStr;
+}
+
+function kakaoIsDelivery(c, dateStr) {
+  return kakaoIsDeliverySub(c, dateStr) || kakaoIsDeliveryOnce(c, dateStr);
+}
+
+function kakaoListFor(customers, dateStr) {
+  return (customers || []).filter(customer => kakaoIsDelivery(customer, dateStr));
+}
+
+function kakaoProductLabel(id) {
+  return {
+    A: 'A세트',
+    B: 'B세트',
+    C: 'C세트',
+    pork_rib: '수제 양념돼지갈비',
+    beef_la: '양념 LA갈비',
+    beef_soup: '소고기무국'
+  }[id] || id || '-';
+}
+
+function kakaoQtyText(c) {
+  if (c.orderType === 'once') {
+    return '수량 ' + Math.max(1, Number(c.qty || c.total || 1)) + '개';
+  }
+  return '잔여 ' + Number(c.remain || 0) + '회';
+}
+
+function kakaoShort(text, max) {
+  const s = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '';
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+function kakaoBuildDeliveryText(customers, dateStr, label) {
+  const list = kakaoListFor(customers, dateStr);
+  const direct = list.filter(c => !!c.isDirect);
+  const courier = list.filter(c => !c.isDirect);
+  const lines = [
+    '궁중수라간 ' + (label || kakaoDateLabel(dateStr)),
+    '조회 날짜: ' + dateStr,
+    `총 배송 ${list.length}건 / 직배송 ${direct.length}건 / 택배 ${courier.length}건`
+  ];
+
+  if (!list.length) {
+    lines.push('', '조회된 배송 예정이 없습니다.');
+    return lines.join('\n');
+  }
+
+  lines.push('', '[직배송]');
+  kakaoAppendDeliveryLines(lines, direct, dateStr);
+  lines.push('', '[택배]');
+  kakaoAppendDeliveryLines(lines, courier, dateStr);
+
+  if (list.length > KAKAO_MAX_DELIVERY_ITEMS) {
+    lines.push('', `외 ${list.length - KAKAO_MAX_DELIVERY_ITEMS}건은 관리자 페이지에서 확인하세요.`, ORDER_ADMIN_URL);
+  }
+  return lines.join('\n');
+}
+
+function kakaoAppendDeliveryLines(lines, list, dateStr) {
+  if (!list.length) {
+    lines.push('- 없음');
+    return;
+  }
+  const remainSlots = Math.max(0, KAKAO_MAX_DELIVERY_ITEMS - kakaoCountItemLines(lines));
+  list.slice(0, remainSlots).forEach(c => {
+    const product = kakaoProductLabel(c.productId || c.set);
+    const done = kakaoWasDeliveredOn(c, dateStr) ? '완료' : '대기';
+    lines.push(
+      `- ${c.name || '이름없음'} / ${product} / ${kakaoQtyText(c)} / ${done}\n` +
+      `  전화: ${kakaoShort(c.phone || '-', 24)}\n` +
+      `  주소: ${kakaoShort(c.addr || '-', 34)}\n` +
+      `  요청: ${kakaoShort(c.request || '', 28) || '-'}`
+    );
+  });
+  if (list.length > remainSlots) lines.push(`- 외 ${list.length - remainSlots}건`);
+}
+
+function kakaoCountItemLines(lines) {
+  return lines.filter(line => /^- /.test(line)).length;
+}
+
+function kakaoBuildCustomerSearchText(customers, keyword) {
+  const kw = String(keyword || '').trim();
+  if (!kw) {
+    return '고객검색은 이름 또는 전화번호 일부를 같이 입력해주세요.\n\n예: 고객검색 홍길동\n예: 고객검색 0101234';
+  }
+  const needle = kakaoNorm(kw);
+  const needleDigits = kakaoDigits(kw);
+  const matches = (customers || []).filter(c => {
+    const values = [c.name, c.phone, c.addr, c.orderNum, c.memo, c.request, c.scheduleName];
+    const hay = values.map(kakaoNorm).join(' ');
+    const hayDigits = values.map(kakaoDigits).join('');
+    return hay.includes(needle) || (!!needleDigits && hayDigits.includes(needleDigits));
+  });
+  const lines = [`고객검색: ${kw}`, `총 ${matches.length}건`];
+  if (!matches.length) {
+    lines.push('', '검색 결과가 없습니다. 이름, 전화번호, 주문번호 일부로 다시 조회해주세요.');
+    return lines.join('\n');
+  }
+  lines.push('');
+  matches.slice(0, KAKAO_MAX_SEARCH_ITEMS).forEach((c, idx) => {
+    const product = kakaoProductLabel(c.productId || c.set);
+    const schedule = c.orderType === 'once' ? (c.onceDate || '-') : (c.scheduleName || '-');
+    const memo = kakaoShort(c.memo || '', 28);
+    const request = kakaoShort(c.request || '', 28);
+    lines.push(
+      `${idx + 1}. ${c.name || '이름없음'} / ${product} / ${c.status || '-'}\n` +
+      `  전화: ${c.phone || '-'}\n` +
+      `  주소: ${kakaoShort(c.addr || '-', 34)}\n` +
+      `  주문번호: ${c.orderNum || '-'}\n` +
+      `  일정: ${kakaoShort(schedule, 34)}` +
+      (memo ? `\n  메모: ${memo}` : '') +
+      (request ? `\n  요청: ${request}` : '')
+    );
+  });
+  if (matches.length > KAKAO_MAX_SEARCH_ITEMS) {
+    lines.push('', `외 ${matches.length - KAKAO_MAX_SEARCH_ITEMS}건은 관리자 페이지에서 확인하세요.`, ORDER_ADMIN_URL);
+  }
+  return lines.join('\n');
+}
+
+function kakaoBuildSummaryText(customers) {
+  const today = kakaoToday();
+  const tomorrow = kakaoAddDays(today, 1);
+  const afterTomorrow = kakaoAddDays(today, 2);
+  const todayList = kakaoListFor(customers, today);
+  const tomorrowList = kakaoListFor(customers, tomorrow);
+  const afterTomorrowList = kakaoListFor(customers, afterTomorrow);
+  const activeSubs = customers.filter(c => c.orderType === 'sub' && c.status === 'active').length;
+  const activeOnce = customers.filter(c => c.orderType === 'once' && c.status === 'active').length;
+  const needsReview = customers.filter(c => !!c.needsReview).length;
+  return [
+    '궁중수라간 배송 요약',
+    new Intl.DateTimeFormat('ko-KR', { timeZone: TIMEZONE, dateStyle: 'medium', timeStyle: 'short' }).format(new Date()) + ' 기준',
+    '',
+    `오늘 배송: ${todayList.length}건`,
+    `내일 배송: ${tomorrowList.length}건`,
+    `모레 배송: ${afterTomorrowList.length}건`,
+    `활성 정기배송: ${activeSubs}건`,
+    `활성 선택주문: ${activeOnce}건`,
+    `확인 필요: ${needsReview}건`,
+    '',
+    '명령어: 오늘할일 / 오늘배송 / 내일배송 / 모레배송 / 고객검색 이름'
+  ].join('\n');
+}
+
+function kakaoLogenShipment(c, dateStr) {
+  return c?.logenShipments?.[dateStr] || {};
+}
+
+function kakaoLogenStatus(c, dateStr) {
+  return kakaoLogenShipment(c, dateStr).status || 'logen_ready';
+}
+
+function kakaoLogenNeedsChange(c, dateStr) {
+  const shipment = kakaoLogenShipment(c, dateStr);
+  const status = kakaoLogenStatus(c, dateStr);
+  return ['logen_registered', 'slip_pending', 'slip_ready', 'printed'].includes(status) && shipment.changeNeeded === true;
+}
+
+function kakaoEventDate(item) {
+  return String(item.eventDate || item.date || '').slice(0, 10);
+}
+
+function kakaoIsOpenEventOrder(item) {
+  const status = String(item.status || '').toLowerCase();
+  return !['registered', 'deleted', 'done', 'cancelled', 'canceled'].includes(status);
+}
+
+async function kakaoBuildTodayTasksText(customers) {
+  const today = kakaoToday();
+  const tomorrow = kakaoAddDays(today, 1);
+  const todayList = kakaoListFor(customers, today);
+  const direct = todayList.filter(c => !!c.isDirect);
+  const courier = todayList.filter(c => !c.isDirect);
+  const notDone = todayList.filter(c => !kakaoWasDeliveredOn(c, today));
+  const needsReview = (customers || []).filter(c => !!c.needsReview);
+  const courierFailed = courier.filter(c => kakaoLogenStatus(c, today) === 'logen_failed');
+  const courierSlipWait = courier.filter(c => {
+    const status = kakaoLogenStatus(c, today);
+    const shipment = kakaoLogenShipment(c, today);
+    return ['logen_registered', 'slip_pending'].includes(status) && !(shipment.slipNo || shipment.invoiceNo);
+  });
+  const courierChange = courier.filter(c => kakaoLogenNeedsChange(c, today));
+  const changeReq = await kakaoFetchCollectionSafe('changeRequests', 100);
+  const eventOrders = await kakaoFetchCollectionSafe('eventOrders', 100);
+  const todayMenu = await kakaoFetchDocSafe(`mealMenus/${today}`);
+  const tomorrowMenu = await kakaoFetchDocSafe(`mealMenus/${tomorrow}`);
+  const newReq = changeReq.items.filter(item => String(item.status || 'new') === 'new');
+  const checkingReq = changeReq.items.filter(item => String(item.status || '') === 'checking');
+  const openEvents = eventOrders.items.filter(kakaoIsOpenEventOrder);
+  const todayEvents = openEvents.filter(item => {
+    const date = kakaoEventDate(item);
+    return !date || date <= today;
+  });
+  const warnings = [];
+  if (!changeReq.ok) warnings.push('변경요청 조회 실패');
+  if (!eventOrders.ok) warnings.push('행사도시락 조회 실패');
+  if (!todayMenu.ok || !tomorrowMenu.ok) warnings.push('식단 조회 일부 실패');
+
+  const lines = [
+    '[궁중수라간 오늘 할 일]',
+    new Intl.DateTimeFormat('ko-KR', { timeZone: TIMEZONE, dateStyle: 'medium', timeStyle: 'short' }).format(new Date()) + ' 기준',
+    '',
+    `오늘 배송: ${todayList.length}건`,
+    `- 직배송 ${direct.length}건 / 택배 ${courier.length}건`,
+    `- 미완료 ${notDone.length}건`,
+    '',
+    `확인 필요 주문: ${needsReview.length}건`,
+    `로젠: 전송실패 ${courierFailed.length}건 / 송장대기 ${courierSlipWait.length}건 / 변경필요 ${courierChange.length}건`,
+    `고객 문의/변경요청: 신규 ${newReq.length}건 / 확인중 ${checkingReq.length}건`,
+    `행사도시락 미처리: ${todayEvents.length}건`,
+    `식단: 오늘 ${todayMenu.item ? '등록' : '미등록'} / 내일 ${tomorrowMenu.item ? '등록' : '미등록'}`
+  ];
+
+  if (needsReview.length || courierFailed.length || courierSlipWait.length || courierChange.length || newReq.length || todayEvents.length || !todayMenu.item || !tomorrowMenu.item) {
+    lines.push('', '[먼저 볼 것]');
+    kakaoAppendTaskNames(lines, '확인필요', needsReview);
+    kakaoAppendTaskNames(lines, '로젠실패', courierFailed);
+    kakaoAppendTaskNames(lines, '송장대기', courierSlipWait);
+    kakaoAppendTaskNames(lines, '로젠변경', courierChange);
+    kakaoAppendTaskNames(lines, '신규문의', newReq, 'customerName');
+    kakaoAppendTaskNames(lines, '행사', todayEvents, 'businessName');
+  } else {
+    lines.push('', '크게 걸리는 항목은 없습니다.');
+  }
+  if (warnings.length) lines.push('', '주의: ' + warnings.join(', '));
+  lines.push('', '명령어: 오늘배송 / 고객검색 이름 / 요약');
+  return lines.join('\n');
+}
+
+function kakaoAppendTaskNames(lines, label, items, nameField) {
+  if (!items?.length) return;
+  const names = items.slice(0, KAKAO_MAX_TASK_ITEMS).map(item => {
+    return kakaoShort(item[nameField || 'name'] || item.customerName || item.businessName || item.phone || item.id || '-', 12);
+  });
+  lines.push(`- ${label}: ${names.join(', ')}${items.length > KAKAO_MAX_TASK_ITEMS ? ` 외 ${items.length - KAKAO_MAX_TASK_ITEMS}건` : ''}`);
+}
+
+function kakaoNorm(value) {
+  return String(value || '').replace(/[\s\-().]/g, '').toLowerCase();
+}
+
+function kakaoDigits(value) {
+  return String(value || '').replace(/\D/g, '');
 }
 
 async function verifyAdminRequest(req) {
