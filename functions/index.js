@@ -227,28 +227,6 @@ async function handleKakaoWebhookRequest(req, res) {
   try {
     const payload = req.body && typeof req.body === 'object' ? req.body : {};
     const utterance = kakaoUtterance(payload);
-    const auth = await kakaoCheckAuth(payload, utterance);
-
-    if (!auth.ok) {
-      sendKakaoResponse(res, kakaoAuthMessage(auth));
-      return;
-    }
-
-    if (auth.justAuthed) {
-      sendKakaoResponse(res, [
-        '관리자 인증이 완료되었습니다.',
-        '',
-        '조회 명령어',
-        '- 오늘할일',
-        '- 오늘배송',
-        '- 내일배송',
-        '- 모레배송',
-        '- 요약',
-        '- 고객검색 홍길동',
-        '- 2026-06-12 배송'
-      ].join('\n'));
-      return;
-    }
 
     const cmd = kakaoResolveCommand(payload, utterance);
     const customers = await kakaoFetchCustomers();
