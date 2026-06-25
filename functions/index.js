@@ -146,7 +146,7 @@ exports.flushPendingChangeRequestNotifications = onSchedule({
   }
 });
 
-exports.api = onRequest({ invoker: 'public' }, async (req, res) => {
+exports.api = onRequest({ region: 'asia-northeast3', invoker: 'public' }, async (req, res) => {
   setCorsHeaders(res);
   if (req.method === 'OPTIONS') {
     res.status(204).send('');

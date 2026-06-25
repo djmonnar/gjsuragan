@@ -1,7 +1,7 @@
 const ROUTE_NAVER_CLIENT_ID = 'd4sg126q46';
 const ROUTE_KAKAO_JS_KEY = '8dd270cf2311e687a085b2db5157b1f7';
 const ROUTE_ORIGIN_ADDRESS = '경상남도 진주시 동진로107번길 8 돌담';
-const ROUTE_DEFAULT_API_BASE = 'https://api-rekpg53hvq-uc.a.run.app';
+const ROUTE_DEFAULT_API_BASE = 'https://asia-northeast3-gjsuragan-60505.cloudfunctions.net/api';
 let routeNaverLoaded = false;
 let routeNaverLoading = null;
 let routeKakaoLoaded = false;

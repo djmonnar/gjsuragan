@@ -63,6 +63,9 @@ IP, for example:
 3. Route the `api` function egress through that connector
 4. Send the static IP to Logen for development whitelist registration
 
+The `api` HTTPS function is deployed in `asia-northeast3`, so create the static
+IP, VPC connector, router, and Cloud NAT in `asia-northeast3` as well.
+
 Until the IP is whitelisted, real calls can fail with `401 Unauthorized` even
 when the `secretKey` is correct.
 
