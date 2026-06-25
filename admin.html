@@ -5622,6 +5622,11 @@ function eventKakaoMenuQty(item) {
   return eventOrderItemsSummary(item) || item.name || '-';
 }
 
+function eventKakaoTotalAmount(item) {
+  const amount = eventOrderTotalAmount(item) || Number(item.amount || 0) || 0;
+  return amount ? formatMoney(amount) : '-';
+}
+
 function buildEventLunchKakaoText(item) {
   return [
     '<행사도시락주문>',
@@ -5635,6 +5640,8 @@ function buildEventLunchKakaoText(item) {
     `날짜: ${eventKakaoDate(item.eventDate)}`,
     '',
     `도시락메뉴/수량: ${eventKakaoMenuQty(item)}`,
+    '',
+    `도시락 전체금액: ${eventKakaoTotalAmount(item)}`,
     '',
     `요청사항: ${eventKakaoRequest(item)}`,
     `연락처: ${eventKakaoPhone(item)}`
