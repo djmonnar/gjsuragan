@@ -146,7 +146,12 @@ exports.flushPendingChangeRequestNotifications = onSchedule({
   }
 });
 
-exports.api = onRequest({ region: 'asia-northeast3', invoker: 'public' }, async (req, res) => {
+exports.api = onRequest({
+  region: 'asia-northeast3',
+  invoker: 'public',
+  vpcConnector: 'projects/gjsuragan-60505/locations/asia-northeast3/connectors/gjsuragan-seoul-connector',
+  vpcConnectorEgressSettings: 'ALL_TRAFFIC'
+}, async (req, res) => {
   setCorsHeaders(res);
   if (req.method === 'OPTIONS') {
     res.status(204).send('');

@@ -66,6 +66,14 @@ IP, for example:
 The `api` HTTPS function is deployed in `asia-northeast3`, so create the static
 IP, VPC connector, router, and Cloud NAT in `asia-northeast3` as well.
 
+Current Seoul egress resources:
+
+- Static IP: `34.50.34.252` (`gjs-logen-nat-ip`)
+- VPC connector: `gjsuragan-seoul-connector`
+- Cloud Router: `gjsuragan-seoul-router`
+- Cloud NAT: `gjsuragan-seoul-nat`
+- Function egress: `ALL_TRAFFIC`
+
 Until the IP is whitelisted, real calls can fail with `401 Unauthorized` even
 when the `secretKey` is correct.
 
