@@ -10,6 +10,7 @@ const LOGEN_STATUS_LABELS = {
   printed: '출력완료',
   delivery_done: '배송완료'
 };
+const LOGEN_SENT_STATUSES = ['logen_registered','slip_pending','slip_ready','printed'];
 
 function logenApiBase(){
   return (localStorage.getItem('gjsLogenApiBase') || LOGEN_DEFAULT_API_BASE).replace(/\/+$/,'');
@@ -21,6 +22,42 @@ function logenShipment(c, shipDate){
 
 function logenStatus(c, shipDate){
   return logenShipment(c, shipDate).status || 'logen_ready';
+}
+
+function logenDigits(value){
+  return String(value || '').replace(/\D/g, '');
+}
+
+function logenComparableSnapshot(c){
+  const prod = c?.productId || c?.set || '';
+  const qty = Math.max(1, Number(c?.qty || c?.total || c?.quantity || 1) || 1);
+  return {
+    orderNum: String(c?.orderNum || c?.syncKey || c?.id || ''),
+    receiverName: String(c?.name || c?.businessName || ''),
+    receiverPhone: logenDigits(c?.phone || c?.contactPhone),
+    receiverAddress: String(c?.addr || c?.address || c?.deliveryPlace || ''),
+    itemName: typeof productLabel === 'function' ? productLabel(prod) : (prod || '궁중수라간 반찬'),
+    itemOption: c?.orderType === 'sub' ? '정기배송' : '선택주문',
+    quantity: qty,
+    deliveryMessage: [
+      c?.request || c?.requestNote || '',
+      c?.door ? `현관 ${c.door}` : ''
+    ].map(v => String(v || '').trim()).filter(Boolean).join(' / ')
+  };
+}
+
+function logenSnapshotChanged(c, shipDate){
+  const shipment = logenShipment(c, shipDate);
+  const saved = shipment.snapshot || null;
+  if(!saved) return false;
+  const current = logenComparableSnapshot(c);
+  return Object.keys(current).some(key => String(saved[key] ?? '') !== String(current[key] ?? ''));
+}
+
+function logenNeedsChange(c, shipDate){
+  const shipment = logenShipment(c, shipDate);
+  const status = logenStatus(c, shipDate);
+  return LOGEN_SENT_STATUSES.includes(status) && (shipment.changeNeeded === true || logenSnapshotChanged(c, shipDate));
 }
 
 function logenStatusBadgeHtml(c, shipDate){
@@ -36,13 +73,16 @@ function logenStatusBadgeHtml(c, shipDate){
     printed: 'background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;',
     delivery_done: 'background:#e8f5e9;color:#1e6e40;border-color:#b7dfc2;'
   }[status] || 'background:#f3f4f6;color:#374151;border-color:#e5e7eb;';
-  return `<span class="badge" style="${style}font-weight:800;">${label}</span>`;
+  const change = logenNeedsChange(c, shipDate)
+    ? '<span class="badge" style="background:#fff1f2;color:#be123c;border-color:#fecdd3;font-weight:900;">변경필요</span>'
+    : '';
+  return `<span class="badge" style="${style}font-weight:800;">${label}</span>${change}`;
 }
 
 function logenSlipNoHtml(c, shipDate){
   const slipNo = logenShipment(c, shipDate).slipNo || logenShipment(c, shipDate).invoiceNo || '';
   return slipNo
-    ? `<span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;">${slipNo}</span>`
+    ? `<button class="btn btn-g sm" style="font-size:11px;padding:4px 8px;" onclick="copyLogenSlipNo('${c.id}','${shipDate}')">${slipNo}</button>`
     : '<span style="font-size:12px;color:var(--text3);">-</span>';
 }
 
@@ -62,7 +102,7 @@ function filteredCourierForShipDate(shipDate){
 
 function isLogenResendable(c, shipDate){
   const status = logenStatus(c, shipDate);
-  return !['logen_registered','slip_pending','slip_ready','printed'].includes(status);
+  return !LOGEN_SENT_STATUSES.includes(status);
 }
 
 function unsentCourierCustomerIds(shipDate){
@@ -102,6 +142,59 @@ function summarizeLogenResult(data){
   return `성공 ${sent}건 / 건너뜀 ${skipped}건 / 실패 ${failed}건`;
 }
 
+function logenActionHtml(c, shipDate){
+  const status = logenStatus(c, shipDate);
+  const needsChange = logenNeedsChange(c, shipDate);
+  const slipNo = logenShipment(c, shipDate).slipNo || logenShipment(c, shipDate).invoiceNo || '';
+  const parts = [];
+  if(status === 'logen_failed' || status === 'logen_ready'){
+    parts.push(`<button class="btn btn-p sm" onclick="sendSingleLogenOrder('${c.id}','${shipDate}')">로젠전송</button>`);
+  }
+  if(['logen_registered','slip_pending'].includes(status)){
+    parts.push(`<button class="btn btn-g sm" onclick="inquireSingleLogenSlipNo('${c.id}','${shipDate}')">송장조회</button>`);
+  }
+  if(needsChange){
+    parts.push(`<button class="btn btn-d sm" onclick="ackLogenChange('${c.id}','${shipDate}')">확인완료</button>`);
+  }
+  if(slipNo){
+    parts.push(`<button class="btn btn-g sm" onclick="copyLogenSlipNo('${c.id}','${shipDate}')">복사</button>`);
+  }
+  return parts.length
+    ? `<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;">${parts.join('')}</div>`
+    : '';
+}
+
+function logenCourierSummaryHtml(list, shipDate){
+  const sent = list.filter(c => LOGEN_SENT_STATUSES.includes(logenStatus(c, shipDate))).length;
+  const failed = list.filter(c => logenStatus(c, shipDate) === 'logen_failed').length;
+  const slips = list.filter(c => !!(logenShipment(c, shipDate).slipNo || logenShipment(c, shipDate).invoiceNo)).length;
+  const changes = list.filter(c => logenNeedsChange(c, shipDate)).length;
+  const changeBadge = changes
+    ? `<span style="color:#be123c;font-weight:900;">변경필요 ${changes}건</span>`
+    : '<span style="color:var(--ok);font-weight:800;">변경 없음</span>';
+  return `로젠 전송 ${sent}건 · 송장 ${slips}건 · 실패 ${failed}건 · ${changeBadge}`;
+}
+
+function selectedLogenShipmentsForChange(current, next){
+  const shipments = current?.logenShipments || {};
+  const changed = [];
+  const comparableKeys = ['name','phone','addr','door','request','orderNum','productId','set','qty','total','isDirect'];
+  const hasImportantChange = comparableKeys.some(key => String(current?.[key] ?? '') !== String(next?.[key] ?? ''));
+  if(!hasImportantChange) return {};
+  Object.entries(shipments).forEach(([shipDate, shipment]) => {
+    const status = shipment?.status || '';
+    if(!LOGEN_SENT_STATUSES.includes(status)) return;
+    changed.push(shipDate);
+  });
+  const update = {};
+  changed.forEach(shipDate => {
+    update[`logenShipments.${shipDate}.changeNeeded`] = true;
+    update[`logenShipments.${shipDate}.changeReason`] = '고객 정보 수정';
+    update[`logenShipments.${shipDate}.changedAt`] = new Date().toISOString();
+  });
+  return update;
+}
+
 async function sendSelectedLogenOrders(){
   const shipDate = logenShipDate();
   const customerIds = checkedCourierCustomerIds();
@@ -109,6 +202,18 @@ async function sendSelectedLogenOrders(){
   if(!confirm(`선택한 택배 ${customerIds.length}건을 로젠으로 전송할까요?`)) return;
   try{
     const data = await postLogenApi('/api/logen/register-orders', { shipDate, customerIds, mode:'selected' });
+    toast(`로젠 전송 완료: ${summarizeLogenResult(data)}`,'ok');
+    renderToday();
+  }catch(e){
+    toast('로젠 전송 실패: '+(e.message||e),'er');
+  }
+}
+
+async function sendSingleLogenOrder(customerId, shipDate){
+  if(!customerId) return;
+  if(!confirm('이 택배 주문을 로젠으로 전송할까요?')) return;
+  try{
+    const data = await postLogenApi('/api/logen/register-orders', { shipDate: shipDate || logenShipDate(), customerIds:[customerId], mode:'single' });
     toast(`로젠 전송 완료: ${summarizeLogenResult(data)}`,'ok');
     renderToday();
   }catch(e){
@@ -146,4 +251,46 @@ async function inquireLogenSlipNos(){
   }catch(e){
     toast('송장번호 조회 실패: '+(e.message||e),'er');
   }
+}
+
+async function inquireSingleLogenSlipNo(customerId, shipDate){
+  if(!customerId) return;
+  try{
+    const data = await postLogenApi('/api/logen/inquiry-slip-nos', { shipDate: shipDate || logenShipDate(), customerIds:[customerId], mode:'single' });
+    toast(`송장번호 조회 완료: ${summarizeLogenResult(data)}`,'ok');
+    renderToday();
+  }catch(e){
+    toast('송장번호 조회 실패: '+(e.message||e),'er');
+  }
+}
+
+async function ackLogenChange(customerId, shipDate){
+  const c = custs.find(x => x.id === customerId);
+  if(!c) return;
+  const shipment = logenShipment(c, shipDate);
+  const msg = shipment.slipNo
+    ? '송장번호가 이미 있습니다. iLOGEN 쪽 변경 확인까지 끝났나요?'
+    : 'iLOGEN 쪽 변경 확인까지 끝났나요?';
+  if(!confirm(msg)) return;
+  try{
+    await window.__DB.collection('customers').doc(customerId).update({
+      [`logenShipments.${shipDate}.changeNeeded`]: false,
+      [`logenShipments.${shipDate}.snapshot`]: logenComparableSnapshot(c),
+      [`logenShipments.${shipDate}.changeResolvedAt`]: new Date().toISOString(),
+      [`logenShipments.${shipDate}.changeResolvedBy`]: window.__AUTH?.currentUser?.email || ''
+    });
+    toast('로젠 변경 확인 처리됨','ok');
+    renderToday();
+  }catch(e){
+    toast('변경 확인 처리 실패: '+(e.message||e),'er');
+  }
+}
+
+function copyLogenSlipNo(customerId, shipDate){
+  const c = custs.find(x => x.id === customerId);
+  const slipNo = logenShipment(c, shipDate).slipNo || logenShipment(c, shipDate).invoiceNo || '';
+  if(!slipNo){ toast('복사할 송장번호가 없습니다','er'); return; }
+  navigator.clipboard.writeText(String(slipNo))
+    .then(()=>toast('송장번호 복사됨','ok'))
+    .catch(()=>toast('송장번호 복사 실패','er'));
 }

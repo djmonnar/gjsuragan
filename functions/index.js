@@ -431,6 +431,19 @@ function shipmentFor(customer, shipDate) {
   return (customer.logenShipments && customer.logenShipments[shipDate]) || {};
 }
 
+function logenOrderSnapshot(order) {
+  return {
+    orderNum: String(order.orderNum || ''),
+    receiverName: String(order.receiverName || ''),
+    receiverPhone: String(order.receiverPhone || ''),
+    receiverAddress: String(order.receiverAddress || ''),
+    itemName: String(order.itemName || ''),
+    itemOption: String(order.itemOption || ''),
+    quantity: Number(order.quantity || 1) || 1,
+    deliveryMessage: String(order.deliveryMessage || '')
+  };
+}
+
 function isAlreadyLogenRegistered(customer, shipDate) {
   return ['logen_registered', 'slip_pending', 'slip_ready', 'printed'].includes(shipmentFor(customer, shipDate).status);
 }
@@ -541,6 +554,9 @@ async function handleLogenRegister(body, user) {
       orderNum: item.order.orderNum,
       slipNo: result.slipNo || '',
       receiptNo: result.receiptNo || '',
+      snapshot: logenOrderSnapshot(item.order),
+      changeNeeded: false,
+      changeResolvedAt: admin.firestore.FieldValue.serverTimestamp(),
       errorMessage: ok ? '' : (result.message || '로젠 전송 실패'),
       registeredAt: ok ? admin.firestore.FieldValue.serverTimestamp() : null,
       registeredBy: user.email || user.uid || ''

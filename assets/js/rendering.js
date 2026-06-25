@@ -433,6 +433,13 @@ function renderToday(){
   // ── 택배 필터 체크박스 적용 ──
   const filteredCourier = filterDeliveryByProduct(courierList, '.today-filter-ck');
   s('courier-cnt', filteredCourier.length + '건');
+  const logenSummary = document.getElementById('logen-courier-summary');
+  if(logenSummary){
+    logenSummary.style.display = filteredCourier.length ? '' : 'none';
+    logenSummary.innerHTML = (typeof logenCourierSummaryHtml === 'function')
+      ? logenCourierSummaryHtml(filteredCourier, ds)
+      : '';
+  }
 
   // ── 택배 테이블 ──
   const ctb = document.getElementById('courierList');
@@ -470,6 +477,10 @@ function renderToday(){
                       ${typeof logenStatusBadgeHtml==='function'?logenStatusBadgeHtml(c, ds):''}
                       ${typeof logenSlipNoHtml==='function'?logenSlipNoHtml(c, ds):''}
                     </div>
+                    ${typeof logenActionHtml==='function'
+                      ? `<div style="margin-top:8px;">${logenActionHtml(c, ds)}</div>`
+                      : ''
+                    }
                   </div>
                 </td>
               </tr>`;
@@ -491,7 +502,12 @@ function renderToday(){
                 <td>${typeof logenStatusBadgeHtml==='function'?logenStatusBadgeHtml(c, ds):'—'}</td>
                 <td>${typeof logenSlipNoHtml==='function'?logenSlipNoHtml(c, ds):'—'}</td>
                 <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
-                <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">완료</button>`}</td>
+                <td>
+                  <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;">
+                    ${done?'':`<button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">완료</button>`}
+                    ${typeof logenActionHtml==='function'?logenActionHtml(c, ds):''}
+                  </div>
+                </td>
               </tr>`;
             }).join('')
         );
@@ -780,6 +796,12 @@ async function editOnceDate(id, currentDate){
       needsReview:false,
       reviewReason:''
     };
+    const oldLogen = c.logenShipments && c.logenShipments[currentDate];
+    if(oldLogen && ['logen_registered','slip_pending','slip_ready','printed'].includes(oldLogen.status || '')){
+      updateData[`logenShipments.${currentDate}.changeNeeded`] = true;
+      updateData[`logenShipments.${currentDate}.changeReason`] = '배송일 변경';
+      updateData[`logenShipments.${currentDate}.changedAt`] = new Date().toISOString();
+    }
     if(prod){
       updateData.scheduleName = productLabel(prod) + (qty > 1 ? ' x' + qty + '개' : '');
     }

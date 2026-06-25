@@ -504,6 +504,9 @@ async function saveEdit(){
   }
 
   try{
+    if(typeof selectedLogenShipmentsForChange === 'function'){
+      Object.assign(upd, selectedLogenShipmentsForChange(current, upd));
+    }
     await window.__DB.collection('customers').doc(editId).update(upd);
     closeM('editM');
     toast(upd.name + ' 수정 완료', 'ok');
