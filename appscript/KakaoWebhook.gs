@@ -11,6 +11,7 @@ var KAKAO_SESSION_TTL = 21600; // 6시간
 var KAKAO_MAX_TEXT = 950;
 var KAKAO_MAX_DELIVERY_ITEMS = 10;
 var KAKAO_MAX_SEARCH_ITEMS = 6;
+var KAKAO_MAX_TASK_ITEMS = 5;
 
 function doGet(e) {
   return ContentService
@@ -36,6 +37,7 @@ function kakaoWebhookDoPost_(e) {
       return kakaoJson_(kakaoTextResponse_(
         '관리자 인증이 완료되었습니다.\n\n' +
         '조회 명령어\n' +
+        '- 오늘할일\n' +
         '- 오늘배송\n' +
         '- 내일배송\n' +
         '- 모레배송\n' +
@@ -47,6 +49,10 @@ function kakaoWebhookDoPost_(e) {
 
     var cmd = kakaoResolveCommand_(payload, utterance);
     var customers = kakaoFetchCustomers_();
+
+    if (cmd.type === 'tasks') {
+      return kakaoJson_(kakaoTextResponse_(kakaoBuildTodayTasksText_(customers)));
+    }
 
     if (cmd.type === 'summary') {
       return kakaoJson_(kakaoTextResponse_(kakaoBuildSummaryText_(customers)));
@@ -94,6 +100,7 @@ function kakaoTextResponse_(text) {
         }
       ],
       quickReplies: [
+        { label: '오늘할일', action: 'message', messageText: '오늘할일' },
         { label: '오늘배송', action: 'message', messageText: '오늘배송' },
         { label: '내일배송', action: 'message', messageText: '내일배송' },
         { label: '모레배송', action: 'message', messageText: '모레배송' },
@@ -237,6 +244,10 @@ function kakaoResolveCommand_(payload, utterance) {
   var u = String(utterance || '').trim();
   var commandText = mode + ' ' + u;
 
+  if (/오늘\s*할\s*일|할일|업무|체크|todo|tasks?/i.test(commandText)) {
+    return { type:'tasks' };
+  }
+
   if (/요약|현황|summary/i.test(commandText)) {
     return { type:'summary' };
   }
@@ -314,6 +325,26 @@ function kakaoBuildDate_(year, month, day) {
 }
 
 function kakaoFetchCustomers_() {
+  return kakaoFetchCollection_('customers', 1000);
+}
+
+function kakaoFetchCollectionSafe_(collectionId, pageSize) {
+  try {
+    return { ok:true, items:kakaoFetchCollection_(collectionId, pageSize) };
+  } catch (err) {
+    return { ok:false, items:[], error:(err && err.message ? err.message : String(err)) };
+  }
+}
+
+function kakaoFetchDocSafe_(documentPath) {
+  try {
+    return { ok:true, item:kakaoFetchDoc_(documentPath) };
+  } catch (err) {
+    return { ok:false, item:null, error:(err && err.message ? err.message : String(err)) };
+  }
+}
+
+function kakaoFetchCollection_(collectionId, pageSize) {
   if (typeof getFirebaseToken !== 'function') {
     throw new Error('getFirebaseToken()을 찾을 수 없습니다. Code.gs와 같은 Apps Script 프로젝트에 추가해야 합니다.');
   }
@@ -329,7 +360,8 @@ function kakaoFetchCustomers_() {
 
   while (true) {
     var url = 'https://firestore.googleapis.com/v1/projects/' + projectId +
-      '/databases/(default)/documents/customers?pageSize=1000';
+      '/databases/(default)/documents/' + encodeURIComponent(collectionId) +
+      '?pageSize=' + encodeURIComponent(String(pageSize || 100));
     if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
 
     var res = UrlFetchApp.fetch(url, {
@@ -349,6 +381,31 @@ function kakaoFetchCustomers_() {
   }
 
   return docs;
+}
+
+function kakaoFetchDoc_(documentPath) {
+  if (typeof getFirebaseToken !== 'function') {
+    throw new Error('getFirebaseToken()을 찾을 수 없습니다. Code.gs와 같은 Apps Script 프로젝트에 추가해야 합니다.');
+  }
+
+  var projectId = kakaoFirebaseProjectId_();
+  if (!projectId) {
+    throw new Error('Script Properties에 FIREBASE_PROJECT_ID 값이 없습니다.');
+  }
+
+  var url = 'https://firestore.googleapis.com/v1/projects/' + projectId +
+    '/databases/(default)/documents/' + String(documentPath || '').split('/').map(encodeURIComponent).join('/');
+  var res = UrlFetchApp.fetch(url, {
+    method: 'get',
+    headers: { Authorization: 'Bearer ' + getFirebaseToken() },
+    muteHttpExceptions: true
+  });
+  var code = res.getResponseCode();
+  if (code === 404) return null;
+
+  var json = JSON.parse(res.getContentText() || '{}');
+  if (json.error) throw new Error(json.error.message || 'Firestore 문서 조회 오류');
+  return kakaoFirestoreDocToObject_(json);
 }
 
 function kakaoFirestoreDocToObject_(doc) {
@@ -588,8 +645,110 @@ function kakaoBuildSummaryText_(customers) {
     '활성 선택주문: ' + activeOnce + '건',
     '확인 필요: ' + needsReview + '건',
     '',
-    '명령어: 오늘배송 / 내일배송 / 모레배송 / 고객검색 이름'
+    '명령어: 오늘할일 / 오늘배송 / 내일배송 / 모레배송 / 고객검색 이름'
   ].join('\n');
+}
+
+function kakaoLogenShipment_(c, dateStr) {
+  var map = c && c.logenShipments ? c.logenShipments : {};
+  return map && map[dateStr] ? map[dateStr] : {};
+}
+
+function kakaoLogenStatus_(c, dateStr) {
+  return kakaoLogenShipment_(c, dateStr).status || 'logen_ready';
+}
+
+function kakaoLogenNeedsChange_(c, dateStr) {
+  var s = kakaoLogenShipment_(c, dateStr);
+  var status = kakaoLogenStatus_(c, dateStr);
+  return ['logen_registered','slip_pending','slip_ready','printed'].indexOf(status) >= 0 && s.changeNeeded === true;
+}
+
+function kakaoEventDate_(item) {
+  return String(item.eventDate || item.date || '').slice(0, 10);
+}
+
+function kakaoIsOpenEventOrder_(item) {
+  var status = String(item.status || '').toLowerCase();
+  return ['registered','deleted','done','cancelled','canceled'].indexOf(status) < 0;
+}
+
+function kakaoBuildTodayTasksText_(customers) {
+  var today = kakaoToday_();
+  var tomorrow = kakaoAddDays_(today, 1);
+  var todayList = kakaoListFor_(customers, today);
+  var direct = todayList.filter(function(c) { return !!c.isDirect; });
+  var courier = todayList.filter(function(c) { return !c.isDirect; });
+  var notDone = todayList.filter(function(c) { return !kakaoWasDeliveredOn_(c, today); });
+  var needsReview = (customers || []).filter(function(c) { return !!c.needsReview; });
+  var courierFailed = courier.filter(function(c) { return kakaoLogenStatus_(c, today) === 'logen_failed'; });
+  var courierSlipWait = courier.filter(function(c) {
+    var status = kakaoLogenStatus_(c, today);
+    var s = kakaoLogenShipment_(c, today);
+    return ['logen_registered','slip_pending'].indexOf(status) >= 0 && !(s.slipNo || s.invoiceNo);
+  });
+  var courierChange = courier.filter(function(c) { return kakaoLogenNeedsChange_(c, today); });
+  var changeReq = kakaoFetchCollectionSafe_('changeRequests', 100);
+  var eventOrders = kakaoFetchCollectionSafe_('eventOrders', 100);
+  var todayMenu = kakaoFetchDocSafe_('mealMenus/' + today);
+  var tomorrowMenu = kakaoFetchDocSafe_('mealMenus/' + tomorrow);
+  var newReq = changeReq.items.filter(function(item) { return String(item.status || 'new') === 'new'; });
+  var checkingReq = changeReq.items.filter(function(item) { return String(item.status || '') === 'checking'; });
+  var openEvents = eventOrders.items.filter(kakaoIsOpenEventOrder_);
+  var todayEvents = openEvents.filter(function(item) {
+    var d = kakaoEventDate_(item);
+    return !d || d <= today;
+  });
+  var lines = [];
+  var warnings = [];
+
+  if (!changeReq.ok) warnings.push('변경요청 조회 실패');
+  if (!eventOrders.ok) warnings.push('행사도시락 조회 실패');
+  if (!todayMenu.ok || !tomorrowMenu.ok) warnings.push('식단 조회 일부 실패');
+
+  lines.push('[궁중수라간 오늘 할 일]');
+  lines.push(Utilities.formatDate(new Date(), KAKAO_TZ, 'yyyy-MM-dd HH:mm') + ' 기준');
+  lines.push('');
+  lines.push('오늘 배송: ' + todayList.length + '건');
+  lines.push('- 직배송 ' + direct.length + '건 / 택배 ' + courier.length + '건');
+  lines.push('- 미완료 ' + notDone.length + '건');
+  lines.push('');
+  lines.push('확인 필요 주문: ' + needsReview.length + '건');
+  lines.push('로젠: 전송실패 ' + courierFailed.length + '건 / 송장대기 ' + courierSlipWait.length + '건 / 변경필요 ' + courierChange.length + '건');
+  lines.push('고객 문의/변경요청: 신규 ' + newReq.length + '건 / 확인중 ' + checkingReq.length + '건');
+  lines.push('행사도시락 미처리: ' + todayEvents.length + '건');
+  lines.push('식단: 오늘 ' + (todayMenu.item ? '등록' : '미등록') + ' / 내일 ' + (tomorrowMenu.item ? '등록' : '미등록'));
+
+  if (needsReview.length || courierFailed.length || courierSlipWait.length || courierChange.length || newReq.length || todayEvents.length || !todayMenu.item || !tomorrowMenu.item) {
+    lines.push('');
+    lines.push('[먼저 볼 것]');
+    kakaoAppendTaskNames_(lines, '확인필요', needsReview);
+    kakaoAppendTaskNames_(lines, '로젠실패', courierFailed);
+    kakaoAppendTaskNames_(lines, '송장대기', courierSlipWait);
+    kakaoAppendTaskNames_(lines, '로젠변경', courierChange);
+    kakaoAppendTaskNames_(lines, '신규문의', newReq, 'customerName');
+    kakaoAppendTaskNames_(lines, '행사', todayEvents, 'businessName');
+  } else {
+    lines.push('');
+    lines.push('크게 걸리는 항목은 없습니다.');
+  }
+
+  if (warnings.length) {
+    lines.push('');
+    lines.push('주의: ' + warnings.join(', '));
+  }
+
+  lines.push('');
+  lines.push('명령어: 오늘배송 / 고객검색 이름 / 요약');
+  return lines.join('\n');
+}
+
+function kakaoAppendTaskNames_(lines, label, items, nameField) {
+  if (!items || !items.length) return;
+  var names = items.slice(0, KAKAO_MAX_TASK_ITEMS).map(function(item) {
+    return kakaoShort_(item[nameField || 'name'] || item.customerName || item.businessName || item.phone || item.id || '-', 12);
+  });
+  lines.push('- ' + label + ': ' + names.join(', ') + (items.length > KAKAO_MAX_TASK_ITEMS ? ' 외 ' + (items.length - KAKAO_MAX_TASK_ITEMS) + '건' : ''));
 }
 
 function kakaoNorm_(v) {
