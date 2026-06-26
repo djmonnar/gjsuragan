@@ -941,6 +941,11 @@ function kakaoShort(text, max) {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
 }
 
+function kakaoFullText(text, fallback = '-') {
+  const s = String(text || '').replace(/\s+/g, ' ').trim();
+  return s || fallback;
+}
+
 function kakaoBuildDeliveryText(customers, dateStr, label) {
   const list = kakaoListFor(customers, dateStr);
   const direct = list.filter(c => !!c.isDirect);
@@ -978,9 +983,9 @@ function kakaoAppendDeliveryLines(lines, list, dateStr) {
     const done = kakaoWasDeliveredOn(c, dateStr) ? '완료' : '대기';
     lines.push(
       `- ${c.name || '이름없음'} / ${product} / ${kakaoQtyText(c)} / ${done}\n` +
-      `  전화: ${kakaoShort(c.phone || '-', 24)}\n` +
-      `  주소: ${kakaoShort(c.addr || '-', 34)}\n` +
-      `  요청: ${kakaoShort(c.request || '', 28) || '-'}`
+      `  전화: ${kakaoFullText(c.phone)}\n` +
+      `  주소: ${kakaoFullText(c.addr)}\n` +
+      `  요청: ${kakaoFullText(c.request)}`
     );
   });
   if (list.length > remainSlots) lines.push(`- 외 ${list.length - remainSlots}건`);
@@ -1012,14 +1017,14 @@ function kakaoBuildCustomerSearchText(customers, keyword) {
   matches.slice(0, KAKAO_MAX_SEARCH_ITEMS).forEach((c, idx) => {
     const product = kakaoProductLabel(c.productId || c.set);
     const schedule = c.orderType === 'once' ? (c.onceDate || '-') : (c.scheduleName || '-');
-    const memo = kakaoShort(c.memo || '', 28);
-    const request = kakaoShort(c.request || '', 28);
+    const memo = kakaoFullText(c.memo, '');
+    const request = kakaoFullText(c.request, '');
     lines.push(
       `${idx + 1}. ${c.name || '이름없음'} / ${product} / ${c.status || '-'}\n` +
-      `  전화: ${c.phone || '-'}\n` +
-      `  주소: ${kakaoShort(c.addr || '-', 34)}\n` +
+      `  전화: ${kakaoFullText(c.phone)}\n` +
+      `  주소: ${kakaoFullText(c.addr)}\n` +
       `  주문번호: ${c.orderNum || '-'}\n` +
-      `  일정: ${kakaoShort(schedule, 34)}` +
+      `  일정: ${kakaoFullText(schedule)}` +
       (memo ? `\n  메모: ${memo}` : '') +
       (request ? `\n  요청: ${request}` : '')
     );
