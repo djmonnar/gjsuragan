@@ -294,6 +294,12 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .cr-body{font-size:13px;line-height:1.6;color:var(--text);display:grid;gap:4px;margin:10px 0}
 .cr-label{color:var(--sub);font-weight:800;margin-right:4px}
 .cr-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.cr-reply-box{margin-top:12px;border-top:1px solid var(--border);padding-top:12px;display:grid;gap:8px}
+.cr-reply-label{font-size:12px;font-weight:900;color:var(--primary)}
+.cr-reply-input{width:100%;min-height:78px;border:1px solid var(--border);border-radius:8px;padding:10px 11px;font:inherit;font-size:13px;line-height:1.5;resize:vertical;background:#fff}
+.cr-reply-input:focus{outline:2px solid rgba(46,125,50,.12);border-color:var(--primary)}
+.cr-reply-meta{font-size:12px;color:var(--sub);line-height:1.5}
+.cr-reply-actions{display:flex;gap:8px;flex-wrap:wrap}
 .cr-badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:900;background:#fff3e0;color:#b45309;border:1px solid #fed7aa;white-space:nowrap}
 .cr-badge.new{background:#fdecea;color:#c0392b;border-color:#f5b7b1}
 .cr-badge.sent{background:#e8f5e9;color:#1e6e40;border-color:#b7dfbd}
@@ -3135,7 +3141,10 @@ function renderChangeRequests() {
     const before = item.before ? `<div><span class="cr-label">이전</span>${escapeHtml(item.before)}</div>` : '';
     const after = item.after ? `<div><span class="cr-label">요청</span>${escapeHtml(item.after)}</div>` : '';
     const memo = item.memo ? `<div><span class="cr-label">메모</span>${escapeHtml(item.memo)}</div>` : '';
-    const read = item.readAt ? '' : `<button class="secondary-btn" onclick="markChangeRequestRead('${item.id}')">읽음</button>`;
+    const read = item.readAt ? '' : `<button class="secondary-btn" onclick="markChangeRequestRead('${jsString(item.id)}')">읽음</button>`;
+    const reply = item.adminReply || item.reply || '';
+    const replyMeta = item.answeredAt ? `마지막 답변: ${formatDateTimeKR(item.answeredAt)}` : '아직 답변 없음';
+    const replyInputId = `cr-reply-${item.id}`;
     return `
       <div class="change-request-card status-${escapeHtml(status)}">
         <div class="cr-head">
@@ -3150,11 +3159,20 @@ function renderChangeRequests() {
         </div>
         <div class="cr-body">${before}${after}${memo || '<div><span class="cr-label">메모</span>-</div>'}</div>
         <div class="cr-meta">푸시 예정: ${item.notifyAfterAt ? formatDateTimeKR(item.notifyAfterAt) : '-'} · 시도 ${item.notificationAttempts || 0}회</div>
+        <div class="cr-reply-box">
+          <label class="cr-reply-label" for="${escapeHtml(replyInputId)}">고객에게 보낼 답변</label>
+          <textarea class="cr-reply-input" id="${escapeHtml(replyInputId)}" placeholder="예) 확인했습니다. 요청하신 날짜로 변경해드렸습니다.">${escapeHtml(reply)}</textarea>
+          <div class="cr-reply-meta">${escapeHtml(replyMeta)}</div>
+          <div class="cr-reply-actions">
+            <button class="secondary-btn" onclick="saveChangeRequestReply('${jsString(item.id)}')">답변 저장</button>
+            <button class="save-btn" style="width:auto;padding:9px 13px" onclick="saveChangeRequestReply('${jsString(item.id)}', true)">답변 저장 후 완료</button>
+          </div>
+        </div>
         <div class="cr-actions">
           ${read}
-          <button class="secondary-btn" onclick="updateChangeRequestStatus('${item.id}','checking')">확인중</button>
-          <button class="save-btn" style="width:auto;padding:9px 13px" onclick="updateChangeRequestStatus('${item.id}','done')">완료</button>
-          <button class="danger-btn" onclick="updateChangeRequestStatus('${item.id}','rejected')">반려</button>
+          <button class="secondary-btn" onclick="updateChangeRequestStatus('${jsString(item.id)}','checking')">확인중</button>
+          <button class="save-btn" style="width:auto;padding:9px 13px" onclick="updateChangeRequestStatus('${jsString(item.id)}','done')">완료</button>
+          <button class="danger-btn" onclick="updateChangeRequestStatus('${jsString(item.id)}','rejected')">반려</button>
         </div>
       </div>`;
   }).join('');
@@ -3164,6 +3182,32 @@ async function markChangeRequestRead(id) {
   await db.collection('changeRequests').doc(id).set({
     readAt: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge:true });
+}
+
+async function saveChangeRequestReply(id, markDone = false) {
+  const input = document.getElementById(`cr-reply-${id}`);
+  const reply = input?.value.trim() || '';
+  if (!reply) {
+    showToast('답변 내용을 입력해주세요.');
+    input?.focus();
+    return;
+  }
+  const payload = {
+    adminReply: reply,
+    answeredAt: firebase.firestore.FieldValue.serverTimestamp(),
+    answeredBy: auth.currentUser?.email || adminUid || '',
+    readAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if (markDone) {
+    payload.status = 'done';
+    payload.handledAt = firebase.firestore.FieldValue.serverTimestamp();
+  } else {
+    const current = changeRequests.find(item => item.id === id);
+    if ((current?.status || 'new') === 'new') payload.status = 'checking';
+  }
+  await db.collection('changeRequests').doc(id).set(payload, { merge:true });
+  showToast(markDone ? '답변을 저장하고 완료 처리했습니다.' : '답변을 저장했습니다.');
 }
 
 async function updateChangeRequestStatus(id, status) {

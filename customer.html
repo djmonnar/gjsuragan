@@ -1279,6 +1279,12 @@
     gap: 8px;
     margin-top: 12px;
   }
+  .change-request-history-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--primary);
+    margin: 16px 0 8px;
+  }
   .change-request-item {
     background: #fff;
     border: 1px solid var(--border);
@@ -1288,6 +1294,35 @@
     line-height: 1.5;
   }
   .change-request-item strong { color: var(--primary); }
+  .change-request-meta {
+    color: var(--text-sub);
+    margin-top: 3px;
+    font-size: 12px;
+  }
+  .change-request-body {
+    margin-top: 8px;
+    white-space: pre-wrap;
+  }
+  .change-request-reply {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    background: #edf7ef;
+    border: 1px solid #cdebd4;
+    color: #235b36;
+    white-space: pre-wrap;
+  }
+  .change-request-reply b {
+    display: block;
+    margin-bottom: 4px;
+    color: #1e6e40;
+  }
+  .change-request-reply.empty {
+    background: #f8f8f8;
+    border-color: var(--border);
+    color: var(--text-sub);
+    white-space: normal;
+  }
   .request-status-chip {
     display: inline-flex;
     align-items: center;
@@ -1892,6 +1927,7 @@
         </div>
       </div>
       <button class="save-btn" id="change-request-submit-btn" onclick="submitChangeRequest()">문의사항 보내기</button>
+      <div class="change-request-history-title">내 문의 내역</div>
       <div class="change-request-history" id="change-request-history"></div>
     </div>
 
@@ -3930,6 +3966,8 @@ async function submitChangeRequest() {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       readAt: null,
       handledAt: null,
+      adminReply: '',
+      answeredAt: null,
       notificationStatus: 'pending',
       notifiedAt: null,
       notificationAttempts: 0,
@@ -3962,7 +4000,7 @@ function subscribeCustomerChangeRequests() {
         const bd = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
         return bd - ad;
       });
-      customerChangeRequests = customerChangeRequests.slice(0, 5);
+      customerChangeRequests = customerChangeRequests.slice(0, 20);
       renderCustomerChangeRequests();
     }, err => {
       console.warn('변경요청 목록 오류:', err);
@@ -3996,17 +4034,24 @@ function renderCustomerChangeRequests() {
   const el = document.getElementById('change-request-history');
   if (!el) return;
   if (!customerChangeRequests.length) {
-    el.innerHTML = '<div class="change-request-item">최근 변경요청이 없습니다.</div>';
+    el.innerHTML = '<div class="change-request-item">아직 보낸 문의가 없습니다.</div>';
     return;
   }
-  el.innerHTML = customerChangeRequests.map(item => `
-    <div class="change-request-item">
-      <strong>${escapeHtml(item.title || changeRequestTypeLabel(item.type))}</strong>
-      <span class="request-status-chip">${changeRequestStatusLabel(item.status)}</span>
-      <div style="color:var(--text-sub);margin-top:3px">${formatRequestTime(item.createdAt)}</div>
-      <div>${escapeHtml(item.after || item.memo || '-')}</div>
-    </div>
-  `).join('');
+  el.innerHTML = customerChangeRequests.map(item => {
+    const reply = String(item.adminReply || item.reply || '').trim();
+    const answeredAt = item.answeredAt ? ` · ${formatRequestTime(item.answeredAt)}` : '';
+    return `
+      <div class="change-request-item">
+        <strong>${escapeHtml(item.title || changeRequestTypeLabel(item.type))}</strong>
+        <span class="request-status-chip">${changeRequestStatusLabel(item.status)}</span>
+        <div class="change-request-meta">${formatRequestTime(item.createdAt)}</div>
+        <div class="change-request-body">${escapeHtml(item.after || item.memo || '-')}</div>
+        ${reply
+          ? `<div class="change-request-reply"><b>관리자 답변${answeredAt}</b>${escapeHtml(reply)}</div>`
+          : `<div class="change-request-reply empty">아직 관리자 답변이 등록되지 않았습니다.</div>`}
+      </div>
+    `;
+  }).join('');
 }
 
 async function changePassword() {

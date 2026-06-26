@@ -315,6 +315,8 @@ service cloud.firestore {
         'createdAt',
         'readAt',
         'handledAt',
+        'adminReply',
+        'answeredAt',
         'notificationStatus',
         'notifiedAt',
         'notificationAttempts',
@@ -343,6 +345,8 @@ service cloud.firestore {
         && request.resource.data.readAt == null
         && nullableTimestamp(request.resource.data, 'handledAt')
         && request.resource.data.handledAt == null
+        && (!('adminReply' in request.resource.data.keys()) || request.resource.data.adminReply == '')
+        && (!('answeredAt' in request.resource.data.keys()) || request.resource.data.answeredAt == null)
         && request.resource.data.notificationStatus == 'pending'
         && nullableTimestamp(request.resource.data, 'notifiedAt')
         && request.resource.data.notifiedAt == null
