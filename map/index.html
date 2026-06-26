@@ -58,7 +58,7 @@
       <div class="route-header">
         <div class="route-title-wrap">
           <div class="route-title">직배송 배송지도</div>
-          <div class="route-sub">돌담 출발 기준으로 오늘 직배송지를 확인합니다.</div>
+          <div class="route-sub">돌담 출발·복귀 기준으로 오늘 직배송지를 확인합니다.</div>
         </div>
         <div class="date-nav route-date-nav">
           <button class="date-nav-btn" onclick="moveRouteDate(-1)">&#8249;</button>
@@ -77,7 +77,7 @@
 
       <div class="route-toolbar">
         <label class="route-toggle"><input type="checkbox" id="routeHideDone" onchange="renderRouteMap()"> 미완료만 보기</label>
-        <button class="btn btn-s route-optimize-btn" onclick="optimizeRouteOrder()" title="돌담 출발 기준으로 그날 직배송지를 가장 빨리 도는 순서를 네이버 실시간 길찾기로 자동 계산합니다.&#10;완료한 집은 빼고 남은 곳만 정렬해요.">🧭 추천 순서</button>
+        <button class="btn btn-s route-optimize-btn" onclick="optimizeRouteOrder()" title="돌담 출발·복귀 기준으로 그날 직배송지를 가장 빨리 도는 순서를 네이버 실시간 길찾기로 자동 계산합니다.&#10;완료한 집은 빼고 남은 곳만 정렬해요.">🧭 왕복 추천 순서</button>
         <button class="btn btn-g sm" onclick="copyRouteAddresses()">주소 전체 복사</button>
         <button class="btn btn-g sm" onclick="renderRouteMap(true)">새로고침</button>
       </div>
@@ -271,6 +271,6 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
-<script src="../assets/js/route-map.js?v=20260625-seoul-api1" defer></script>
+<script src="../assets/js/route-map.js?v=20260626-roundtrip1" defer></script>
 </body>
 </html>

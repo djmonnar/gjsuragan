@@ -543,6 +543,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .member-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:12px}
 .member-title-wrap{display:flex;flex-direction:column;gap:4px}
 .member-hint{font-size:12px;color:var(--sub);font-weight:700}
+.member-search-bar{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px 12px;margin-bottom:14px}
+.member-search-input{flex:1;min-width:180px;margin:0}
+.member-search-count{font-size:12px;color:var(--sub);font-weight:800;white-space:nowrap}
+.member-search-clear{border:1px solid var(--border);background:#fff;color:var(--sub);border-radius:9px;padding:9px 12px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap}
+.member-search-clear:hover{background:#f8fafc;color:var(--text)}
 .member-grid{align-items:stretch}
 @media(max-width:900px){
   .summary-row{grid-template-columns:repeat(2,1fr)}
@@ -565,6 +570,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   .controls-bar{align-items:stretch}
   .controls-bar>button{min-height:42px}
   .member-toolbar{align-items:flex-start;flex-direction:column}
+  .member-search-bar{align-items:stretch;flex-direction:column}
+  .member-search-input{min-width:0;width:100%}
+  .member-search-count{white-space:normal}
   .manual-grid,.manual-checklist{grid-template-columns:1fr}
   .manual-hero h2{font-size:21px}
 }
@@ -773,6 +781,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="member-hint">업체 카드를 누르면 배송지, 식사 받는 시간, 요일별 기본 수량을 수정할 수 있습니다.</div>
       </div>
       <button class="refresh-btn" onclick="loadAllUsers().then(renderMembers)"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>회원 새로고침</span></button>
+    </div>
+    <div class="member-search-bar">
+      <input class="form-input member-search-input" type="search" id="member-search-input" placeholder="업체명, 연락처, 주소, 이메일 검색" oninput="renderMembers()" onkeydown="if(event.key==='Escape') clearMemberSearch()">
+      <div class="member-search-count" id="member-search-count">전체 0곳</div>
+      <button class="member-search-clear" type="button" onclick="clearMemberSearch()">초기화</button>
     </div>
     <div class="member-grid" id="member-grid">불러오는 중...</div>
   </div>
@@ -1620,17 +1633,41 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <input class="form-input" type="text" id="settle-edit-note" placeholder="메모 (선택)">
     </div>
 
+    <!-- 행사도시락 수정 필드 -->
+    <div id="settle-event-fields" style="display:none;margin-top:10px">
+      <div style="display:grid;grid-template-columns:1fr 110px;gap:8px">
+        <div>
+          <label class="form-label">행사 품목명</label>
+          <input class="form-input" type="text" id="settle-edit-event-name" placeholder="예) 김치제육&떡갈비">
+        </div>
+        <div>
+          <label class="form-label">수량</label>
+          <input class="form-input" type="number" id="settle-edit-event-count" min="1" max="999" value="1" oninput="updateSettlementEventAmount()">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <div>
+          <label class="form-label">단가</label>
+          <input class="form-input" type="number" id="settle-edit-event-unit-price" min="0" value="0" oninput="updateSettlementEventAmount()">
+        </div>
+        <div>
+          <label class="form-label">청구액</label>
+          <input class="form-input" type="number" id="settle-edit-event-amount" min="0" value="0" oninput="updatePaymentSummary()">
+        </div>
+      </div>
+    </div>
+
     <!-- 수동 필드 (기존 호환) -->
     <div id="settle-manual-fields" style="display:none;margin-top:10px">
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-        <div><label class="form-label">도시락 수량</label><input class="form-input" type="number" id="settle-edit-lunch" min="0" value="0"></div>
-        <div><label class="form-label">샐러드 수량</label><input class="form-input" type="number" id="settle-edit-salad" min="0" value="0"></div>
-        <div><label class="form-label">행사도시락 수량</label><input class="form-input" type="number" id="settle-edit-event-lunch" min="0" value="0"></div>
+        <div><label class="form-label">도시락 수량</label><input class="form-input" type="number" id="settle-edit-lunch" min="0" value="0" oninput="updatePaymentSummary()"></div>
+        <div><label class="form-label">샐러드 수량</label><input class="form-input" type="number" id="settle-edit-salad" min="0" value="0" oninput="updatePaymentSummary()"></div>
+        <div><label class="form-label">행사도시락 수량</label><input class="form-input" type="number" id="settle-edit-event-lunch" min="0" value="0" oninput="updatePaymentSummary()"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">
-        <div><label class="form-label">도시락 단가</label><input class="form-input" type="number" id="settle-edit-lunch-price" min="0" value="0"></div>
-        <div><label class="form-label">샐러드 단가</label><input class="form-input" type="number" id="settle-edit-salad-price" min="0" value="0"></div>
-        <div><label class="form-label">행사도시락 단가</label><input class="form-input" type="number" id="settle-edit-event-price" min="0" value="0"></div>
+        <div><label class="form-label">도시락 단가</label><input class="form-input" type="number" id="settle-edit-lunch-price" min="0" value="0" oninput="updatePaymentSummary()"></div>
+        <div><label class="form-label">샐러드 단가</label><input class="form-input" type="number" id="settle-edit-salad-price" min="0" value="0" oninput="updatePaymentSummary()"></div>
+        <div><label class="form-label">행사도시락 단가</label><input class="form-input" type="number" id="settle-edit-event-price" min="0" value="0" oninput="updatePaymentSummary()"></div>
       </div>
     </div>
 
@@ -4043,13 +4080,62 @@ function toggleMemberSection() {
   switchAdminTab('members');
 }
 
+function memberSearchQuery() {
+  return (document.getElementById('member-search-input')?.value || '').trim();
+}
+
+function normalizeMemberSearchText(value) {
+  return String(value ?? '').toLowerCase().replace(/[\s\-().]/g, '');
+}
+
+function memberMatchesSearch(uid, user = {}, query = '') {
+  const needle = normalizeMemberSearchText(query);
+  if (!needle) return true;
+  const fields = [
+    uid,
+    user.businessName,
+    user.name,
+    user.phone,
+    user.email,
+    user.deliveryPlace,
+    user.deliveryAddress,
+    user.address,
+    user.addressDetail,
+    user.mealTime,
+    user.memo,
+    user.request,
+    user.defaultLunch,
+    user.defaultSalad
+  ];
+  return fields.map(normalizeMemberSearchText).join(' ').includes(needle);
+}
+
+function clearMemberSearch() {
+  const input = document.getElementById('member-search-input');
+  if (!input) return;
+  input.value = '';
+  renderMembers();
+  input.focus();
+}
+
 function renderMembers() {
   const grid = document.getElementById('member-grid');
-  const users = Object.entries(allUsers);
-  const deleted = Object.entries(deletedUsers);
+  const query = memberSearchQuery();
+  const allActiveUsers = Object.entries(allUsers);
+  const users = allActiveUsers.filter(([uid, u]) => memberMatchesSearch(uid, u, query));
+  const allDeletedUsers = Object.entries(deletedUsers);
+  const deleted = allDeletedUsers.filter(([uid, u]) => memberMatchesSearch(uid, u, query));
+  const countEl = document.getElementById('member-search-count');
+  if (countEl) {
+    countEl.textContent = query
+      ? `검색 ${users.length}곳 / 전체 ${allActiveUsers.length}곳`
+      : `전체 ${allActiveUsers.length}곳`;
+  }
   let html = '';
-  if (users.length === 0) {
+  if (allActiveUsers.length === 0) {
     html += '<div style="color:var(--sub);font-size:14px;grid-column:1/-1">등록된 회원이 없습니다.</div>';
+  } else if (users.length === 0) {
+    html += '<div style="color:var(--sub);font-size:14px;grid-column:1/-1">검색 결과가 없습니다. 업체명, 연락처, 주소를 다시 확인해주세요.</div>';
   } else {
     html += users
       .sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'))
@@ -4066,7 +4152,7 @@ function renderMembers() {
   }
   if (deleted.length > 0) {
     html += `<div style="grid-column:1/-1;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;font-weight:700;color:var(--sub);margin-bottom:10px">삭제/탈퇴 회원 (${deleted.length})</div>
+      <div style="font-size:12px;font-weight:700;color:var(--sub);margin-bottom:10px">삭제/탈퇴 회원 (${deleted.length}${query ? ` / 전체 ${allDeletedUsers.length}` : ''})</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
         ${deleted.map(([uid, u]) => `
           <div style="background:#fdecea;border:1px solid #f5c6cb;border-radius:10px;padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:10px">
@@ -5407,11 +5493,15 @@ function renderAdminEventMenuOptions() {
 function normalizeAdminEventItem(item = {}) {
   const name = item.name || item.menu || '';
   const catalog = EVENT_LUNCH_MENUS.find(menu => menu.name === name);
+  const qty = Math.max(0, Number(item.qty || item.count || 0) || 0);
+  const price = Math.max(0, Number(item.price || item.unitPrice || catalog?.price || 0) || 0);
+  const amount = item.amount != null ? Math.max(0, Number(item.amount || 0) || 0) : qty * price;
   return {
     category: item.category || catalog?.category || '행사도시락',
     name: name || '행사도시락',
-    qty: Math.max(0, Number(item.qty || item.count || 0) || 0),
-    price: Math.max(0, Number(item.price || item.unitPrice || catalog?.price || 0) || 0)
+    qty,
+    price,
+    amount
   };
 }
 
@@ -5436,7 +5526,7 @@ function renderAdminEventDraftItems() {
     <div class="event-menu-item">
       <div>
         <strong>${escapeHtml(item.name)}</strong>
-        <div class="event-menu-meta">${escapeHtml(item.category)} · ${item.qty}개 · ${formatMoney(item.price)} · ${formatMoney(item.qty * item.price)}</div>
+        <div class="event-menu-meta">${escapeHtml(item.category)} · ${item.qty}개 · ${formatMoney(item.price)} · ${formatMoney(item.amount ?? (item.qty * item.price))}</div>
       </div>
       <button class="event-menu-remove" type="button" onclick="removeAdminEventMenuItem(${idx})">삭제</button>
     </div>
@@ -5463,7 +5553,7 @@ function addAdminEventMenuItem() {
     showToast('메뉴와 수량을 확인해주세요.');
     return;
   }
-  adminEventDraftItems.push({ category, name, qty, price: menu.price });
+  adminEventDraftItems.push({ category, name, qty, price: menu.price, amount: qty * menu.price });
   document.getElementById('event-menu-qty').value = '';
   document.getElementById('event-error').classList.remove('show');
   renderAdminEventDraftItems();
@@ -5566,7 +5656,8 @@ function eventOrderTotalAmount(item) {
     return item.items.reduce((sum, row) => {
       const qty = Number(row.qty || row.count || 0) || 0;
       const price = Number(row.price || row.unitPrice || 0) || 0;
-      return sum + qty * price;
+      const amount = Number(row.amount);
+      return sum + (row.amount != null && Number.isFinite(amount) ? amount : qty * price);
     }, 0);
   }
   return Number(item.amount || 0) || ((Number(item.count || 0) || 0) * (Number(item.price || 0) || 0));
@@ -5997,11 +6088,12 @@ function eventSettlementRow(item) {
   const price = eventAveragePrice(item);
   const amount = eventOrderTotalAmount(item);
   const data = eventSettlementData(item);
+  const eventName = eventOrderItemsSummary(item) || item.name || '행사도시락';
   return {
     type: 'event',
     uid: `event:${item.id}`,
     eventId: item.id,
-    user: { businessName: `${eventCustomerName(item)} - ${item.name || '행사도시락'}`, phone: '', email: '' },
+    user: { businessName: `${eventCustomerName(item)} - ${eventName}`, phone: '', email: '' },
     lunch: count,
     salad: 0,
     lunchPrice: price,
@@ -6221,7 +6313,7 @@ function renderSettlements() {
         <td class="note-cell">${row.note ? escapeHtml(row.note) : '<span style="color:var(--sub)">-</span>'}</td>
         <td>
           <div class="inline-actions">
-            <button class="mini-btn" onclick="openSettlementEdit('event:${item.id}')">입금처리</button>
+            <button class="mini-btn" onclick="openSettlementEdit('event:${item.id}')">수정</button>
             <button class="mini-btn" onclick="openSheetModal('event:${item.id}')">정산표</button>
             <button class="kakao-mini-btn" onclick="copySettlementKakao('event:${item.id}')">💬</button>
             <button class="mini-btn" onclick="makeSettlementReceipt('event:${item.id}')">영수증</button>
@@ -6852,7 +6944,16 @@ function openSettlementEdit(uid) {
   document.getElementById('settle-edit-status').value = row.status;
   document.getElementById('settle-edit-note').value = row.note;
   const manualFields = document.getElementById('settle-manual-fields');
+  const eventFields = document.getElementById('settle-event-fields');
   manualFields.style.display = row.type === 'manualMonthly' ? '' : 'none';
+  eventFields.style.display = row.type === 'event' ? '' : 'none';
+  if (row.type === 'event') {
+    const eventName = eventOrderItemsSummary(row.event || {}) || row.event?.name || '행사도시락';
+    document.getElementById('settle-edit-event-name').value = eventName;
+    document.getElementById('settle-edit-event-count').value = row.lunch || 0;
+    document.getElementById('settle-edit-event-unit-price').value = row.lunchPrice || 0;
+    document.getElementById('settle-edit-event-amount').value = row.amount || 0;
+  }
   document.getElementById('settle-edit-lunch').value = row.lunch || 0;
   document.getElementById('settle-edit-salad').value = row.salad || 0;
   document.getElementById('settle-edit-event-lunch').value = row.eventLunch || 0;
@@ -6895,11 +6996,43 @@ async function saveSettlementEdit() {
   try {
     let data = { status, note, amount: row.amount, adjust, invoiceNo, dueDate, payments, paidDate, paidAmount: paidTotal, lunchTotal: row.lunch || 0, saladTotal: row.salad || 0, updatedAt: new Date().toISOString() };
     if (row.type === 'event') {
+      const eventName = document.getElementById('settle-edit-event-name').value.trim() || '행사도시락';
+      const eventCount = parseDeliveryCount(document.getElementById('settle-edit-event-count').value, 1);
+      const eventPrice = parsePrice(document.getElementById('settle-edit-event-unit-price').value, 0);
+      const eventAmount = parsePrice(document.getElementById('settle-edit-event-amount').value, eventCount * eventPrice);
+      if (eventCount <= 0) throw new Error('행사도시락 수량을 1개 이상 입력해주세요.');
+      const eventItems = [{
+        category: row.event?.items?.[0]?.category || '행사도시락',
+        name: eventName,
+        qty: eventCount,
+        price: eventPrice,
+        amount: eventAmount
+      }];
+      data = {
+        ...data,
+        amount: eventAmount,
+        lunchTotal: eventCount,
+        eventName,
+        eventCount,
+        eventPrice,
+        eventAmount,
+        eventItems
+      };
+      const eventUpdate = {
+        name: eventName,
+        count: eventCount,
+        price: eventPrice,
+        amount: eventAmount,
+        lunchCount: eventCount,
+        items: eventItems,
+        settlement: data,
+        updatedAt: new Date().toISOString()
+      };
       await db.collection('users').doc(adminUid).set({
-        adminEvents: { [row.eventId]: { settlement: data } }
+        adminEvents: { [row.eventId]: eventUpdate }
       }, { merge: true });
       const item = settlementEvents.find(e => e.id === row.eventId);
-      if (item) item.settlement = data;
+      if (item) Object.assign(item, eventUpdate);
     } else if (row.type === 'manualMonthly') {
       const lunch = parseInt(document.getElementById('settle-edit-lunch').value, 10) || 0;
       const salad = parseInt(document.getElementById('settle-edit-salad').value, 10) || 0;
@@ -6984,12 +7117,39 @@ function collectPaymentsFromModal() {
     recordedAt: new Date().toISOString()
   })).filter(p => p.amount > 0);
 }
+
+function settlementModalBaseAmount(row = {}) {
+  if (row.type === 'event') {
+    const count = parseDeliveryCount(document.getElementById('settle-edit-event-count')?.value, row.lunch || 0);
+    const price = parsePrice(document.getElementById('settle-edit-event-unit-price')?.value, row.lunchPrice || 0);
+    return parsePrice(document.getElementById('settle-edit-event-amount')?.value, count * price);
+  }
+  if (row.type === 'manualMonthly') {
+    const lunch = parseDeliveryCount(document.getElementById('settle-edit-lunch')?.value, row.lunch || 0);
+    const salad = parseDeliveryCount(document.getElementById('settle-edit-salad')?.value, row.salad || 0);
+    const eventLunch = parseDeliveryCount(document.getElementById('settle-edit-event-lunch')?.value, row.eventLunch || 0);
+    const lunchPrice = parsePrice(document.getElementById('settle-edit-lunch-price')?.value, row.lunchPrice || 0);
+    const saladPrice = parsePrice(document.getElementById('settle-edit-salad-price')?.value, row.saladPrice || 0);
+    const eventPrice = parsePrice(document.getElementById('settle-edit-event-price')?.value, row.eventPrice || row.lunchPrice || 0);
+    return lunch * lunchPrice + salad * saladPrice + eventLunch * eventPrice;
+  }
+  return Number(row.amount || 0) || 0;
+}
+
+function updateSettlementEventAmount() {
+  const count = parseDeliveryCount(document.getElementById('settle-edit-event-count')?.value, 0);
+  const price = parsePrice(document.getElementById('settle-edit-event-unit-price')?.value, 0);
+  const amountEl = document.getElementById('settle-edit-event-amount');
+  if (amountEl && document.activeElement !== amountEl) amountEl.value = count * price;
+  updatePaymentSummary();
+}
+
 function updatePaymentSummary() {
   const uid = document.getElementById('settle-edit-uid').value;
   const row = getSettlementRow(uid);
   if (!row) return;
   const adjust = parseInt(document.getElementById('settle-edit-adjust')?.value, 10) || 0;
-  const billed = row.amount + adjust;
+  const billed = settlementModalBaseAmount(row) + adjust;
   const paidTotal = Array.from(document.querySelectorAll('#payment-list .payment-row'))
     .reduce((s, r) => s + (parseInt(r.querySelector('[data-field="amount"]').value, 10) || 0), 0);
   const balance = billed - paidTotal;

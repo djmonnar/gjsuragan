@@ -129,6 +129,13 @@ function routeDurationLabel(ms) {
   return h ? `${h}시간 ${m}분` : `${m}분`;
 }
 
+function routeDistanceLabel(meters) {
+  const value = Number(meters || 0);
+  if (!value) return '';
+  if (value < 1000) return `${Math.round(value)}m`;
+  return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}km`;
+}
+
 function routeDistanceKm(a, b) {
   if (!a || !b) return Number.POSITIVE_INFINITY;
   const rad = Math.PI / 180;
@@ -138,6 +145,45 @@ function routeDistanceKm(a, b) {
   const dLng = (Number(b.lng) - Number(a.lng)) * rad;
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function routeRoundTripDistance(order, origin) {
+  let total = 0;
+  let current = origin;
+  for (const item of order) {
+    total += routeDistanceKm(current, item.coords);
+    current = item.coords;
+  }
+  if (order.length) total += routeDistanceKm(current, origin);
+  return total;
+}
+
+function routeImproveStraightRoundTripOrder(order, origin) {
+  if (order.length < 3) return order;
+  let best = [...order];
+  let bestDistance = routeRoundTripDistance(best, origin);
+  let improved = true;
+  let guard = 0;
+  while (improved && guard < 30) {
+    improved = false;
+    guard++;
+    for (let i = 0; i < best.length - 1; i++) {
+      for (let j = i + 1; j < best.length; j++) {
+        const candidate = [
+          ...best.slice(0, i),
+          ...best.slice(i, j + 1).reverse(),
+          ...best.slice(j + 1)
+        ];
+        const distance = routeRoundTripDistance(candidate, origin);
+        if (distance + 0.001 < bestDistance) {
+          best = candidate;
+          bestDistance = distance;
+          improved = true;
+        }
+      }
+    }
+  }
+  return best;
 }
 
 function routeApplyOptimizedOrder(list, ds) {
@@ -169,7 +215,7 @@ function routeNearestOrder(items, origin) {
     ordered.push(next);
     current = next.coords;
   }
-  return ordered;
+  return routeImproveStraightRoundTripOrder(ordered, origin);
 }
 
 function setRouteMapTouchEnabled(enabled) {
@@ -327,7 +373,7 @@ async function optimizeRouteOrder(forceRefresh = false) {
     return;
   }
   try {
-    if (status) status.textContent = '돌담 출발 기준 추천 순서를 계산하는 중...';
+    if (status) status.textContent = '돌담 출발·복귀 기준 추천 순서를 계산하는 중...';
     const origin = await routeCoordsForAddress('__route_origin_doldam', ROUTE_ORIGIN_ADDRESS, forceRefresh, 'auto');
     if (!origin) throw new Error('출발지 좌표를 찾지 못했습니다.');
 
@@ -345,6 +391,7 @@ async function optimizeRouteOrder(forceRefresh = false) {
     try {
       const road = await postRouteApi('/api/route/optimize', {
         origin: { id: 'origin', name: '돌담', lat: origin.lat, lng: origin.lng },
+        returnToOrigin: true,
         stops: items.map(item => ({
           id: item.customer.id,
           name: item.customer.name || '',
@@ -370,10 +417,11 @@ async function optimizeRouteOrder(forceRefresh = false) {
     ];
     renderRouteMap(false, false);
     const preview = ordered.slice(0, 4).map(item => item.customer.name || '-').join(' → ');
-    const routeLabel = routeMeta ? '도로시간 기준' : '직선거리 기준';
-    const duration = routeMeta?.totalDuration ? ` · 예상 ${routeDurationLabel(routeMeta.totalDuration)}` : '';
-    toast(`${routeLabel} 추천 순서 적용: 돌담 → ${preview}${ordered.length > 4 ? ' ...' : ''}`, 'ok');
-    if (status) status.textContent = `${routeLabel} 추천 순서 적용됨 · 돌담 출발 · 좌표 ${items.length}곳${duration}${failed.length ? ` · 주소 실패 ${failed.length}곳` : ''}`;
+    const routeLabel = routeMeta ? '도로시간 왕복 기준' : '직선거리 왕복 기준';
+    const duration = routeMeta?.totalDuration ? ` · 왕복 예상 ${routeDurationLabel(routeMeta.totalDuration)}` : '';
+    const distance = routeMeta?.totalDistance ? ` · ${routeDistanceLabel(routeMeta.totalDistance)}` : '';
+    toast(`${routeLabel} 추천 순서 적용: 돌담 → ${preview}${ordered.length > 4 ? ' ...' : ''} → 돌담`, 'ok');
+    if (status) status.textContent = `${routeLabel} 추천 순서 적용됨 · 돌담 출발·복귀 · 좌표 ${items.length}곳${duration}${distance}${failed.length ? ` · 주소 실패 ${failed.length}곳` : ''}`;
   } catch(e) {
     toast('추천 순서 계산 실패: ' + (e.message || e), 'er');
     if (status) status.textContent = '추천 순서 계산 실패: ' + (e.message || e);
