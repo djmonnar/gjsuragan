@@ -1612,20 +1612,21 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">매일 도시락 수</label>
+        <label class="form-label">같은 수량 도시락 수</label>
         <input class="form-input" type="number" id="reg-lunch" value="2" min="0" max="50">
-        <div class="default-hint">매일 같으면 아래 체크를 켜두세요</div>
+        <div class="default-hint">매일 같은 수량 사용을 켜면 이 수량이 월~금에 적용됩니다.</div>
       </div>
       <div class="form-group">
-        <label class="form-label">매일 샐러드 수</label>
+        <label class="form-label">같은 수량 샐러드 수</label>
         <input class="form-input" type="number" id="reg-salad" value="0" min="0" max="50">
       </div>
     </div>
     <label class="same-daily-toggle">
-      <input type="checkbox" id="reg-same-daily" checked onchange="toggleWeekdayFields('reg')">
+      <input type="checkbox" id="reg-same-daily" onchange="toggleWeekdayFields('reg')">
       매일 같은 수량 사용
     </label>
-    <div class="weekday-meals" id="reg-weekday-fields" style="display:none">
+    <div class="default-hint" style="margin:-6px 0 10px">기본은 월~금 수량을 각각 정하는 방식입니다. 모두 같을 때만 체크해주세요.</div>
+    <div class="weekday-meals" id="reg-weekday-fields">
       <div class="weekday-meal-row">
         <div class="weekday-label">월</div>
         <input class="form-input" type="number" id="reg-mon-lunch" min="0" max="50" placeholder="도시락">
@@ -1869,19 +1870,21 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">매일 도시락 수</label>
+          <label class="form-label">같은 수량 도시락 수</label>
           <input class="form-input" type="number" id="prof-lunch" min="0" max="50">
+          <div class="default-hint">매일 같은 수량 사용을 켜면 이 수량이 월~금에 적용됩니다.</div>
         </div>
         <div class="form-group">
-          <label class="form-label">매일 샐러드 수</label>
+          <label class="form-label">같은 수량 샐러드 수</label>
           <input class="form-input" type="number" id="prof-salad" min="0" max="50">
         </div>
       </div>
       <label class="same-daily-toggle">
-        <input type="checkbox" id="prof-same-daily" checked onchange="toggleWeekdayFields('prof')">
+        <input type="checkbox" id="prof-same-daily" onchange="toggleWeekdayFields('prof')">
         매일 같은 수량 사용
       </label>
-      <div class="weekday-meals" id="prof-weekday-fields" style="display:none">
+      <div class="default-hint" style="margin:-6px 0 10px">기본은 월~금 수량을 각각 정하는 방식입니다. 모두 같을 때만 체크해주세요.</div>
+      <div class="weekday-meals" id="prof-weekday-fields">
         <div class="weekday-meal-row">
           <div class="weekday-label">월</div>
           <input class="form-input" type="number" id="prof-mon-lunch" min="0" max="50" placeholder="도시락">
@@ -2030,8 +2033,9 @@
       <div class="help-section-title">6. 내 정보와 기본 수량</div>
       <ol>
         <li><b>내 정보</b> 탭에서 업체명, 휴대폰 번호, 배송지 주소, 식사 받는 시간을 확인합니다.</li>
-        <li>도시락과 샐러드 기본 수량을 입력하면 주문을 따로 보내지 않은 날에도 그 수량으로 준비됩니다.</li>
-        <li>매일 같은 수량이면 <b>매일 같은 수량 사용</b>을 체크합니다.</li>
+        <li>기본은 월~금 요일별 수량을 각각 정하는 방식입니다.</li>
+        <li>주문을 따로 보내지 않은 날에는 해당 요일의 기본 수량으로 준비됩니다.</li>
+        <li>월~금 수량이 모두 같으면 <b>매일 같은 수량 사용</b>을 체크합니다.</li>
         <li>요일마다 수량이 다르면 체크를 풀고 월~금 수량을 각각 입력합니다.</li>
         <li>주소나 연락처를 바꾸면 저장 후 정상 반영됐는지 한 번 더 확인해주세요.</li>
       </ol>
@@ -2187,6 +2191,7 @@ window.addEventListener('appinstalled', () => {
 window.addEventListener('DOMContentLoaded', () => {
   setMealTimeControls('reg', '');
   setMealTimeControls('prof', '');
+  initializeRegistrationMealDefaults();
   const autoLoginEl = document.getElementById('login-auto');
   if (autoLoginEl) {
     autoLoginEl.checked = getAutoLoginEnabled();
@@ -2639,17 +2644,40 @@ function fillWeekdayInputs(scope, meals) {
     if (saladEl) saladEl.value = item.salad;
   });
 }
+
+function hasWeekdayInputValues(scope) {
+  return WEEKDAY_KEYS.some(key => {
+    const lunch = document.getElementById(`${scope}-${key}-lunch`)?.value;
+    const salad = document.getElementById(`${scope}-${key}-salad`)?.value;
+    return String(lunch ?? '').trim() !== '' || String(salad ?? '').trim() !== '';
+  });
+}
+
+function fillWeekdayInputsFromDaily(scope, force = false) {
+  if (!force && hasWeekdayInputValues(scope)) return;
+  const lunch = parseCount(document.getElementById(`${scope}-lunch`)?.value, 0);
+  const salad = parseCount(document.getElementById(`${scope}-salad`)?.value, 0);
+  fillWeekdayInputs(scope, normalizeWeekdayMeals({}, lunch, salad));
+}
+
 function toggleWeekdayFields(scope) {
   const same = document.getElementById(`${scope}-same-daily`)?.checked;
   const wrap = document.getElementById(`${scope}-weekday-fields`);
   if (!wrap) return;
   if (!same) {
-    const lunch = parseCount(document.getElementById(`${scope}-lunch`)?.value, 0);
-    const salad = parseCount(document.getElementById(`${scope}-salad`)?.value, 0);
-    fillWeekdayInputs(scope, normalizeWeekdayMeals({}, lunch, salad));
+    fillWeekdayInputsFromDaily(scope);
   }
   wrap.style.display = same ? 'none' : 'grid';
 }
+
+function initializeRegistrationMealDefaults() {
+  const same = document.getElementById('reg-same-daily');
+  const wrap = document.getElementById('reg-weekday-fields');
+  if (same) same.checked = false;
+  fillWeekdayInputsFromDaily('reg', true);
+  if (wrap) wrap.style.display = 'grid';
+}
+
 function readWeekdayMeals(scope, fallbackLunch, fallbackSalad) {
   const same = document.getElementById(`${scope}-same-daily`)?.checked;
   if (same) return normalizeWeekdayMeals({}, fallbackLunch, fallbackSalad);
@@ -2887,8 +2915,8 @@ async function doRegister() {
   const mealTimeInfo = getTenMinuteTimeValue('reg-mealtime');
   const mealTime = mealTimeInfo.value;
   const pw = document.getElementById('reg-pw').value;
-  const lunch = parseInt(document.getElementById('reg-lunch').value) || 2;
-  const salad = parseInt(document.getElementById('reg-salad').value) || 0;
+  const lunch = parseCount(document.getElementById('reg-lunch').value, 2);
+  const salad = parseCount(document.getElementById('reg-salad').value, 0);
   const sameDailyMeal = document.getElementById('reg-same-daily').checked;
   const privacyConsent = document.getElementById('reg-privacy-consent')?.checked;
   const weekdayMeals = readWeekdayMeals('reg', lunch, salad);
@@ -3854,7 +3882,7 @@ function renderProfile() {
   document.getElementById('prof-lunch').value = userProfile.defaultLunch ?? 2;
   document.getElementById('prof-salad').value = userProfile.defaultSalad ?? 0;
   const meals = normalizeWeekdayMeals(userProfile, userProfile.defaultLunch ?? 2, userProfile.defaultSalad ?? 0);
-  const sameDailyMeal = userProfile.sameDailyMeal ?? !hasDifferentWeekdayMeals(meals, userProfile.defaultLunch ?? 2, userProfile.defaultSalad ?? 0);
+  const sameDailyMeal = userProfile.sameDailyMeal === true;
   document.getElementById('prof-same-daily').checked = sameDailyMeal;
   fillWeekdayInputs('prof', meals);
   document.getElementById('prof-weekday-fields').style.display = sameDailyMeal ? 'none' : 'grid';
@@ -3887,8 +3915,8 @@ async function saveProfile() {
   const deliveryPlaceDetail = document.getElementById('prof-place-detail').value.trim();
   const mealTimeInfo = getTenMinuteTimeValue('prof-mealtime');
   const mealTime = mealTimeInfo.value;
-  const lunch = parseInt(document.getElementById('prof-lunch').value) || 0;
-  const salad = parseInt(document.getElementById('prof-salad').value) || 0;
+  const lunch = parseCount(document.getElementById('prof-lunch').value, 0);
+  const salad = parseCount(document.getElementById('prof-salad').value, 0);
   const sameDailyMeal = document.getElementById('prof-same-daily').checked;
   const weekdayMeals = readWeekdayMeals('prof', lunch, salad);
   if (!bizname) { showToast('업체명을 입력해주세요.', 'error'); return; }
