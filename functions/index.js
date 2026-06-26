@@ -266,6 +266,10 @@ async function handleKakaoWebhookRequest(req, res) {
     const utterance = kakaoUtterance(payload);
 
     const cmd = kakaoResolveCommand(payload, utterance);
+    if (cmd.type === 'event_lunch') {
+      sendKakaoResponse(res, await kakaoBuildEventLunchText(cmd.date, cmd.label));
+      return;
+    }
     const customers = await kakaoFetchCustomers();
     if (cmd.type === 'complete_delivery') {
       sendKakaoResponse(res, await kakaoCompleteDeliveryText(customers, cmd.date));
@@ -300,18 +304,18 @@ function sendKakaoResponse(res, text) {
 }
 
 function kakaoTextResponse(text) {
+  const outputs = kakaoTextChunks(text).map(chunk => ({
+    simpleText: {
+      text: chunk
+    }
+  }));
   return {
     version: '2.0',
     template: {
-      outputs: [
-        {
-          simpleText: {
-            text: kakaoTrimText(text)
-          }
-        }
-      ],
+      outputs,
       quickReplies: [
         { label: '오늘일정', action: 'message', messageText: '오늘일정' },
+        { label: '오늘행사', action: 'message', messageText: '오늘 행사도시락' },
         { label: '내일일정', action: 'message', messageText: '내일 일정' },
         { label: '오늘배송', action: 'message', messageText: '오늘배송' },
         { label: '내일배송', action: 'message', messageText: '내일배송' },
@@ -321,6 +325,23 @@ function kakaoTextResponse(text) {
       ]
     }
   };
+}
+
+function kakaoTextChunks(text) {
+  const maxOutputs = 3;
+  let rest = String(text || '');
+  const chunks = [];
+  while (rest.length > KAKAO_MAX_TEXT && chunks.length < maxOutputs - 1) {
+    let cut = rest.lastIndexOf('\n', KAKAO_MAX_TEXT);
+    if (cut < Math.floor(KAKAO_MAX_TEXT * 0.65)) cut = KAKAO_MAX_TEXT;
+    chunks.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trim();
+  }
+  if (rest.length > KAKAO_MAX_TEXT) {
+    rest = rest.slice(0, KAKAO_MAX_TEXT - 24) + '\n...\n일부만 표시했습니다.';
+  }
+  chunks.push(rest);
+  return chunks.filter(Boolean);
 }
 
 function kakaoTrimText(text) {
@@ -414,6 +435,8 @@ function kakaoResolveCommand(payload, utterance) {
   if (kakaoIsTodayDeliveryCompleteCommand(commandText)) {
     return { type: 'complete_delivery', date: today, label: '오늘 배송 완료' };
   }
+  const eventCommand = kakaoResolveEventLunchCommand(commandText, dateParam, today);
+  if (eventCommand) return eventCommand;
 
   if (/(내일|tomorrow).*?(일정|할\s*일|할일|업무|체크|todo|tasks?)|(일정|할\s*일|할일|업무|체크|todo|tasks?).*?(내일|tomorrow)/i.test(commandText)) {
     return { type: 'tasks', date: kakaoAddDays(today, 1), label: '내일 일정', dateWord: '내일', nextDateWord: '모레' };
@@ -440,6 +463,23 @@ function kakaoResolveCommand(payload, utterance) {
     return { type: 'delivery', date, label: '내일 배송' };
   }
   return { type: 'delivery', date: today, label: '오늘 배송' };
+}
+
+function kakaoResolveEventLunchCommand(commandText, dateParam, today) {
+  const text = String(commandText || '');
+  if (!/(행사|행사도시락|이벤트)/.test(text)) return null;
+  let date = kakaoParseDateText(dateParam || text, today);
+  let label = date ? kakaoDateLabel(date).replace(' 배송', ' 행사도시락') : '오늘 행사도시락';
+  if (!date && /모레/.test(text)) {
+    date = kakaoAddDays(today, 2);
+    label = '모레 행사도시락';
+  } else if (!date && /내일|tomorrow/i.test(text)) {
+    date = kakaoAddDays(today, 1);
+    label = '내일 행사도시락';
+  } else if (!date) {
+    date = today;
+  }
+  return { type: 'event_lunch', date, label };
 }
 
 function kakaoIsTodayDeliveryCompleteCommand(commandText) {
@@ -1044,6 +1084,184 @@ function kakaoTaskEventsForDate(openEvents, targetDate, today) {
     if (targetDate <= today) return !date || date <= targetDate;
     return date === targetDate;
   });
+}
+
+function kakaoAdminEventsFromData(data = {}) {
+  const events = {};
+  Object.entries(data.adminEvents || {}).forEach(([id, value]) => {
+    if (value && typeof value === 'object') events[id] = value;
+  });
+  Object.entries(data).forEach(([key, value]) => {
+    if (key.startsWith('adminEvents.') && value && typeof value === 'object') {
+      events[key.slice('adminEvents.'.length)] = value;
+    }
+  });
+  return events;
+}
+
+async function kakaoFetchAdminEventItemsSafe() {
+  try {
+    const snap = await db.collection('users').limit(1000).get();
+    const adminEmails = kakaoAdminEmails();
+    const items = [];
+    snap.forEach(doc => {
+      const data = doc.data() || {};
+      const email = String(data.email || '').toLowerCase();
+      if (!adminEmails.includes(email) && !(data.adminEvents && !data.businessName)) return;
+      Object.entries(kakaoAdminEventsFromData(data)).forEach(([id, item]) => {
+        items.push({ id, ...item, source: item.source || 'adminEvent' });
+      });
+    });
+    return { ok: true, items };
+  } catch (error) {
+    return { ok: false, items: [], error: error.message };
+  }
+}
+
+function kakaoIsEventLunchSendTarget(item = {}) {
+  const status = String(item.status || '').toLowerCase();
+  if (item.deleted || item.delivered) return false;
+  return !['registered', 'deleted', 'done', 'completed', 'complete', 'cancelled', 'canceled'].includes(status);
+}
+
+function kakaoEventCustomerName(item = {}) {
+  return item.businessName && item.businessName !== '행사도시락'
+    ? item.businessName
+    : (item.customerName || item.companyName || '행사도시락');
+}
+
+function kakaoEventRequestNote(item = {}) {
+  return item.requestNote || item.note || '';
+}
+
+function kakaoEventNoteField(item = {}, label) {
+  const note = String(kakaoEventRequestNote(item) || item.note || '');
+  const re = new RegExp(`${label}\\s*[:：]\\s*([^\\n]+)`, 'i');
+  const match = note.match(re);
+  return match ? match[1].trim() : '';
+}
+
+function kakaoEventBusinessName(item = {}) {
+  const name = kakaoEventCustomerName(item);
+  if (name && name !== '행사도시락') return name;
+  return kakaoEventNoteField(item, '상호명') || '-';
+}
+
+function kakaoEventPhone(item = {}) {
+  return item.contactPhone || kakaoEventNoteField(item, '연락처') || '-';
+}
+
+function kakaoEventPaymentLabel(item = {}) {
+  return item.paymentLabel || [
+    item.paymentCash ? '현금' : '',
+    item.paymentTransfer ? '이체' : '',
+    item.paymentCard ? '카드계산' : ''
+  ].filter(Boolean).join(', ') || '-';
+}
+
+function kakaoEventItemsSummary(item = {}) {
+  if (Array.isArray(item.items) && item.items.length) {
+    return item.items
+      .map(row => `${row.name || row.menu || '도시락'} ${Number(row.qty || row.count || 0) || 0}개`)
+      .join(', ');
+  }
+  const count = Number(item.count || 0) || 0;
+  return item.menuText || item.name || (count ? `행사도시락 ${count}개` : '행사도시락');
+}
+
+function kakaoEventTotalQty(item = {}) {
+  if (Array.isArray(item.items) && item.items.length) {
+    return item.items.reduce((sum, row) => sum + (Number(row.qty || row.count || 0) || 0), 0);
+  }
+  return Number(item.count || item.lunchCount || 0) || 0;
+}
+
+function kakaoEventTotalAmount(item = {}) {
+  if (Array.isArray(item.items) && item.items.length) {
+    return item.items.reduce((sum, row) => {
+      const qty = Number(row.qty || row.count || 0) || 0;
+      const price = Number(row.price || row.unitPrice || 0) || 0;
+      const amount = Number(row.amount);
+      return sum + (row.amount != null && Number.isFinite(amount) ? amount : qty * price);
+    }, 0);
+  }
+  return Number(item.amount || 0) || ((Number(item.count || 0) || 0) * (Number(item.price || 0) || 0));
+}
+
+function kakaoMoney(value) {
+  const amount = Number(value || 0);
+  return amount ? `${amount.toLocaleString('ko-KR')}원` : '-';
+}
+
+function kakaoEventDateHuman(dateStr) {
+  if (!dateStr) return '-';
+  const days = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+  const [, month, day] = String(dateStr).split('-').map(Number);
+  return `${month}월 ${day}일 ${days[kakaoDow(dateStr)]}`;
+}
+
+async function kakaoFetchEventLunchItemsForDate(dateStr) {
+  const [adminEvents, publicEvents] = await Promise.all([
+    kakaoFetchAdminEventItemsSafe(),
+    kakaoFetchCollectionSafe('eventOrders', 200)
+  ]);
+  const adminItems = adminEvents.items
+    .filter(item => kakaoEventDate(item) === dateStr)
+    .filter(kakaoIsEventLunchSendTarget);
+  const registeredPublicIds = new Set(adminItems.map(item => item.publicEventOrderId).filter(Boolean));
+  const publicItems = publicEvents.items
+    .filter(item => kakaoEventDate(item) === dateStr)
+    .filter(kakaoIsEventLunchSendTarget)
+    .filter(item => !registeredPublicIds.has(item.id))
+    .map(item => ({ ...item, source: 'publicEventOrder' }));
+  const items = [...adminItems, ...publicItems]
+    .sort((a, b) => `${a.eventTime || ''} ${kakaoEventBusinessName(a)}`.localeCompare(`${b.eventTime || ''} ${kakaoEventBusinessName(b)}`, 'ko'));
+  return {
+    ok: adminEvents.ok && publicEvents.ok,
+    items,
+    warnings: [
+      adminEvents.ok ? '' : '관리자 행사 조회 실패',
+      publicEvents.ok ? '' : '고객 행사 접수 조회 실패'
+    ].filter(Boolean)
+  };
+}
+
+async function kakaoBuildEventLunchText(dateStr, label) {
+  const result = await kakaoFetchEventLunchItemsForDate(dateStr);
+  const items = result.items;
+  const totalQty = items.reduce((sum, item) => sum + kakaoEventTotalQty(item), 0);
+  const totalAmount = items.reduce((sum, item) => sum + kakaoEventTotalAmount(item), 0);
+  const lines = [
+    `[궁중수라간 ${label || '행사도시락'}]`,
+    `조회 날짜: ${dateStr} (${kakaoEventDateHuman(dateStr)})`,
+    `총 ${items.length}건 / ${totalQty}개 / ${kakaoMoney(totalAmount)}`,
+    ''
+  ];
+
+  if (!items.length) {
+    lines.push('해당 날짜에 보낼 행사도시락이 없습니다.');
+    if (result.warnings.length) lines.push('', '주의: ' + result.warnings.join(', '));
+    return lines.join('\n');
+  }
+
+  items.forEach((item, idx) => {
+    const source = item.source === 'publicEventOrder' ? '접수' : '관리자';
+    const request = kakaoEventRequestNote(item) || kakaoEventNoteField(item, '요청사항') || '-';
+    lines.push(
+      `${idx + 1}. ${kakaoEventBusinessName(item)} (${source})`,
+      `- 시간: ${item.eventTime || '-'}`,
+      `- 장소: ${item.place || '-'}`,
+      `- 메뉴/수량: ${kakaoEventItemsSummary(item)}`,
+      `- 총수량/금액: ${kakaoEventTotalQty(item)}개 / ${kakaoMoney(kakaoEventTotalAmount(item))}`,
+      `- 결제: ${kakaoEventPaymentLabel(item)}`,
+      `- 연락처: ${kakaoEventPhone(item)}`,
+      `- 요청: ${request}`,
+      ''
+    );
+  });
+  if (result.warnings.length) lines.push('주의: ' + result.warnings.join(', '), '');
+  lines.push(EVENT_ORDER_ADMIN_URL);
+  return lines.join('\n').trim();
 }
 
 async function kakaoBuildTasksText(customers, targetDate, label, dateWord, nextDateWord) {
