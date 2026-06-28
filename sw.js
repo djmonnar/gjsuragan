@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v46-customer-weekday-meals';
+const CACHE = 'gjsuragan-v47-customer-weekday-meals-refresh';
 const PRECACHE = [
   './customer.html',
   './admin.html',
@@ -63,6 +63,12 @@ self.addEventListener('activate', e => {
       Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', e => {

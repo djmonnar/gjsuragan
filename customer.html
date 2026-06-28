@@ -2292,11 +2292,28 @@
 <div class="toast" id="toast"></div>
 
 <script>
+const CUSTOMER_APP_VERSION = '20260628-weekday-meals-refresh';
+
 // ───────── PWA Service Worker 등록 ─────────
 if ('serviceWorker' in navigator) {
+  let refreshingForNewServiceWorker = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshingForNewServiceWorker) return;
+    refreshingForNewServiceWorker = true;
+    window.location.reload();
+  });
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(() => console.log('SW 등록 완료'))
+    navigator.serviceWorker.register(`./sw.js?v=${CUSTOMER_APP_VERSION}`)
+      .then((registration) => {
+        console.log('SW 등록 완료');
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+        if (typeof registration.update === 'function') {
+          registration.update();
+        }
+      })
       .catch(e => console.log('SW 오류:', e));
   });
 }
