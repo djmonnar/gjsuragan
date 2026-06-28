@@ -555,6 +555,20 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .member-search-clear{border:1px solid var(--border);background:#fff;color:var(--sub);border-radius:9px;padding:9px 12px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap}
 .member-search-clear:hover{background:#f8fafc;color:var(--text)}
 .member-grid{align-items:stretch}
+.order-log-panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:14px}
+.order-log-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.order-log-head .section-title{margin:0;padding:0}
+.order-log-list{display:flex;flex-direction:column;gap:8px}
+.order-log-item{border:1px solid #eef2f6;border-radius:10px;background:#f8fafc;padding:10px 12px}
+.order-log-main{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.order-log-name{font-size:14px;font-weight:900;color:var(--text)}
+.order-log-meta{font-size:12px;color:var(--sub);font-weight:700;margin-top:3px;line-height:1.45}
+.order-log-change{font-size:13px;color:#344054;margin-top:7px;line-height:1.55}
+.order-log-badge{display:inline-flex;align-items:center;white-space:nowrap;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:900}
+.order-log-badge.created{background:#ecfdf3;color:#166534;border:1px solid #bbf7d0}
+.order-log-badge.updated{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.order-log-badge.deleted{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+.order-log-empty{color:var(--sub);font-size:13px;padding:8px 2px}
 @media(max-width:900px){
   .summary-row{grid-template-columns:repeat(2,1fr)}
   .settle-dashboard{grid-template-columns:1fr}
@@ -579,6 +593,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   .member-search-bar{align-items:stretch;flex-direction:column}
   .member-search-input{min-width:0;width:100%}
   .member-search-count{white-space:normal}
+  .order-log-head,.order-log-main{align-items:stretch;flex-direction:column}
   .manual-grid,.manual-checklist{grid-template-columns:1fr}
   .manual-hero h2{font-size:21px}
 }
@@ -786,12 +801,24 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="section-title"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>회원관리</span></div>
         <div class="member-hint">업체 카드를 누르면 배송지, 식사 받는 시간, 요일별 기본 수량을 수정할 수 있습니다.</div>
       </div>
-      <button class="refresh-btn" onclick="loadAllUsers().then(renderMembers)"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>회원 새로고침</span></button>
+      <button class="refresh-btn" onclick="loadAllUsers().then(() => { renderMembers(); loadRecentOrderLogs(); })"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>회원 새로고침</span></button>
     </div>
     <div class="member-search-bar">
       <input class="form-input member-search-input" type="search" id="member-search-input" placeholder="업체명, 연락처, 주소, 이메일 검색" oninput="renderMembers()" onkeydown="if(event.key==='Escape') clearMemberSearch()">
       <div class="member-search-count" id="member-search-count">전체 0곳</div>
       <button class="member-search-clear" type="button" onclick="clearMemberSearch()">초기화</button>
+    </div>
+    <div class="order-log-panel">
+      <div class="order-log-head">
+        <div>
+          <div class="section-title">최근 24시간 주문 로그</div>
+          <div class="member-hint">고객 또는 관리자가 주문 수량, 자체휴무, 메모를 바꾸면 여기에 남습니다.</div>
+        </div>
+        <button class="refresh-btn" onclick="loadRecentOrderLogs()"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>로그 새로고침</span></button>
+      </div>
+      <div class="order-log-list" id="order-log-list">
+        <div class="order-log-empty">아직 불러오지 않았습니다.</div>
+      </div>
     </div>
     <div class="member-grid" id="member-grid">불러오는 중...</div>
   </div>
@@ -1733,6 +1760,7 @@ let settlementChartBar = null;
 let settlementChartDonut = null;
 let currentSettleFilter = 'all';
 let changeRequests = [];
+let recentOrderLogs = [];
 let changeRequestFilter = 'all';
 let changeRequestsUnsub = null;
 let changeRequestsInitialized = false;
@@ -4162,6 +4190,107 @@ function clearMemberSearch() {
   input.focus();
 }
 
+function orderLogActionLabel(action) {
+  return { created: '생성', updated: '수정', deleted: '삭제' }[action] || '변경';
+}
+
+function orderLogActorLabel(log = {}) {
+  if (log.actorType === 'admin') return `관리자${log.actorEmail ? ` (${log.actorEmail})` : ''}`;
+  if (log.actorType === 'customer') return `고객${log.customerEmail ? ` (${log.customerEmail})` : ''}`;
+  if (log.actorName) return log.actorName;
+  if (log.actorEmail) return log.actorEmail;
+  if (log.authType) return `확인필요 (${log.authType})`;
+  return '확인필요';
+}
+
+function orderLogValue(snapshot = null) {
+  if (!snapshot) return '-';
+  if (snapshot.selfHoliday) return '자체휴무';
+  const eventText = Number(snapshot.eventLunchCount || 0) > 0 ? ` / 행사 ${snapshot.eventLunchCount}` : '';
+  const noteText = snapshot.note ? ` / 메모: ${snapshot.note}` : '';
+  return `도시락 ${snapshot.lunchCount || 0} / 샐러드 ${snapshot.saladCount || 0}${eventText}${noteText}`;
+}
+
+function orderLogFieldLabel(field) {
+  return {
+    lunchCount: '도시락',
+    saladCount: '샐러드',
+    eventLunchCount: '행사',
+    selfHoliday: '자체휴무',
+    note: '메모'
+  }[field] || field;
+}
+
+function orderLogFieldValue(snapshot = null, field = '') {
+  if (!snapshot) return '-';
+  if (field === 'selfHoliday') return snapshot.selfHoliday ? '예' : '아니오';
+  if (field === 'note') return snapshot.note || '-';
+  return String(snapshot[field] ?? 0);
+}
+
+function orderLogChangeText(log = {}) {
+  const before = log.before || null;
+  const after = log.after || null;
+  if (log.action === 'created') return `신규: ${orderLogValue(after)}`;
+  if (log.action === 'deleted') return `삭제 전: ${orderLogValue(before)}`;
+  const changes = Array.isArray(log.changes) ? log.changes : [];
+  if (!changes.length) return `${orderLogValue(before)} → ${orderLogValue(after)}`;
+  return changes.map(field => (
+    `${orderLogFieldLabel(field)} ${orderLogFieldValue(before, field)} → ${orderLogFieldValue(after, field)}`
+  )).join(' · ');
+}
+
+function renderRecentOrderLogs() {
+  const list = document.getElementById('order-log-list');
+  if (!list) return;
+  if (!recentOrderLogs.length) {
+    list.innerHTML = '<div class="order-log-empty">최근 24시간 주문 수정 로그가 없습니다.</div>';
+    return;
+  }
+  list.innerHTML = recentOrderLogs.map(log => {
+    const action = log.action || 'updated';
+    const name = log.customerName || allUsers[log.userId]?.businessName || deletedUsers[log.userId]?.businessName || '고객';
+    const contact = [log.customerPhone || allUsers[log.userId]?.phone || '', log.customerEmail || allUsers[log.userId]?.email || ''].filter(Boolean).join(' · ');
+    const actor = orderLogActorLabel(log);
+    const time = log.createdAt ? formatDateTimeKR(log.createdAt) : '-';
+    const memberButton = allUsers[log.userId]
+      ? `<button class="mini-btn" onclick="openMemberEdit('${escapeHtml(log.userId)}')">회원 보기</button>`
+      : '';
+    return `
+      <div class="order-log-item">
+        <div class="order-log-main">
+          <div>
+            <div class="order-log-name">${escapeHtml(name)} · ${escapeHtml(log.date || '-')}</div>
+            <div class="order-log-meta">${escapeHtml(time)} · 처리자: ${escapeHtml(actor)}${contact ? ` · ${escapeHtml(contact)}` : ''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="order-log-badge ${escapeHtml(action)}">${escapeHtml(orderLogActionLabel(action))}</span>
+            ${memberButton}
+          </div>
+        </div>
+        <div class="order-log-change">${escapeHtml(orderLogChangeText(log))}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadRecentOrderLogs() {
+  const list = document.getElementById('order-log-list');
+  if (list) list.innerHTML = '<div class="order-log-empty">최근 24시간 주문 로그를 불러오는 중...</div>';
+  try {
+    const since = firebase.firestore.Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const snap = await db.collection('orderLogs')
+      .where('createdAt', '>=', since)
+      .orderBy('createdAt', 'desc')
+      .limit(80)
+      .get();
+    recentOrderLogs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    renderRecentOrderLogs();
+  } catch(e) {
+    if (list) list.innerHTML = `<div class="order-log-empty">주문 로그를 불러오지 못했습니다: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
 function renderMembers() {
   const grid = document.getElementById('member-grid');
   const query = memberSearchQuery();
@@ -5486,7 +5615,10 @@ function switchAdminTab(tab) {
   document.querySelectorAll('.admin-tab-panel').forEach(el => {
     el.style.display = el.dataset.tab === tab ? '' : 'none';
   });
-  if (tab === 'members') renderMembers();
+  if (tab === 'members') {
+    renderMembers();
+    loadRecentOrderLogs();
+  }
   if (tab === 'events') {
     initAdminEventMenuPicker();
     loadEventLunches();

@@ -425,6 +425,11 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    match /orderLogs/{logId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
     match /mealMenus/{date} {
       allow read: if signedIn();
       allow write: if isAdmin();

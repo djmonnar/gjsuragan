@@ -1,5 +1,5 @@
 const admin = require('firebase-admin');
-const { onDocumentCreated, onDocumentWritten } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentWritten, onDocumentWrittenWithAuthContext } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onRequest } = require('firebase-functions/v2/https');
 const { logger } = require('firebase-functions');
@@ -76,6 +76,12 @@ exports.onCustomerOrderWritten = onDocumentWritten('orders/{date}/items/{userId}
   if (before && sameOrderForNotification(before, order)) return;
 
   await sendOrderNotification(event.params.date, event.params.userId, order, Boolean(before));
+});
+
+exports.onOrderChangeLogged = onDocumentWrittenWithAuthContext('orders/{date}/items/{userId}', async (event) => {
+  const before = event.data?.before?.exists ? (event.data.before.data() || {}) : null;
+  const after = event.data?.after?.exists ? (event.data.after.data() || {}) : null;
+  await writeOrderLog(event.params.date, event.params.userId, before, after, event);
 });
 
 exports.onEventOrderCreated = onDocumentCreated('eventOrders/{orderId}', async (event) => {
@@ -1873,6 +1879,117 @@ function sameOrderForNotification(before, after) {
     && Number(before.saladCount || 0) === Number(after.saladCount || 0)
     && Boolean(before.selfHoliday) === Boolean(after.selfHoliday)
     && String(before.note || '') === String(after.note || '');
+}
+
+function orderLogCount(value) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function orderLogSnapshot(order = null) {
+  if (!order) return null;
+  return {
+    lunchCount: orderLogCount(order.lunchCount ?? order.lunchQty),
+    saladCount: orderLogCount(order.saladCount ?? order.saladQty),
+    eventLunchCount: orderLogCount(order.eventLunchCount ?? order.eventLunchQty),
+    selfHoliday: Boolean(order.selfHoliday),
+    note: String(order.note || ''),
+    adminInput: Boolean(order.adminInput),
+    adminAdjusted: Boolean(order.adminAdjusted),
+    adminManual: Boolean(order.adminManual),
+    source: String(order.source || ''),
+    submittedBy: String(order.submittedBy || '')
+  };
+}
+
+function orderLogChanges(beforeSnap, afterSnap) {
+  const fields = ['lunchCount', 'saladCount', 'eventLunchCount', 'selfHoliday', 'note'];
+  return fields.filter(field => {
+    const beforeValue = beforeSnap ? beforeSnap[field] : undefined;
+    const afterValue = afterSnap ? afterSnap[field] : undefined;
+    return String(beforeValue ?? '') !== String(afterValue ?? '');
+  });
+}
+
+function sameOrderForLog(before, after) {
+  const beforeSnap = orderLogSnapshot(before);
+  const afterSnap = orderLogSnapshot(after);
+  if (!beforeSnap || !afterSnap) return false;
+  return orderLogChanges(beforeSnap, afterSnap).length === 0;
+}
+
+async function resolveOrderLogActor(event, userId, before = null, after = null) {
+  const authId = String(event.authId || '');
+  const submittedBy = String(after?.submittedBy || before?.submittedBy || '');
+  const actorUid = authId || submittedBy || '';
+  const actor = {
+    authType: String(event.authType || ''),
+    authId,
+    actorUid,
+    actorEmail: '',
+    actorName: '',
+    actorType: 'unknown'
+  };
+
+  if (!actorUid) return actor;
+
+  if (actorUid === userId) {
+    actor.actorType = 'customer';
+  }
+
+  const actorSnap = await db.collection('users').doc(actorUid).get().catch(() => null);
+  if (actorSnap?.exists) {
+    const actorUser = actorSnap.data() || {};
+    actor.actorEmail = String(actorUser.email || '');
+    actor.actorName = String(actorUser.businessName || actorUser.name || actor.actorEmail || actorUid);
+    if (kakaoAdminEmails().includes(actor.actorEmail.toLowerCase())) {
+      actor.actorType = 'admin';
+    } else if (actorUid === userId) {
+      actor.actorType = 'customer';
+    }
+  }
+
+  if (submittedBy && submittedBy === actorUid && actor.actorType === 'unknown') {
+    actor.actorType = 'admin';
+  }
+
+  return actor;
+}
+
+async function writeOrderLog(date, userId, before, after, event) {
+  if (!before && !after) return;
+  if (sameOrderForLog(before, after)) return;
+
+  const action = !before ? 'created' : !after ? 'deleted' : 'updated';
+  const beforeSnap = orderLogSnapshot(before);
+  const afterSnap = orderLogSnapshot(after);
+  const changes = orderLogChanges(beforeSnap, afterSnap);
+  if (action === 'updated' && changes.length === 0) return;
+
+  const userSnap = await db.collection('users').doc(userId).get().catch(() => null);
+  const user = userSnap?.exists ? (userSnap.data() || {}) : {};
+  const actor = await resolveOrderLogActor(event, userId, before, after);
+  const customerName = user.businessName || after?.businessName || before?.businessName || after?.customerName || before?.customerName || '고객';
+
+  await db.collection('orderLogs').add({
+    date,
+    userId,
+    customerName: String(customerName),
+    customerEmail: String(user.email || ''),
+    customerPhone: String(user.phone || ''),
+    action,
+    changes,
+    before: beforeSnap,
+    after: afterSnap,
+    authType: actor.authType,
+    authId: actor.authId,
+    actorUid: actor.actorUid,
+    actorEmail: actor.actorEmail,
+    actorName: actor.actorName,
+    actorType: actor.actorType,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000)
+  });
 }
 
 async function sendOrderNotification(date, userId, order, isUpdate) {
