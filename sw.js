@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v47-customer-weekday-meals-refresh';
+const CACHE = 'gjsuragan-v48-customer-weekday-meals-legacy-fix';
 const PRECACHE = [
   './customer.html',
   './admin.html',

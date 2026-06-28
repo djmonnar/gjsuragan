@@ -2292,7 +2292,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const CUSTOMER_APP_VERSION = '20260628-weekday-meals-refresh';
+const CUSTOMER_APP_VERSION = '20260628-weekday-meals-legacy-fix';
 
 // ───────── PWA Service Worker 등록 ─────────
 if ('serviceWorker' in navigator) {
@@ -3188,7 +3188,9 @@ async function doRegister() {
       saladPrice: DEFAULT_MEAL_PRICE,
       priceLunch: DEFAULT_MEAL_PRICE,
       priceSalad: DEFAULT_MEAL_PRICE,
-      sameDailyMeal, weekdayMeals,
+      sameDailyMeal,
+      sameDailyMealExplicit: true,
+      weekdayMeals,
       privacyConsent: true,
       privacyConsentAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -4116,7 +4118,7 @@ function renderProfile() {
   document.getElementById('prof-lunch').value = userProfile.defaultLunch ?? 2;
   document.getElementById('prof-salad').value = userProfile.defaultSalad ?? 0;
   const meals = normalizeWeekdayMeals(userProfile, userProfile.defaultLunch ?? 2, userProfile.defaultSalad ?? 0);
-  const sameDailyMeal = userProfile.sameDailyMeal === true;
+  const sameDailyMeal = userProfile.sameDailyMealExplicit === true && userProfile.sameDailyMeal === true;
   document.getElementById('prof-same-daily').checked = sameDailyMeal;
   fillWeekdayInputs('prof', meals);
   document.getElementById('prof-same-daily-fields').style.display = sameDailyMeal ? 'grid' : 'none';
@@ -4164,12 +4166,13 @@ async function saveProfile() {
       defaultLunch: lunch,
       defaultSalad: salad,
       sameDailyMeal,
+      sameDailyMealExplicit: true,
       weekdayMeals,
       deliveryPlace,
       deliveryPlaceDetail,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    userProfile = { ...userProfile, businessName: bizname, phone, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, deliveryPlace, deliveryPlaceDetail };
+    userProfile = { ...userProfile, businessName: bizname, phone, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, sameDailyMealExplicit: true, weekdayMeals, deliveryPlace, deliveryPlaceDetail };
     document.getElementById('header-bizname').textContent = bizname;
     renderToday();
     renderWeek();
