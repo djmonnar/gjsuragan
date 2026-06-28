@@ -70,6 +70,7 @@ service cloud.firestore {
         'defaultLunch',
         'defaultSalad',
         'sameDailyMeal',
+        'sameDailyMealExplicit',
         'weekdayMeals',
         'createdAt',
         'updatedAt',
@@ -93,6 +94,7 @@ service cloud.firestore {
         'priceLunch',
         'priceSalad',
         'sameDailyMeal',
+        'sameDailyMealExplicit',
         'weekdayMeals',
         'createdAt',
         'updatedAt',
@@ -145,6 +147,7 @@ service cloud.firestore {
         && optionalSafePrice(data, 'priceLunch')
         && optionalSafePrice(data, 'priceSalad')
         && optionalBool(data, 'sameDailyMeal')
+        && optionalBool(data, 'sameDailyMealExplicit')
         && optionalBool(data, 'privacyConsent')
         && validWeekdayMeals(data)
         && optionalTimestamp(data, 'createdAt')
