@@ -1918,6 +1918,10 @@ function sameOrderForLog(before, after) {
   return orderLogChanges(beforeSnap, afterSnap).length === 0;
 }
 
+function isAdminOrderWrite(order = null) {
+  return Boolean(order?.adminInput || order?.adminAdjusted || order?.adminManual || order?.submittedBy);
+}
+
 async function resolveOrderLogActor(event, userId, before = null, after = null) {
   const authId = String(event.authId || '');
   const submittedBy = String(after?.submittedBy || before?.submittedBy || '');
@@ -1951,6 +1955,14 @@ async function resolveOrderLogActor(event, userId, before = null, after = null) 
 
   if (submittedBy && submittedBy === actorUid && actor.actorType === 'unknown') {
     actor.actorType = 'admin';
+  }
+
+  if (actor.actorType === 'unknown') {
+    if (isAdminOrderWrite(after) || isAdminOrderWrite(before)) {
+      actor.actorType = 'admin';
+    } else if (after) {
+      actor.actorType = 'customer';
+    }
   }
 
   return actor;
