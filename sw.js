@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v45-road-route-order';
+const CACHE = 'gjsuragan-v46-customer-weekday-meals';
 const PRECACHE = [
   './customer.html',
   './admin.html',
