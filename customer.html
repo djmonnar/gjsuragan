@@ -673,6 +673,110 @@
     margin-bottom: 12px;
   }
   .meal-search-row .form-input { margin-bottom: 0; }
+  .meal-week-toolbar {
+    background: #fff8ed;
+    border: 1px solid #f0d090;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .meal-week-title {
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .meal-week-range {
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--text-sub);
+    font-weight: 700;
+  }
+  .meal-week-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .meal-week-btn {
+    border: 1px solid #e2c8a5;
+    background: #fff;
+    color: var(--primary);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .meal-week-list {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .meal-week-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px;
+  }
+  .meal-week-card.today {
+    border-color: #d6a65a;
+    box-shadow: 0 8px 24px rgba(123,63,26,.12);
+  }
+  .meal-week-card.is-empty {
+    color: var(--text-sub);
+    background: #fffdf9;
+  }
+  .meal-week-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .meal-week-day {
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--primary);
+  }
+  .meal-week-badge {
+    border-radius: 999px;
+    padding: 3px 8px;
+    background: #edf7ef;
+    color: var(--success);
+    font-size: 11px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  .meal-week-card .meal-group {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 9px 11px;
+    margin-top: 8px;
+  }
+  .meal-week-card .meal-group-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--primary);
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .meal-week-card .meal-items {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 15px;
+    line-height: 1.65;
+  }
 
   /* ── 전송 완료 ── */
   .submitted-badge {
@@ -1777,7 +1881,22 @@
 
   <!-- 식단 탭 -->
   <div id="pane-meal" class="content-area" style="display:none">
-    <div class="section-title"><svg class="gj-icon"><use href="#gj-meal"></use></svg>식단 조회</div>
+    <div class="meal-week-toolbar">
+      <div>
+        <div class="meal-week-title"><svg class="gj-icon"><use href="#gj-meal"></use></svg>이번 주 식단표</div>
+        <div class="meal-week-range" id="meal-week-range">-</div>
+      </div>
+      <div class="meal-week-actions">
+        <button type="button" class="meal-week-btn" onclick="changeMealMenuWeek(-1)">이전 주</button>
+        <button type="button" class="meal-week-btn" onclick="resetMealMenuWeek()">이번 주</button>
+        <button type="button" class="meal-week-btn" onclick="changeMealMenuWeek(1)">다음 주</button>
+      </div>
+    </div>
+    <div id="meal-week-list" class="meal-week-list">
+      <div class="meal-card is-empty">이번 주 식단을 불러오는 중...</div>
+    </div>
+
+    <div class="section-title"><svg class="gj-icon"><use href="#gj-calendar"></use></svg>날짜별 식단 조회</div>
     <div class="meal-search-row">
       <input class="form-input" type="date" id="meal-search-date">
       <button class="save-btn" style="margin-top:0;padding:12px 16px" onclick="searchMealMenu()">조회</button>
@@ -2024,7 +2143,9 @@
       <div class="help-section-title">5. 식단 확인하기</div>
       <ol>
         <li>주문 탭의 <b>식단표 보기</b>를 누르면 선택한 날짜의 식단을 바로 볼 수 있습니다.</li>
-        <li><b>식단</b> 탭에서는 날짜를 직접 선택해서 다른 날 식단도 조회할 수 있습니다.</li>
+        <li><b>식단</b> 탭에서는 이번 주 월~금 식단을 한 번에 볼 수 있습니다.</li>
+        <li>이전 주, 이번 주, 다음 주 버튼으로 다른 주 식단도 확인할 수 있습니다.</li>
+        <li>아래 날짜별 조회에서는 원하는 날짜 하루 식단만 따로 볼 수 있습니다.</li>
         <li>식단에는 도시락 메뉴와 샐러드 메뉴가 함께 표시됩니다.</li>
         <li>식단이 아직 등록되지 않은 날은 등록 후 다시 확인해주세요.</li>
       </ol>
@@ -2262,6 +2383,7 @@ const orderSlotDrafts = {};
 let orderTargetRefreshTimer = null;
 let deadlineCountdownTimer = null;
 let weekOffset = 0;
+let mealWeekOffset = 0;
 let modalDateStr = '';
 let modalLunch = 0;
 let modalSalad = 0;
@@ -2757,6 +2879,79 @@ async function searchMealMenu() {
   }
 }
 
+function renderMealWeekRangeLabel(days) {
+  const label = document.getElementById('meal-week-range');
+  if (!label || !days?.length) return;
+  const first = days[0];
+  const last = days[days.length - 1];
+  const [fy, fm, fd] = first.split('-').map(Number);
+  const [, lm, ld] = last.split('-').map(Number);
+  label.textContent = `${fy}년 ${fm}월 ${fd}일 ~ ${lm}월 ${ld}일`;
+}
+
+function mealWeekCardHtml(dStr, menu) {
+  const today = dateStr(getKST());
+  const isToday = dStr === today;
+  const todayBadge = isToday ? '<span class="meal-week-badge">오늘</span>' : '';
+  if (!menu) {
+    return `
+      <div class="meal-week-card is-empty${isToday ? ' today' : ''}">
+        <div class="meal-week-head">
+          <div class="meal-week-day">${formatDateKR(dStr)}</div>
+          ${todayBadge}
+        </div>
+        <div style="font-size:13px;line-height:1.6">아직 식단이 등록되지 않았습니다.</div>
+      </div>
+    `;
+  }
+  const title = menu.title || mealMenuDefaultTitle(dStr);
+  return `
+    <div class="meal-week-card${isToday ? ' today' : ''}">
+      <div class="meal-week-head">
+        <div>
+          <div class="meal-week-day">${formatDateKR(dStr)}</div>
+          <div style="font-size:12px;color:var(--text-sub);font-weight:700;margin-top:2px">${escapeHtml(title)}</div>
+        </div>
+        ${todayBadge}
+      </div>
+      <div class="meal-group">
+        <div class="meal-group-title">${iconSvg('lunch')}도시락</div>
+        ${mealItemsHtml(menu.lunchItems || menu.lunchMenu)}
+      </div>
+      <div class="meal-group">
+        <div class="meal-group-title">${iconSvg('salad')}샐러드</div>
+        ${mealItemsHtml(menu.saladItems || menu.saladMenu)}
+      </div>
+      ${menu.note ? `<div class="meal-note">${escapeHtml(menu.note)}</div>` : ''}
+    </div>
+  `;
+}
+
+async function renderMealWeek() {
+  const list = document.getElementById('meal-week-list');
+  if (!list) return;
+  const days = getWeekDatesByOffset(mealWeekOffset);
+  renderMealWeekRangeLabel(days);
+  list.innerHTML = '<div class="meal-card is-empty">이번 주 식단을 불러오는 중...</div>';
+  try {
+    const menus = await Promise.all(days.map(dStr => loadMealMenu(dStr)));
+    list.innerHTML = days.map((dStr, idx) => mealWeekCardHtml(dStr, menus[idx])).join('');
+  } catch(e) {
+    console.error('주간 식단 조회 실패:', e);
+    list.innerHTML = `<div class="meal-card is-empty">주간 식단을 불러오지 못했습니다: ${escapeHtml(e.message || e)}</div>`;
+  }
+}
+
+function changeMealMenuWeek(delta) {
+  mealWeekOffset += delta;
+  renderMealWeek();
+}
+
+function resetMealMenuWeek() {
+  mealWeekOffset = 0;
+  renderMealWeek();
+}
+
 function openOrderMealModal() {
   openMealModal(currentOrderTargetDate || getOrderSlotContext(activeOrderSlot).targetDate);
 }
@@ -3048,7 +3243,7 @@ function switchTab(tab) {
   document.getElementById('pane-week').style.display = tab === 'week' ? 'block' : 'none';
   document.getElementById('pane-settlement').style.display = tab === 'settlement' ? 'block' : 'none';
   document.getElementById('pane-profile').style.display = tab === 'profile' ? 'block' : 'none';
-  if (tab === 'meal') searchMealMenu();
+  if (tab === 'meal') { renderMealWeek(); searchMealMenu(); }
   if (tab === 'week') { weekOffset = 0; renderWeek(); }
   if (tab === 'profile') renderProfile();
   if (tab === 'settlement') initSettlementTab();
