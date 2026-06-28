@@ -4167,6 +4167,11 @@ function renderMembers() {
   const query = memberSearchQuery();
   const allActiveUsers = Object.entries(allUsers);
   const users = allActiveUsers.filter(([uid, u]) => memberMatchesSearch(uid, u, query));
+  const duplicateCounts = allActiveUsers.reduce((acc, [, u]) => {
+    const key = `${normalizeMemberSearchText(u.businessName || u.name || '')}|${normalizeMemberSearchText(u.phone || '')}`;
+    if (key !== '|') acc.set(key, (acc.get(key) || 0) + 1);
+    return acc;
+  }, new Map());
   const allDeletedUsers = Object.entries(deletedUsers);
   const deleted = allDeletedUsers.filter(([uid, u]) => memberMatchesSearch(uid, u, query));
   const countEl = document.getElementById('member-search-count');
@@ -4183,16 +4188,24 @@ function renderMembers() {
   } else {
     html += users
       .sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'))
-      .map(([uid, u]) => `
+      .map(([uid, u]) => {
+        const duplicateKey = `${normalizeMemberSearchText(u.businessName || u.name || '')}|${normalizeMemberSearchText(u.phone || '')}`;
+        const duplicateCount = duplicateCounts.get(duplicateKey) || 0;
+        const duplicateBadge = duplicateCount > 1
+          ? `<span style="display:inline-flex;align-items:center;margin-left:6px;padding:2px 7px;border-radius:999px;background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;font-size:11px;font-weight:800">중복 ${duplicateCount}</span>`
+          : '';
+        return `
         <div class="member-card" onclick="openMemberEdit('${uid}')">
-          <div class="m-name">${escapeHtml(u.businessName || '-')}</div>
-          <div class="m-info">${escapeHtml(u.phone || u.email || '-')}</div>
+          <div class="m-name">${escapeHtml(u.businessName || '-')}${duplicateBadge}</div>
+          <div class="m-info">연락처 ${escapeHtml(u.phone || '-')}</div>
+          <div class="m-info">이메일 ${escapeHtml(u.email || '-')}</div>
           <div class="m-info">${escapeHtml(u.deliveryPlace || '배송지 미입력')}${u.mealTime ? ` · ${u.mealTime}` : ''}</div>
           <div class="m-info">${u.sameDailyMeal === false ? '요일별 식수 설정됨' : `매일 도시락 ${u.defaultLunch ?? 2}개 · 샐러드 ${u.defaultSalad ?? 0}개`}</div>
           <div class="m-info">단가 ${formatMoney(userLunchPrice(u))} / ${formatMoney(userSaladPrice(u))}</div>
           <div class="m-edit-hint">✏️ 수정하기</div>
         </div>
-      `).join('');
+      `;
+      }).join('');
   }
   if (deleted.length > 0) {
     html += `<div style="grid-column:1/-1;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
