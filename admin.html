@@ -460,6 +460,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .order-table tbody tr:hover td{background:#fdf8f2}
 .order-table tbody tr:hover td:first-child{border-left:3px solid var(--primary)}
 .order-table tbody tr:last-child td{border-bottom:0}
+.event-list-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}
+.event-list-count{font-size:13px;font-weight:700;color:var(--sub)}
+.event-list-more-wrap{display:flex;justify-content:center;margin-top:12px}
 .biz-name{color:var(--text);font-weight:800}
 .dot{background:var(--primary)}
 .qty-cell{color:var(--text);font-size:15px;font-weight:800}
@@ -877,6 +880,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="error-msg" id="event-error"></div>
     </div>
     <div class="section-title">행사도시락 목록</div>
+    <div class="event-list-toolbar">
+      <div class="event-list-count" id="event-list-count">최신 주문순 · 불러오는 중</div>
+      <button class="secondary-btn" onclick="loadEventLunches()">새로고침</button>
+    </div>
     <table class="order-table">
       <thead>
         <tr>
@@ -887,6 +894,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <tr class="no-order-row"><td colspan="11">불러오는 중...</td></tr>
       </tbody>
     </table>
+    <div class="event-list-more-wrap">
+      <button class="secondary-btn" id="event-list-more" onclick="showMoreEventLunches()" style="display:none">더보기</button>
+    </div>
   </div>
 
   <div class="event-section admin-tab-panel" data-tab="menus" style="display:none">
@@ -1741,6 +1751,7 @@ let currentDateStr = '';
 let allUsers = {};
 let deletedUsers = {};
 let eventLunches = [];
+let eventLunchVisibleLimit = 30;
 let pendingPublicEventOrderId = '';
 let pendingPublicEventOrder = null;
 let adminEventDraftItems = [];
@@ -5753,13 +5764,66 @@ function removeAdminEventMenuItem(index) {
   renderAdminEventDraftItems();
 }
 
+function eventSortMillisValue(value) {
+  if (!value) return 0;
+  if (typeof value.toDate === 'function') return value.toDate().getTime();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return value;
+  if (typeof value === 'object' && typeof value.seconds === 'number') {
+    return (value.seconds * 1000) + Math.floor((value.nanoseconds || 0) / 1000000);
+  }
+  const parsed = Date.parse(String(value));
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function eventDateTimeMillis(item = {}) {
+  if (!item.eventDate) return 0;
+  const time = /^\d{1,2}:\d{2}$/.test(item.eventTime || '') ? item.eventTime : '00:00';
+  return eventSortMillisValue(`${item.eventDate}T${time}:00+09:00`);
+}
+
+function eventLatestSortMillis(item = {}) {
+  return eventSortMillisValue(item.updatedAt)
+    || eventSortMillisValue(item.registeredAt)
+    || eventSortMillisValue(item.createdAt)
+    || eventDateTimeMillis(item)
+    || eventSortMillisValue(item.id);
+}
+
+function sortEventLunchesLatestFirst(items) {
+  return items.sort((a, b) => {
+    const diff = eventLatestSortMillis(b) - eventLatestSortMillis(a);
+    if (diff) return diff;
+    return `${b.eventDate || ''} ${b.eventTime || ''} ${b.id || ''}`.localeCompare(`${a.eventDate || ''} ${a.eventTime || ''} ${a.id || ''}`);
+  });
+}
+
+function updateEventListControls(visibleCount = 0) {
+  const countEl = document.getElementById('event-list-count');
+  if (countEl) {
+    countEl.textContent = eventLunches.length
+      ? `최신 주문순 · ${visibleCount}/${eventLunches.length}건 표시`
+      : '최신 주문순 · 0건';
+  }
+  const moreBtn = document.getElementById('event-list-more');
+  if (!moreBtn) return;
+  const remaining = Math.max(eventLunches.length - visibleCount, 0);
+  moreBtn.style.display = remaining > 0 ? 'inline-flex' : 'none';
+  moreBtn.textContent = remaining > 0 ? `더보기 (${remaining}건 남음)` : '더보기';
+}
+
+function showMoreEventLunches() {
+  eventLunchVisibleLimit += 30;
+  renderEventLunches();
+}
+
 async function loadEventLunches() {
   const tbody = document.getElementById('event-tbody');
   tbody.innerHTML = '<tr class="no-order-row"><td colspan="11">불러오는 중...</td></tr>';
   try {
     const [doc, publicSnap] = await Promise.all([
       db.collection('users').doc(adminUid).get(),
-      db.collection('eventOrders').orderBy('createdAt', 'desc').limit(100).get().catch(() => null)
+      db.collection('eventOrders').orderBy('createdAt', 'desc').limit(200).get().catch(() => null)
     ]);
     const events = doc.exists ? adminEventsFromData(doc.data()) : {};
     const publicOrders = publicSnap
@@ -5769,10 +5833,12 @@ async function loadEventLunches() {
       : [];
     eventLunches = Object.entries(events).map(([id, item]) => ({ id, ...item, source: item.source || 'adminEvent' }))
       .concat(publicOrders.map(publicEventOrderToRow));
-    eventLunches.sort((a, b) => `${a.eventDate || ''} ${a.eventTime || ''}`.localeCompare(`${b.eventDate || ''} ${b.eventTime || ''}`));
+    sortEventLunchesLatestFirst(eventLunches);
+    eventLunchVisibleLimit = 30;
     renderEventLunches();
   } catch(e) {
     tbody.innerHTML = `<tr class="no-order-row"><td colspan="11">불러오기 실패: ${escapeHtml(e.message)}</td></tr>`;
+    updateEventListControls(0);
   }
 }
 
@@ -5780,9 +5846,11 @@ function renderEventLunches() {
   const tbody = document.getElementById('event-tbody');
   if (eventLunches.length === 0) {
     tbody.innerHTML = '<tr class="no-order-row"><td colspan="11">등록된 행사도시락이 없습니다</td></tr>';
+    updateEventListControls(0);
     return;
   }
-  tbody.innerHTML = eventLunches.map(item => `
+  const visibleItems = eventLunches.slice(0, eventLunchVisibleLimit);
+  tbody.innerHTML = visibleItems.map(item => `
     <tr>
       <td>${escapeHtml(item.eventDate || '-')}</td>
       <td>${escapeHtml(item.eventTime || '-')}</td>
@@ -5804,6 +5872,7 @@ function renderEventLunches() {
       </td>
     </tr>
   `).join('');
+  updateEventListControls(visibleItems.length);
 }
 
 function paymentLabel(item) {
