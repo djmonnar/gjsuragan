@@ -7041,7 +7041,7 @@ function printTodayProductionSheet() {
   ` : '<p class="empty">월식 업체 주문이 없습니다.</p>';
   const eventHtml = eventRows.length ? `
     <table class="compact-table event-table-print">
-      <thead><tr><th>#</th><th>행사 업체</th><th>시간</th><th>메뉴</th><th>수량</th><th>장소</th><th>요청</th></tr></thead>
+      <thead><tr><th>#</th><th>행사 업체</th><th>시간</th><th>메뉴</th><th>수량</th><th>요청사항</th></tr></thead>
       <tbody>
         ${eventRows.map((row, i) => `
           <tr>
@@ -7050,7 +7050,6 @@ function printTodayProductionSheet() {
             <td>${escapeHtml(row.time)}</td>
             <td>${escapeHtml(row.menu)}</td>
             <td class="num">${row.qty}</td>
-            <td>${escapeHtml(row.place)}</td>
             <td class="memo">${escapeHtml(row.note || '')}</td>
           </tr>
         `).join('')}
@@ -7065,29 +7064,30 @@ function printTodayProductionSheet() {
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>궁중수라간 배송 집계</title>
     <style>
       @page{size:A4 portrait;margin:4mm}
-      *{box-sizing:border-box} body{font-family:Arial,'Malgun Gothic',sans-serif;margin:0;color:#111827;font-size:10px;zoom:var(--print-zoom,1)}
+      *{box-sizing:border-box} body{font-family:Arial,'Malgun Gothic',sans-serif;margin:0;color:#111827;font-size:16px;zoom:var(--print-zoom,1)}
       #print-root{width:202mm;margin:0 auto}
-      .print-head{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-bottom:5px}
-      h1{font-size:18px;margin:0} h2{font-size:12.5px;margin:8px 0 4px;break-after:avoid;page-break-after:avoid}
-      .meta{color:#6b7280;font-size:9px}
-      .summary{display:flex;gap:8px;flex-wrap:wrap;border:1px solid #d1d5db;background:#f9fafb;padding:4px 6px;margin:5px 0}
-      .summary span{font-weight:800}.summary strong{font-size:12px;color:#111827}
+      .print-head{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-bottom:7px}
+      h1{font-size:26px;margin:0} h2{font-size:18px;margin:10px 0 5px;break-after:avoid;page-break-after:avoid}
+      .meta{color:#6b7280;font-size:13px}
+      .summary{display:flex;gap:12px;flex-wrap:wrap;border:1px solid #d1d5db;background:#f9fafb;padding:6px 8px;margin:6px 0}
+      .summary span{font-weight:800}.summary strong{font-size:18px;color:#111827}
       table{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:2px;break-before:avoid;page-break-before:avoid}
-      th,td{border:1px solid #d1d5db;padding:2.2px 3px;font-size:9px;line-height:1.15;vertical-align:middle}
+      th,td{border:1px solid #d1d5db;padding:3.4px 4px;font-size:15px;line-height:1.12;vertical-align:middle}
       th{background:#f3f4f6;text-align:left;font-weight:800}.num{text-align:center;font-weight:800}.name{font-weight:800}
-      .order-table-print th:nth-child(1),.order-table-print td:nth-child(1){width:20px;text-align:center}
-      .order-table-print th:nth-child(2),.order-table-print td:nth-child(2){width:38%}
+      .order-table-print th:nth-child(1),.order-table-print td:nth-child(1){width:30px;text-align:center}
+      .order-table-print th:nth-child(2),.order-table-print td:nth-child(2){width:39%}
       .order-table-print th:nth-child(3),.order-table-print td:nth-child(3),
       .order-table-print th:nth-child(4),.order-table-print td:nth-child(4),
       .order-table-print th:nth-child(5),.order-table-print td:nth-child(5),
-      .order-table-print th:nth-child(6),.order-table-print td:nth-child(6){width:30px;text-align:center}
+      .order-table-print th:nth-child(6),.order-table-print td:nth-child(6){width:42px;text-align:center}
       .event-print-block{break-inside:avoid;page-break-inside:avoid}
-      .event-table-print th:nth-child(1),.event-table-print td:nth-child(1){width:20px;text-align:center}
-      .event-table-print th:nth-child(2),.event-table-print td:nth-child(2){width:23%}
-      .event-table-print th:nth-child(3),.event-table-print td:nth-child(3){width:46px}
-      .event-table-print th:nth-child(5),.event-table-print td:nth-child(5){width:34px;text-align:center}
+      .event-table-print th:nth-child(1),.event-table-print td:nth-child(1){width:30px;text-align:center}
+      .event-table-print th:nth-child(2),.event-table-print td:nth-child(2){width:24%}
+      .event-table-print th:nth-child(3),.event-table-print td:nth-child(3){width:60px}
+      .event-table-print th:nth-child(5),.event-table-print td:nth-child(5){width:45px;text-align:center}
       .memo{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .empty{border:1px dashed #d1d5db;border-radius:5px;padding:4px;color:#6b7280}
+      .event-table-print .memo{white-space:normal;overflow:visible;text-overflow:clip}
+      .empty{border:1px dashed #d1d5db;border-radius:5px;padding:6px;color:#6b7280}
       @media print{body{margin:0}.no-print{display:none}}
     </style></head><body>
       <div id="print-root">
@@ -7117,7 +7117,7 @@ function printTodayProductionSheet() {
           if(!root) return;
           const pageHeightPx = 1090;
           const height = root.scrollHeight || pageHeightPx;
-          const scale = Math.min(1.08, Math.max(0.78, pageHeightPx / height));
+          const scale = Math.min(1.02, Math.max(0.82, pageHeightPx / height));
           document.documentElement.style.setProperty('--print-zoom', scale.toFixed(3));
         }
         window.onload=()=>{fitPrintPage();setTimeout(()=>{window.print();setTimeout(()=>window.close(),300)},120)}
