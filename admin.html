@@ -481,6 +481,12 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .delivery-status.done{background:#ecfdf3;color:var(--success);border:1px solid #bbf7d0}
 .default-chip{background:#eff6ff;color:var(--info);border:1px solid #dbeafe}
 .note-badge{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;max-width:160px}
+.source-badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:900;border:1px solid #e5e7eb;background:#f8fafc;color:#475467;margin:2px 4px 2px 0;white-space:nowrap}
+.source-badge.customer{background:#ecfdf3;color:#047857;border-color:#bbf7d0}
+.source-badge.admin{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+.source-badge.default{background:#eff6ff;color:#2563eb;border-color:#dbeafe}
+.source-badge.manual{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe}
+.source-badge.holiday{background:#fef2f2;color:#c0392b;border-color:#fecaca}
 .not-chip{background:#fff7ed;border-color:#fed7aa;color:#c2410c;border-radius:7px}
 .not-submitted-list{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow)}
 .no-not,.no-order-row td{color:var(--sub)}
@@ -3534,6 +3540,11 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       totalQty: displayTotalQty,
       totalAmount: displayTotalAmount,
       orderDocExists: true,
+      originSource: deliveredOverride ? (delivered?.source || order.source || '') : (order.source || ''),
+      adminInput: Boolean(order.adminInput || delivered?.adminInput),
+      adminAdjusted: Boolean(order.adminAdjusted || delivered?.adminAdjusted),
+      adminManual: Boolean(order.adminManual || delivered?.adminManual),
+      submittedBy: order.submittedBy || delivered?.deliveredBy || '',
       source: 'order'
     };
   });
@@ -3652,6 +3663,40 @@ function orderTabEventRowsFromSources(adminData = {}, publicSnap = null, date = 
 
 function eventLunchTotalForRows(rows = []) {
   return rows.reduce((sum, item) => sum + (eventOrderTotalQty(item) || Number(item.count || 0) || 0), 0);
+}
+
+function orderSourceMeta(order = {}) {
+  if (order.selfHoliday || order.source === 'selfHoliday') return { label: '자체휴무', cls: 'holiday' };
+  if (order.source === 'manual' || order.adminManual) return { label: '수동입력', cls: 'manual' };
+  if (order.source === 'default') {
+    return order.note === '잠금 시점 기본값'
+      ? { label: '잠금기본', cls: 'default' }
+      : { label: '기본값', cls: 'default' };
+  }
+  const origin = String(order.originSource || order.source || '').toLowerCase();
+  const byAdmin = order.adminInput || order.adminAdjusted || origin.includes('admin') || (order.submittedBy && order.submittedBy === adminUid);
+  if (byAdmin) return { label: '관리자수정', cls: 'admin' };
+  if (order.orderDocExists || order.submittedAt) return { label: '고객전송', cls: 'customer' };
+  return { label: '확인필요', cls: 'holiday' };
+}
+
+function orderSourceBadge(order = {}) {
+  const meta = orderSourceMeta(order);
+  return `<span class="source-badge ${meta.cls}">${escapeHtml(meta.label)}</span>`;
+}
+
+function orderNoteHtml(order = {}) {
+  if (order.selfHoliday) return '<span class="source-badge holiday">자체 휴무</span>';
+  const badge = orderSourceBadge(order);
+  const note = String(order.note || '').trim();
+  const defaultNote = note === '요일 기본값' || note === '잠금 시점 기본값';
+  const notePart = note && !defaultNote
+    ? `<span class="note-badge" title="${escapeHtml(note)}">${escapeHtml(note)}</span>`
+    : '';
+  const defaultPart = defaultNote
+    ? `<span class="default-chip">${escapeHtml(note)}</span>`
+    : '';
+  return `${badge}${notePart || defaultPart || ''}`;
 }
 
 function setOrderSummaryValues(count, lunch, salad, eventLunch) {
@@ -3777,13 +3822,7 @@ async function loadOrders() {
         const tr = document.createElement('tr');
         const isSelfHoliday = Boolean(o.selfHoliday);
         const disabledAttr = isSelfHoliday ? 'disabled' : '';
-        const noteHtml = o.selfHoliday
-          ? '<span style="background:#fdecea;color:#c0392b;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">자체 휴무</span>'
-          : o.source === 'default'
-          ? '<span class="default-chip">요일 기본값</span>'
-          : o.note
-          ? `<span class="note-badge" title="${escapeHtml(o.note)}">${escapeHtml(o.note)}</span>`
-          : '<span style="color:#ccc">-</span>';
+        const noteHtml = orderNoteHtml(o);
         const statusHtml = isSelfHoliday
           ? '<span class="delivery-status" style="background:#fdecea;color:#c0392b;border-color:#f5b7b1">휴무</span>'
           : o.delivered
@@ -6947,6 +6986,7 @@ function productionOrderRowsForPrint() {
         event: values.event,
         total,
         time: user.mealTime || (row.source === 'default' ? '기본수량' : formatTime(row.submittedAt)),
+        source: orderSourceMeta(row).label,
         status: row.delivered ? '완료' : '대기',
         note
       };
@@ -6983,8 +7023,8 @@ function printTodayProductionSheet() {
   const standaloneEventTotal = eventRows.reduce((sum, row) => sum + row.qty, 0);
   const printedAt = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
   const orderHtml = orderRows.length ? `
-    <table>
-      <thead><tr><th>#</th><th>업체명</th><th>도시락</th><th>샐러드</th><th>업체 행사</th><th>합계</th><th>시간</th><th>상태</th><th>메모</th></tr></thead>
+    <table class="compact-table order-table-print">
+      <thead><tr><th>#</th><th>업체명</th><th>도</th><th>샐</th><th>행</th><th>계</th><th>시간</th><th>출처</th><th>메모</th></tr></thead>
       <tbody>
         ${orderRows.map((row, i) => `
           <tr>
@@ -6995,16 +7035,16 @@ function printTodayProductionSheet() {
             <td class="num">${row.event || ''}</td>
             <td class="num">${row.total}</td>
             <td>${escapeHtml(row.time || '-')}</td>
-            <td>${escapeHtml(row.status)}</td>
-            <td>${escapeHtml(row.note || '')}</td>
+            <td>${escapeHtml(row.source || '')}</td>
+            <td class="memo">${escapeHtml(row.note || '')}</td>
           </tr>
         `).join('')}
       </tbody>
     </table>
   ` : '<p class="empty">월식 업체 주문이 없습니다.</p>';
   const eventHtml = eventRows.length ? `
-    <table>
-      <thead><tr><th>#</th><th>행사 업체</th><th>시간</th><th>메뉴</th><th>수량</th><th>장소</th><th>상태</th><th>요청</th></tr></thead>
+    <table class="compact-table event-table-print">
+      <thead><tr><th>#</th><th>행사 업체</th><th>시간</th><th>메뉴</th><th>수량</th><th>장소</th><th>요청</th></tr></thead>
       <tbody>
         ${eventRows.map((row, i) => `
           <tr>
@@ -7014,8 +7054,7 @@ function printTodayProductionSheet() {
             <td>${escapeHtml(row.menu)}</td>
             <td class="num">${row.qty}</td>
             <td>${escapeHtml(row.place)}</td>
-            <td>${escapeHtml(row.status)}</td>
-            <td>${escapeHtml(row.note || '')}</td>
+            <td class="memo">${escapeHtml(row.note || '')}</td>
           </tr>
         `).join('')}
       </tbody>
@@ -7028,26 +7067,40 @@ function printTodayProductionSheet() {
   }
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>궁중수라간 배송 집계</title>
     <style>
-      *{box-sizing:border-box} body{font-family:Arial,'Malgun Gothic',sans-serif;margin:28px;color:#111827}
-      h1{font-size:24px;margin:0 0 6px} h2{font-size:16px;margin:26px 0 8px}
-      .meta{color:#6b7280;font-size:12px;margin-bottom:18px}
-      .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:16px 0}
-      .box{border:1px solid #d1d5db;border-radius:8px;padding:10px;text-align:center}
-      .label{font-size:11px;color:#6b7280;font-weight:700}.value{font-size:22px;font-weight:900;margin-top:4px}
-      table{width:100%;border-collapse:collapse;margin-top:8px;page-break-inside:auto}
-      th,td{border:1px solid #d1d5db;padding:7px 8px;font-size:12px;vertical-align:top}
-      th{background:#f3f4f6;text-align:left}.num{text-align:center;font-weight:800}.name{font-weight:800}
-      .empty{border:1px dashed #d1d5db;border-radius:8px;padding:12px;color:#6b7280}
-      @media print{body{margin:16mm}.no-print{display:none}}
+      @page{size:A4 landscape;margin:7mm}
+      *{box-sizing:border-box} body{font-family:Arial,'Malgun Gothic',sans-serif;margin:10px;color:#111827;font-size:9.5px}
+      .print-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:6px}
+      h1{font-size:17px;margin:0} h2{font-size:12px;margin:10px 0 4px}
+      .meta{color:#6b7280;font-size:9px}
+      .summary{display:flex;gap:8px;flex-wrap:wrap;border:1px solid #d1d5db;background:#f9fafb;padding:5px 7px;margin:6px 0}
+      .summary span{font-weight:800}.summary strong{font-size:12px;color:#111827}
+      table{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:3px}
+      th,td{border:1px solid #d1d5db;padding:2.5px 4px;font-size:9px;line-height:1.22;vertical-align:middle}
+      th{background:#f3f4f6;text-align:left;font-weight:800}.num{text-align:center;font-weight:800}.name{font-weight:800}
+      .order-table-print th:nth-child(1),.order-table-print td:nth-child(1){width:24px;text-align:center}
+      .order-table-print th:nth-child(2),.order-table-print td:nth-child(2){width:24%}
+      .order-table-print th:nth-child(3),.order-table-print td:nth-child(3),
+      .order-table-print th:nth-child(4),.order-table-print td:nth-child(4),
+      .order-table-print th:nth-child(5),.order-table-print td:nth-child(5),
+      .order-table-print th:nth-child(6),.order-table-print td:nth-child(6){width:34px;text-align:center}
+      .order-table-print th:nth-child(7),.order-table-print td:nth-child(7){width:70px}
+      .order-table-print th:nth-child(8),.order-table-print td:nth-child(8){width:58px}
+      .event-table-print th:nth-child(1),.event-table-print td:nth-child(1){width:24px;text-align:center}
+      .event-table-print th:nth-child(5),.event-table-print td:nth-child(5){width:42px;text-align:center}
+      .memo{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .empty{border:1px dashed #d1d5db;border-radius:6px;padding:6px;color:#6b7280}
+      @media print{body{margin:0}.no-print{display:none}}
     </style></head><body>
-      <h1>궁중수라간 배송 집계</h1>
-      <div class="meta">${escapeHtml(formatDateKR(currentDateStr))} · 출력 ${escapeHtml(printedAt)}</div>
+      <div class="print-head">
+        <h1>궁중수라간 배송 집계</h1>
+        <div class="meta">${escapeHtml(formatDateKR(currentDateStr))} · 출력 ${escapeHtml(printedAt)}</div>
+      </div>
       <div class="summary">
-        <div class="box"><div class="label">월식 업체</div><div class="value">${orderRows.length}</div></div>
-        <div class="box"><div class="label">도시락</div><div class="value">${monthlyTotals.lunch}</div></div>
-        <div class="box"><div class="label">샐러드</div><div class="value">${monthlyTotals.salad}</div></div>
-        <div class="box"><div class="label">업체 행사</div><div class="value">${monthlyTotals.event}</div></div>
-        <div class="box"><div class="label">별도 행사</div><div class="value">${standaloneEventTotal}</div></div>
+        <span>월식 업체 <strong>${orderRows.length}</strong>곳</span>
+        <span>도시락 <strong>${monthlyTotals.lunch}</strong>개</span>
+        <span>샐러드 <strong>${monthlyTotals.salad}</strong>개</span>
+        <span>업체 행사 <strong>${monthlyTotals.event}</strong>개</span>
+        <span>별도 행사 <strong>${standaloneEventTotal}</strong>개</span>
       </div>
       <h2>업체별 오늘 주문</h2>
       ${orderHtml}
