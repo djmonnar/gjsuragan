@@ -3669,7 +3669,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       adminInput: Boolean(order.adminInput || delivered?.adminInput),
       adminAdjusted: Boolean(order.adminAdjusted || delivered?.adminAdjusted),
       adminManual: Boolean(order.adminManual || delivered?.adminManual),
-      submittedBy: order.submittedBy || delivered?.deliveredBy || '',
+      submittedBy: order.submittedBy || '',
       source: 'order'
     };
   });
@@ -3807,7 +3807,7 @@ function orderSourceMeta(order = {}) {
   const origin = String(order.originSource || order.source || '').toLowerCase();
   const byAdmin = order.adminInput || order.adminAdjusted || origin.includes('admin') || (order.submittedBy && order.submittedBy === adminUid);
   if (byAdmin) return { label: '관리자수정', cls: 'admin' };
-  if (order.orderDocExists || order.submittedAt) return { label: '고객전송', cls: 'customer' };
+  if (order.orderDocExists || order.submittedAt) return { label: '고객수정', cls: 'customer' };
   return { label: '확인필요', cls: 'holiday' };
 }
 
