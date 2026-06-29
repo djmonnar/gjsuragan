@@ -1360,12 +1360,16 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <div class="summary-value" id="settle-overdue-count" style="color:#c0392b">0<span class="summary-unit">곳</span></div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">🍱 도시락</div>
+          <div class="summary-label">🍱 일반도시락</div>
           <div class="summary-value" id="settle-lunch-total">0<span class="summary-unit">개</span></div>
         </div>
         <div class="summary-card">
           <div class="summary-label">🥗 샐러드</div>
           <div class="summary-value" id="settle-salad-total">0<span class="summary-unit">개</span></div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">🎉 행사도시락</div>
+          <div class="summary-value" id="settle-event-lunch-total">0<span class="summary-unit">개</span></div>
         </div>
       </div>
       <div class="settle-charts-area">
@@ -1400,10 +1404,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <tr>
             <th style="width:36px;text-align:center">선택</th>
             <th>업체명</th>
-            <th style="text-align:center">도시락</th>
+            <th style="text-align:center">일반도시락</th>
             <th style="text-align:center">샐러드</th>
-            <th style="text-align:center">행사</th>
-            <th>단가</th>
+            <th style="text-align:center">행사도시락</th>
+            <th>품목별 금액</th>
             <th>청구액</th>
             <th>청구서번호</th>
             <th>납부기한</th>
@@ -1424,11 +1428,12 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <table class="order-table">
       <thead>
         <tr>
-          <th>날짜</th><th>시간</th><th>도시락</th><th style="text-align:center">갯수</th><th>단가</th><th>청구액</th><th>청구서번호</th><th>납부기한</th><th>잔액</th><th>상태</th><th>메모</th><th>관리</th>
+          <th style="width:36px;text-align:center">선택</th>
+          <th>날짜</th><th>시간</th><th>행사도시락</th><th style="text-align:center">갯수</th><th>단가</th><th>청구액</th><th>청구서번호</th><th>납부기한</th><th>잔액</th><th>상태</th><th>메모</th><th>관리</th>
         </tr>
       </thead>
       <tbody id="settlement-event-tbody">
-        <tr class="no-order-row"><td colspan="12">행사도시락 내역이 없습니다.</td></tr>
+        <tr class="no-order-row"><td colspan="13">행사도시락 내역이 없습니다.</td></tr>
       </tbody>
     </table>
 
@@ -2148,7 +2153,35 @@ function settlementBilledTotal(row = {}) {
 function settlementPaidTotal(row = {}) {
   const payments = row.payments || [];
   const paid = payments.reduce((sum, p) => sum + (parseInt(p.amount, 10) || 0), 0);
-  return paid > 0 ? paid : (parseInt(row.paidAmount, 10) || 0);
+  if (paid > 0) return paid;
+  const legacyPaid = parseInt(row.paidAmount, 10) || 0;
+  if (legacyPaid > 0) return legacyPaid;
+  return row.status === '입금완료' ? settlementBilledTotal(row) : 0;
+}
+function settlementEventQty(row = {}) {
+  return Number(row.eventLunch ?? row.eventLunchTotal ?? row.eventCount ?? 0) || 0;
+}
+function settlementEventUnitPrice(row = {}) {
+  return Number(row.eventPrice || row.eventLunchPrice || row.lunchPrice || 0) || 0;
+}
+function settlementLunchAmount(row = {}) {
+  return (Number(row.lunch || 0) || 0) * (Number(row.lunchPrice || 0) || 0);
+}
+function settlementSaladAmount(row = {}) {
+  return (Number(row.salad || 0) || 0) * (Number(row.saladPrice || 0) || 0);
+}
+function settlementEventAmount(row = {}) {
+  return settlementEventQty(row) * settlementEventUnitPrice(row);
+}
+function settlementProductBreakdownHtml(row = {}) {
+  const parts = [];
+  const lunchAmount = settlementLunchAmount(row);
+  const saladAmount = settlementSaladAmount(row);
+  const eventAmount = settlementEventAmount(row);
+  if ((Number(row.lunch || 0) || 0) > 0) parts.push(`<div><b>일반</b> ${formatMoney(lunchAmount)}</div>`);
+  if ((Number(row.salad || 0) || 0) > 0) parts.push(`<div><b>샐러드</b> ${formatMoney(saladAmount)}</div>`);
+  if (settlementEventQty(row) > 0) parts.push(`<div><b>행사</b> ${formatMoney(eventAmount)}</div>`);
+  return parts.length ? parts.join('') : '<span style="color:var(--sub)">-</span>';
 }
 
 function monthDates(monthStr) {
@@ -2525,7 +2558,9 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
 
     const lunchPrice = userLunchPrice(user) || 0;
     const saladPrice = userSaladPrice(user) || 0;
-    const amount = lunch * lunchPrice + salad * saladPrice + eventLunch * eventPrice;
+    const amount = settlementLunchAmount({ lunch, lunchPrice })
+      + settlementSaladAmount({ salad, saladPrice })
+      + settlementEventAmount({ eventLunch, eventPrice });
     const adjust = parseInt(saved.adjust, 10) || 0;
     const payments = saved.payments || [];
     const paidTotal = settlementPaidTotal(saved);
@@ -2715,7 +2750,7 @@ function parseSettlementExcelWorkbook(workbook, month) {
       row.eventLunch += day.eventLunch || 0;
     });
     row.eventPrice = row.eventPrice || row.lunchPrice || 0;
-    row.amount = row.lunch * row.lunchPrice + row.salad * row.saladPrice + row.eventLunch * row.eventPrice;
+    row.amount = settlementLunchAmount(row) + settlementSaladAmount(row) + settlementEventAmount(row);
     row.status = '미정산';
     row.source = 'excelSettlement';
     row.importedAt = new Date().toISOString();
@@ -2724,9 +2759,7 @@ function parseSettlementExcelWorkbook(workbook, month) {
 }
 
 function manualMonthlyRowAmount(row) {
-  return (row.lunch || 0) * (row.lunchPrice || 0)
-    + (row.salad || 0) * (row.saladPrice || 0)
-    + (row.eventLunch || 0) * (row.eventPrice || row.lunchPrice || 0);
+  return settlementLunchAmount(row) + settlementSaladAmount(row) + settlementEventAmount(row);
 }
 
 function summarizeManualMonthlyRows(rows) {
@@ -6699,10 +6732,13 @@ function eventSettlementRow(item) {
     uid: `event:${item.id}`,
     eventId: item.id,
     user: { businessName: `${eventCustomerName(item)} - ${eventName}`, phone: '', email: '' },
-    lunch: count,
+    lunch: 0,
     salad: 0,
-    lunchPrice: price,
+    eventLunch: count,
+    lunchPrice: 0,
     saladPrice: 0,
+    eventPrice: price,
+    eventName,
     amount,
     ...data,
     event: item
@@ -6722,7 +6758,7 @@ async function loadSettlements() {
   const tbody = document.getElementById('settlement-tbody');
   const eventTbody = document.getElementById('settlement-event-tbody');
   tbody.innerHTML = '<tr class="no-order-row"><td colspan="13">정산 내역을 계산하는 중...</td></tr>';
-  eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="7">행사도시락을 불러오는 중...</td></tr>';
+  eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">행사도시락을 불러오는 중...</td></tr>';
 
   try {
     const byUser = {};
@@ -6799,7 +6835,7 @@ async function loadSettlements() {
       });
 
     const rows = Object.values(byUser)
-      .map(row => ({ ...row, amount: row.lunch * row.lunchPrice + row.salad * row.saladPrice + (row.eventLunch || 0) * (row.eventPrice || row.lunchPrice || 0) }))
+      .map(row => ({ ...row, amount: settlementLunchAmount(row) + settlementSaladAmount(row) + settlementEventAmount(row) }))
       .concat(manualRows)
       .filter(row => row.lunch > 0 || row.salad > 0 || row.eventLunch > 0)
       .sort((a, b) => (a.user.businessName || '').localeCompare(b.user.businessName || '', 'ko'));
@@ -6815,7 +6851,7 @@ async function loadSettlements() {
     renderSettlementCharts().catch(() => {});
   } catch(e) {
     tbody.innerHTML = `<tr class="no-order-row"><td colspan="13">정산 계산 실패: ${escapeHtml(e.message)}</td></tr>`;
-    eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="12">행사도시락 내역을 불러오지 못했습니다.</td></tr>';
+    eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">행사도시락 내역을 불러오지 못했습니다.</td></tr>';
   }
 }
 
@@ -6826,6 +6862,7 @@ function renderSettlements() {
   const totalSalad = settlementRows.reduce((sum, row) => sum + row.salad, 0);
   const eventRows = settlementEvents.map(eventSettlementRow);
   const allRows = [...settlementRows, ...eventRows];
+  const totalEventLunch = allRows.reduce((sum, row) => sum + settlementEventQty(row), 0);
   const totalBilled = allRows.reduce((sum, row) => sum + settlementBilledTotal(row), 0);
   const totalPaid = allRows.reduce((sum, r) => sum + settlementPaidTotal(r), 0);
   const totalUnpaid = Math.max(0, totalBilled - totalPaid);
@@ -6836,9 +6873,10 @@ function renderSettlements() {
   document.getElementById('settle-unpaid-total').innerHTML = `${totalUnpaid.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
   document.getElementById('settle-lunch-total').innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
   document.getElementById('settle-salad-total').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
+  document.getElementById('settle-event-lunch-total').innerHTML = `${totalEventLunch}<span class="summary-unit">개</span>`;
   document.getElementById('settle-overdue-count').innerHTML = `${overdueCount}<span class="summary-unit">곳</span>`;
 
-  const hasBatch = settlementRows.length > 0;
+  const hasBatch = allRows.length > 0;
   document.getElementById('settle-batch-toolbar').style.display = hasBatch ? 'flex' : 'none';
   document.getElementById('settle-check-all').checked = false;
 
@@ -6862,8 +6900,8 @@ function renderSettlements() {
           <td class="biz-name">${escapeHtml(row.user.businessName || '-')}</td>
           <td class="qty-cell">${row.lunch}<button class="breakdown-btn" onclick="toggleBreakdown('${escapeHtml(row.uid)}')">📋 일별▼</button></td>
           <td class="qty-cell">${row.salad}</td>
-          <td class="qty-cell">${row.eventLunch || 0}</td>
-          <td style="font-size:13px">${formatMoney(row.lunchPrice)} / ${formatMoney(row.saladPrice)}</td>
+          <td class="qty-cell">${settlementEventQty(row)}</td>
+          <td style="font-size:12px;line-height:1.55">${settlementProductBreakdownHtml(row)}</td>
           <td>${formatMoney(billed)}${adjustLabel}</td>
           <td>${row.invoiceNo ? `<span class="invoice-no">${escapeHtml(row.invoiceNo)}</span>` : '<span style="color:var(--sub);font-size:12px">-</span>'}</td>
           <td>${dueDateBadgeHtml(row)}</td>
@@ -6888,13 +6926,13 @@ function renderSettlements() {
   }
 
   if (settlementEvents.length === 0) {
-    eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="12">선택한 월의 행사도시락이 없습니다.</td></tr>';
+    eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">선택한 월의 행사도시락이 없습니다.</td></tr>';
   } else {
     const eventItems = settlementEvents
       .map(item => ({ item, row: eventSettlementRow(item) }))
       .filter(({ row }) => filterMatchesRow(row));
     if (eventItems.length === 0) {
-      eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="12">해당 조건의 행사도시락이 없습니다.</td></tr>';
+      eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">해당 조건의 행사도시락이 없습니다.</td></tr>';
       return;
     }
     eventTbody.innerHTML = eventItems.map(({ item, row }) => {
@@ -6905,11 +6943,12 @@ function renderSettlements() {
       const balanceClass = balance <= 0 ? 'balance-zero' : 'balance-positive';
       return `
       <tr>
+        <td style="text-align:center"><input class="settle-check" type="checkbox" value="event:${escapeHtml(item.id)}"></td>
         <td>${escapeHtml(item.eventDate || '-')}</td>
         <td>${escapeHtml(item.eventTime || '-')}</td>
         <td class="biz-name">${escapeHtml(`${eventCustomerName(item)} - ${item.name || '-'}`)}</td>
-        <td class="qty-cell">${row.lunch || 0}</td>
-        <td>${formatMoney(row.lunchPrice || 0)}</td>
+        <td class="qty-cell">${settlementEventQty(row)}</td>
+        <td>${formatMoney(settlementEventUnitPrice(row))}</td>
         <td>${formatMoney(billed)}${adjustLabel}</td>
         <td>${row.invoiceNo ? `<span class="invoice-no">${escapeHtml(row.invoiceNo)}</span>` : '<span style="color:var(--sub);font-size:12px">-</span>'}</td>
         <td>${dueDateBadgeHtml(row)}</td>
@@ -6954,11 +6993,16 @@ function makeSettlementReceipt(uid) {
   switchAdminTab('receipts');
   document.getElementById('receipt-user').value = allUsers[uid] ? uid : '';
   document.getElementById('receipt-date').value = `${month}-01`;
-  setReceiptItems([
-    { name: row.type === 'event' ? row.user.businessName : `${month} 도시락`, count: row.lunch, price: row.lunchPrice },
-    { name: `${month} 샐러드`, count: row.salad, price: row.saladPrice },
-    { name: `${month} 업체 행사도시락`, count: row.eventLunch || 0, price: row.eventPrice || row.lunchPrice || 0 }
-  ].filter(item => item.count > 0));
+  const eventQty = settlementEventQty(row);
+  const eventPrice = settlementEventUnitPrice(row);
+  const receiptItems = row.type === 'event'
+    ? [{ name: row.eventName || row.user.businessName || '행사도시락', count: eventQty, price: eventPrice }]
+    : [
+        { name: `${month} 일반도시락`, count: row.lunch, price: row.lunchPrice },
+        { name: `${month} 샐러드`, count: row.salad, price: row.saladPrice },
+        { name: `${month} 행사도시락`, count: eventQty, price: eventPrice }
+      ];
+  setReceiptItems(receiptItems.filter(item => item.count > 0));
   if (row.type === 'event') {
     const previewUser = { businessName: row.user.businessName || '행사도시락', phone: row.event?.place || '' };
     document.getElementById('receipt-note').dataset.eventUser = JSON.stringify(previewUser);
@@ -7394,25 +7438,68 @@ async function bulkUpdateSettlement() {
   const newStatus = document.getElementById('batch-status-select').value;
   if (!newStatus) { showToast('변경할 상태를 선택해주세요.'); return; }
   const checked = Array.from(document.querySelectorAll('.settle-check:checked'));
-  if (checked.length === 0) { showToast('업체를 선택해주세요.'); return; }
+  if (checked.length === 0) { showToast('정산 항목을 선택해주세요.'); return; }
   const uids = checked.map(el => el.value);
   try {
     const batch = db.batch();
+    const eventAdminUpdates = {};
+    const updatedRows = [];
+    const now = new Date().toISOString();
     uids.forEach(uid => {
-      const row = settlementRows.find(r => r.uid === uid);
+      const row = getSettlementRow(uid);
       if (!row) return;
-      const data = { status: newStatus, note: row.note, amount: row.amount, adjust: row.adjust || 0, invoiceNo: row.invoiceNo || '', dueDate: row.dueDate || '', payments: row.payments || [], updatedAt: new Date().toISOString() };
+      const data = {
+        status: newStatus,
+        note: row.note,
+        amount: row.amount,
+        adjust: row.adjust || 0,
+        invoiceNo: row.invoiceNo || '',
+        dueDate: row.dueDate || '',
+        payments: row.payments || [],
+        paidDate: row.paidDate || '',
+        paidAmount: row.paidAmount || 0,
+        lunchTotal: row.lunch || 0,
+        saladTotal: row.salad || 0,
+        eventLunchTotal: settlementEventQty(row),
+        lunch: row.lunch || 0,
+        salad: row.salad || 0,
+        eventLunch: settlementEventQty(row),
+        lunchPrice: row.lunchPrice || 0,
+        saladPrice: row.saladPrice || 0,
+        eventPrice: settlementEventUnitPrice(row),
+        updatedAt: now
+      };
+      updatedRows.push({ uid, row, data });
+      if (row.type === 'event') {
+        eventAdminUpdates[row.eventId] = {
+          settlement: {
+            ...eventSettlementData(row.event || {}),
+            ...data
+          },
+          updatedAt: now
+        };
+        return;
+      }
       saveSettlementItem(month, uid, row, data, { batch });
     });
+    if (Object.keys(eventAdminUpdates).length) {
+      batch.set(db.collection('users').doc(adminUid), { adminEvents: eventAdminUpdates }, { merge: true });
+    }
     await batch.commit();
-    uids.forEach(uid => {
-      const row = settlementRows.find(r => r.uid === uid);
-      if (!row) return;
-      row.status = newStatus;
-      applySettlementToUserCache(uid, month, { status: newStatus, note: row.note, amount: row.amount, adjust: row.adjust || 0, paidDate: row.paidDate || '', paidAmount: row.paidAmount || 0 });
+    updatedRows.forEach(({ uid, row, data }) => {
+      Object.assign(row, data);
+      if (row.type === 'event') {
+        const item = settlementEvents.find(e => e.id === row.eventId);
+        if (item) {
+          item.settlement = { ...(item.settlement || {}), ...data };
+          item.updatedAt = now;
+        }
+        return;
+      }
+      applySettlementToUserCache(uid, month, data);
     });
     renderSettlements();
-    showToast(`✅ ${uids.length}곳을 "${newStatus}"으로 변경했습니다.`);
+    showToast(`✅ ${updatedRows.length}건을 "${newStatus}"으로 변경했습니다.`);
   } catch(e) {
     showToast('일괄 저장 실패: ' + e.message);
   }
@@ -7422,13 +7509,13 @@ function exportSettlementCSV() {
   const rows = [...settlementRows, ...settlementEvents.map(eventSettlementRow)];
   if (rows.length === 0) { showToast('정산 데이터가 없습니다.'); return; }
   const month = document.getElementById('settle-month').value || currentMonthStr();
-  const headers = ['업체명', '도시락(개)', '샐러드(개)', '업체 행사도시락(개)', '도시락 단가', '샐러드 단가', '행사 단가', '청구액(원)', '조정금액', '청구서번호', '납부기한', '입금합계', '잔액', '상태', '메모'];
+  const headers = ['업체명', '일반도시락(개)', '샐러드(개)', '행사도시락(개)', '일반도시락 금액', '샐러드 금액', '행사도시락 금액', '청구액(원)', '조정금액', '청구서번호', '납부기한', '입금합계', '잔액', '상태', '메모'];
   const dataRows = rows.map(row => {
     const billed = settlementBilledTotal(row);
     const paidTotal = settlementPaidTotal(row);
     return [
-      row.user.businessName || '-', row.lunch, row.salad, row.eventLunch || 0,
-      row.lunchPrice, row.saladPrice, row.eventPrice || row.lunchPrice || 0,
+      row.user.businessName || '-', row.lunch, row.salad, settlementEventQty(row),
+      settlementLunchAmount(row), settlementSaladAmount(row), settlementEventAmount(row),
       billed, row.adjust || 0,
       row.invoiceNo || '-', row.dueDate || '-',
       paidTotal, billed - paidTotal, row.status, row.note
@@ -7436,7 +7523,7 @@ function exportSettlementCSV() {
   });
   const totalLunch = rows.reduce((s, r) => s + r.lunch, 0);
   const totalSalad = rows.reduce((s, r) => s + r.salad, 0);
-  const totalEventLunch = rows.reduce((s, r) => s + (r.eventLunch || 0), 0);
+  const totalEventLunch = rows.reduce((s, r) => s + settlementEventQty(r), 0);
   const totalAmount = rows.reduce((s, r) => s + settlementBilledTotal(r), 0);
   dataRows.push(['합계', totalLunch, totalSalad, totalEventLunch, '', '', '', totalAmount, '', '', '', '', '', '', '']);
   const csv = [headers, ...dataRows]
@@ -7460,9 +7547,9 @@ function copySettlementKakao(uid) {
   const lines = [`[궁중수라간 ${month} 정산 안내]`, `업체: ${name}`, ''];
   if (row.invoiceNo) lines.push(`청구서번호: ${row.invoiceNo}`);
   if (row.type === 'event') lines.push(`행사일시: ${row.event.eventDate || '-'} ${row.event.eventTime || ''}`.trim());
-  if (row.lunch > 0) lines.push(`${row.type === 'event' ? '행사도시락' : '도시락'} ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원 = ${(row.lunch * row.lunchPrice).toLocaleString()}원`);
+  if (row.lunch > 0) lines.push(`일반도시락 ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원 = ${settlementLunchAmount(row).toLocaleString()}원`);
   if (row.salad > 0) lines.push(`샐러드 ${row.salad}개 × ${row.saladPrice.toLocaleString()}원 = ${(row.salad * row.saladPrice).toLocaleString()}원`);
-  if ((row.eventLunch || 0) > 0) lines.push(`업체 행사도시락 ${row.eventLunch}개 × ${(row.eventPrice || row.lunchPrice || 0).toLocaleString()}원 = ${(row.eventLunch * (row.eventPrice || row.lunchPrice || 0)).toLocaleString()}원`);
+  if (settlementEventQty(row) > 0) lines.push(`행사도시락 ${settlementEventQty(row)}개 × ${settlementEventUnitPrice(row).toLocaleString()}원 = ${settlementEventAmount(row).toLocaleString()}원`);
   const billed = settlementBilledTotal(row);
   const paidTotal = settlementPaidTotal(row);
   const balance = billed - paidTotal;
@@ -7488,13 +7575,13 @@ async function copyAllSettlementKakao() {
   rows.forEach(row => {
     const name = row.user.businessName || '-';
     lines.push(`▶ ${name}`);
-    if (row.lunch > 0) lines.push(`  도시락 ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원`);
+    if (row.lunch > 0) lines.push(`  일반도시락 ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원`);
     if (row.salad > 0) lines.push(`  샐러드 ${row.salad}개 × ${row.saladPrice.toLocaleString()}원`);
-    if ((row.eventLunch || 0) > 0) lines.push(`  업체 행사도시락 ${row.eventLunch}개 × ${(row.eventPrice || row.lunchPrice || 0).toLocaleString()}원`);
-    lines.push(`  청구액: ${(row.amount + (row.adjust || 0)).toLocaleString()}원`);
+    if (settlementEventQty(row) > 0) lines.push(`  행사도시락 ${settlementEventQty(row)}개 × ${settlementEventUnitPrice(row).toLocaleString()}원`);
+    lines.push(`  청구액: ${settlementBilledTotal(row).toLocaleString()}원`);
     lines.push('');
   });
-  const totalAmount = rows.reduce((s, r) => s + r.amount + (r.adjust || 0), 0);
+  const totalAmount = rows.reduce((s, r) => s + settlementBilledTotal(r), 0);
   lines.push(`전체 청구 합계: ${totalAmount.toLocaleString()}원`);
   const text = lines.join('\n');
   if (navigator.clipboard?.writeText) {
@@ -7511,7 +7598,7 @@ function openSheetModal(uid) {
   sheetTargetUid = uid;
   const month = document.getElementById('settle-month').value || currentMonthStr();
   document.getElementById('sheet-item-name').value = row.type === 'event' ? (row.user.businessName || '행사도시락') : '월식 1인';
-  document.getElementById('sheet-lunch-price').value = row.lunchPrice;
+  document.getElementById('sheet-lunch-price').value = row.type === 'event' ? settlementEventUnitPrice(row) : row.lunchPrice;
   document.getElementById('sheet-salad-price').value = row.saladPrice;
   document.getElementById('sheet-note-text').value = settlementSheetNoteForMonth(month);
   renderSheetPreview();
@@ -7532,7 +7619,7 @@ function buildSheetHTML(uid, forPrint) {
   const itemName = document.getElementById('sheet-item-name').value || '월식 1인';
   const lunchPrice = parseInt(document.getElementById('sheet-lunch-price').value, 10) || 0;
   const saladPrice = parseInt(document.getElementById('sheet-salad-price').value, 10) || 0;
-  const eventPrice = row.eventPrice || row.lunchPrice || lunchPrice || 0;
+  const eventPrice = settlementEventUnitPrice(row) || lunchPrice || 0;
   const note = document.getElementById('sheet-note-text').value;
   const user = row.user || {};
   const money = value => (parseInt(value, 10) || 0).toLocaleString('ko-KR');
@@ -7574,8 +7661,8 @@ function buildSheetHTML(uid, forPrint) {
 
   if (row.type === 'event') {
     const event = row.event || {};
-    const count = row.lunch || 0;
-    const price = lunchPrice || row.lunchPrice || 0;
+    const count = settlementEventQty(row);
+    const price = lunchPrice || settlementEventUnitPrice(row) || 0;
     const totalAmount = count * price;
     return `${printStyles}<div class="settle-sheet">
       ${titleBlock('행사도시락 정산서')}
@@ -7619,9 +7706,9 @@ function buildSheetHTML(uid, forPrint) {
       const rec = row.type === 'manualMonthly'
         ? (row.daily?.[ds] || {})
         : ((cachedDeliveryRecords[ds] || {})[uid] || {});
-      const lunch = rec.lunchCount ?? rec.lunch ?? 0;
-      const salad = rec.saladCount ?? rec.salad ?? 0;
-      const eventLunch = rec.eventLunch || 0;
+      const lunch = orderLunchQty(rec);
+      const salad = orderSaladQty(rec);
+      const eventLunch = orderEventLunchQty(rec);
       const amount = lunch * lunchPrice + salad * saladPrice + eventLunch * eventPrice;
       totalLunch += lunch;
       totalSalad += salad;
@@ -7660,14 +7747,14 @@ function buildSheetHTML(uid, forPrint) {
       ['공급자', `${SUPPLIER_INFO.name} / ${SUPPLIER_INFO.bizNo}`],
     ])}
     <div class="settle-sheet-summary">
-      ${summaryBox('도시락', `${totalLunch}개`)}
+      ${summaryBox('일반도시락', `${totalLunch}개`)}
       ${summaryBox('샐러드', `${totalSalad}개`)}
-      ${summaryBox('행사', `${totalEventLunch}개`)}
+      ${summaryBox('행사도시락', `${totalEventLunch}개`)}
       ${summaryBox('청구액', `${money(billedTotal)}원`, 'total')}
     </div>
     <table class="settle-sheet-detail">
       <thead>
-        <tr><th style="width:12%">날짜</th><th>품목</th><th style="width:12%">도시락</th><th style="width:12%">샐러드</th><th style="width:12%">행사</th><th style="width:18%">금액</th></tr>
+        <tr><th style="width:12%">날짜</th><th>품목</th><th style="width:12%">일반</th><th style="width:12%">샐러드</th><th style="width:12%">행사</th><th style="width:18%">금액</th></tr>
       </thead>
       <tbody>${detailHtml}</tbody>
       <tfoot>
@@ -7679,7 +7766,7 @@ function buildSheetHTML(uid, forPrint) {
     <div class="settle-sheet-note">
       <div class="settle-sheet-note-title">단가 및 안내</div>
       <div style="line-height:1.8">
-        도시락 ${money(lunchPrice)}원 · 샐러드 ${money(saladPrice)}원${totalEventLunch ? ` · 행사 ${money(eventPrice)}원` : ''}<br>
+        일반도시락 ${money(lunchPrice)}원 · 샐러드 ${money(saladPrice)}원${totalEventLunch ? ` · 행사도시락 ${money(eventPrice)}원` : ''}<br>
         <span style="white-space:pre-wrap">${escapeHtml(note)}</span>
       </div>
     </div>
@@ -7714,8 +7801,8 @@ function openSettlementEdit(uid) {
   if (row.type === 'event') {
     const eventName = eventOrderItemsSummary(row.event || {}) || row.event?.name || '행사도시락';
     document.getElementById('settle-edit-event-name').value = eventName;
-    document.getElementById('settle-edit-event-count').value = row.lunch || 0;
-    document.getElementById('settle-edit-event-unit-price').value = row.lunchPrice || 0;
+    document.getElementById('settle-edit-event-count').value = settlementEventQty(row);
+    document.getElementById('settle-edit-event-unit-price').value = settlementEventUnitPrice(row);
     document.getElementById('settle-edit-event-amount').value = row.amount || 0;
   }
   document.getElementById('settle-edit-lunch').value = row.lunch || 0;
@@ -7758,7 +7845,7 @@ async function saveSettlementEdit() {
   const paidTotal = payments.reduce((s,p)=>s+(parseInt(p.amount,10)||0),0);
   const paidDate = payments.length ? payments[payments.length - 1].date : '';
   try {
-    let data = { status, note, amount: row.amount, adjust, invoiceNo, dueDate, payments, paidDate, paidAmount: paidTotal, lunchTotal: row.lunch || 0, saladTotal: row.salad || 0, updatedAt: new Date().toISOString() };
+    let data = { status, note, amount: row.amount, adjust, invoiceNo, dueDate, payments, paidDate, paidAmount: paidTotal, lunchTotal: row.lunch || 0, saladTotal: row.salad || 0, eventLunchTotal: settlementEventQty(row), updatedAt: new Date().toISOString() };
     if (row.type === 'event') {
       const eventName = document.getElementById('settle-edit-event-name').value.trim() || '행사도시락';
       const eventCount = parseDeliveryCount(document.getElementById('settle-edit-event-count').value, 1);
@@ -7775,7 +7862,9 @@ async function saveSettlementEdit() {
       data = {
         ...data,
         amount: eventAmount,
-        lunchTotal: eventCount,
+        lunchTotal: 0,
+        eventLunchTotal: eventCount,
+        eventLunch: eventCount,
         eventName,
         eventCount,
         eventPrice,
@@ -7788,6 +7877,9 @@ async function saveSettlementEdit() {
         price: eventPrice,
         amount: eventAmount,
         lunchCount: eventCount,
+        eventLunchCount: eventCount,
+        eventLunchQty: eventCount,
+        eventLunch: eventCount,
         items: eventItems,
         settlement: data,
         updatedAt: new Date().toISOString()
@@ -7884,8 +7976,8 @@ function collectPaymentsFromModal() {
 
 function settlementModalBaseAmount(row = {}) {
   if (row.type === 'event') {
-    const count = parseDeliveryCount(document.getElementById('settle-edit-event-count')?.value, row.lunch || 0);
-    const price = parsePrice(document.getElementById('settle-edit-event-unit-price')?.value, row.lunchPrice || 0);
+    const count = parseDeliveryCount(document.getElementById('settle-edit-event-count')?.value, settlementEventQty(row));
+    const price = parsePrice(document.getElementById('settle-edit-event-unit-price')?.value, settlementEventUnitPrice(row));
     return parsePrice(document.getElementById('settle-edit-event-amount')?.value, count * price);
   }
   if (row.type === 'manualMonthly') {
@@ -8385,7 +8477,7 @@ function renderBreakdownHTML(row) {
       </div>
     </div>
     <table class="breakdown-table">
-      <thead><tr><th>날짜</th><th>🍱 도시락</th><th>🥗 샐러드</th>${hasEventLunch ? '<th>🎉 행사</th>' : ''}</tr></thead>
+      <thead><tr><th>날짜</th><th>🍱 일반</th><th>🥗 샐러드</th>${hasEventLunch ? '<th>🎉 행사</th>' : ''}</tr></thead>
       <tbody>${rows}
         <tr class="breakdown-total"><td>합계</td><td id="bd-total-lunch-${safeUid}">${row.lunch}</td><td id="bd-total-salad-${safeUid}">${row.salad}</td>${hasEventLunch ? `<td>${totalEventLunch}</td>` : ''}</tr>
       </tbody>
