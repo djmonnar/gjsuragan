@@ -463,6 +463,13 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .event-list-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}
 .event-list-count{font-size:13px;font-weight:700;color:var(--sub)}
 .event-list-more-wrap{display:flex;justify-content:center;margin-top:12px}
+.order-event-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.order-event-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+.order-event-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+.order-event-name{font-weight:800;color:var(--text);line-height:1.35}
+.order-event-qty{font-size:18px;font-weight:900;color:var(--primary);white-space:nowrap}
+.order-event-meta{font-size:13px;color:#475467;line-height:1.6}
+.order-event-meta strong{color:#344054}
 .biz-name{color:var(--text);font-weight:800}
 .dot{background:var(--primary)}
 .qty-cell{color:var(--text);font-size:15px;font-weight:800}
@@ -732,6 +739,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <button class="today-btn" onclick="goToday()">오늘</button>
     <button class="refresh-btn" onclick="loadAllUsers().then(loadOrders)"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>새로고침</span></button>
     <button class="refresh-btn" onclick="exportKakaoSummary()"><svg class="action-icon"><use href="#admin-i-chat"></use></svg><span>카톡용 복사</span></button>
+    <button class="print-btn" onclick="printTodayProductionSheet()"><svg class="action-icon"><use href="#admin-i-receipt"></use></svg><span>집계 인쇄</span></button>
     <button class="today-btn" onclick="completeSelectedDeliveries()"><svg class="action-icon"><use href="#admin-i-truck"></use></svg><span>배송 완료</span></button>
     <button class="manual-btn" id="order-lock-btn" onclick="toggleOrderLock()"><span>주문 잠금</span></button>
     <button class="manual-btn" onclick="openManualOrderModal()"><svg class="action-icon"><use href="#admin-i-edit"></use></svg><span>수동 배송 입력</span></button>
@@ -762,6 +770,15 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-salad"></use></svg><span>총 샐러드</span></div>
       <div class="summary-value" id="sum-salad">0<span class="summary-unit">개</span></div>
     </div>
+    <div class="summary-card">
+      <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>총 행사도시락</span></div>
+      <div class="summary-value" id="sum-event-lunch">0<span class="summary-unit">개</span></div>
+    </div>
+  </div>
+
+  <div class="table-section admin-tab-panel" data-tab="orders" id="order-event-summary-section" style="display:none">
+    <div class="section-title">오늘 행사도시락 <span class="note-badge" id="order-event-summary-count">0건</span></div>
+    <div class="order-event-list" id="order-event-summary-list"></div>
   </div>
 
   <div class="table-section admin-tab-panel" data-tab="orders">
@@ -1758,6 +1775,7 @@ let adminEventDraftItems = [];
 let settlementRows = [];
 let settlementEvents = [];
 let currentOrderRows = [];
+let currentOrderEventRows = [];
 let currentOrderLocked = false;
 let previousIncompleteAlertState = null;
 let previousIncompleteAlertHiddenDate = '';
@@ -3619,22 +3637,103 @@ function goPreviousIncompleteDate() {
   }, 100);
 }
 
+function orderTabEventRowsFromSources(adminData = {}, publicSnap = null, date = currentDateStr) {
+  const adminRows = Object.entries(adminEventsFromData(adminData))
+    .map(([id, item]) => ({ id, ...item, source: item.source || 'adminEvent' }))
+    .filter(item => item.eventDate === date);
+  const publicRows = publicSnap
+    ? publicSnap.docs
+      .map(doc => ({ id: doc.id, ...doc.data(), source: 'publicEventOrder' }))
+      .filter(item => item.eventDate === date && item.status !== 'registered' && item.status !== 'deleted')
+      .map(publicEventOrderToRow)
+    : [];
+  return sortEventLunchesLatestFirst(adminRows.concat(publicRows));
+}
+
+function eventLunchTotalForRows(rows = []) {
+  return rows.reduce((sum, item) => sum + (eventOrderTotalQty(item) || Number(item.count || 0) || 0), 0);
+}
+
+function setOrderSummaryValues(count, lunch, salad, eventLunch) {
+  document.getElementById('sum-count').innerHTML = `${count}<span class="summary-unit">곳</span>`;
+  document.getElementById('sum-lunch').innerHTML = `${lunch}<span class="summary-unit">개</span>`;
+  document.getElementById('sum-salad').innerHTML = `${salad}<span class="summary-unit">개</span>`;
+  const eventEl = document.getElementById('sum-event-lunch');
+  if (eventEl) eventEl.innerHTML = `${eventLunch}<span class="summary-unit">개</span>`;
+}
+
+function renderOrderEventLunches(rows = currentOrderEventRows) {
+  const section = document.getElementById('order-event-summary-section');
+  const list = document.getElementById('order-event-summary-list');
+  const countEl = document.getElementById('order-event-summary-count');
+  if (!section || !list || !countEl) return;
+  if (!rows.length) {
+    section.style.display = 'none';
+    list.innerHTML = '';
+    countEl.textContent = '0건';
+    return;
+  }
+  section.style.display = activeAdminTab === 'orders' ? '' : 'none';
+  const total = eventLunchTotalForRows(rows);
+  countEl.textContent = `${rows.length}건 · ${total}개`;
+  list.innerHTML = rows.map(item => {
+    const qty = eventOrderTotalQty(item) || Number(item.count || 0) || 0;
+    const menu = eventOrderItemsSummary(item) || item.name || '-';
+    const note = eventRequestNote(item);
+    return `
+      <div class="order-event-card">
+        <div class="order-event-head">
+          <div>
+            <div class="order-event-name">${escapeHtml(eventCustomerName(item))}</div>
+            <div style="margin-top:5px">${eventDeliveryBadge(item)}</div>
+          </div>
+          <div class="order-event-qty">${qty}개</div>
+        </div>
+        <div class="order-event-meta">
+          <div><strong>시간</strong> ${escapeHtml(item.eventTime || '-')}</div>
+          <div><strong>메뉴</strong> ${escapeHtml(menu)}</div>
+          <div><strong>장소</strong> ${escapeHtml(item.place || '-')}</div>
+          ${note ? `<div><strong>요청</strong> ${escapeHtml(note)}</div>` : ''}
+          ${item.contactPhone ? `<div><strong>연락처</strong> ${escapeHtml(item.contactPhone)}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadOrderTabEventLunches(date = currentDateStr) {
+  try {
+    const [adminDoc, publicEventSnap] = await Promise.all([
+      db.collection('users').doc(adminUid).get(),
+      db.collection('eventOrders').where('eventDate', '==', date).get().catch(() => null)
+    ]);
+    currentOrderEventRows = orderTabEventRowsFromSources(adminDoc.exists ? adminDoc.data() : {}, publicEventSnap, date);
+    renderOrderEventLunches();
+    return currentOrderEventRows;
+  } catch(e) {
+    currentOrderEventRows = [];
+    renderOrderEventLunches([]);
+    return [];
+  }
+}
+
 // ── 주문 로드 ──
 async function loadOrders() {
   document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="12">불러오는 중...</td></tr>';
   document.getElementById('not-submitted-list').innerHTML = '';
   currentOrderRows = [];
+  currentOrderEventRows = [];
+  renderOrderEventLunches([]);
   const checkAll = document.getElementById('order-check-all');
   if (checkAll) checkAll.checked = false;
 
   if (isNoDeliveryDate(currentDateStr)) {
+    const dateEvents = await loadOrderTabEventLunches(currentDateStr);
     currentOrderLocked = false;
     updateOrderLockButton();
     const message = holidayName(currentDateStr) ? `${holidayName(currentDateStr)}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다';
     document.getElementById('order-tbody').innerHTML = `<tr class="no-order-row"><td colspan="12">${escapeHtml(message)}</td></tr>`;
-    ['sum-count','sum-lunch','sum-salad'].forEach((id,i) => {
-      document.getElementById(id).innerHTML = '0<span class="summary-unit">' + ['곳','개','개'][i] + '</span>';
-    });
+    setOrderSummaryValues(0, 0, 0, eventLunchTotalForRows(dateEvents));
     document.getElementById('not-sub-title').textContent = '🚚 배송 없음';
     document.getElementById('not-submitted-list').innerHTML = '<div class="no-not">공휴일과 주말은 주문 확인 대상에서 제외됩니다.</div>';
     checkPreviousIncompleteDeliveries();
@@ -3642,23 +3741,26 @@ async function loadOrders() {
   }
 
   try {
-    const [snap, adminDoc, lockDoc, defaultSnap] = await Promise.all([
+    const [snap, adminDoc, lockDoc, defaultSnap, publicEventSnap] = await Promise.all([
       db.collection('orders').doc(currentDateStr).collection('items').get(),
       db.collection('users').doc(adminUid).get(),
       db.collection('orderLocks').doc(currentDateStr).get().catch(() => null),
-      db.collection('orderDefaultSnapshots').doc(currentDateStr).collection('items').get().catch(() => null)
+      db.collection('orderDefaultSnapshots').doc(currentDateStr).collection('items').get().catch(() => null),
+      db.collection('eventOrders').where('eventDate', '==', currentDateStr).get().catch(() => null)
     ]);
     currentOrderLocked = !!lockDoc?.exists;
     updateOrderLockButton();
     const adminData = adminDoc.exists ? adminDoc.data() : {};
     const deliveredRecords = deliveryRecordsFromData(adminData)[currentDateStr] || {};
+    currentOrderEventRows = orderTabEventRowsFromSources(adminData, publicEventSnap, currentDateStr);
+    renderOrderEventLunches();
     const defaultSnapshots = currentOrderLocked && defaultSnap
       ? defaultSnap.docs.map(doc => [doc.id, doc.data() || {}])
       : null;
     const orders = mergeOrdersWithDefaults(currentDateStr, snap, deliveredRecords, defaultSnapshots);
     currentOrderRows = orders;
 
-    let totalLunch = 0, totalSalad = 0;
+    let totalLunch = 0, totalSalad = 0, totalEventLunch = 0;
     const tbody = document.getElementById('order-tbody');
 
     if (orders.length === 0) {
@@ -3669,6 +3771,7 @@ async function loadOrders() {
         totalLunch += o.lunchCount || 0;
         totalSalad += o.saladCount || 0;
         const eventLunch = orderEventLunchQty(o);
+        totalEventLunch += eventLunch;
         const totalQty = orderTotalQty(o);
         const totalAmount = orderTotalAmount(o, allUsers[o.uid] || {});
         const tr = document.createElement('tr');
@@ -3734,9 +3837,7 @@ async function loadOrders() {
       if (checkAll) checkAll.checked = orders.some(o => !o.delivered && !o.selfHoliday);
     }
 
-    document.getElementById('sum-count').innerHTML = `${orders.length}<span class="summary-unit">곳</span>`;
-    document.getElementById('sum-lunch').innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
-    document.getElementById('sum-salad').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
+    setOrderSummaryValues(orders.length, totalLunch, totalSalad, totalEventLunch + eventLunchTotalForRows(currentOrderEventRows));
     renderNotSubmitted(orders);
     checkPreviousIncompleteDeliveries();
   } catch(e) {
@@ -5626,6 +5727,9 @@ function switchAdminTab(tab) {
   document.querySelectorAll('.admin-tab-panel').forEach(el => {
     el.style.display = el.dataset.tab === tab ? '' : 'none';
   });
+  if (tab === 'orders') {
+    renderOrderEventLunches();
+  }
   if (tab === 'members') {
     renderMembers();
     loadRecentOrderLogs();
@@ -6821,6 +6925,136 @@ function printReceipt() {
       .receipt-total{text-align:right;font-size:22px;font-weight:800;margin-top:14px}
       .stamp-area{text-align:right;margin-top:48px;font-weight:700}
     </style></head><body>${receiptHtml(data)}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}<\/script></body></html>`);
+  win.document.close();
+}
+
+function productionOrderRowsForPrint() {
+  return currentOrderRows
+    .map(row => {
+      if (row.selfHoliday) return null;
+      const rowEl = orderRowElementByUid(row.uid);
+      const values = rowEl
+        ? orderQtyValuesFromRow(rowEl)
+        : { lunch: orderLunchQty(row), salad: orderSaladQty(row), event: orderEventLunchQty(row) };
+      const user = allUsers[row.uid] || deletedUsers[row.uid] || {};
+      const total = values.lunch + values.salad + values.event;
+      if (total <= 0) return null;
+      const note = row.note && row.note !== '요일 기본값' ? row.note : '';
+      return {
+        name: user.businessName || row.businessName || '-',
+        lunch: values.lunch,
+        salad: values.salad,
+        event: values.event,
+        total,
+        time: user.mealTime || (row.source === 'default' ? '기본수량' : formatTime(row.submittedAt)),
+        status: row.delivered ? '완료' : '대기',
+        note
+      };
+    })
+    .filter(Boolean);
+}
+
+function productionEventRowsForPrint() {
+  return (currentOrderEventRows || []).map(item => ({
+    name: eventCustomerName(item),
+    time: item.eventTime || '-',
+    menu: eventOrderItemsSummary(item) || item.name || '-',
+    qty: eventOrderTotalQty(item) || Number(item.count || 0) || 0,
+    place: item.place || '-',
+    note: eventRequestNote(item) || '',
+    status: item.delivered ? '완료' : (item.source === 'publicEventOrder' ? '접수' : '대기')
+  })).filter(row => row.qty > 0);
+}
+
+function printTodayProductionSheet() {
+  const orderRows = productionOrderRowsForPrint();
+  const eventRows = productionEventRowsForPrint();
+  if (!orderRows.length && !eventRows.length) {
+    showToast('인쇄할 오늘 주문이 없습니다.');
+    return;
+  }
+  const monthlyTotals = orderRows.reduce((acc, row) => {
+    acc.lunch += row.lunch;
+    acc.salad += row.salad;
+    acc.event += row.event;
+    acc.total += row.total;
+    return acc;
+  }, { lunch: 0, salad: 0, event: 0, total: 0 });
+  const standaloneEventTotal = eventRows.reduce((sum, row) => sum + row.qty, 0);
+  const printedAt = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
+  const orderHtml = orderRows.length ? `
+    <table>
+      <thead><tr><th>#</th><th>업체명</th><th>도시락</th><th>샐러드</th><th>업체 행사</th><th>합계</th><th>시간</th><th>상태</th><th>메모</th></tr></thead>
+      <tbody>
+        ${orderRows.map((row, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td class="name">${escapeHtml(row.name)}</td>
+            <td class="num">${row.lunch}</td>
+            <td class="num">${row.salad}</td>
+            <td class="num">${row.event || ''}</td>
+            <td class="num">${row.total}</td>
+            <td>${escapeHtml(row.time || '-')}</td>
+            <td>${escapeHtml(row.status)}</td>
+            <td>${escapeHtml(row.note || '')}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : '<p class="empty">월식 업체 주문이 없습니다.</p>';
+  const eventHtml = eventRows.length ? `
+    <table>
+      <thead><tr><th>#</th><th>행사 업체</th><th>시간</th><th>메뉴</th><th>수량</th><th>장소</th><th>상태</th><th>요청</th></tr></thead>
+      <tbody>
+        ${eventRows.map((row, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td class="name">${escapeHtml(row.name)}</td>
+            <td>${escapeHtml(row.time)}</td>
+            <td>${escapeHtml(row.menu)}</td>
+            <td class="num">${row.qty}</td>
+            <td>${escapeHtml(row.place)}</td>
+            <td>${escapeHtml(row.status)}</td>
+            <td>${escapeHtml(row.note || '')}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : '<p class="empty">별도 행사도시락이 없습니다.</p>';
+  const win = window.open('', 'production-print', 'width=980,height=900');
+  if (!win) {
+    showToast('팝업 차단을 해제한 뒤 다시 인쇄해주세요.');
+    return;
+  }
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>궁중수라간 배송 집계</title>
+    <style>
+      *{box-sizing:border-box} body{font-family:Arial,'Malgun Gothic',sans-serif;margin:28px;color:#111827}
+      h1{font-size:24px;margin:0 0 6px} h2{font-size:16px;margin:26px 0 8px}
+      .meta{color:#6b7280;font-size:12px;margin-bottom:18px}
+      .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:16px 0}
+      .box{border:1px solid #d1d5db;border-radius:8px;padding:10px;text-align:center}
+      .label{font-size:11px;color:#6b7280;font-weight:700}.value{font-size:22px;font-weight:900;margin-top:4px}
+      table{width:100%;border-collapse:collapse;margin-top:8px;page-break-inside:auto}
+      th,td{border:1px solid #d1d5db;padding:7px 8px;font-size:12px;vertical-align:top}
+      th{background:#f3f4f6;text-align:left}.num{text-align:center;font-weight:800}.name{font-weight:800}
+      .empty{border:1px dashed #d1d5db;border-radius:8px;padding:12px;color:#6b7280}
+      @media print{body{margin:16mm}.no-print{display:none}}
+    </style></head><body>
+      <h1>궁중수라간 배송 집계</h1>
+      <div class="meta">${escapeHtml(formatDateKR(currentDateStr))} · 출력 ${escapeHtml(printedAt)}</div>
+      <div class="summary">
+        <div class="box"><div class="label">월식 업체</div><div class="value">${orderRows.length}</div></div>
+        <div class="box"><div class="label">도시락</div><div class="value">${monthlyTotals.lunch}</div></div>
+        <div class="box"><div class="label">샐러드</div><div class="value">${monthlyTotals.salad}</div></div>
+        <div class="box"><div class="label">업체 행사</div><div class="value">${monthlyTotals.event}</div></div>
+        <div class="box"><div class="label">별도 행사</div><div class="value">${standaloneEventTotal}</div></div>
+      </div>
+      <h2>업체별 오늘 주문</h2>
+      ${orderHtml}
+      <h2>오늘 행사도시락</h2>
+      ${eventHtml}
+      <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}<\/script>
+    </body></html>`);
   win.document.close();
 }
 
