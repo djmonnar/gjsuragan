@@ -795,7 +795,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 
   <div class="summary-row admin-tab-panel" data-tab="orders">
     <div class="summary-card">
-      <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-orders"></use></svg><span>제출 업체</span></div>
+      <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-orders"></use></svg><span>표시 업체</span></div>
       <div class="summary-value" id="sum-count">0<span class="summary-unit">곳</span></div>
     </div>
     <div class="summary-card">
@@ -3473,17 +3473,57 @@ function setDateFromPicker() {
 
 function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnapshots = null) {
   const rowsByUid = {};
-  const defaultSource = defaultSnapshots || Object.entries(allUsers).map(([uid, user]) => {
+  const defaultSourceMap = new Map();
+  if (defaultSnapshots) {
+    defaultSnapshots.forEach(([uid, user]) => defaultSourceMap.set(uid, user));
+  }
+  Object.entries(allUsers).forEach(([uid, user]) => {
+    if (defaultSourceMap.has(uid)) return;
     const defaults = defaultMealsForDate(user, dStr);
-    return [uid, { ...user, defaultLunchForDate: defaults.lunch, defaultSaladForDate: defaults.salad }];
+    defaultSourceMap.set(uid, {
+      ...user,
+      lunchCount: defaults.lunch,
+      saladCount: defaults.salad,
+      defaultLunchForDate: defaults.lunch,
+      defaultSaladForDate: defaults.salad
+    });
   });
+  const defaultSource = [...defaultSourceMap.entries()];
   defaultSource.forEach(([uid, user]) => {
     const defaults = defaultSnapshots
       ? { lunch: parseCount(user.lunchCount, 0), salad: parseCount(user.saladCount, 0) }
       : { lunch: user.defaultLunchForDate, salad: user.defaultSaladForDate };
     const delivered = deliveredRecords[uid];
     if (delivered?.orderDeleted) return;
-    if ((defaults.lunch + defaults.salad) <= 0) return;
+    const lunchPrice = userLunchPrice(user);
+    const saladPrice = userSaladPrice(user);
+    const eventLunchPrice = orderEventLunchPrice(delivered || {});
+    if ((defaults.lunch + defaults.salad) <= 0) {
+      rowsByUid[uid] = {
+        uid,
+        businessName: user.businessName || '-',
+        lunchCount: 0,
+        saladCount: 0,
+        eventLunchQty: 0,
+        lunchQty: 0,
+        saladQty: 0,
+        lunchPrice,
+        saladPrice,
+        eventLunchPrice,
+        totalQty: 0,
+        totalAmount: 0,
+        note: defaultSnapshots ? '잠금 시점 0개 휴무' : '요일 기본 0개 휴무',
+        submittedAt: null,
+        delivered: false,
+        deliveredAt: null,
+        deliveryPlace: user.deliveryPlace || user.address || '',
+        selfHoliday: true,
+        zeroQuantityHoliday: true,
+        orderDocExists: false,
+        source: 'zeroDefault'
+      };
+      return;
+    }
     rowsByUid[uid] = {
       uid,
       businessName: user.businessName || '-',
@@ -3492,9 +3532,9 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       eventLunchQty: delivered ? orderEventLunchQty(delivered) : 0,
       lunchQty: delivered ? (delivered.lunchQty ?? delivered.lunchCount ?? 0) : defaults.lunch,
       saladQty: delivered ? (delivered.saladQty ?? delivered.saladCount ?? 0) : defaults.salad,
-      lunchPrice: userLunchPrice(user),
-      saladPrice: userSaladPrice(user),
-      eventLunchPrice: orderEventLunchPrice(delivered || {}),
+      lunchPrice,
+      saladPrice,
+      eventLunchPrice,
       note: defaultSnapshots ? '잠금 시점 기본값' : '요일 기본값',
       submittedAt: null,
       delivered: Boolean(delivered?.delivered),
@@ -3633,8 +3673,8 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
   });
   return Object.values(rowsByUid)
     .sort((a, b) => {
-      const aHoliday = a.selfHoliday || a.zeroQuantityHoliday || a.source === 'selfHoliday' || a.source === 'zeroHoliday';
-      const bHoliday = b.selfHoliday || b.zeroQuantityHoliday || b.source === 'selfHoliday' || b.source === 'zeroHoliday';
+      const aHoliday = a.selfHoliday || a.zeroQuantityHoliday || a.source === 'selfHoliday' || a.source === 'zeroHoliday' || a.source === 'zeroDefault';
+      const bHoliday = b.selfHoliday || b.zeroQuantityHoliday || b.source === 'selfHoliday' || b.source === 'zeroHoliday' || b.source === 'zeroDefault';
       if (aHoliday !== bHoliday) return aHoliday ? 1 : -1;
       return (a.businessName || '').localeCompare(b.businessName || '', 'ko');
     });
@@ -3723,13 +3763,13 @@ function eventLunchTotalForRows(rows = []) {
 }
 
 function orderSourceMeta(order = {}) {
-  if (order.zeroQuantityHoliday || order.source === 'zeroHoliday') return { label: '0개 휴무', cls: 'holiday' };
+  if (order.zeroQuantityHoliday || order.source === 'zeroHoliday' || order.source === 'zeroDefault') return { label: '0개 휴무', cls: 'holiday' };
   if (order.selfHoliday || order.source === 'selfHoliday') return { label: '자체휴무', cls: 'holiday' };
   if (order.source === 'manual' || order.adminManual) return { label: '수동입력', cls: 'manual' };
   if (order.source === 'default') {
     return order.note === '잠금 시점 기본값'
-      ? { label: '잠금기본', cls: 'default' }
-      : { label: '기본값', cls: 'default' };
+      ? { label: '잠금 제출안함', cls: 'default' }
+      : { label: '제출안함', cls: 'default' };
   }
   const origin = String(order.originSource || order.source || '').toLowerCase();
   const byAdmin = order.adminInput || order.adminAdjusted || origin.includes('admin') || (order.submittedBy && order.submittedBy === adminUid);
@@ -3744,7 +3784,7 @@ function orderSourceBadge(order = {}) {
 }
 
 function orderNoteHtml(order = {}) {
-  if (order.zeroQuantityHoliday || order.source === 'zeroHoliday') return '<span class="source-badge holiday">0개 휴무</span>';
+  if (order.zeroQuantityHoliday || order.source === 'zeroHoliday' || order.source === 'zeroDefault') return '<span class="source-badge holiday">0개 휴무</span>';
   if (order.selfHoliday) return '<span class="source-badge holiday">자체 휴무</span>';
   const badge = orderSourceBadge(order);
   const note = String(order.note || '').trim();
@@ -3808,7 +3848,7 @@ function renderOrderEventLunches(rows = currentOrderEventRows) {
 function orderReferenceDetail(item = {}) {
   const detail = String(item.detail || '').trim();
   if (!detail || detail === item.reason) return '';
-  if (detail === '요일 기본 0개' || detail === '고객 전송 0개' || detail === '자체 휴무') return '';
+  if (detail === '요일 기본 0개' || detail === '요일 기본 0개 휴무' || detail === '잠금 시점 0개 휴무' || detail === '고객 전송 0개' || detail === '자체 휴무') return '';
   return detail.length > 22 ? `${detail.slice(0, 22)}...` : detail;
 }
 
@@ -3857,7 +3897,7 @@ function orderReferenceItemsForDate(date, orderSnap, rows = []) {
   const items = selfHolidayRows.map(row => ({
     uid: row.uid,
     type: 'holiday',
-    reason: row.zeroQuantityHoliday || row.source === 'zeroHoliday' ? '0개 휴무' : '자체휴무',
+    reason: row.zeroQuantityHoliday || row.source === 'zeroHoliday' || row.source === 'zeroDefault' ? '0개 휴무' : '자체휴무',
     name: row.businessName || allUsers[row.uid]?.businessName || '-',
     detail: row.note || '자체 휴무'
   }));
@@ -3973,13 +4013,18 @@ async function loadOrders() {
         const totalQty = orderTotalQty(o);
         const totalAmount = orderTotalAmount(o, allUsers[o.uid] || {});
         const tr = document.createElement('tr');
+        const isZeroHoliday = Boolean(o.zeroQuantityHoliday || o.source === 'zeroHoliday' || o.source === 'zeroDefault');
         const isSelfHoliday = Boolean(o.selfHoliday);
         const disabledAttr = isSelfHoliday ? 'disabled' : '';
         const noteHtml = orderNoteHtml(o);
-        const statusHtml = isSelfHoliday
+        const statusHtml = isZeroHoliday
+          ? '<span class="delivery-status" style="background:#f1f5f9;color:#64748b;border-color:#cbd5e1">0(휴무)</span>'
+          : isSelfHoliday
           ? '<span class="delivery-status" style="background:#fdecea;color:#c0392b;border-color:#f5b7b1">휴무</span>'
           : o.delivered
           ? '<span class="delivery-status done">완료</span>'
+          : o.source === 'default'
+          ? '<span class="delivery-status" style="background:#eef2ff;color:#4f46e5;border-color:#c7d2fe">제출안함</span>'
           : '<span class="delivery-status">대기</span>';
         const canEditManual = (o.adminManual || o.source === 'manual') && !allUsers[o.uid];
         const canDeleteOrder = o.orderDocExists || o.adminManual || o.source === 'manual' || o.source === 'default' || o.selfHoliday;
@@ -4083,7 +4128,6 @@ async function lockOrderDate(date = currentDateStr) {
     if (existing) existing.docs.forEach(doc => ops.push({ type: 'delete', ref: doc.ref }));
     Object.entries(allUsers).forEach(([uid, user]) => {
       const defaults = defaultMealsForDate(user, date);
-      if ((defaults.lunch + defaults.salad) <= 0) return;
       ops.push({
         type: 'set',
         ref: db.collection('orderDefaultSnapshots').doc(date).collection('items').doc(uid),
@@ -4149,9 +4193,9 @@ function renderNotSubmitted(rows) {
   const title = document.getElementById('not-sub-title');
   if (defaults.length === 0) {
     title.textContent = '✅ 모든 업체 확인 완료';
-    container.innerHTML = '<div class="no-not">오늘 배송 수량이 모두 직접 입력되었습니다.</div>';
+    container.innerHTML = '<div class="no-not">오늘 배송 대상 업체가 모두 직접 제출했거나 휴무입니다.</div>';
   } else {
-    title.textContent = `📌 요일 기본 수량 적용 (${defaults.length}곳)`;
+    title.textContent = `📌 제출안함 업체 (${defaults.length}곳)`;
     container.innerHTML = defaults.map(name => `<span class="not-chip">${escapeHtml(name)}</span>`).join('');
   }
 }
@@ -4513,7 +4557,7 @@ function orderLogActorLabel(log = {}) {
 
 function orderLogValue(snapshot = null) {
   if (!snapshot) return '-';
-  if (snapshot.zeroQuantityHoliday || snapshot.source === 'zeroHoliday') return '0개 휴무';
+  if (snapshot.zeroQuantityHoliday || snapshot.source === 'zeroHoliday' || snapshot.source === 'zeroDefault') return '0개 휴무';
   if (snapshot.selfHoliday) return '자체휴무';
   const eventText = Number(snapshot.eventLunchCount || 0) > 0 ? ` / 행사 ${snapshot.eventLunchCount}` : '';
   const noteText = snapshot.note ? ` / 메모: ${snapshot.note}` : '';
@@ -4562,6 +4606,7 @@ function renderRecentOrderLogs() {
     const contact = [log.customerPhone || allUsers[log.userId]?.phone || '', log.customerEmail || allUsers[log.userId]?.email || ''].filter(Boolean).join(' · ');
     const actor = orderLogActorLabel(log);
     const time = log.createdAt ? formatDateTimeKR(log.createdAt) : '-';
+    const orderDate = log.date ? formatDateKR(log.date) : '-';
     const memberButton = allUsers[log.userId]
       ? `<button class="mini-btn" onclick="openMemberEdit('${escapeHtml(log.userId)}')">회원 보기</button>`
       : '';
@@ -4569,8 +4614,8 @@ function renderRecentOrderLogs() {
       <div class="order-log-item">
         <div class="order-log-main">
           <div>
-            <div class="order-log-name">${escapeHtml(name)} · ${escapeHtml(log.date || '-')}</div>
-            <div class="order-log-meta">${escapeHtml(time)} · 처리자: ${escapeHtml(actor)}${contact ? ` · ${escapeHtml(contact)}` : ''}</div>
+            <div class="order-log-name">${escapeHtml(name)}</div>
+            <div class="order-log-meta">주문일: ${escapeHtml(orderDate)} · 변경시간: ${escapeHtml(time)} · 처리자: ${escapeHtml(actor)}${contact ? ` · ${escapeHtml(contact)}` : ''}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span class="order-log-badge ${escapeHtml(action)}">${escapeHtml(orderLogActionLabel(action))}</span>
