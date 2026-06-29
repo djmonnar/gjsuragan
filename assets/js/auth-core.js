@@ -356,6 +356,47 @@ setTimeout(() => {
 // ════════════════════════════════════════
 // CRUD
 // ════════════════════════════════════════
+function formatDateInputValue(dt){
+  if(!dt || Number.isNaN(dt.getTime())) return '';
+  return [
+    dt.getFullYear(),
+    String(dt.getMonth() + 1).padStart(2, '0'),
+    String(dt.getDate()).padStart(2, '0')
+  ].join('-');
+}
+
+function normalizeDateInputValue(value){
+  if(!value) return '';
+
+  if(value instanceof Date) return formatDateInputValue(value);
+  if(typeof value?.toDate === 'function') return formatDateInputValue(value.toDate());
+  if(typeof value?.seconds === 'number'){
+    return formatDateInputValue(new Date((value.seconds * 1000) + Math.floor((value.nanoseconds || 0) / 1000000)));
+  }
+
+  const raw = String(value || '').trim();
+  if(!raw) return '';
+
+  let m = raw.match(/^(\d{4})(\d{2})(\d{2})/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+
+  m = raw.match(/^(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  if(m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+
+  m = raw.match(/^(\d{2})\D+(\d{1,2})\D+(\d{1,2})/);
+  if(m) return `20${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+
+  return formatDateInputValue(new Date(raw));
+}
+
+function customerOrderDateInputValue(c){
+  if(!c) return '';
+  return normalizeDateInputValue(c.orderDate)
+    || normalizeDateInputValue(c.orderNum || c.syncKey)
+    || normalizeDateInputValue(c.createdAt || c.updatedAt)
+    || normalizeDateInputValue(c.onceDate || c.startDate);
+}
+
 async function saveNew(){
   const n = g('an');
   const ph = g('ap');
@@ -371,6 +412,7 @@ async function saveNew(){
 
   const isDirect = document.getElementById('a-direct').checked;
   const orderNum = document.getElementById('a-ordernum').value.trim();
+  const orderDate = normalizeDateInputValue(orderNum) || formatDateInputValue(new Date());
 
   let data = {
     name:n,
@@ -382,6 +424,7 @@ async function saveNew(){
     status:'active',
     deliveredDates:[],
     createdAt:new Date().toISOString(),
+    orderDate,
     orderType,
     isDirect,
     orderNum
@@ -453,6 +496,7 @@ async function saveEdit(){
 
   const esVal = g('es');
   const isSub = current.orderType === 'sub';
+  const orderDate = g('e-orderdate') || customerOrderDateInputValue(current);
 
   const upd = {
     name:g('en'),
@@ -467,6 +511,7 @@ async function saveEdit(){
     total:parseInt(g('etot')) || 1,
     memo:g('em'),
     isDirect:document.getElementById('e-direct').checked,
+    orderDate,
     orderNum:document.getElementById('e-ordernum').value.trim()
   };
 

@@ -81,6 +81,7 @@ function openEdit(id){
   document.getElementById('est').value=c.status;
   g2('erem',c.remain);g2('etot',c.total);g2('em',c.memo);g2('eodate',c.onceDate||'');
   g2('e-startdate',c.startDate||'');
+  g2('e-orderdate',typeof customerOrderDateInputValue === 'function' ? customerOrderDateInputValue(c) : (c.orderDate || ''));
   g2('e-ordernum',c.orderNum||'');
   document.getElementById('e-direct').checked=!!(c.isDirect);
 

@@ -919,6 +919,11 @@ function customerSortOrders(orders){
 }
 
 function customerOrderDate(c){
+  const savedOrderDate = typeof customerOrderDateInputValue === 'function'
+    ? customerOrderDateInputValue(c)
+    : '';
+  if(savedOrderDate) return savedOrderDate;
+
   const raw = c?.createdAt || c?.updatedAt || '';
   const dt = raw ? new Date(raw) : null;
   if(dt && !Number.isNaN(dt.getTime())){
@@ -1294,7 +1299,8 @@ function customerBuildGroups(source){
 function customerMatchesQuery(c, q){
   if(!q) return true;
   const hay = [
-    c.name, c.phone, customerPhoneDigits(c.phone), c.addr, c.orderNum, c.syncKey, c.memo, c.request
+    c.name, c.phone, customerPhoneDigits(c.phone), c.addr, c.orderNum, c.syncKey,
+    c.orderDate, customerOrderDate(c), c.memo, c.request
   ].map(v => String(v || '').toLowerCase());
   return hay.some(v => v.includes(q));
 }
@@ -1376,6 +1382,7 @@ function showCustomerGroup(idx){
       </div>
       <div class="dpb">
         <div class="dpr"><div class="dpl">연락처</div><div class="dpv">${customerText(g.phone || latest.phone || '-')}</div></div>
+        <div class="dpr"><div class="dpl">최근 주문일자</div><div class="dpv">${customerText(customerOrderDate(latest))}</div></div>
         <div class="dpr"><div class="dpl">배송지</div><div class="dpv" style="font-size:12px;">${customerText(latest.addr || '-')}</div></div>
         <div class="dpr"><div class="dpl">현관번호</div><div class="dpv">${customerText(latest.door || '-')}</div></div>
         <div class="dpr"><div class="dpl">요청사항</div><div class="dpv" style="font-size:12px;">${customerText(latest.request || '-')}</div></div>
@@ -1575,6 +1582,7 @@ function showCustomerGroup(idx, keepExpanded = false){
       </div>
       <div class="dpb">
         <div class="dpr"><div class="dpl">연락처</div><div class="dpv">${customerText(g.phone || latest.phone || '-')}</div></div>
+        <div class="dpr"><div class="dpl">최근 주문일자</div><div class="dpv">${customerText(customerOrderDate(latest))}</div></div>
         <div class="dpr"><div class="dpl">배송지</div><div class="dpv" style="font-size:12px;">${customerText(latest.addr || '-')}</div></div>
         <div class="dpr"><div class="dpl">현관번호</div><div class="dpv">${customerText(latest.door || '-')}</div></div>
         <div class="dpr"><div class="dpl">요청사항</div><div class="dpv" style="font-size:12px;">${customerText(latest.request || '-')}</div></div>
