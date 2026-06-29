@@ -1250,6 +1250,22 @@
     gap: 8px;
     margin-bottom: 12px;
   }
+  .weekday-meal-head {
+    display: grid;
+    grid-template-columns: 42px 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 -2px;
+  }
+  .weekday-meal-head span {
+    font-size: 12px;
+    font-weight: 900;
+    color: var(--text-sub);
+    padding-left: 8px;
+  }
+  .weekday-meal-head .weekday-empty {
+    padding-left: 0;
+  }
   .weekday-meal-row {
     display: grid;
     grid-template-columns: 42px 1fr 1fr;
@@ -1735,6 +1751,11 @@
       </div>
     </div>
     <div class="weekday-meals" id="reg-weekday-fields">
+      <div class="weekday-meal-head" aria-hidden="true">
+        <span class="weekday-empty"></span>
+        <span>도시락</span>
+        <span>샐러드</span>
+      </div>
       <div class="weekday-meal-row">
         <div class="weekday-label">월</div>
         <input class="form-input" type="number" id="reg-mon-lunch" min="0" max="50" placeholder="도시락">
@@ -2008,6 +2029,11 @@
         </div>
       </div>
       <div class="weekday-meals" id="prof-weekday-fields">
+        <div class="weekday-meal-head" aria-hidden="true">
+          <span class="weekday-empty"></span>
+          <span>도시락</span>
+          <span>샐러드</span>
+        </div>
         <div class="weekday-meal-row">
           <div class="weekday-label">월</div>
           <input class="form-input" type="number" id="prof-mon-lunch" min="0" max="50" placeholder="도시락">
@@ -2292,7 +2318,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const CUSTOMER_APP_VERSION = '20260628-weekday-meals-legacy-fix';
+const CUSTOMER_APP_VERSION = '20260629-weekday-meal-labels';
 
 // ───────── PWA Service Worker 등록 ─────────
 if ('serviceWorker' in navigator) {

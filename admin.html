@@ -463,6 +463,24 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .event-list-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}
 .event-list-count{font-size:13px;font-weight:700;color:var(--sub)}
 .event-list-more-wrap{display:flex;justify-content:center;margin-top:12px}
+.order-reference-panel{margin:0 28px 14px;padding:14px 16px;background:#fffaf5;border:1px solid #f0d9c0;border-radius:var(--radius);box-shadow:var(--shadow)}
+.order-reference-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.order-reference-title{display:flex;align-items:center;gap:8px;color:var(--text);font-size:15px;font-weight:900}
+.order-reference-hint{font-size:12px;color:#8a5a2b;font-weight:700;line-height:1.45;text-align:right}
+.order-reference-list{display:flex;flex-wrap:wrap;gap:8px}
+.order-reference-chip{display:inline-flex;align-items:center;gap:7px;max-width:100%;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900;border:1px solid #fed7aa;background:#fff;color:#344054}
+.order-reference-chip .ref-name{color:var(--text);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.order-reference-chip .ref-reason{font-size:11px;font-weight:900;border-radius:999px;padding:3px 7px}
+.order-reference-chip.zero .ref-reason{background:#eff6ff;color:#2563eb}
+.order-reference-chip.holiday .ref-reason{background:#fef2f2;color:#c0392b}
+.order-reference-empty{font-size:13px;color:var(--sub);font-weight:700}
+@media(max-width:720px){
+  .order-reference-panel{margin:0 12px 12px;padding:12px}
+  .order-reference-head{display:block}
+  .order-reference-hint{text-align:left;margin-top:4px}
+  .order-reference-chip{border-radius:10px}
+  .order-reference-chip .ref-name{max-width:180px}
+}
 .order-event-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
 .order-event-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
 .order-event-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
@@ -761,6 +779,18 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <button class="secondary-btn" onclick="goPreviousIncompleteDate()">해당 날짜 보기</button>
       <button class="danger-btn" onclick="hidePreviousIncompleteAlert()">닫기</button>
     </div>
+  </div>
+
+  <div class="order-reference-panel admin-tab-panel" data-tab="orders" id="order-reference-panel" style="display:none">
+    <div class="order-reference-head">
+      <div class="order-reference-title">
+        <svg class="admin-icon"><use href="#admin-i-help"></use></svg>
+        <span>배송 참고</span>
+        <span class="note-badge" id="order-reference-count">0곳</span>
+      </div>
+      <div class="order-reference-hint">오늘 주문 수량이 0개이거나 자체 휴무로 등록된 업체입니다.</div>
+    </div>
+    <div class="order-reference-list" id="order-reference-list"></div>
   </div>
 
   <div class="summary-row admin-tab-panel" data-tab="orders">
@@ -1782,6 +1812,7 @@ let settlementRows = [];
 let settlementEvents = [];
 let currentOrderRows = [];
 let currentOrderEventRows = [];
+let currentOrderReferenceItems = [];
 let currentOrderLocked = false;
 let previousIncompleteAlertState = null;
 let previousIncompleteAlertHiddenDate = '';
@@ -3509,7 +3540,28 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       return;
     }
     if ((lunch + salad + eventLunch) <= 0) {
-      delete rowsByUid[order.uid];
+      rowsByUid[order.uid] = {
+        ...order,
+        businessName: user.businessName || order.businessName || '-',
+        lunchCount: 0,
+        saladCount: 0,
+        lunchQty: 0,
+        saladQty: 0,
+        eventLunchQty: 0,
+        lunchPrice,
+        saladPrice,
+        eventLunchPrice,
+        totalQty: 0,
+        totalAmount: 0,
+        note: order.note || '도시락·샐러드 0개 휴무',
+        delivered: false,
+        deliveredAt: null,
+        deliveryPlace: order.deliveryPlace || user.deliveryPlace || user.address || '',
+        selfHoliday: true,
+        zeroQuantityHoliday: true,
+        orderDocExists: true,
+        source: 'zeroHoliday'
+      };
       return;
     }
     const displayLunch = deliveredOverride ? orderLunchQty(delivered) : lunch;
@@ -3580,7 +3632,12 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
     };
   });
   return Object.values(rowsByUid)
-    .sort((a, b) => (a.businessName || '').localeCompare(b.businessName || '', 'ko'));
+    .sort((a, b) => {
+      const aHoliday = a.selfHoliday || a.zeroQuantityHoliday || a.source === 'selfHoliday' || a.source === 'zeroHoliday';
+      const bHoliday = b.selfHoliday || b.zeroQuantityHoliday || b.source === 'selfHoliday' || b.source === 'zeroHoliday';
+      if (aHoliday !== bHoliday) return aHoliday ? 1 : -1;
+      return (a.businessName || '').localeCompare(b.businessName || '', 'ko');
+    });
 }
 
 async function checkPreviousIncompleteDeliveries() {
@@ -3666,6 +3723,7 @@ function eventLunchTotalForRows(rows = []) {
 }
 
 function orderSourceMeta(order = {}) {
+  if (order.zeroQuantityHoliday || order.source === 'zeroHoliday') return { label: '0개 휴무', cls: 'holiday' };
   if (order.selfHoliday || order.source === 'selfHoliday') return { label: '자체휴무', cls: 'holiday' };
   if (order.source === 'manual' || order.adminManual) return { label: '수동입력', cls: 'manual' };
   if (order.source === 'default') {
@@ -3686,6 +3744,7 @@ function orderSourceBadge(order = {}) {
 }
 
 function orderNoteHtml(order = {}) {
+  if (order.zeroQuantityHoliday || order.source === 'zeroHoliday') return '<span class="source-badge holiday">0개 휴무</span>';
   if (order.selfHoliday) return '<span class="source-badge holiday">자체 휴무</span>';
   const badge = orderSourceBadge(order);
   const note = String(order.note || '').trim();
@@ -3746,6 +3805,96 @@ function renderOrderEventLunches(rows = currentOrderEventRows) {
   }).join('');
 }
 
+function orderReferenceDetail(item = {}) {
+  const detail = String(item.detail || '').trim();
+  if (!detail || detail === item.reason) return '';
+  if (detail === '요일 기본 0개' || detail === '고객 전송 0개' || detail === '자체 휴무') return '';
+  return detail.length > 22 ? `${detail.slice(0, 22)}...` : detail;
+}
+
+function renderOrderReferencePanel(items = currentOrderReferenceItems) {
+  currentOrderReferenceItems = items || [];
+  const panel = document.getElementById('order-reference-panel');
+  const list = document.getElementById('order-reference-list');
+  const countEl = document.getElementById('order-reference-count');
+  if (!panel || !list || !countEl) return;
+  if (!currentOrderReferenceItems.length || activeAdminTab !== 'orders') {
+    panel.style.display = 'none';
+    list.innerHTML = '';
+    countEl.textContent = '0곳';
+    return;
+  }
+  panel.style.display = '';
+  countEl.textContent = `${currentOrderReferenceItems.length}곳`;
+  list.innerHTML = currentOrderReferenceItems.map(item => {
+    const detail = orderReferenceDetail(item);
+    return `
+      <span class="order-reference-chip ${item.type === 'holiday' ? 'holiday' : 'zero'}" title="${escapeHtml(item.detail || '')}">
+        <span class="ref-reason">${escapeHtml(item.reason || '')}</span>
+        <span class="ref-name">${escapeHtml(item.name || '-')}</span>
+        ${detail ? `<span style="color:var(--sub);font-weight:700">${escapeHtml(detail)}</span>` : ''}
+      </span>
+    `;
+  }).join('');
+}
+
+function orderReferenceItemsForDate(date, orderSnap, rows = []) {
+  const deliveryUids = new Set(
+    rows
+      .filter(row => row && !row.selfHoliday && !row.deleted && !row.orderDeleted && orderTotalQty(row) > 0)
+      .map(row => row.uid)
+  );
+  const selfHolidayRows = rows.filter(row => row?.selfHoliday);
+  const selfHolidayUids = new Set(selfHolidayRows.map(row => row.uid));
+  const orderDocsByUid = new Map();
+  if (orderSnap) {
+    orderSnap.forEach(doc => {
+      const data = { uid: doc.id, ...(doc.data() || {}) };
+      if (isEventOrder(data) || data.deleted || data.orderDeleted) return;
+      orderDocsByUid.set(doc.id, data);
+    });
+  }
+  const items = selfHolidayRows.map(row => ({
+    uid: row.uid,
+    type: 'holiday',
+    reason: row.zeroQuantityHoliday || row.source === 'zeroHoliday' ? '0개 휴무' : '자체휴무',
+    name: row.businessName || allUsers[row.uid]?.businessName || '-',
+    detail: row.note || '자체 휴무'
+  }));
+  Object.entries(allUsers).forEach(([uid, user]) => {
+    if (!uid || deliveryUids.has(uid) || selfHolidayUids.has(uid)) return;
+    if (user.deleted || user.disabled) return;
+    const order = orderDocsByUid.get(uid);
+    if (order?.selfHoliday) return;
+    if (order && orderTotalQty(order) <= 0) {
+      items.push({
+        uid,
+        type: 'zero',
+        reason: '0개',
+        name: user.businessName || order.businessName || user.name || '-',
+        detail: order.note || '고객 전송 0개'
+      });
+      return;
+    }
+    if (!order) {
+      const defaults = defaultMealsForDate(user, date);
+      if ((Number(defaults.lunch || 0) + Number(defaults.salad || 0)) <= 0) {
+        items.push({
+          uid,
+          type: 'zero',
+          reason: '0개',
+          name: user.businessName || user.name || '-',
+          detail: '요일 기본 0개'
+        });
+      }
+    }
+  });
+  return items.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'holiday' ? -1 : 1;
+    return String(a.name || '').localeCompare(String(b.name || ''), 'ko');
+  });
+}
+
 async function loadOrderTabEventLunches(date = currentDateStr) {
   try {
     const [adminDoc, publicEventSnap] = await Promise.all([
@@ -3768,7 +3917,9 @@ async function loadOrders() {
   document.getElementById('not-submitted-list').innerHTML = '';
   currentOrderRows = [];
   currentOrderEventRows = [];
+  currentOrderReferenceItems = [];
   renderOrderEventLunches([]);
+  renderOrderReferencePanel([]);
   const checkAll = document.getElementById('order-check-all');
   if (checkAll) checkAll.checked = false;
 
@@ -3804,6 +3955,8 @@ async function loadOrders() {
       : null;
     const orders = mergeOrdersWithDefaults(currentDateStr, snap, deliveredRecords, defaultSnapshots);
     currentOrderRows = orders;
+    currentOrderReferenceItems = orderReferenceItemsForDate(currentDateStr, snap, orders);
+    renderOrderReferencePanel();
 
     let totalLunch = 0, totalSalad = 0, totalEventLunch = 0;
     const tbody = document.getElementById('order-tbody');
@@ -3830,8 +3983,11 @@ async function loadOrders() {
           : '<span class="delivery-status">대기</span>';
         const canEditManual = (o.adminManual || o.source === 'manual') && !allUsers[o.uid];
         const canDeleteOrder = o.orderDocExists || o.adminManual || o.source === 'manual' || o.source === 'default' || o.selfHoliday;
+        const deleteOrderHtml = canDeleteOrder && !o.zeroQuantityHoliday
+          ? `<button class="danger-btn" onclick="deleteOrderItem('${jsString(o.uid)}')">삭제</button>`
+          : '';
         const manageHtml = canDeleteOrder
-          ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button><button class="danger-btn" onclick="deleteOrderItem('${jsString(o.uid)}')">삭제</button></div>`
+          ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${deleteOrderHtml}</div>`
           : `<div class="inline-actions"><button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button></div>`;
         const mobileQtyDetail = `도 ${o.lunchCount ?? 0} · 샐 ${o.saladCount ?? 0}${eventLunch ? ` · 행 ${eventLunch}` : ''}`;
         tr.innerHTML = `
@@ -3881,6 +4037,7 @@ async function loadOrders() {
     checkPreviousIncompleteDeliveries();
   } catch(e) {
     document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="12">불러오기 실패: ' + e.message + '</td></tr>';
+    renderOrderReferencePanel([]);
     renderPreviousIncompleteAlert(null);
   }
 }
@@ -4356,6 +4513,7 @@ function orderLogActorLabel(log = {}) {
 
 function orderLogValue(snapshot = null) {
   if (!snapshot) return '-';
+  if (snapshot.zeroQuantityHoliday || snapshot.source === 'zeroHoliday') return '0개 휴무';
   if (snapshot.selfHoliday) return '자체휴무';
   const eventText = Number(snapshot.eventLunchCount || 0) > 0 ? ` / 행사 ${snapshot.eventLunchCount}` : '';
   const noteText = snapshot.note ? ` / 메모: ${snapshot.note}` : '';
@@ -5768,6 +5926,7 @@ function switchAdminTab(tab) {
   });
   if (tab === 'orders') {
     renderOrderEventLunches();
+    renderOrderReferencePanel();
   }
   if (tab === 'members') {
     renderMembers();
