@@ -7067,28 +7067,31 @@ function printTodayProductionSheet() {
   }
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>궁중수라간 배송 집계</title>
     <style>
-      @page{size:A4 landscape;margin:7mm}
-      *{box-sizing:border-box} body{font-family:Arial,'Malgun Gothic',sans-serif;margin:10px;color:#111827;font-size:9.5px}
-      .print-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:6px}
-      h1{font-size:17px;margin:0} h2{font-size:12px;margin:10px 0 4px}
-      .meta{color:#6b7280;font-size:9px}
-      .summary{display:flex;gap:8px;flex-wrap:wrap;border:1px solid #d1d5db;background:#f9fafb;padding:5px 7px;margin:6px 0}
-      .summary span{font-weight:800}.summary strong{font-size:12px;color:#111827}
-      table{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:3px}
-      th,td{border:1px solid #d1d5db;padding:2.5px 4px;font-size:9px;line-height:1.22;vertical-align:middle}
+      @page{size:A4 portrait;margin:5mm}
+      *{box-sizing:border-box} body{font-family:Arial,'Malgun Gothic',sans-serif;margin:6px;color:#111827;font-size:8.2px}
+      .print-head{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-bottom:4px}
+      h1{font-size:15px;margin:0} h2{font-size:10.5px;margin:7px 0 3px;break-after:avoid;page-break-after:avoid}
+      .meta{color:#6b7280;font-size:8px}
+      .summary{display:flex;gap:6px;flex-wrap:wrap;border:1px solid #d1d5db;background:#f9fafb;padding:3px 5px;margin:4px 0}
+      .summary span{font-weight:800}.summary strong{font-size:10px;color:#111827}
+      table{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:2px;break-before:avoid;page-break-before:avoid}
+      th,td{border:1px solid #d1d5db;padding:1.6px 2.5px;font-size:7.6px;line-height:1.12;vertical-align:middle}
       th{background:#f3f4f6;text-align:left;font-weight:800}.num{text-align:center;font-weight:800}.name{font-weight:800}
-      .order-table-print th:nth-child(1),.order-table-print td:nth-child(1){width:24px;text-align:center}
-      .order-table-print th:nth-child(2),.order-table-print td:nth-child(2){width:24%}
+      .order-table-print th:nth-child(1),.order-table-print td:nth-child(1){width:18px;text-align:center}
+      .order-table-print th:nth-child(2),.order-table-print td:nth-child(2){width:29%}
       .order-table-print th:nth-child(3),.order-table-print td:nth-child(3),
       .order-table-print th:nth-child(4),.order-table-print td:nth-child(4),
       .order-table-print th:nth-child(5),.order-table-print td:nth-child(5),
-      .order-table-print th:nth-child(6),.order-table-print td:nth-child(6){width:34px;text-align:center}
-      .order-table-print th:nth-child(7),.order-table-print td:nth-child(7){width:70px}
-      .order-table-print th:nth-child(8),.order-table-print td:nth-child(8){width:58px}
-      .event-table-print th:nth-child(1),.event-table-print td:nth-child(1){width:24px;text-align:center}
-      .event-table-print th:nth-child(5),.event-table-print td:nth-child(5){width:42px;text-align:center}
+      .order-table-print th:nth-child(6),.order-table-print td:nth-child(6){width:24px;text-align:center}
+      .order-table-print th:nth-child(7),.order-table-print td:nth-child(7){width:48px}
+      .order-table-print th:nth-child(8),.order-table-print td:nth-child(8){width:42px}
+      .event-print-block{break-inside:avoid;page-break-inside:avoid}
+      .event-table-print th:nth-child(1),.event-table-print td:nth-child(1){width:18px;text-align:center}
+      .event-table-print th:nth-child(2),.event-table-print td:nth-child(2){width:24%}
+      .event-table-print th:nth-child(3),.event-table-print td:nth-child(3){width:38px}
+      .event-table-print th:nth-child(5),.event-table-print td:nth-child(5){width:30px;text-align:center}
       .memo{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .empty{border:1px dashed #d1d5db;border-radius:6px;padding:6px;color:#6b7280}
+      .empty{border:1px dashed #d1d5db;border-radius:5px;padding:4px;color:#6b7280}
       @media print{body{margin:0}.no-print{display:none}}
     </style></head><body>
       <div class="print-head">
@@ -7102,10 +7105,14 @@ function printTodayProductionSheet() {
         <span>업체 행사 <strong>${monthlyTotals.event}</strong>개</span>
         <span>별도 행사 <strong>${standaloneEventTotal}</strong>개</span>
       </div>
-      <h2>업체별 오늘 주문</h2>
-      ${orderHtml}
-      <h2>오늘 행사도시락</h2>
-      ${eventHtml}
+      <section>
+        <h2>업체별 오늘 주문</h2>
+        ${orderHtml}
+      </section>
+      <section class="event-print-block">
+        <h2>오늘 행사도시락</h2>
+        ${eventHtml}
+      </section>
       <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}<\/script>
     </body></html>`);
   win.document.close();
