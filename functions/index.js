@@ -934,6 +934,27 @@ function kakaoProductLabel(id) {
   }[id] || id || '-';
 }
 
+function kakaoSetKey(customer = {}) {
+  const raw = String(customer.productId || customer.set || customer.product || customer.scheduleName || '').trim();
+  if (/^(A|B|C)$/i.test(raw)) return raw.toUpperCase();
+  if (/A\s*세트|A\s*SET/i.test(raw)) return 'A';
+  if (/B\s*세트|B\s*SET/i.test(raw)) return 'B';
+  if (/C\s*세트|C\s*SET/i.test(raw)) return 'C';
+  return raw ? '단품' : '기타';
+}
+
+function kakaoSetCountText(list = []) {
+  const counts = { A: 0, B: 0, C: 0, 단품: 0, 기타: 0 };
+  (list || []).forEach(customer => {
+    const key = kakaoSetKey(customer);
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  const parts = [`A ${counts.A}`, `B ${counts.B}`, `C ${counts.C}`];
+  if (counts.단품) parts.push(`단품 ${counts.단품}`);
+  if (counts.기타) parts.push(`기타 ${counts.기타}`);
+  return parts.join(' · ');
+}
+
 function kakaoQtyText(c) {
   if (c.orderType === 'once') {
     return '수량 ' + Math.max(1, Number(c.qty || c.total || 1)) + '개';
@@ -1334,6 +1355,8 @@ async function kakaoBuildTasksText(customers, targetDate, label, dateWord, nextD
     '',
     '배송관리',
     `- 전체 ${targetList.length}건 | 직배송 ${direct.length} · 택배 ${courier.length}`,
+    `- 직배송 세트 ${kakaoSetCountText(direct)}`,
+    `- 택배 세트 ${kakaoSetCountText(courier)}`,
     isPastOrToday
       ? `- 남은 배송 ${notDone.length}건${notDone.length ? `: ${kakaoTaskNameList(notDone)}` : ''}`
       : `- 배송 예정 ${targetList.length}건`,
