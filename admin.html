@@ -139,6 +139,12 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .settle-chart-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;flex:1;min-width:0;box-shadow:var(--shadow)}
 .settle-chart-card.donut-card{flex:0 0 210px}
 .settle-chart-title{font-size:12px;font-weight:700;color:var(--sub);margin-bottom:8px}
+.summary-detail{font-size:12px;color:var(--sub);font-weight:800;margin-top:7px;white-space:nowrap}
+.settle-chart-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+.settle-chart-heading .settle-chart-title{margin-bottom:0}
+.settle-chart-modes{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.settle-chart-mode-btn{border:1px solid var(--border);background:#fff;color:var(--sub);border-radius:999px;padding:5px 10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.settle-chart-mode-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
 .invoice-no{font-size:12px;font-family:monospace;color:var(--primary);font-weight:700;background:var(--gold2);padding:2px 7px;border-radius:6px;white-space:nowrap;letter-spacing:.3px}
 .balance-positive{color:#c0392b;font-weight:700}
 .balance-zero{color:#1e6e40;font-weight:700}
@@ -1362,19 +1368,28 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="summary-card">
           <div class="summary-label">🍱 일반도시락</div>
           <div class="summary-value" id="settle-lunch-total">0<span class="summary-unit">개</span></div>
+          <div class="summary-detail" id="settle-lunch-amount-total">0원</div>
         </div>
         <div class="summary-card">
           <div class="summary-label">🥗 샐러드</div>
           <div class="summary-value" id="settle-salad-total">0<span class="summary-unit">개</span></div>
+          <div class="summary-detail" id="settle-salad-amount-total">0원</div>
         </div>
         <div class="summary-card">
           <div class="summary-label">🎉 행사도시락</div>
           <div class="summary-value" id="settle-event-lunch-total">0<span class="summary-unit">개</span></div>
+          <div class="summary-detail" id="settle-event-amount-total">0원</div>
         </div>
       </div>
       <div class="settle-charts-area">
         <div class="settle-chart-card">
-          <div class="settle-chart-title">최근 6개월 청구 / 입금 현황</div>
+          <div class="settle-chart-heading">
+            <div class="settle-chart-title" id="settle-bar-chart-title">최근 6개월 청구 / 입금 현황</div>
+            <div class="settle-chart-modes" aria-label="정산 차트 보기 방식">
+              <button class="settle-chart-mode-btn active" data-settle-chart-mode="billing" onclick="setSettlementChartMode('billing')">청구/입금</button>
+              <button class="settle-chart-mode-btn" data-settle-chart-mode="product" onclick="setSettlementChartMode('product')">품목별 금액</button>
+            </div>
+          </div>
           <div style="height:170px;position:relative"><canvas id="settle-bar-chart"></canvas></div>
         </div>
         <div class="settle-chart-card donut-card">
@@ -1830,6 +1845,7 @@ let sheetTargetUid = '';
 let settlementChartBar = null;
 let settlementChartDonut = null;
 let currentSettleFilter = 'all';
+let settlementChartMode = 'billing';
 let changeRequests = [];
 let recentOrderLogs = [];
 let changeRequestFilter = 'all';
@@ -2172,6 +2188,20 @@ function settlementSaladAmount(row = {}) {
 }
 function settlementEventAmount(row = {}) {
   return settlementEventQty(row) * settlementEventUnitPrice(row);
+}
+function settlementProductAmounts(row = {}) {
+  return {
+    lunch: settlementLunchAmount(row),
+    salad: settlementSaladAmount(row),
+    event: settlementEventAmount(row)
+  };
+}
+function addSettlementProductAmounts(totals, row = {}) {
+  const amounts = settlementProductAmounts(row);
+  totals.lunch += amounts.lunch;
+  totals.salad += amounts.salad;
+  totals.event += amounts.event;
+  return totals;
 }
 function settlementProductBreakdownHtml(row = {}) {
   const parts = [];
@@ -6866,6 +6896,7 @@ function renderSettlements() {
   const totalBilled = allRows.reduce((sum, row) => sum + settlementBilledTotal(row), 0);
   const totalPaid = allRows.reduce((sum, r) => sum + settlementPaidTotal(r), 0);
   const totalUnpaid = Math.max(0, totalBilled - totalPaid);
+  const productAmounts = allRows.reduce(addSettlementProductAmounts, { lunch: 0, salad: 0, event: 0 });
   const overdueCount = allRows.filter(r => r.status !== '입금완료' && calcOverdue(r.dueDate) > 0).length;
 
   document.getElementById('settle-total').innerHTML = `${totalBilled.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
@@ -6874,6 +6905,9 @@ function renderSettlements() {
   document.getElementById('settle-lunch-total').innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
   document.getElementById('settle-salad-total').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
   document.getElementById('settle-event-lunch-total').innerHTML = `${totalEventLunch}<span class="summary-unit">개</span>`;
+  document.getElementById('settle-lunch-amount-total').textContent = formatMoney(productAmounts.lunch);
+  document.getElementById('settle-salad-amount-total').textContent = formatMoney(productAmounts.salad);
+  document.getElementById('settle-event-amount-total').textContent = formatMoney(productAmounts.event);
   document.getElementById('settle-overdue-count').innerHTML = `${overdueCount}<span class="summary-unit">곳</span>`;
 
   const hasBatch = allRows.length > 0;
@@ -8076,6 +8110,13 @@ async function deleteSettlement() {
 }
 
 // ── 정산 차트 ──
+function setSettlementChartMode(mode) {
+  settlementChartMode = mode === 'product' ? 'product' : 'billing';
+  document.querySelectorAll('[data-settle-chart-mode]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.settleChartMode === settlementChartMode);
+  });
+  renderSettlementCharts().catch(() => {});
+}
 async function loadSettlementChartData() {
   const today = getKST();
   const months = [];
@@ -8092,11 +8133,13 @@ async function loadSettlementChartData() {
   }
   const chartData = await Promise.all(months.map(async m => {
     let billed = 0, paid = 0;
+    const products = { lunch: 0, salad: 0, event: 0 };
     const settlementItems = await loadSettlementItems(m);
     Object.entries(settlementItems).forEach(([uid, s]) => {
       if (!s || s.deleted || s.type === 'manualMonthly' || s.manualMonthly) return;
       billed += settlementBilledTotal(s);
       paid += settlementPaidTotal(s);
+      addSettlementProductAmounts(products, s);
     });
     Object.values(allUsers).forEach(user => {
       // TODO: legacy users.settlements fallback은 데이터 마이그레이션 후 제거
@@ -8104,6 +8147,7 @@ async function loadSettlementChartData() {
       if (!s) return;
       billed += settlementBilledTotal(s);
       paid += settlementPaidTotal(s);
+      addSettlementProductAmounts(products, s);
     });
     const newManualRows = Object.fromEntries(Object.entries(settlementItems).filter(([, row]) => row?.type === 'manualMonthly' || row?.manualMonthly));
     const manualRows = mergedManualMonthlySettlements(m, { ...(manualMonthlySettlementsFromData(adminData)[m] || {}), ...newManualRows });
@@ -8111,6 +8155,7 @@ async function loadSettlementChartData() {
       if (!row || row.deleted) return;
       billed += settlementBilledTotal(row);
       paid += settlementPaidTotal(row);
+      addSettlementProductAmounts(products, row);
     });
     const events = adminEventsFromData(adminData);
     Object.values(events).forEach(item => {
@@ -8118,8 +8163,9 @@ async function loadSettlementChartData() {
       const row = eventSettlementRow({ id: item.id || '', ...item });
       billed += settlementBilledTotal(row);
       paid += settlementPaidTotal(row);
+      addSettlementProductAmounts(products, row);
     });
-    return { month: m, billed, paid };
+    return { month: m, billed, paid, ...products };
   }));
   return { months, chartData };
 }
@@ -8132,14 +8178,26 @@ async function renderSettlementCharts() {
   const barCtx = document.getElementById('settle-bar-chart');
   if (!barCtx) return;
   if (settlementChartBar) { settlementChartBar.destroy(); settlementChartBar = null; }
+  const titleEl = document.getElementById('settle-bar-chart-title');
+  if (titleEl) titleEl.textContent = settlementChartMode === 'product' ? '최근 6개월 품목별 금액' : '최근 6개월 청구 / 입금 현황';
+  document.querySelectorAll('[data-settle-chart-mode]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.settleChartMode === settlementChartMode);
+  });
+  const datasets = settlementChartMode === 'product'
+    ? [
+        { label: '일반도시락', data: chartData.map(d => d.lunch), backgroundColor: 'rgba(123,63,26,0.75)', borderRadius: 5 },
+        { label: '샐러드', data: chartData.map(d => d.salad), backgroundColor: 'rgba(30,110,64,0.75)', borderRadius: 5 },
+        { label: '행사도시락', data: chartData.map(d => d.event), backgroundColor: 'rgba(212,165,54,0.85)', borderRadius: 5 }
+      ]
+    : [
+        { label: '청구액', data: chartData.map(d => d.billed), backgroundColor: 'rgba(123,63,26,0.75)', borderRadius: 5 },
+        { label: '입금액', data: chartData.map(d => d.paid), backgroundColor: 'rgba(30,110,64,0.75)', borderRadius: 5 }
+      ];
   settlementChartBar = new Chart(barCtx, {
     type: 'bar',
     data: {
       labels,
-      datasets: [
-        { label: '청구액', data: chartData.map(d => d.billed), backgroundColor: 'rgba(123,63,26,0.75)', borderRadius: 5 },
-        { label: '입금액', data: chartData.map(d => d.paid), backgroundColor: 'rgba(30,110,64,0.75)', borderRadius: 5 }
-      ]
+      datasets
     },
     options: {
       responsive: true, maintainAspectRatio: false,
