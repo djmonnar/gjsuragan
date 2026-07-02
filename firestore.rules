@@ -138,6 +138,21 @@ service cloud.firestore {
       ];
     }
 
+    function taxProfileKeys() {
+      return [
+        'taxInvoiceEnabled',
+        'taxInvoiceEmail',
+        'taxBusinessNo',
+        'taxCertificateName',
+        'taxCertificatePath',
+        'taxCertificateUrl',
+        'taxCertificateContentType',
+        'taxCertificateSize',
+        'taxCertificateUploadedAt',
+        'updatedAt'
+      ];
+    }
+
     function validWeekdayMeals(data) {
       return !(('weekdayMeals' in data.keys()))
         || (
@@ -177,8 +192,8 @@ service cloud.firestore {
         && optionalBool(data, 'taxInvoiceEnabled')
         && optionalString(data, 'taxInvoiceEmail', 160)
         && optionalString(data, 'taxBusinessNo', 40)
-        && optionalString(data, 'taxCertificateName', 160)
-        && optionalString(data, 'taxCertificatePath', 300)
+        && optionalString(data, 'taxCertificateName', 300)
+        && optionalString(data, 'taxCertificatePath', 500)
         && optionalString(data, 'taxCertificateUrl', 2000)
         && optionalString(data, 'taxCertificateContentType', 80)
         && optionalFileSize(data, 'taxCertificateSize')
@@ -206,6 +221,23 @@ service cloud.firestore {
         && validUserProfile(request.resource.data)
         && (!('email' in request.resource.data.diff(resource.data).affectedKeys())
           || request.resource.data.email == request.auth.token.email);
+    }
+
+    function validUserTaxProfileUpdate(userId) {
+      return isOwner(userId)
+        && (!('deleted' in resource.data.keys()) || resource.data.deleted == false)
+        && (!('disabled' in resource.data.keys()) || resource.data.disabled == false)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(taxProfileKeys())
+        && optionalBool(request.resource.data, 'taxInvoiceEnabled')
+        && optionalString(request.resource.data, 'taxInvoiceEmail', 160)
+        && optionalString(request.resource.data, 'taxBusinessNo', 40)
+        && optionalString(request.resource.data, 'taxCertificateName', 300)
+        && optionalString(request.resource.data, 'taxCertificatePath', 500)
+        && optionalString(request.resource.data, 'taxCertificateUrl', 2000)
+        && optionalString(request.resource.data, 'taxCertificateContentType', 80)
+        && optionalFileSize(request.resource.data, 'taxCertificateSize')
+        && optionalTimestamp(request.resource.data, 'taxCertificateUploadedAt')
+        && optionalTimestamp(request.resource.data, 'updatedAt');
     }
 
     function validUserWithdrawal(userId) {
@@ -435,7 +467,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAdmin() || validUserCreate(userId);
-      allow update: if isAdmin() || validUserUpdate(userId) || validUserWithdrawal(userId);
+      allow update: if isAdmin() || validUserUpdate(userId) || validUserTaxProfileUpdate(userId) || validUserWithdrawal(userId);
       allow delete: if isAdmin();
     }
 
