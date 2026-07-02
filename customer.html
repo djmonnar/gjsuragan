@@ -931,6 +931,57 @@
     cursor: pointer;
     font-family: inherit;
   }
+  .tax-notice-sheet {
+    padding: 22px 18px 24px;
+  }
+  .tax-notice-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
+    background: #FDF6EC;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 6px auto 14px;
+  }
+  .tax-notice-title {
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .tax-notice-text {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text-sub);
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .tax-notice-actions {
+    display: grid;
+    gap: 8px;
+  }
+  .tax-notice-primary,
+  .tax-notice-secondary {
+    width: 100%;
+    border: 0;
+    border-radius: 10px;
+    padding: 13px 14px;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .tax-notice-primary {
+    background: var(--primary);
+    color: #fff;
+  }
+  .tax-notice-secondary {
+    background: #F4F1EA;
+    color: var(--text-sub);
+  }
 
   /* ── 로그인/회원가입 ── */
   #auth-screen {
@@ -2093,8 +2144,8 @@
       <button class="save-btn" onclick="saveProfile()">저장하기</button>
     </div>
 
-    <div class="section-title"><svg class="gj-icon"><use href="#gj-settlement"></use></svg>세금계산서 설정</div>
-    <div class="profile-block tax-setting-box">
+    <div class="section-title" id="tax-invoice-section"><svg class="gj-icon"><use href="#gj-settlement"></use></svg>세금계산서 설정</div>
+    <div class="profile-block tax-setting-box" id="tax-invoice-settings-card">
       <label class="same-daily-toggle">
         <input type="checkbox" id="tax-invoice-enabled">
         세금계산서 발행 정보 등록
@@ -2307,6 +2358,24 @@
   </div>
 </div>
 
+<!-- 세금계산서 안내 모달 -->
+<div class="modal-overlay" id="tax-certificate-notice-modal">
+  <div class="modal-sheet tax-notice-sheet">
+    <button class="modal-x-btn" onclick="closeTaxCertificateNotice()" aria-label="닫기">×</button>
+    <div class="modal-handle"></div>
+    <div class="tax-notice-icon"><svg class="gj-icon"><use href="#gj-settlement"></use></svg></div>
+    <div class="tax-notice-title">전자세금계산서 신청 가능</div>
+    <div class="tax-notice-text">
+      내 정보에서 사업자등록증을 업로드하면<br>
+      관리자 확인 후 전자세금계산서 발행 정보를 확인할 수 있습니다.
+    </div>
+    <div class="tax-notice-actions">
+      <button type="button" class="tax-notice-primary" onclick="goTaxCertificateUpload()">바로 등록하러가기</button>
+      <button type="button" class="tax-notice-secondary" onclick="dismissTaxCertificateNotice()">다시는 보지 않기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 앱 설치 배너 (안드로이드) -->
 <div id="install-banner" style="
   display:none; position:fixed; bottom:0; left:0; right:0;
@@ -2374,6 +2443,7 @@
 
 <script>
 const CUSTOMER_APP_VERSION = '20260629-weekday-meal-labels';
+const TAX_CERTIFICATE_NOTICE_KEY = 'gjs-tax-certificate-notice-seen-v1';
 
 // ───────── PWA Service Worker 등록 ─────────
 if ('serviceWorker' in navigator) {
@@ -3308,6 +3378,52 @@ function closeMealModal() {
   document.getElementById('meal-modal')?.classList.remove('open');
 }
 
+function markTaxCertificateNoticeSeen() {
+  try {
+    localStorage.setItem(TAX_CERTIFICATE_NOTICE_KEY, '1');
+  } catch(e) {}
+}
+
+function hasSeenTaxCertificateNotice() {
+  try {
+    return localStorage.getItem(TAX_CERTIFICATE_NOTICE_KEY) === '1';
+  } catch(e) {
+    return false;
+  }
+}
+
+function maybeShowTaxCertificateNotice() {
+  const modal = document.getElementById('tax-certificate-notice-modal');
+  if (!modal || !currentUser || hasSeenTaxCertificateNotice()) return;
+  const cert = taxCertificateMeta();
+  if (cert.path || cert.url) return;
+  markTaxCertificateNoticeSeen();
+  setTimeout(() => {
+    if (document.getElementById('ios-guide')?.style.display === 'block') return;
+    modal.classList.add('open');
+  }, 900);
+}
+
+function closeTaxCertificateNotice() {
+  document.getElementById('tax-certificate-notice-modal')?.classList.remove('open');
+}
+
+function dismissTaxCertificateNotice() {
+  markTaxCertificateNoticeSeen();
+  closeTaxCertificateNotice();
+}
+
+function goTaxCertificateUpload() {
+  markTaxCertificateNoticeSeen();
+  closeTaxCertificateNotice();
+  switchTab('profile');
+  setTimeout(() => {
+    const target = document.getElementById('tax-invoice-section') || document.getElementById('tax-invoice-settings-card');
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('tax-certificate-file')?.focus?.();
+  }, 120);
+}
+
 // ───────── 인증 ─────────
 auth.onAuthStateChanged(async (user) => {
   hideLoading();
@@ -3548,9 +3664,11 @@ function showMain() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
   if (isIOS && isSafari && !isStandalone) {
     setTimeout(() => {
+      if (document.getElementById('tax-certificate-notice-modal')?.classList.contains('open')) return;
       openInstallGuide();
     }, 2500);
   }
+  maybeShowTaxCertificateNotice();
 }
 function showLogin() {
   document.getElementById('login-form').style.display = 'block';
