@@ -3635,9 +3635,10 @@ async function loadAllUsers() {
   allUsers = {};
   deletedUsers = {};
   try {
-    const [snap, privateSnap] = await Promise.all([
+    const [snap, privateSnap, taxSnap] = await Promise.all([
       db.collection('users').get(),
-      db.collection('userPrivate').get().catch(() => null)
+      db.collection('userPrivate').get().catch(() => null),
+      db.collection('taxCertificates').get().catch(() => null)
     ]);
     const privateByUid = {};
     if (privateSnap) {
@@ -3645,9 +3646,15 @@ async function loadAllUsers() {
         privateByUid[doc.id] = doc.data() || {};
       });
     }
+    const taxByUid = {};
+    if (taxSnap) {
+      taxSnap.forEach(doc => {
+        taxByUid[doc.id] = doc.data() || {};
+      });
+    }
     snap.forEach(doc => {
       const publicData = doc.data() || {};
-      const data = { ...publicData, ...(privateByUid[doc.id] || {}) };
+      const data = { ...publicData, ...(privateByUid[doc.id] || {}), ...(taxByUid[doc.id] || {}) };
       if (ADMIN_EMAILS.includes(data.email) || (data.adminEvents && !data.businessName)) return;
       if (data.deleted || data.disabled) {
         deletedUsers[doc.id] = data;

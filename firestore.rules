@@ -230,6 +230,32 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(taxProfileKeys());
     }
 
+    function taxCertificateDocKeys() {
+      return [
+        'taxInvoiceEnabled',
+        'taxInvoiceEmail',
+        'taxBusinessNo',
+        'taxCertificateName',
+        'taxCertificatePath',
+        'taxCertificateUrl',
+        'taxCertificateContentType',
+        'taxCertificateSize',
+        'taxCertificateUploadedAt',
+        'userId',
+        'customerName',
+        'phone',
+        'email',
+        'createdAt',
+        'updatedAt'
+      ];
+    }
+
+    function validTaxCertificateDoc(userId) {
+      return isOwner(userId)
+        && request.resource.data.keys().hasOnly(taxCertificateDocKeys())
+        && (!('userId' in request.resource.data.keys()) || request.resource.data.userId == userId);
+    }
+
     function validUserWithdrawal(userId) {
       return isOwner(userId)
         && (!('deleted' in resource.data.keys()) || resource.data.deleted == false)
@@ -463,6 +489,12 @@ service cloud.firestore {
 
     match /userPrivate/{userId} {
       allow read, write: if isAdmin();
+    }
+
+    match /taxCertificates/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if validTaxCertificateDoc(userId) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     match /orders/{date}/items/{userId} {

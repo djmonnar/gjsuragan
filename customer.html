@@ -2472,6 +2472,7 @@ function openInstallGuide() {
 // ───────── 전역 상태 ─────────
 let currentUser = null;
 let userProfile = null;
+let taxCertificateRecord = null;
 let currentCustomerSettlement = null;
 let currentCustomerSettlementMonth = '';
 let customerChangeRequests = [];
@@ -2868,14 +2869,23 @@ function formatCertificateDate(value) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function taxCertificateMeta(profile = userProfile || {}) {
+  const source = taxCertificateRecord || profile || {};
   return {
-    name: profile.taxCertificateName || '',
-    url: profile.taxCertificateUrl || '',
-    path: profile.taxCertificatePath || '',
-    size: profile.taxCertificateSize || 0,
-    contentType: profile.taxCertificateContentType || '',
-    uploadedAt: profile.taxCertificateUploadedAt || null
+    name: source.taxCertificateName || '',
+    url: source.taxCertificateUrl || '',
+    path: source.taxCertificatePath || '',
+    size: source.taxCertificateSize || 0,
+    contentType: source.taxCertificateContentType || '',
+    uploadedAt: source.taxCertificateUploadedAt || null
   };
+}
+async function loadTaxCertificateRecord() {
+  if (!currentUser) {
+    taxCertificateRecord = null;
+    return;
+  }
+  const snap = await db.collection('taxCertificates').doc(currentUser.uid).get();
+  taxCertificateRecord = snap.exists ? (snap.data() || {}) : null;
 }
 function renderTaxCertificateStatus() {
   const el = document.getElementById('tax-certificate-status');
@@ -2926,13 +2936,18 @@ async function saveTaxInvoiceSettings() {
     return;
   }
   try {
-    await db.collection('users').doc(currentUser.uid).update({
+    const payload = {
       taxInvoiceEnabled: enabled,
       taxInvoiceEmail: email,
       taxBusinessNo: businessNo,
+      userId: currentUser.uid,
+      customerName: userProfile?.businessName || '',
+      phone: userProfile?.phone || '',
+      email: currentUser.email || userProfile?.email || '',
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    userProfile = { ...userProfile, taxInvoiceEnabled: enabled, taxInvoiceEmail: email, taxBusinessNo: businessNo };
+    };
+    await db.collection('taxCertificates').doc(currentUser.uid).set(payload, { merge: true });
+    taxCertificateRecord = { ...(taxCertificateRecord || {}), ...payload, updatedAt: new Date() };
     showToast('세금계산서 설정이 저장되었습니다.', 'success');
   } catch(e) {
     showToast('세금계산서 설정 저장 실패: ' + e.message, 'error');
@@ -2953,7 +2968,7 @@ async function uploadTaxCertificate() {
     input.value = '';
     return;
   }
-  const oldPath = userProfile?.taxCertificatePath || '';
+  const oldPath = taxCertificateRecord?.taxCertificatePath || userProfile?.taxCertificatePath || '';
   const path = `taxCertificates/${currentUser.uid}/${Date.now()}_${safeStorageFileName(file.name)}`;
   try {
     showToast('사업자등록증을 업로드하는 중입니다...');
@@ -2973,24 +2988,37 @@ async function uploadTaxCertificate() {
       taxCertificateSize: file.size,
       taxCertificateUploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
       taxInvoiceEnabled: true,
+      taxInvoiceEmail: document.getElementById('tax-invoice-email')?.value.trim() || taxCertificateRecord?.taxInvoiceEmail || userProfile?.email || currentUser.email || '',
+      taxBusinessNo: document.getElementById('tax-business-no')?.value.trim() || taxCertificateRecord?.taxBusinessNo || '',
+      userId: currentUser.uid,
+      customerName: userProfile?.businessName || '',
+      phone: userProfile?.phone || '',
+      email: currentUser.email || userProfile?.email || '',
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     try {
-      await db.collection('users').doc(currentUser.uid).update(payload);
+      await db.collection('taxCertificates').doc(currentUser.uid).set(payload, { merge: true });
     } catch(e) {
       storage.ref(path).delete().catch(()=>{});
       throw new Error('업로드 정보 저장 권한을 확인해주세요. ' + e.message);
     }
     if (oldPath && oldPath !== path) storage.ref(oldPath).delete().catch(()=>{});
-    userProfile = {
-      ...userProfile,
+    taxCertificateRecord = {
+      ...(taxCertificateRecord || {}),
       taxCertificateName: file.name,
       taxCertificatePath: path,
       taxCertificateUrl: '',
       taxCertificateContentType: contentType,
       taxCertificateSize: file.size,
       taxCertificateUploadedAt: new Date(),
-      taxInvoiceEnabled: true
+      taxInvoiceEnabled: true,
+      taxInvoiceEmail: payload.taxInvoiceEmail,
+      taxBusinessNo: payload.taxBusinessNo,
+      userId: payload.userId,
+      customerName: payload.customerName,
+      phone: payload.phone,
+      email: payload.email,
+      updatedAt: new Date()
     };
     const enabled = document.getElementById('tax-invoice-enabled');
     if (enabled) enabled.checked = true;
@@ -3009,7 +3037,7 @@ async function deleteTaxCertificate() {
   if (!confirm('등록된 사업자등록증을 삭제할까요?')) return;
   try {
     if (cert.path) await storage.ref(cert.path).delete().catch(()=>{});
-    await db.collection('users').doc(currentUser.uid).update({
+    await db.collection('taxCertificates').doc(currentUser.uid).set({
       taxCertificateName: firebase.firestore.FieldValue.delete(),
       taxCertificatePath: firebase.firestore.FieldValue.delete(),
       taxCertificateUrl: firebase.firestore.FieldValue.delete(),
@@ -3017,13 +3045,14 @@ async function deleteTaxCertificate() {
       taxCertificateSize: firebase.firestore.FieldValue.delete(),
       taxCertificateUploadedAt: firebase.firestore.FieldValue.delete(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    delete userProfile.taxCertificateName;
-    delete userProfile.taxCertificatePath;
-    delete userProfile.taxCertificateUrl;
-    delete userProfile.taxCertificateContentType;
-    delete userProfile.taxCertificateSize;
-    delete userProfile.taxCertificateUploadedAt;
+    }, { merge: true });
+    taxCertificateRecord = { ...(taxCertificateRecord || {}) };
+    delete taxCertificateRecord.taxCertificateName;
+    delete taxCertificateRecord.taxCertificatePath;
+    delete taxCertificateRecord.taxCertificateUrl;
+    delete taxCertificateRecord.taxCertificateContentType;
+    delete taxCertificateRecord.taxCertificateSize;
+    delete taxCertificateRecord.taxCertificateUploadedAt;
     renderTaxCertificateStatus();
     showToast('사업자등록증이 삭제되었습니다.', 'success');
   } catch(e) {
@@ -3316,6 +3345,12 @@ async function loadUserProfile() {
     throw new Error('삭제된 회원입니다. 관리자에게 문의해주세요.');
   }
   userProfile = data;
+  try {
+    await loadTaxCertificateRecord();
+  } catch(e) {
+    console.warn('세금계산서 자료 로드 오류:', e);
+    taxCertificateRecord = null;
+  }
   document.getElementById('header-bizname').textContent = userProfile.businessName || currentUser.email || '';
   const todayDefault = defaultMealsForDate(dateStr(getKST()), userProfile);
   todayLunch = todayDefault.lunch;
@@ -4403,9 +4438,10 @@ function renderProfile() {
   const taxEnabled = document.getElementById('tax-invoice-enabled');
   const taxEmail = document.getElementById('tax-invoice-email');
   const taxBusinessNo = document.getElementById('tax-business-no');
-  if (taxEnabled) taxEnabled.checked = userProfile.taxInvoiceEnabled === true;
-  if (taxEmail) taxEmail.value = userProfile.taxInvoiceEmail || userProfile.email || currentUser?.email || '';
-  if (taxBusinessNo) taxBusinessNo.value = userProfile.taxBusinessNo || '';
+  const taxSource = taxCertificateRecord || userProfile || {};
+  if (taxEnabled) taxEnabled.checked = taxSource.taxInvoiceEnabled === true;
+  if (taxEmail) taxEmail.value = taxSource.taxInvoiceEmail || userProfile.email || currentUser?.email || '';
+  if (taxBusinessNo) taxBusinessNo.value = taxSource.taxBusinessNo || '';
   renderTaxCertificateStatus();
   syncChangeRequestTitle();
   renderCustomerChangeRequests();
@@ -4440,12 +4476,8 @@ async function saveProfile() {
   const salad = parseCount(document.getElementById('prof-salad').value, 0);
   const sameDailyMeal = document.getElementById('prof-same-daily').checked;
   const weekdayMeals = readWeekdayMeals('prof', lunch, salad);
-  const taxInvoiceEnabled = document.getElementById('tax-invoice-enabled')?.checked || false;
-  const taxInvoiceEmail = document.getElementById('tax-invoice-email')?.value.trim() || '';
-  const taxBusinessNo = document.getElementById('tax-business-no')?.value.trim() || '';
   if (!bizname) { showToast('업체명을 입력해주세요.', 'error'); return; }
   if (!mealTimeInfo.valid) { showToast('식사 받는 시간은 오전 10시 30분부터 오후 12시 30분까지 선택해주세요.', 'error'); return; }
-  if (taxInvoiceEnabled && taxInvoiceEmail && !isValidEmailInput(taxInvoiceEmail)) { showToast('세금계산서 이메일 형식을 확인해주세요.', 'error'); return; }
   try {
     await db.collection('users').doc(currentUser.uid).update({
       businessName: bizname,
@@ -4458,12 +4490,9 @@ async function saveProfile() {
       weekdayMeals,
       deliveryPlace,
       deliveryPlaceDetail,
-      taxInvoiceEnabled,
-      taxInvoiceEmail,
-      taxBusinessNo,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    userProfile = { ...userProfile, businessName: bizname, phone, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, sameDailyMealExplicit: true, weekdayMeals, deliveryPlace, deliveryPlaceDetail, taxInvoiceEnabled, taxInvoiceEmail, taxBusinessNo };
+    userProfile = { ...userProfile, businessName: bizname, phone, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, sameDailyMealExplicit: true, weekdayMeals, deliveryPlace, deliveryPlaceDetail };
     document.getElementById('header-bizname').textContent = bizname;
     renderToday();
     renderWeek();
