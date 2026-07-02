@@ -227,17 +227,7 @@ service cloud.firestore {
       return isOwner(userId)
         && (!('deleted' in resource.data.keys()) || resource.data.deleted == false)
         && (!('disabled' in resource.data.keys()) || resource.data.disabled == false)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(taxProfileKeys())
-        && optionalBool(request.resource.data, 'taxInvoiceEnabled')
-        && optionalString(request.resource.data, 'taxInvoiceEmail', 160)
-        && optionalString(request.resource.data, 'taxBusinessNo', 40)
-        && optionalString(request.resource.data, 'taxCertificateName', 300)
-        && optionalString(request.resource.data, 'taxCertificatePath', 500)
-        && optionalString(request.resource.data, 'taxCertificateUrl', 2000)
-        && optionalString(request.resource.data, 'taxCertificateContentType', 80)
-        && optionalFileSize(request.resource.data, 'taxCertificateSize')
-        && optionalTimestamp(request.resource.data, 'taxCertificateUploadedAt')
-        && optionalTimestamp(request.resource.data, 'updatedAt');
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(taxProfileKeys());
     }
 
     function validUserWithdrawal(userId) {

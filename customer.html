@@ -2969,7 +2969,6 @@ async function uploadTaxCertificate() {
     const payload = {
       taxCertificateName: file.name,
       taxCertificatePath: path,
-      taxCertificateUrl: firebase.firestore.FieldValue.delete(),
       taxCertificateContentType: contentType,
       taxCertificateSize: file.size,
       taxCertificateUploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
