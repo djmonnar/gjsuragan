@@ -2161,6 +2161,10 @@
         <label class="form-label">사업자등록번호</label>
         <input class="form-input" type="text" id="tax-business-no" placeholder="000-00-00000">
       </div>
+      <div class="form-group">
+        <label class="form-label">현금영수증 휴대폰번호</label>
+        <input class="form-input" type="tel" id="tax-cash-receipt-phone" placeholder="010-0000-0000">
+      </div>
       <input type="file" id="tax-certificate-file" accept="image/*,.pdf,application/pdf" style="display:none" onchange="uploadTaxCertificate()">
       <div id="tax-certificate-status"></div>
       <div class="tax-actions">
@@ -3001,6 +3005,7 @@ async function saveTaxInvoiceSettings() {
   const enabled = document.getElementById('tax-invoice-enabled')?.checked || false;
   const email = document.getElementById('tax-invoice-email')?.value.trim() || '';
   const businessNo = document.getElementById('tax-business-no')?.value.trim() || '';
+  const cashReceiptPhone = document.getElementById('tax-cash-receipt-phone')?.value.trim() || '';
   if (enabled && email && !isValidEmailInput(email)) {
     showToast('세금계산서 이메일 형식을 확인해주세요.', 'error');
     return;
@@ -3010,6 +3015,7 @@ async function saveTaxInvoiceSettings() {
       taxInvoiceEnabled: enabled,
       taxInvoiceEmail: email,
       taxBusinessNo: businessNo,
+      taxCashReceiptPhone: cashReceiptPhone,
       userId: currentUser.uid,
       customerName: userProfile?.businessName || '',
       phone: userProfile?.phone || '',
@@ -3060,6 +3066,7 @@ async function uploadTaxCertificate() {
       taxInvoiceEnabled: true,
       taxInvoiceEmail: document.getElementById('tax-invoice-email')?.value.trim() || taxCertificateRecord?.taxInvoiceEmail || userProfile?.email || currentUser.email || '',
       taxBusinessNo: document.getElementById('tax-business-no')?.value.trim() || taxCertificateRecord?.taxBusinessNo || '',
+      taxCashReceiptPhone: document.getElementById('tax-cash-receipt-phone')?.value.trim() || taxCertificateRecord?.taxCashReceiptPhone || '',
       userId: currentUser.uid,
       customerName: userProfile?.businessName || '',
       phone: userProfile?.phone || '',
@@ -3084,6 +3091,7 @@ async function uploadTaxCertificate() {
       taxInvoiceEnabled: true,
       taxInvoiceEmail: payload.taxInvoiceEmail,
       taxBusinessNo: payload.taxBusinessNo,
+      taxCashReceiptPhone: payload.taxCashReceiptPhone,
       userId: payload.userId,
       customerName: payload.customerName,
       phone: payload.phone,
@@ -4556,10 +4564,12 @@ function renderProfile() {
   const taxEnabled = document.getElementById('tax-invoice-enabled');
   const taxEmail = document.getElementById('tax-invoice-email');
   const taxBusinessNo = document.getElementById('tax-business-no');
+  const taxCashReceiptPhone = document.getElementById('tax-cash-receipt-phone');
   const taxSource = taxCertificateRecord || userProfile || {};
   if (taxEnabled) taxEnabled.checked = taxSource.taxInvoiceEnabled === true;
   if (taxEmail) taxEmail.value = taxSource.taxInvoiceEmail || userProfile.email || currentUser?.email || '';
   if (taxBusinessNo) taxBusinessNo.value = taxSource.taxBusinessNo || '';
+  if (taxCashReceiptPhone) taxCashReceiptPhone.value = taxSource.taxCashReceiptPhone || '';
   renderTaxCertificateStatus();
   syncChangeRequestTitle();
   renderCustomerChangeRequests();
