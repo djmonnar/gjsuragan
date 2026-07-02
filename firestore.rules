@@ -38,6 +38,13 @@ service cloud.firestore {
       return !(field in data.keys()) || data[field] is timestamp;
     }
 
+    function optionalFileSize(data, field) {
+      return !(field in data.keys())
+        || ((data[field] is int || data[field] is float)
+          && data[field] >= 0
+          && data[field] <= 8388608);
+    }
+
     function nullableTimestamp(data, field) {
       return field in data.keys()
         && (data[field] == null || data[field] is timestamp);
@@ -75,7 +82,16 @@ service cloud.firestore {
         'createdAt',
         'updatedAt',
         'privacyConsent',
-        'privacyConsentAt'
+        'privacyConsentAt',
+        'taxInvoiceEnabled',
+        'taxInvoiceEmail',
+        'taxBusinessNo',
+        'taxCertificateName',
+        'taxCertificatePath',
+        'taxCertificateUrl',
+        'taxCertificateContentType',
+        'taxCertificateSize',
+        'taxCertificateUploadedAt'
       ];
     }
 
@@ -99,7 +115,16 @@ service cloud.firestore {
         'createdAt',
         'updatedAt',
         'privacyConsent',
-        'privacyConsentAt'
+        'privacyConsentAt',
+        'taxInvoiceEnabled',
+        'taxInvoiceEmail',
+        'taxBusinessNo',
+        'taxCertificateName',
+        'taxCertificatePath',
+        'taxCertificateUrl',
+        'taxCertificateContentType',
+        'taxCertificateSize',
+        'taxCertificateUploadedAt'
       ];
     }
 
@@ -149,10 +174,19 @@ service cloud.firestore {
         && optionalBool(data, 'sameDailyMeal')
         && optionalBool(data, 'sameDailyMealExplicit')
         && optionalBool(data, 'privacyConsent')
+        && optionalBool(data, 'taxInvoiceEnabled')
+        && optionalString(data, 'taxInvoiceEmail', 160)
+        && optionalString(data, 'taxBusinessNo', 40)
+        && optionalString(data, 'taxCertificateName', 160)
+        && optionalString(data, 'taxCertificatePath', 300)
+        && optionalString(data, 'taxCertificateUrl', 2000)
+        && optionalString(data, 'taxCertificateContentType', 80)
+        && optionalFileSize(data, 'taxCertificateSize')
         && validWeekdayMeals(data)
         && optionalTimestamp(data, 'createdAt')
         && optionalTimestamp(data, 'updatedAt')
-        && optionalTimestamp(data, 'privacyConsentAt');
+        && optionalTimestamp(data, 'privacyConsentAt')
+        && optionalTimestamp(data, 'taxCertificateUploadedAt');
     }
 
     function validUserCreate(userId) {

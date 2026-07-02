@@ -12,6 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -21,6 +22,7 @@
 const firebaseConfig={apiKey:"AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A",authDomain:"gjsuragan-60505.firebaseapp.com",projectId:"gjsuragan-60505",storageBucket:"gjsuragan-60505.firebasestorage.app",messagingSenderId:"1009198450175",appId:"1:1009198450175:web:4a55da7c2092dba42613ca"};
 const firebaseApp=firebase.initializeApp(firebaseConfig,'gjsuragan-admin');
 const auth=firebaseApp.auth();const db=firebaseApp.firestore();
+const storage=firebaseApp.storage();
 const messaging=firebase.messaging.isSupported()?firebaseApp.messaging():null;
 const FCM_VAPID_PUBLIC_KEY='BHXtN0pC4FNWDwQtAUaCTAWcKseMEWdaZuYMoJdjajZsWARrLQfcU_a57F2BKOFXSlyg30etqA7pbwa0AQixQ3A';
 const ADMIN_EMAILS=['sun1562@naver.com'];
@@ -251,6 +253,15 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .m-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
 .m-info{font-size:12px;color:var(--sub);margin-top:2px}
 .m-edit-hint{font-size:11px;color:var(--primary);margin-top:6px;font-weight:600}
+.tax-status-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;margin-bottom:14px}
+.tax-status-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:15px}
+.tax-status-label{font-size:12px;color:var(--sub);font-weight:800;margin-bottom:6px}
+.tax-status-value{font-size:24px;font-weight:900;color:var(--primary)}
+.tax-table-wrap{overflow-x:auto}
+.tax-file-actions{display:flex;gap:6px;flex-wrap:wrap}
+.tax-badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:900;border:1px solid #d8eadf;background:#f0fdf4;color:#047857;white-space:nowrap}
+.tax-badge.missing{border-color:#fed7aa;background:#fff7ed;color:#c2410c}
+.tax-badge.off{border-color:#e5e7eb;background:#f8fafc;color:#6b7280}
 .default-chip{display:inline-block;background:#eef6ff;color:#1565c0;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700}
 .same-daily-toggle{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text);margin:8px 0 12px}
 .weekday-meals{display:grid;gap:8px;margin-bottom:12px}
@@ -384,6 +395,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .change-request-section{padding-left:16px;padding-right:16px}
   .change-request-layout{grid-template-columns:1fr}
   .admin-inpage-alert{left:16px;right:16px;bottom:18px;max-width:none}
+  .tax-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 /* ── 통계 CSS ── */
 .stats-period-btn{border:1px solid var(--border);background:#fff;color:var(--sub);font-size:12px;font-weight:600;padding:5px 12px;border-radius:16px;cursor:pointer;font-family:inherit}
@@ -755,6 +767,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <button class="tab-btn" id="tab-menus" onclick="switchAdminTab('menus')"><svg class="admin-icon"><use href="#admin-i-menu"></use></svg><span>식단관리</span></button>
     <button class="tab-btn" id="tab-changeRequests" onclick="switchAdminTab('changeRequests')"><svg class="admin-icon"><use href="#admin-i-chat"></use></svg><span>문의사항</span><span class="tab-count-badge" id="change-request-tab-count">0</span></button>
     <button class="tab-btn" id="tab-settlements" onclick="switchAdminTab('settlements')"><svg class="admin-icon"><use href="#admin-i-settle"></use></svg><span>정산</span></button>
+    <button class="tab-btn" id="tab-taxInvoices" onclick="switchAdminTab('taxInvoices')"><svg class="admin-icon"><use href="#admin-i-receipt"></use></svg><span>세금계산서</span></button>
     <button class="tab-btn" id="tab-receipts" onclick="switchAdminTab('receipts')"><svg class="admin-icon"><use href="#admin-i-receipt"></use></svg><span>간이영수증</span></button>
     <button class="tab-btn" id="tab-stats" onclick="switchAdminTab('stats')"><svg class="admin-icon"><use href="#admin-i-stats"></use></svg><span>통계</span></button>
     <button class="tab-btn" id="tab-settings" onclick="switchAdminTab('settings')"><svg class="admin-icon"><use href="#admin-i-settings"></use></svg><span>설정</span></button>
@@ -818,7 +831,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="summary-value" id="sum-salad">0<span class="summary-unit">개</span></div>
     </div>
     <div class="summary-card">
-      <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>총 행사도시락</span></div>
+      <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>총 일회용도시락</span></div>
       <div class="summary-value" id="sum-event-lunch">0<span class="summary-unit">개</span></div>
     </div>
   </div>
@@ -841,7 +854,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
             <span class="mobile-qty-heading">수량</span>
           </th>
           <th style="text-align:center"><span class="th-icon-label"><svg class="admin-icon"><use href="#admin-i-salad"></use></svg><span>샐러드</span></span></th>
-          <th style="text-align:center"><span class="th-icon-label"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>행사</span></span></th>
+          <th style="text-align:center"><span class="th-icon-label"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>일회용</span></span></th>
           <th style="text-align:center">총수량</th>
           <th style="text-align:right">총금액</th>
           <th>배송</th>
@@ -1270,7 +1283,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="manual-card-title">4. 정산</div>
         <ol>
           <li>월말에 사장님이 정산월을 선택하고 <b>불러오기</b>를 누릅니다.</li>
-          <li>주문 탭에서 배송완료한 도시락, 샐러드, 행사 수량과 금액만 확인합니다.</li>
+          <li>주문 탭에서 배송완료한 도시락, 샐러드, 일회용 수량과 행사도시락 금액만 확인합니다.</li>
           <li>정산 탭에서는 입금완료, 보류, 조정금액처럼 예외만 수정합니다.</li>
           <li>필요하면 정산표, 카톡 내보내기, 영수증을 사용합니다.</li>
         </ol>
@@ -1384,7 +1397,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <div class="summary-detail" id="settle-salad-amount-total">0원</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">🎉 행사도시락</div>
+          <div class="summary-label">🥡 일회용/행사도시락</div>
           <div class="summary-value" id="settle-event-lunch-total">0<span class="summary-unit">개</span></div>
           <div class="summary-detail" id="settle-event-amount-total">0원</div>
         </div>
@@ -1429,7 +1442,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
             <th>업체명</th>
             <th style="text-align:center">일반도시락</th>
             <th style="text-align:center">샐러드</th>
-            <th style="text-align:center">행사도시락</th>
+            <th style="text-align:center">일회용도시락</th>
             <th>품목별 금액</th>
             <th>청구액</th>
             <th>청구서번호</th>
@@ -1463,6 +1476,50 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <!-- 행사도시락 개수 (숨김 요소, 기존 호환) -->
     <span id="settle-event-total" style="display:none">0</span>
   </div>
+
+  <div class="receipt-section admin-tab-panel" data-tab="taxInvoices" style="display:none">
+    <div class="section-title">세금계산서 자료</div>
+    <div class="tax-status-grid">
+      <div class="tax-status-card">
+        <div class="tax-status-label">발행 요청 업체</div>
+        <div class="tax-status-value" id="tax-invoice-enabled-count">0곳</div>
+      </div>
+      <div class="tax-status-card">
+        <div class="tax-status-label">사업자등록증 등록</div>
+        <div class="tax-status-value" id="tax-certificate-count">0곳</div>
+      </div>
+      <div class="tax-status-card">
+        <div class="tax-status-label">자료 미등록</div>
+        <div class="tax-status-value" id="tax-certificate-missing-count">0곳</div>
+      </div>
+      <div class="tax-status-card">
+        <div class="tax-status-label">전체 회원</div>
+        <div class="tax-status-value" id="tax-member-total-count">0곳</div>
+      </div>
+    </div>
+    <div class="member-search-bar">
+      <input class="form-input member-search-input" type="search" id="tax-invoice-search-input" placeholder="업체명, 연락처, 이메일, 사업자번호 검색" oninput="renderTaxInvoices()" onkeydown="if(event.key==='Escape') clearTaxInvoiceSearch()">
+      <div class="member-search-count" id="tax-invoice-search-count">전체 0곳</div>
+      <button class="member-search-clear" type="button" onclick="clearTaxInvoiceSearch()">초기화</button>
+    </div>
+    <div class="tax-table-wrap">
+      <table class="order-table">
+        <thead>
+          <tr>
+            <th>업체명</th>
+            <th>연락처</th>
+            <th>세금계산서 이메일</th>
+            <th>사업자등록번호</th>
+            <th>사업자등록증</th>
+            <th>상태</th>
+          </tr>
+        </thead>
+        <tbody id="tax-invoice-tbody">
+          <tr class="no-order-row"><td colspan="6">세금계산서 자료를 불러오는 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <!-- 모바일 주문 수량 수정 모달 -->
@@ -1495,7 +1552,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         </div>
       </div>
       <div class="order-qty-edit-row">
-        <div class="order-qty-edit-label">행사</div>
+        <div class="order-qty-edit-label">일회용</div>
         <div class="qty-stepper">
           <button type="button" class="qty-step-btn" onclick="adjustOrderQtyModal('event',-1)">−</button>
           <input class="qty-edit" id="order-qty-event" type="number" min="0" max="999" value="0" oninput="updateOrderQtyModalTotal()">
@@ -1592,6 +1649,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     </div>
     <label class="form-label">관리자 메모</label>
     <input class="form-input" type="text" id="edit-admin-memo" maxlength="40" placeholder="주문 탭 업체명 옆에 표시됩니다. 예: 비닐X, 첫배송 주의">
+    <label class="same-daily-toggle">
+      <input type="checkbox" id="edit-disposable-lunch">
+      일회용도시락 업체
+    </label>
+    <div class="default-hint">체크하면 주문 탭에서 일반도시락 대신 일회용도시락 수량으로 따로 집계됩니다.</div>
     <div class="error-msg" id="edit-error"></div>
     <div class="modal-actions">
       <button class="save-btn" onclick="saveMember()">저장하기</button>
@@ -1631,11 +1693,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <input class="form-input" type="number" id="manual-salad-price" min="0" value="0">
       </div>
       <div>
-        <label class="form-label">행사도시락 수량</label>
+        <label class="form-label">일회용도시락 수량</label>
         <input class="form-input" type="number" id="manual-event-lunch" min="0" max="999" value="0">
       </div>
       <div>
-        <label class="form-label">행사도시락 단가</label>
+        <label class="form-label">일회용도시락 단가</label>
         <input class="form-input" type="number" id="manual-event-lunch-price" min="0" value="0">
       </div>
     </div>
@@ -1667,7 +1729,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     </div>
     <div class="batch-holiday-warn" id="batch-holiday-warn" style="display:none"></div>
     <div class="batch-total-bar">
-      <span>🍱 도시락: <strong id="batch-sum-lunch">0</strong>개</span>
+      <span>🍱 도시락/일회용: <strong id="batch-sum-lunch">0</strong>개</span>
       <span>🥗 샐러드: <strong id="batch-sum-salad">0</strong>개</span>
     </div>
     <div id="batch-list"></div>
@@ -1788,12 +1850,12 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
         <div><label class="form-label">도시락 수량</label><input class="form-input" type="number" id="settle-edit-lunch" min="0" value="0" oninput="updatePaymentSummary()"></div>
         <div><label class="form-label">샐러드 수량</label><input class="form-input" type="number" id="settle-edit-salad" min="0" value="0" oninput="updatePaymentSummary()"></div>
-        <div><label class="form-label">행사도시락 수량</label><input class="form-input" type="number" id="settle-edit-event-lunch" min="0" value="0" oninput="updatePaymentSummary()"></div>
+        <div><label class="form-label">일회용도시락 수량</label><input class="form-input" type="number" id="settle-edit-event-lunch" min="0" value="0" oninput="updatePaymentSummary()"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">
         <div><label class="form-label">도시락 단가</label><input class="form-input" type="number" id="settle-edit-lunch-price" min="0" value="0" oninput="updatePaymentSummary()"></div>
         <div><label class="form-label">샐러드 단가</label><input class="form-input" type="number" id="settle-edit-salad-price" min="0" value="0" oninput="updatePaymentSummary()"></div>
-        <div><label class="form-label">행사도시락 단가</label><input class="form-input" type="number" id="settle-edit-event-price" min="0" value="0" oninput="updatePaymentSummary()"></div>
+        <div><label class="form-label">일회용도시락 단가</label><input class="form-input" type="number" id="settle-edit-event-price" min="0" value="0" oninput="updatePaymentSummary()"></div>
       </div>
     </div>
 
@@ -1887,6 +1949,7 @@ const USER_PRIVATE_FIELDS = [
   'priceLunch',
   'priceSalad',
   'adminMemo',
+  'disposableLunch',
   'memo',
   'status',
   'role'
@@ -2112,6 +2175,13 @@ function escapeHtml(value) {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[ch]));
 }
+function formatFileSize(bytes = 0) {
+  const size = Number(bytes || 0);
+  if (!size) return '';
+  if (size < 1024) return `${size}B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)}KB`;
+  return `${(size / 1024 / 1024).toFixed(1)}MB`;
+}
 function jsString(value) {
   return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
@@ -2128,6 +2198,48 @@ function orderAdminMemo(row = {}) {
 }
 function bizNameWithAdminMemoHtml(name = '-', memo = '', withDot = false) {
   return `<span class="biz-name-line">${withDot ? '<span class="dot"></span>' : ''}<span class="biz-title">${escapeHtml(name || '-')}</span>${adminMemoChipHtml(memo)}</span>`;
+}
+function isDisposableLunchUser(user = {}) {
+  return Boolean(user?.disposableLunch || user?.useDisposableLunch || user?.disposableLunchCustomer);
+}
+function disposableLunchFlagFromRecord(record = {}) {
+  const keys = ['disposableLunch', 'useDisposableLunch', 'disposableLunchCustomer'];
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(record || {}, key) && record[key] !== undefined && record[key] !== null) {
+      return Boolean(record[key]);
+    }
+  }
+  return null;
+}
+function disposableLunchUserForRecord(user = {}, record = {}) {
+  const flag = disposableLunchFlagFromRecord(record);
+  if (flag === null) return user;
+  return {
+    ...user,
+    disposableLunch: flag,
+    useDisposableLunch: flag,
+    disposableLunchCustomer: flag
+  };
+}
+function disposableLunchBadgeHtml(user = {}) {
+  return isDisposableLunchUser(user)
+    ? '<span class="admin-memo-chip" title="일회용도시락 업체">일회용</span>'
+    : '';
+}
+function splitDisposableLunchForUser(user = {}, lunchQty = 0, disposableQty = 0) {
+  const lunch = parseDeliveryCount(lunchQty, 0);
+  const disposable = parseDeliveryCount(disposableQty, 0);
+  if (!isDisposableLunchUser(user)) return { lunch, disposable };
+  return { lunch: 0, disposable: lunch + disposable };
+}
+function normalizeQtyValuesForUser(user = {}, values = {}) {
+  const effectiveUser = disposableLunchUserForRecord(user, values);
+  const split = splitDisposableLunchForUser(effectiveUser, values.lunch, values.event);
+  return {
+    lunch: split.lunch,
+    salad: parseDeliveryCount(values.salad, 0),
+    event: split.disposable
+  };
 }
 function formatMoney(value) {
   return `${Number(value || 0).toLocaleString('ko-KR')}원`;
@@ -2234,7 +2346,7 @@ function settlementProductBreakdownHtml(row = {}) {
   const eventAmount = settlementEventAmount(row);
   if ((Number(row.lunch || 0) || 0) > 0) parts.push(`<div><b>일반</b> ${formatMoney(lunchAmount)}</div>`);
   if ((Number(row.salad || 0) || 0) > 0) parts.push(`<div><b>샐러드</b> ${formatMoney(saladAmount)}</div>`);
-  if (settlementEventQty(row) > 0) parts.push(`<div><b>행사</b> ${formatMoney(eventAmount)}</div>`);
+  if (settlementEventQty(row) > 0) parts.push(`<div><b>일회용</b> ${formatMoney(eventAmount)}</div>`);
   return parts.length ? parts.join('') : '<span style="color:var(--sub)">-</span>';
 }
 
@@ -2302,13 +2414,14 @@ function orderSaladPrice(order = {}, user = {}) {
 function userPrivateRef(uid) {
   return db.collection('userPrivate').doc(uid);
 }
-function privateUserPayload({ deliveryPlace = '', deliveryPlaceDetail = '', lunchPrice = 0, saladPrice = 0, adminMemo = '' } = {}) {
+function privateUserPayload({ deliveryPlace = '', deliveryPlaceDetail = '', lunchPrice = 0, saladPrice = 0, adminMemo = '', disposableLunch = false } = {}) {
   return {
     deliveryPlace,
     deliveryPlaceDetail,
     lunchPrice,
     saladPrice,
     adminMemo,
+    disposableLunch: Boolean(disposableLunch),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 }
@@ -2321,11 +2434,14 @@ function userPrivateDeletePayload() {
 function orderEventLunchPrice(order = {}) {
   return Number(order.eventLunchPrice ?? order.eventPrice ?? 0) || 0;
 }
+function orderDisposableLunchPrice(order = {}, user = {}) {
+  return orderEventLunchPrice(order) || orderLunchPrice(order, user);
+}
 function buildOrderItems({ lunchQty = 0, lunchPrice = 0, saladQty = 0, saladPrice = 0, eventLunchQty = 0, eventLunchPrice = 0 } = {}) {
   return [
     { id: 'lunch', label: '도시락', qty: lunchQty, unitPrice: lunchPrice, amount: lunchQty * lunchPrice },
     { id: 'salad', label: '샐러드', qty: saladQty, unitPrice: saladPrice, amount: saladQty * saladPrice },
-    { id: 'eventLunch', label: '행사도시락', qty: eventLunchQty, unitPrice: eventLunchPrice, amount: eventLunchQty * eventLunchPrice }
+    { id: 'eventLunch', label: '일회용도시락', qty: eventLunchQty, unitPrice: eventLunchPrice, amount: eventLunchQty * eventLunchPrice }
   ].filter(item => item.qty > 0);
 }
 function orderTotalQty(order = {}) {
@@ -2338,7 +2454,7 @@ function orderTotalAmount(order = {}, user = {}) {
   }
   return (orderLunchQty(order) * orderLunchPrice(order, user))
     + (orderSaladQty(order) * orderSaladPrice(order, user))
-    + (orderEventLunchQty(order) * orderEventLunchPrice(order));
+    + (orderEventLunchQty(order) * orderDisposableLunchPrice(order, user));
 }
 function weekdayKeyForDate(dStr) {
   const day = new Date(`${dStr}T00:00:00+09:00`).getDay();
@@ -2841,7 +2957,7 @@ function renderSettlementExcelPreview(rows, month) {
     `비회원 ${rows.length}곳`,
     `도시락 ${summary.lunch.toLocaleString('ko-KR')}개`,
     `샐러드 ${summary.salad.toLocaleString('ko-KR')}개`,
-    `업체 행사도시락 ${summary.eventLunch.toLocaleString('ko-KR')}개`,
+    `일회용도시락 ${summary.eventLunch.toLocaleString('ko-KR')}개`,
     `총 ${summary.amount.toLocaleString('ko-KR')}원`,
     `이제 오른쪽 버튼을 누르면 정산에 등록됩니다.`
   ].join(' · ');
@@ -2884,7 +3000,7 @@ async function importSettlementExcel() {
       `${month} 비회원 정산을 가져올까요?`,
       '',
       `업체 ${rows.length}곳`,
-      `도시락 ${summary.lunch}개 / 샐러드 ${summary.salad}개 / 업체별 행사도시락 ${summary.eventLunch}개`,
+      `도시락 ${summary.lunch}개 / 샐러드 ${summary.salad}개 / 일회용도시락 ${summary.eventLunch}개`,
       `총 정산액 ${summary.amount.toLocaleString('ko-KR')}원`,
       '',
       '같은 월의 기존 엑셀 비회원 정산은 이 파일 기준으로 덮어씁니다.'
@@ -3563,7 +3679,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
   const rowsByUid = {};
   const defaultSourceMap = new Map();
   if (defaultSnapshots) {
-    defaultSnapshots.forEach(([uid, user]) => defaultSourceMap.set(uid, user));
+    defaultSnapshots.forEach(([uid, user]) => defaultSourceMap.set(uid, { ...(allUsers[uid] || {}), ...(user || {}) }));
   }
   Object.entries(allUsers).forEach(([uid, user]) => {
     if (defaultSourceMap.has(uid)) return;
@@ -3579,14 +3695,14 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
   const defaultSource = [...defaultSourceMap.entries()];
   defaultSource.forEach(([uid, user]) => {
     const defaults = defaultSnapshots
-      ? { lunch: parseCount(user.lunchCount, 0), salad: parseCount(user.saladCount, 0) }
-      : { lunch: user.defaultLunchForDate, salad: user.defaultSaladForDate };
+      ? { lunch: parseCount(user.lunchCount, 0), salad: parseCount(user.saladCount, 0), event: parseDeliveryCount(user.eventLunchCount ?? user.eventLunchQty, 0) }
+      : { lunch: user.defaultLunchForDate, salad: user.defaultSaladForDate, event: 0 };
     const delivered = deliveredRecords[uid];
     if (delivered?.orderDeleted) return;
     const lunchPrice = userLunchPrice(user);
     const saladPrice = userSaladPrice(user);
-    const eventLunchPrice = orderEventLunchPrice(delivered || {});
-    if ((defaults.lunch + defaults.salad) <= 0) {
+    const eventLunchPrice = orderEventLunchPrice(delivered || {}) || lunchPrice;
+    if ((defaults.lunch + defaults.salad + defaults.event) <= 0) {
       rowsByUid[uid] = {
         uid,
         businessName: user.businessName || '-',
@@ -3612,14 +3728,20 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       };
       return;
     }
+    const defaultCounts = normalizeQtyValuesForUser(user, {
+      lunch: delivered ? (delivered.lunchQty ?? delivered.lunchCount ?? 0) : defaults.lunch,
+      salad: delivered ? (delivered.saladQty ?? delivered.saladCount ?? 0) : defaults.salad,
+      event: delivered ? orderEventLunchQty(delivered) : defaults.event,
+      disposableLunch: delivered ? delivered.disposableLunch : defaults.disposableLunch
+    });
     rowsByUid[uid] = {
       uid,
       businessName: user.businessName || '-',
-      lunchCount: delivered ? (delivered.lunchCount || 0) : defaults.lunch,
-      saladCount: delivered ? (delivered.saladCount || 0) : defaults.salad,
-      eventLunchQty: delivered ? orderEventLunchQty(delivered) : 0,
-      lunchQty: delivered ? (delivered.lunchQty ?? delivered.lunchCount ?? 0) : defaults.lunch,
-      saladQty: delivered ? (delivered.saladQty ?? delivered.saladCount ?? 0) : defaults.salad,
+      lunchCount: defaultCounts.lunch,
+      saladCount: defaultCounts.salad,
+      eventLunchQty: defaultCounts.event,
+      lunchQty: defaultCounts.lunch,
+      saladQty: defaultCounts.salad,
       lunchPrice,
       saladPrice,
       eventLunchPrice,
@@ -3642,7 +3764,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
     const eventLunch = orderEventLunchQty(order);
     const lunchPrice = orderLunchPrice(order, user);
     const saladPrice = orderSaladPrice(order, user);
-    const eventLunchPrice = orderEventLunchPrice(order);
+    const eventLunchPrice = orderEventLunchPrice(order) || lunchPrice;
     if (order.selfHoliday) {
       rowsByUid[order.uid] = {
         ...order,
@@ -3692,9 +3814,15 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       };
       return;
     }
-    const displayLunch = deliveredOverride ? orderLunchQty(delivered) : lunch;
-    const displaySalad = deliveredOverride ? orderSaladQty(delivered) : salad;
-    const displayEventLunch = deliveredOverride ? orderEventLunchQty(delivered) : eventLunch;
+    const displayCounts = normalizeQtyValuesForUser(user, {
+      lunch: deliveredOverride ? orderLunchQty(delivered) : lunch,
+      salad: deliveredOverride ? orderSaladQty(delivered) : salad,
+      event: deliveredOverride ? orderEventLunchQty(delivered) : eventLunch,
+      disposableLunch: deliveredOverride ? delivered.disposableLunch : order.disposableLunch
+    });
+    const displayLunch = displayCounts.lunch;
+    const displaySalad = displayCounts.salad;
+    const displayEventLunch = displayCounts.event;
     const displayTotalQty = displayLunch + displaySalad + displayEventLunch;
     const displayTotalAmount = (displayLunch * lunchPrice) + (displaySalad * saladPrice) + (displayEventLunch * eventLunchPrice);
     const displayOrder = {
@@ -3735,21 +3863,23 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
     const eventLunch = orderEventLunchQty(data);
     const lunchPrice = orderLunchPrice(data, {});
     const saladPrice = orderSaladPrice(data, {});
-    const eventLunchPrice = orderEventLunchPrice(data);
+    const eventLunchPrice = orderEventLunchPrice(data) || lunchPrice;
+    const user = allUsers[uid] || {};
+    const displayCounts = normalizeQtyValuesForUser(user, { lunch, salad, event: eventLunch, disposableLunch: data.disposableLunch });
     rowsByUid[uid] = {
       uid,
       businessName: data.businessName || '수동입력',
-      lunchCount: lunch,
-      saladCount: salad,
-      lunchQty: lunch,
-      saladQty: salad,
-      eventLunchQty: eventLunch,
+      lunchCount: displayCounts.lunch,
+      saladCount: displayCounts.salad,
+      lunchQty: displayCounts.lunch,
+      saladQty: displayCounts.salad,
+      eventLunchQty: displayCounts.event,
       lunchPrice,
       saladPrice,
       eventLunchPrice,
-      items: data.items || buildOrderItems({ lunchQty: lunch, lunchPrice, saladQty: salad, saladPrice, eventLunchQty: eventLunch, eventLunchPrice }),
-      totalQty: data.totalQty ?? (lunch + salad + eventLunch),
-      totalAmount: orderTotalAmount(data, {}),
+      items: data.items || buildOrderItems({ lunchQty: displayCounts.lunch, lunchPrice, saladQty: displayCounts.salad, saladPrice, eventLunchQty: displayCounts.event, eventLunchPrice }),
+      totalQty: data.totalQty ?? (displayCounts.lunch + displayCounts.salad + displayCounts.event),
+      totalAmount: data.totalAmount ?? ((displayCounts.lunch * lunchPrice) + (displayCounts.salad * saladPrice) + (displayCounts.event * eventLunchPrice)),
       note: data.note || '수동 입력',
       submittedAt: data.updatedAt || data.deliveredAt || null,
       delivered: Boolean(data.delivered),
@@ -4059,7 +4189,7 @@ async function loadOrders() {
     updateOrderLockButton();
     const message = holidayName(currentDateStr) ? `${holidayName(currentDateStr)}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다';
     document.getElementById('order-tbody').innerHTML = `<tr class="no-order-row"><td colspan="12">${escapeHtml(message)}</td></tr>`;
-    setOrderSummaryValues(0, 0, 0, eventLunchTotalForRows(dateEvents));
+    setOrderSummaryValues(0, 0, 0, 0);
     document.getElementById('not-sub-title').textContent = '🚚 배송 없음';
     document.getElementById('not-submitted-list').innerHTML = '<div class="no-not">공휴일과 주말은 주문 확인 대상에서 제외됩니다.</div>';
     checkPreviousIncompleteDeliveries();
@@ -4124,7 +4254,7 @@ async function loadOrders() {
         const manageHtml = canDeleteOrder
           ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${deleteOrderHtml}</div>`
           : `<div class="inline-actions"><button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button></div>`;
-        const mobileQtyDetail = `도 ${o.lunchCount ?? 0} · 샐 ${o.saladCount ?? 0}${eventLunch ? ` · 행 ${eventLunch}` : ''}`;
+        const mobileQtyDetail = `도 ${o.lunchCount ?? 0} · 샐 ${o.saladCount ?? 0}${eventLunch ? ` · 일 ${eventLunch}` : ''}`;
         tr.innerHTML = `
           <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${(!o.delivered && !isSelfHoliday) ? 'checked' : ''} ${disabledAttr}></td>
           <td style="color:var(--sub);font-size:13px">${i + 1}</td>
@@ -4167,7 +4297,7 @@ async function loadOrders() {
       if (checkAll) checkAll.checked = orders.some(o => !o.delivered && !o.selfHoliday);
     }
 
-    setOrderSummaryValues(orders.length, totalLunch, totalSalad, totalEventLunch + eventLunchTotalForRows(currentOrderEventRows));
+    setOrderSummaryValues(orders.length, totalLunch, totalSalad, totalEventLunch);
     renderNotSubmitted(orders);
     checkPreviousIncompleteDeliveries();
   } catch(e) {
@@ -4218,14 +4348,18 @@ async function lockOrderDate(date = currentDateStr) {
     if (existing) existing.docs.forEach(doc => ops.push({ type: 'delete', ref: doc.ref }));
     Object.entries(allUsers).forEach(([uid, user]) => {
       const defaults = defaultMealsForDate(user, date);
+      const counts = normalizeQtyValuesForUser(user, { lunch: defaults.lunch, salad: defaults.salad, event: 0 });
       ops.push({
         type: 'set',
         ref: db.collection('orderDefaultSnapshots').doc(date).collection('items').doc(uid),
         data: {
           uid,
           businessName: user.businessName || '',
-          lunchCount: defaults.lunch,
-          saladCount: defaults.salad,
+          lunchCount: counts.lunch,
+          saladCount: counts.salad,
+          eventLunchCount: counts.event,
+          eventLunchQty: counts.event,
+          disposableLunch: isDisposableLunchUser(user),
           mealTime: user.mealTime || '',
           deliveryPlace: user.deliveryPlace || user.address || '',
           lunchPrice: userLunchPrice(user),
@@ -4324,7 +4458,7 @@ function updateMobileOrderQtyButton(rowEl, values) {
   const btn = rowEl?.querySelector('.mobile-qty-btn');
   if (!btn) return;
   const total = values.lunch + values.salad + values.event;
-  const detail = `도 ${values.lunch} · 샐 ${values.salad}${values.event ? ` · 행 ${values.event}` : ''}`;
+  const detail = `도 ${values.lunch} · 샐 ${values.salad}${values.event ? ` · 일 ${values.event}` : ''}`;
   const totalEl = btn.querySelector('.mobile-qty-total');
   const detailEl = btn.querySelector('.mobile-qty-detail');
   if (totalEl) totalEl.textContent = `${total}개`;
@@ -4334,16 +4468,22 @@ function updateMobileOrderQtyButton(rowEl, values) {
 function refreshOrderRowCalculatedCells(uid) {
   const rowEl = orderRowElementByUid(uid);
   if (!rowEl) return;
-  const values = orderQtyValuesFromRow(rowEl);
   const row = currentOrderRows.find(item => item.uid === uid) || {};
   const user = allUsers[uid] || {};
+  const values = normalizeQtyValuesForUser(user, orderQtyValuesFromRow(rowEl));
+  const lunchEl = rowEl.querySelector('.deliver-lunch');
+  const saladEl = rowEl.querySelector('.deliver-salad');
+  const eventEl = rowEl.querySelector('.deliver-event-lunch');
+  if (lunchEl && Number(lunchEl.value || 0) !== values.lunch) lunchEl.value = values.lunch;
+  if (saladEl && Number(saladEl.value || 0) !== values.salad) saladEl.value = values.salad;
+  if (eventEl && Number(eventEl.value || 0) !== values.event) eventEl.value = values.event;
   const items = buildOrderItems({
     lunchQty: values.lunch,
     lunchPrice: orderLunchPrice(row, user),
     saladQty: values.salad,
     saladPrice: orderSaladPrice(row, user),
     eventLunchQty: values.event,
-    eventLunchPrice: orderEventLunchPrice(row)
+    eventLunchPrice: orderDisposableLunchPrice(row, user)
   });
   const totalQty = values.lunch + values.salad + values.event;
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
@@ -4356,20 +4496,24 @@ function refreshOrderRowCalculatedCells(uid) {
 function refreshOrderSummaryFromInputs() {
   let totalLunch = 0;
   let totalSalad = 0;
+  let totalEventLunch = 0;
   let count = 0;
   document.querySelectorAll('#order-tbody tr').forEach(rowEl => {
     if (!rowEl.querySelector('.order-check')) return;
     const values = orderQtyValuesFromRow(rowEl);
     totalLunch += values.lunch;
     totalSalad += values.salad;
+    totalEventLunch += values.event;
     count += 1;
   });
   const countEl = document.getElementById('sum-count');
   const lunchEl = document.getElementById('sum-lunch');
   const saladEl = document.getElementById('sum-salad');
+  const eventEl = document.getElementById('sum-event-lunch');
   if (countEl) countEl.innerHTML = `${count}<span class="summary-unit">곳</span>`;
   if (lunchEl) lunchEl.innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
   if (saladEl) saladEl.innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
+  if (eventEl) eventEl.innerHTML = `${totalEventLunch}<span class="summary-unit">개</span>`;
 }
 
 function openOrderQtyModal(uid) {
@@ -4417,11 +4561,12 @@ function saveOrderQtyModal() {
   const uid = document.getElementById('order-qty-uid').value;
   const rowEl = orderRowElementByUid(uid);
   if (!uid || !rowEl) return;
-  const values = {
+  const user = allUsers[uid] || deletedUsers[uid] || {};
+  const values = normalizeQtyValuesForUser(user, {
     lunch: parseDeliveryCount(document.getElementById('order-qty-lunch')?.value, 0),
     salad: parseDeliveryCount(document.getElementById('order-qty-salad')?.value, 0),
     event: parseDeliveryCount(document.getElementById('order-qty-event')?.value, 0)
-  };
+  });
   const lunchEl = rowEl.querySelector('.deliver-lunch');
   const saladEl = rowEl.querySelector('.deliver-salad');
   const eventEl = rowEl.querySelector('.deliver-event-lunch');
@@ -4436,12 +4581,18 @@ function saveOrderQtyModal() {
 async function saveInlineQty(uid) {
   const rowEl = orderRowElementByUid(uid);
   if (!rowEl) return;
-  const values = orderQtyValuesFromRow(rowEl);
   const row = currentOrderRows.find(item => item.uid === uid) || {};
   const user = allUsers[uid] || deletedUsers[uid] || {};
+  const values = normalizeQtyValuesForUser(user, orderQtyValuesFromRow(rowEl));
+  const lunchEl = rowEl.querySelector('.deliver-lunch');
+  const saladEl = rowEl.querySelector('.deliver-salad');
+  const eventEl = rowEl.querySelector('.deliver-event-lunch');
+  if (lunchEl) lunchEl.value = values.lunch;
+  if (saladEl) saladEl.value = values.salad;
+  if (eventEl) eventEl.value = values.event;
   const lunchPrice = orderLunchPrice(row, user);
   const saladPrice = orderSaladPrice(row, user);
-  const eventLunchPrice = orderEventLunchPrice(row);
+  const eventLunchPrice = orderDisposableLunchPrice(row, user);
   const items = buildOrderItems({
     lunchQty: values.lunch,
     lunchPrice,
@@ -4455,6 +4606,7 @@ async function saveInlineQty(uid) {
       lunchCount: values.lunch,
       saladCount: values.salad,
       eventLunchCount: values.event,
+      disposableLunch: isDisposableLunchUser(user),
       adminInput: true,
       adminAdjusted: true,
       source: row.source === 'manual' ? 'adminManual' : (row.source === 'default' ? 'adminDefault' : 'order'),
@@ -4479,6 +4631,7 @@ async function saveInlineQty(uid) {
               eventLunchQty: values.event,
               eventLunchPrice,
               eventPrice: eventLunchPrice,
+              disposableLunch: isDisposableLunchUser(user),
               totalQty: values.lunch + values.salad + values.event,
               totalAmount: items.reduce((sum, item) => sum + item.amount, 0),
               items,
@@ -4539,12 +4692,17 @@ async function completeSelectedDeliveries() {
     const row = currentOrderRows.find(item => item.uid === uid) || {};
     if (row.selfHoliday) return;
     const user = allUsers[uid] || deletedUsers[uid] || {};
-    const lunch = parseDeliveryCount(rowEl.querySelector('.deliver-lunch')?.value, 0);
-    const salad = parseDeliveryCount(rowEl.querySelector('.deliver-salad')?.value, 0);
-    const eventLunch = parseDeliveryCount(rowEl.querySelector('.deliver-event-lunch')?.value, 0);
+    const values = normalizeQtyValuesForUser(user, {
+      lunch: rowEl.querySelector('.deliver-lunch')?.value,
+      salad: rowEl.querySelector('.deliver-salad')?.value,
+      event: rowEl.querySelector('.deliver-event-lunch')?.value
+    });
+    const lunch = values.lunch;
+    const salad = values.salad;
+    const eventLunch = values.event;
     const lunchPrice = orderLunchPrice(row, user);
     const saladPrice = orderSaladPrice(row, user);
-    const eventLunchPrice = orderEventLunchPrice(row);
+    const eventLunchPrice = orderDisposableLunchPrice(row, user);
     const items = buildOrderItems({ lunchQty: lunch, lunchPrice, saladQty: salad, saladPrice, eventLunchQty: eventLunch, eventLunchPrice });
     updates.deliveryRecords[currentDateStr][uid] = {
       uid,
@@ -4558,6 +4716,7 @@ async function completeSelectedDeliveries() {
       eventLunchQty: eventLunch,
       eventLunchPrice,
       eventPrice: eventLunchPrice,
+      disposableLunch: isDisposableLunchUser(user),
       totalQty: lunch + salad + eventLunch,
       totalAmount: items.reduce((sum, item) => sum + item.amount, 0),
       items,
@@ -4621,6 +4780,9 @@ function memberMatchesSearch(uid, user = {}, query = '') {
     user.mealTime,
     user.memo,
     user.request,
+    user.taxInvoiceEmail,
+    user.taxBusinessNo,
+    user.taxCertificateName,
     user.defaultLunch,
     user.defaultSalad
   ];
@@ -4633,6 +4795,168 @@ function clearMemberSearch() {
   input.value = '';
   renderMembers();
   input.focus();
+}
+
+function taxInvoiceSearchQuery() {
+  return (document.getElementById('tax-invoice-search-input')?.value || '').trim();
+}
+
+function taxCertificateMeta(user = {}) {
+  return {
+    name: user.taxCertificateName || '',
+    url: user.taxCertificateUrl || '',
+    path: user.taxCertificatePath || '',
+    size: user.taxCertificateSize || 0,
+    uploadedAt: user.taxCertificateUploadedAt || null
+  };
+}
+
+function hasTaxCertificate(user = {}) {
+  const cert = taxCertificateMeta(user);
+  return Boolean(cert.url || cert.path);
+}
+
+function taxInvoiceEnabled(user = {}) {
+  return user.taxInvoiceEnabled === true || hasTaxCertificate(user) || Boolean(user.taxBusinessNo || user.taxInvoiceEmail);
+}
+
+function taxInvoiceBadgeHtml(user = {}) {
+  if (!taxInvoiceEnabled(user)) return '';
+  return hasTaxCertificate(user)
+    ? '<span class="tax-badge" style="margin-left:6px">세금</span>'
+    : '<span class="tax-badge missing" style="margin-left:6px">세금자료 필요</span>';
+}
+
+function taxInvoiceRowMatches(uid, user = {}, query = '') {
+  const needle = normalizeMemberSearchText(query);
+  if (!needle) return true;
+  const fields = [
+    uid,
+    user.businessName,
+    user.phone,
+    user.email,
+    user.taxInvoiceEmail,
+    user.taxBusinessNo,
+    user.taxCertificateName
+  ];
+  return fields.map(normalizeMemberSearchText).join(' ').includes(needle);
+}
+
+function clearTaxInvoiceSearch() {
+  const input = document.getElementById('tax-invoice-search-input');
+  if (!input) return;
+  input.value = '';
+  renderTaxInvoices();
+  input.focus();
+}
+
+function formatTaxUploadedAt(value) {
+  if (!value) return '';
+  const d = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function taxCertificateDownloadUrl(uid) {
+  const user = allUsers[uid] || deletedUsers[uid] || {};
+  const cert = taxCertificateMeta(user);
+  if (cert.url) return cert.url;
+  if (!cert.path) return '';
+  return storage.ref(cert.path).getDownloadURL();
+}
+
+async function openTaxCertificateAdmin(uid) {
+  try {
+    const url = await taxCertificateDownloadUrl(uid);
+    if (!url) { showToast('등록된 사업자등록증이 없습니다.'); return; }
+    window.open(url, '_blank', 'noopener');
+  } catch(e) {
+    showToast('사업자등록증을 열 수 없습니다: ' + e.message);
+  }
+}
+
+async function downloadTaxCertificateAdmin(uid) {
+  try {
+    const user = allUsers[uid] || deletedUsers[uid] || {};
+    const url = await taxCertificateDownloadUrl(uid);
+    if (!url) { showToast('등록된 사업자등록증이 없습니다.'); return; }
+    const fileName = taxCertificateMeta(user).name || `${user.businessName || uid}_사업자등록증`;
+    let href = url;
+    let revokeUrl = '';
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        const blob = await response.blob();
+        revokeUrl = URL.createObjectURL(blob);
+        href = revokeUrl;
+      }
+    } catch(_) {
+      href = url;
+    }
+    const a = document.createElement('a');
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    if (revokeUrl) setTimeout(() => URL.revokeObjectURL(revokeUrl), 1000);
+  } catch(e) {
+    showToast('다운로드 실패: ' + e.message);
+  }
+}
+
+function renderTaxInvoices() {
+  const tbody = document.getElementById('tax-invoice-tbody');
+  if (!tbody) return;
+  const entries = Object.entries(allUsers)
+    .filter(([, user]) => !ADMIN_EMAILS.includes(user.email) && user.businessName)
+    .sort((a, b) => {
+      const aEnabled = taxInvoiceEnabled(a[1]) ? 0 : 1;
+      const bEnabled = taxInvoiceEnabled(b[1]) ? 0 : 1;
+      if (aEnabled !== bEnabled) return aEnabled - bEnabled;
+      return (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko');
+    });
+  const query = taxInvoiceSearchQuery();
+  const filtered = entries.filter(([uid, user]) => taxInvoiceRowMatches(uid, user, query));
+  const enabledCount = entries.filter(([, user]) => taxInvoiceEnabled(user)).length;
+  const certCount = entries.filter(([, user]) => hasTaxCertificate(user)).length;
+  const missingCount = entries.filter(([, user]) => taxInvoiceEnabled(user) && !hasTaxCertificate(user)).length;
+  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  setText('tax-invoice-enabled-count', `${enabledCount}곳`);
+  setText('tax-certificate-count', `${certCount}곳`);
+  setText('tax-certificate-missing-count', `${missingCount}곳`);
+  setText('tax-member-total-count', `${entries.length}곳`);
+  setText('tax-invoice-search-count', query ? `검색 ${filtered.length}곳 / 전체 ${entries.length}곳` : `전체 ${entries.length}곳`);
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr class="no-order-row"><td colspan="6">세금계산서 자료가 없습니다.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(([uid, user]) => {
+    const cert = taxCertificateMeta(user);
+    const hasCert = hasTaxCertificate(user);
+    const enabled = taxInvoiceEnabled(user);
+    const fileMeta = [formatFileSize(cert.size), formatTaxUploadedAt(cert.uploadedAt)].filter(Boolean).join(' · ');
+    const status = hasCert
+      ? '<span class="tax-badge">등록완료</span>'
+      : enabled
+        ? '<span class="tax-badge missing">자료필요</span>'
+        : '<span class="tax-badge off">미요청</span>';
+    const fileCell = hasCert
+      ? `<div><strong>${escapeHtml(cert.name || '사업자등록증')}</strong>${fileMeta ? `<div class="m-info">${escapeHtml(fileMeta)}</div>` : ''}<div class="tax-file-actions" style="margin-top:6px"><button class="mini-btn" onclick="openTaxCertificateAdmin('${uid}')">보기</button><button class="mini-btn" onclick="downloadTaxCertificateAdmin('${uid}')">다운로드</button></div></div>`
+      : '<span style="color:var(--sub)">등록된 파일 없음</span>';
+    return `
+      <tr>
+        <td><strong>${escapeHtml(user.businessName || '-')}</strong><div class="m-info">${escapeHtml(user.email || '')}</div></td>
+        <td>${escapeHtml(user.phone || '-')}</td>
+        <td>${escapeHtml(user.taxInvoiceEmail || user.email || '-')}</td>
+        <td>${escapeHtml(user.taxBusinessNo || '-')}</td>
+        <td>${fileCell}</td>
+        <td>${status}</td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function orderLogActionLabel(action) {
@@ -4652,7 +4976,7 @@ function orderLogValue(snapshot = null) {
   if (!snapshot) return '-';
   if (snapshot.zeroQuantityHoliday || snapshot.source === 'zeroHoliday' || snapshot.source === 'zeroDefault') return '0개 휴무';
   if (snapshot.selfHoliday) return '자체휴무';
-  const eventText = Number(snapshot.eventLunchCount || 0) > 0 ? ` / 행사 ${snapshot.eventLunchCount}` : '';
+  const eventText = Number(snapshot.eventLunchCount || 0) > 0 ? ` / 일회용 ${snapshot.eventLunchCount}` : '';
   const noteText = snapshot.note ? ` / 메모: ${snapshot.note}` : '';
   return `도시락 ${snapshot.lunchCount || 0} / 샐러드 ${snapshot.saladCount || 0}${eventText}${noteText}`;
 }
@@ -4661,7 +4985,7 @@ function orderLogFieldLabel(field) {
   return {
     lunchCount: '도시락',
     saladCount: '샐러드',
-    eventLunchCount: '행사',
+    eventLunchCount: '일회용',
     selfHoliday: '자체휴무',
     note: '메모'
   }[field] || field;
@@ -4781,11 +5105,11 @@ function renderMembers() {
           : '';
         return `
         <div class="member-card" onclick="openMemberEdit('${uid}')">
-          <div class="m-name">${bizNameWithAdminMemoHtml(u.businessName || '-', adminMemoValue(u))}${duplicateBadge}</div>
+          <div class="m-name">${bizNameWithAdminMemoHtml(u.businessName || '-', adminMemoValue(u))}${disposableLunchBadgeHtml(u)}${taxInvoiceBadgeHtml(u)}${duplicateBadge}</div>
           <div class="m-info">연락처 ${escapeHtml(u.phone || '-')}</div>
           <div class="m-info">이메일 ${escapeHtml(u.email || '-')}</div>
           <div class="m-info">${escapeHtml(u.deliveryPlace || '배송지 미입력')}${u.mealTime ? ` · ${u.mealTime}` : ''}</div>
-          <div class="m-info">${u.sameDailyMeal === false ? '요일별 식수 설정됨' : `매일 도시락 ${u.defaultLunch ?? 2}개 · 샐러드 ${u.defaultSalad ?? 0}개`}</div>
+          <div class="m-info">${u.sameDailyMeal === false ? '요일별 식수 설정됨' : `매일 도시락 ${u.defaultLunch ?? 2}개 · 샐러드 ${u.defaultSalad ?? 0}개`}${isDisposableLunchUser(u) ? ' · 일회용도시락' : ''}</div>
           <div class="m-info">단가 ${formatMoney(userLunchPrice(u))} / ${formatMoney(userSaladPrice(u))}</div>
           <div class="m-edit-hint">✏️ 수정하기</div>
         </div>
@@ -4855,6 +5179,7 @@ function openMemberEdit(uid) {
   document.getElementById('edit-lunch-price').value = userLunchPrice(u) || '';
   document.getElementById('edit-salad-price').value = userSaladPrice(u) || '';
   document.getElementById('edit-admin-memo').value = adminMemoValue(u);
+  document.getElementById('edit-disposable-lunch').checked = isDisposableLunchUser(u);
   document.getElementById('edit-error').classList.remove('show');
   document.getElementById('member-modal').classList.add('open');
 }
@@ -4902,13 +5227,16 @@ function renderBatchList() {
 
   document.getElementById('batch-list').innerHTML = customers.map(([uid, u]) => {
     const rec = existing[uid] || {};
-    const lunch = rec.lunchCount || 0;
+    const lunch = isDisposableLunchUser(u)
+      ? ((rec.eventLunchQty ?? rec.eventLunchCount ?? rec.eventLunch ?? 0) || rec.lunchCount || 0)
+      : (rec.lunchCount || 0);
     const salad = rec.saladCount || 0;
+    const lunchLabel = isDisposableLunchUser(u) ? '🥡' : '🍱';
     return `
       <div class="batch-entry-row${lunch > 0 || salad > 0 ? ' has-data' : ''}" id="batch-row-${uid}">
-        <div class="batch-entry-name">${escapeHtml(u.businessName)}</div>
+        <div class="batch-entry-name">${escapeHtml(u.businessName)}${disposableLunchBadgeHtml(u)}</div>
         <div class="batch-qty-group">
-          <span class="batch-qty-label">🍱</span>
+          <span class="batch-qty-label">${lunchLabel}</span>
           <div class="big-stepper">
             <button class="big-step-btn" onclick="changeBatchQty('${uid}','lunch',-1)">−</button>
             <input type="number" id="b-lunch-${uid}" value="${lunch}" min="0" max="999" oninput="updateBatchTotals()">
@@ -4966,13 +5294,18 @@ async function saveBatchEntry() {
   customers.forEach(([uid, u]) => {
     const lunch = parseInt(document.getElementById(`b-lunch-${uid}`)?.value, 10) || 0;
     const salad = parseInt(document.getElementById(`b-salad-${uid}`)?.value, 10) || 0;
+    const values = normalizeQtyValuesForUser(u, { lunch, salad, event: 0 });
     if (lunch > 0 || salad > 0) {
       updates[`deliveryRecords.${date}.${uid}`] = {
         uid, businessName: u.businessName,
-        lunchCount: lunch, saladCount: salad,
-        lunchQty: lunch, saladQty: salad,
-        eventLunchQty: 0,
-        totalQty: lunch + salad,
+        lunchCount: values.lunch, saladCount: values.salad,
+        lunchQty: values.lunch, saladQty: values.salad,
+        eventLunchQty: values.event,
+        eventLunchCount: values.event,
+        eventLunchPrice: values.event ? userLunchPrice(u) : 0,
+        eventPrice: values.event ? userLunchPrice(u) : 0,
+        disposableLunch: isDisposableLunchUser(u),
+        totalQty: values.lunch + values.salad + values.event,
         orderDeleted: false,
         deleted: false,
         delivered: true, deliveredAt: new Date().toISOString(),
@@ -4993,7 +5326,8 @@ async function saveBatchEntry() {
     customers.forEach(([uid]) => {
       const lunch = parseInt(document.getElementById(`b-lunch-${uid}`)?.value, 10) || 0;
       const salad = parseInt(document.getElementById(`b-salad-${uid}`)?.value, 10) || 0;
-      if (lunch > 0 || salad > 0) cachedDeliveryRecords[date][uid] = { lunchCount: lunch, saladCount: salad };
+      const values = normalizeQtyValuesForUser(allUsers[uid] || {}, { lunch, salad, event: 0 });
+      if (lunch > 0 || salad > 0) cachedDeliveryRecords[date][uid] = { lunchCount: values.lunch, saladCount: values.salad, eventLunchQty: values.event, disposableLunch: isDisposableLunchUser(allUsers[uid] || {}) };
       else delete cachedDeliveryRecords[date][uid];
     });
     document.getElementById('batch-modal').classList.remove('open');
@@ -5041,6 +5375,9 @@ function syncManualBiznameByUser() {
   document.getElementById('manual-bizname').value = allUsers[uid].businessName || '';
   document.getElementById('manual-lunch-price').value = userLunchPrice(allUsers[uid]) || '';
   document.getElementById('manual-salad-price').value = userSaladPrice(allUsers[uid]) || '';
+  if (isDisposableLunchUser(allUsers[uid])) {
+    document.getElementById('manual-event-lunch-price').value = userLunchPrice(allUsers[uid]) || '';
+  }
   const place = allUsers[uid].deliveryPlace || allUsers[uid].address || '';
   if (place && !document.getElementById('manual-place').value.trim()) {
     document.getElementById('manual-place').value = place;
@@ -5071,32 +5408,35 @@ async function saveManualOrder() {
     return;
   }
   if ((lunch + salad + eventLunch) <= 0) {
-    errEl.textContent = '도시락, 샐러드, 행사도시락 중 하나 이상 수량을 입력해주세요.';
+    errEl.textContent = '도시락, 샐러드, 일회용도시락 중 하나 이상 수량을 입력해주세요.';
     errEl.classList.add('show');
     return;
   }
   errEl.classList.remove('show');
   const manualUid = editUid || selectedUid || `manual_${Date.now()}`;
   const user = allUsers[selectedUid] || allUsers[editUid] || {};
-  const items = buildOrderItems({ lunchQty: lunch, lunchPrice, saladQty: salad, saladPrice, eventLunchQty: eventLunch, eventLunchPrice });
-  const totalQty = lunch + salad + eventLunch;
+  const values = normalizeQtyValuesForUser(user, { lunch, salad, event: eventLunch });
+  const effectiveEventLunchPrice = eventLunchPrice || (isDisposableLunchUser(user) ? lunchPrice : 0);
+  const items = buildOrderItems({ lunchQty: values.lunch, lunchPrice, saladQty: values.salad, saladPrice, eventLunchQty: values.event, eventLunchPrice: effectiveEventLunchPrice });
+  const totalQty = values.lunch + values.salad + values.event;
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
   const payload = {
     uid: manualUid,
     businessName: bizname || (user.businessName || '수동입력'),
-    lunchQty: lunch,
+    lunchQty: values.lunch,
     lunchPrice,
-    saladQty: salad,
+    saladQty: values.salad,
     saladPrice,
-    eventLunchQty: eventLunch,
-    eventLunchPrice,
-    eventPrice: eventLunchPrice,
-    totalQty,
+      eventLunchQty: values.event,
+      eventLunchPrice: effectiveEventLunchPrice,
+      eventPrice: effectiveEventLunchPrice,
+      disposableLunch: isDisposableLunchUser(user),
+      totalQty,
     totalAmount,
     items,
-    lunchCount: lunch,
-    saladCount: salad,
-    eventLunchCount: eventLunch,
+    lunchCount: values.lunch,
+    saladCount: values.salad,
+    eventLunchCount: values.event,
     deliveryPlace: place || (user.deliveryPlace || user.address || ''),
     note: note || '수동 입력',
     adminManual: !selectedUid || !allUsers[manualUid],
@@ -5194,6 +5534,7 @@ async function saveMember() {
   const lunchPrice = parseInt(document.getElementById('edit-lunch-price').value, 10) || 0;
   const saladPrice = parseInt(document.getElementById('edit-salad-price').value, 10) || 0;
   const adminMemo = document.getElementById('edit-admin-memo').value.trim();
+  const disposableLunch = document.getElementById('edit-disposable-lunch').checked;
   if (!bizname) {
     const errEl = document.getElementById('edit-error');
     errEl.textContent = '업체명을 입력해주세요.';
@@ -5218,8 +5559,8 @@ async function saveMember() {
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       ...userPrivateDeletePayload()
     });
-    await userPrivateRef(uid).set(privateUserPayload({ deliveryPlace, deliveryPlaceDetail, lunchPrice, saladPrice, adminMemo }), { merge: true });
-    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, deliveryPlaceDetail, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice, adminMemo };
+    await userPrivateRef(uid).set(privateUserPayload({ deliveryPlace, deliveryPlaceDetail, lunchPrice, saladPrice, adminMemo, disposableLunch }), { merge: true });
+    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, deliveryPlaceDetail, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice, adminMemo, disposableLunch };
     closeMemberModal();
     renderMembers();
     loadOrders();
@@ -6067,7 +6408,7 @@ async function saveMealPdfCandidates() {
 
 function switchAdminTab(tab) {
   activeAdminTab = tab;
-  ['orders','members','events','menus','changeRequests','settlements','receipts','stats','settings','manual','map'].forEach(name => {
+  ['orders','members','events','menus','changeRequests','settlements','taxInvoices','receipts','stats','settings','manual','map'].forEach(name => {
     document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
   });
   document.querySelectorAll('.admin-tab-panel').forEach(el => {
@@ -6093,6 +6434,9 @@ function switchAdminTab(tab) {
   if (tab === 'settlements') {
     initSettlementForm();
     loadSettlements();
+  }
+  if (tab === 'taxInvoices') {
+    renderTaxInvoices();
   }
   if (tab === 'receipts') {
     initReceiptForm();
@@ -6861,9 +7205,16 @@ async function loadSettlements() {
         if (data?.deleted || data?.orderDeleted) return;
         if (!data?.delivered) return;
         if (!allUsers[uid]) return;
+        const user = allUsers[uid] || {};
         if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, eventLunch: 0, lunchPrice: 0, saladPrice: 0, eventPrice: 0, amount: 0, status: '미정산', note: '', adjust: 0, invoiceNo: '', dueDate: '', payments: [], dateBreakdown: {} };
-        const dl = orderLunchQty(data), dd = orderSaladQty(data), de = orderEventLunchQty(data);
-        const dataEventPrice = orderEventLunchPrice(data);
+        const counts = normalizeQtyValuesForUser(user, {
+          lunch: orderLunchQty(data),
+          salad: orderSaladQty(data),
+          event: orderEventLunchQty(data),
+          disposableLunch: data.disposableLunch
+        });
+        const dl = counts.lunch, dd = counts.salad, de = counts.event;
+        const dataEventPrice = orderEventLunchPrice(data) || (de ? orderLunchPrice(data, user) : 0);
         byUser[uid].lunch += dl;
         byUser[uid].salad += dd;
         byUser[uid].eventLunch += de;
@@ -7075,7 +7426,7 @@ function makeSettlementReceipt(uid) {
     : [
         { name: `${month} 일반도시락`, count: row.lunch, price: row.lunchPrice },
         { name: `${month} 샐러드`, count: row.salad, price: row.saladPrice },
-        { name: `${month} 행사도시락`, count: eventQty, price: eventPrice }
+        { name: `${month} 일회용도시락`, count: eventQty, price: eventPrice }
       ];
   setReceiptItems(receiptItems.filter(item => item.count > 0));
   if (row.type === 'event') {
@@ -7170,15 +7521,18 @@ async function loadReceiptOrder() {
       return;
     }
     const order = doc.data();
-    const lunch = orderLunchQty(order);
-    const salad = orderSaladQty(order);
-    const eventLunch = orderEventLunchQty(order);
     const user = allUsers[uid] || {};
+    const values = normalizeQtyValuesForUser(user, {
+      lunch: orderLunchQty(order),
+      salad: orderSaladQty(order),
+      event: orderEventLunchQty(order),
+      disposableLunch: order.disposableLunch
+    });
     syncReceiptReceiver();
     setReceiptItems([
-      { name: '도시락', count: lunch, price: orderLunchPrice(order, user) },
-      { name: '샐러드', count: salad, price: orderSaladPrice(order, user) },
-      { name: '행사도시락', count: eventLunch, price: orderEventLunchPrice(order) || orderLunchPrice(order, user) }
+      { name: '도시락', count: values.lunch, price: orderLunchPrice(order, user) },
+      { name: '샐러드', count: values.salad, price: orderSaladPrice(order, user) },
+      { name: '일회용도시락', count: values.event, price: orderDisposableLunchPrice(order, user) }
     ].filter(item => item.count > 0));
     document.getElementById('receipt-note').value = order.note || '';
     renderReceipt();
@@ -7347,7 +7701,7 @@ function printTodayProductionSheet() {
   const standaloneEventTotal = eventRows.reduce((sum, row) => sum + row.qty, 0);
   const orderHtml = orderRows.length ? `
     <table class="compact-table order-table-print">
-      <thead><tr><th>#</th><th>업체명</th><th>도</th><th>샐</th><th>행</th><th>계</th><th>시간</th><th>메모</th></tr></thead>
+      <thead><tr><th>#</th><th>업체명</th><th>도</th><th>샐</th><th>일</th><th>계</th><th>시간</th><th>메모</th></tr></thead>
       <tbody>
         ${orderRows.map((row, i) => `
           <tr>
@@ -7428,7 +7782,7 @@ function printTodayProductionSheet() {
           <span>월식 업체 <strong>${orderRows.length}</strong>곳</span>
           <span>도시락 <strong>${monthlyTotals.lunch}</strong>개</span>
           <span>샐러드 <strong>${monthlyTotals.salad}</strong>개</span>
-          <span>업체 행사 <strong>${monthlyTotals.event}</strong>개</span>
+          <span>일회용 <strong>${monthlyTotals.event}</strong>개</span>
           <span>별도 행사 <strong>${standaloneEventTotal}</strong>개</span>
         </div>
         <section>
@@ -7590,7 +7944,7 @@ function exportSettlementCSV() {
   const rows = [...settlementRows, ...settlementEvents.map(eventSettlementRow)];
   if (rows.length === 0) { showToast('정산 데이터가 없습니다.'); return; }
   const month = document.getElementById('settle-month').value || currentMonthStr();
-  const headers = ['업체명', '일반도시락(개)', '샐러드(개)', '행사도시락(개)', '일반도시락 금액', '샐러드 금액', '행사도시락 금액', '청구액(원)', '조정금액', '청구서번호', '납부기한', '입금합계', '잔액', '상태', '메모'];
+  const headers = ['업체명', '일반도시락(개)', '샐러드(개)', '일회용/행사도시락(개)', '일반도시락 금액', '샐러드 금액', '일회용/행사도시락 금액', '청구액(원)', '조정금액', '청구서번호', '납부기한', '입금합계', '잔액', '상태', '메모'];
   const dataRows = rows.map(row => {
     const billed = settlementBilledTotal(row);
     const paidTotal = settlementPaidTotal(row);
@@ -7630,7 +7984,10 @@ function copySettlementKakao(uid) {
   if (row.type === 'event') lines.push(`행사일시: ${row.event.eventDate || '-'} ${row.event.eventTime || ''}`.trim());
   if (row.lunch > 0) lines.push(`일반도시락 ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원 = ${settlementLunchAmount(row).toLocaleString()}원`);
   if (row.salad > 0) lines.push(`샐러드 ${row.salad}개 × ${row.saladPrice.toLocaleString()}원 = ${(row.salad * row.saladPrice).toLocaleString()}원`);
-  if (settlementEventQty(row) > 0) lines.push(`행사도시락 ${settlementEventQty(row)}개 × ${settlementEventUnitPrice(row).toLocaleString()}원 = ${settlementEventAmount(row).toLocaleString()}원`);
+  if (settlementEventQty(row) > 0) {
+    const eventLabel = row.type === 'event' ? '행사도시락' : '일회용도시락';
+    lines.push(`${eventLabel} ${settlementEventQty(row)}개 × ${settlementEventUnitPrice(row).toLocaleString()}원 = ${settlementEventAmount(row).toLocaleString()}원`);
+  }
   const billed = settlementBilledTotal(row);
   const paidTotal = settlementPaidTotal(row);
   const balance = billed - paidTotal;
@@ -7658,7 +8015,7 @@ async function copyAllSettlementKakao() {
     lines.push(`▶ ${name}`);
     if (row.lunch > 0) lines.push(`  일반도시락 ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원`);
     if (row.salad > 0) lines.push(`  샐러드 ${row.salad}개 × ${row.saladPrice.toLocaleString()}원`);
-    if (settlementEventQty(row) > 0) lines.push(`  행사도시락 ${settlementEventQty(row)}개 × ${settlementEventUnitPrice(row).toLocaleString()}원`);
+    if (settlementEventQty(row) > 0) lines.push(`  ${row.type === 'event' ? '행사도시락' : '일회용도시락'} ${settlementEventQty(row)}개 × ${settlementEventUnitPrice(row).toLocaleString()}원`);
     lines.push(`  청구액: ${settlementBilledTotal(row).toLocaleString()}원`);
     lines.push('');
   });
@@ -7830,12 +8187,12 @@ function buildSheetHTML(uid, forPrint) {
     <div class="settle-sheet-summary">
       ${summaryBox('일반도시락', `${totalLunch}개`)}
       ${summaryBox('샐러드', `${totalSalad}개`)}
-      ${summaryBox('행사도시락', `${totalEventLunch}개`)}
+      ${summaryBox('일회용도시락', `${totalEventLunch}개`)}
       ${summaryBox('청구액', `${money(billedTotal)}원`, 'total')}
     </div>
     <table class="settle-sheet-detail">
       <thead>
-        <tr><th style="width:12%">날짜</th><th>품목</th><th style="width:12%">일반</th><th style="width:12%">샐러드</th><th style="width:12%">행사</th><th style="width:18%">금액</th></tr>
+        <tr><th style="width:12%">날짜</th><th>품목</th><th style="width:12%">일반</th><th style="width:12%">샐러드</th><th style="width:12%">일회용</th><th style="width:18%">금액</th></tr>
       </thead>
       <tbody>${detailHtml}</tbody>
       <tfoot>
@@ -7847,7 +8204,7 @@ function buildSheetHTML(uid, forPrint) {
     <div class="settle-sheet-note">
       <div class="settle-sheet-note-title">단가 및 안내</div>
       <div style="line-height:1.8">
-        일반도시락 ${money(lunchPrice)}원 · 샐러드 ${money(saladPrice)}원${totalEventLunch ? ` · 행사도시락 ${money(eventPrice)}원` : ''}<br>
+        일반도시락 ${money(lunchPrice)}원 · 샐러드 ${money(saladPrice)}원${totalEventLunch ? ` · 일회용도시락 ${money(eventPrice)}원` : ''}<br>
         <span style="white-space:pre-wrap">${escapeHtml(note)}</span>
       </div>
     </div>
@@ -8234,7 +8591,7 @@ async function renderSettlementCharts() {
     ? [
         { label: '일반도시락', data: chartData.map(d => d.lunch), backgroundColor: 'rgba(123,63,26,0.75)', borderRadius: 5 },
         { label: '샐러드', data: chartData.map(d => d.salad), backgroundColor: 'rgba(30,110,64,0.75)', borderRadius: 5 },
-        { label: '행사도시락', data: chartData.map(d => d.event), backgroundColor: 'rgba(212,165,54,0.85)', borderRadius: 5 }
+        { label: '일회용/행사도시락', data: chartData.map(d => d.event), backgroundColor: 'rgba(212,165,54,0.85)', borderRadius: 5 }
       ]
     : [
         { label: '청구액', data: chartData.map(d => d.billed), backgroundColor: 'rgba(123,63,26,0.75)', borderRadius: 5 },
@@ -8582,7 +8939,7 @@ function renderBreakdownHTML(row) {
       </div>
     </div>
     <table class="breakdown-table">
-      <thead><tr><th>날짜</th><th>🍱 일반</th><th>🥗 샐러드</th>${hasEventLunch ? '<th>🎉 행사</th>' : ''}</tr></thead>
+      <thead><tr><th>날짜</th><th>🍱 일반</th><th>🥗 샐러드</th>${hasEventLunch ? '<th>🥡 일회용</th>' : ''}</tr></thead>
       <tbody>${rows}
         <tr class="breakdown-total"><td>합계</td><td id="bd-total-lunch-${safeUid}">${row.lunch}</td><td id="bd-total-salad-${safeUid}">${row.salad}</td>${hasEventLunch ? `<td>${totalEventLunch}</td>` : ''}</tr>
       </tbody>
