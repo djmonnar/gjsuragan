@@ -2848,6 +2848,19 @@ function safeStorageFileName(name = '') {
     .slice(-80);
   return base || 'business-license';
 }
+function guessTaxCertificateContentType(file) {
+  const type = String(file?.type || '').toLowerCase();
+  if (type.startsWith('image/') || type === 'application/pdf') return type;
+  const name = String(file?.name || '').toLowerCase();
+  if (name.endsWith('.pdf')) return 'application/pdf';
+  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+  if (name.endsWith('.png')) return 'image/png';
+  if (name.endsWith('.webp')) return 'image/webp';
+  if (name.endsWith('.gif')) return 'image/gif';
+  if (name.endsWith('.heic')) return 'image/heic';
+  if (name.endsWith('.heif')) return 'image/heif';
+  return '';
+}
 function formatCertificateDate(value) {
   if (!value) return '';
   const d = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
@@ -2929,8 +2942,8 @@ async function uploadTaxCertificate() {
   const input = document.getElementById('tax-certificate-file');
   const file = input?.files?.[0];
   if (!file || !currentUser) return;
-  const allowed = file.type.startsWith('image/') || file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
-  if (!allowed) {
+  const contentType = guessTaxCertificateContentType(file);
+  if (!contentType) {
     showToast('이미지 또는 PDF 파일만 업로드할 수 있습니다.', 'error');
     input.value = '';
     return;
@@ -2945,28 +2958,37 @@ async function uploadTaxCertificate() {
   try {
     showToast('사업자등록증을 업로드하는 중입니다...');
     const ref = storage.ref(path);
-    await ref.put(file, {
-      contentType: file.type || 'application/octet-stream',
-      customMetadata: { ownerUid: currentUser.uid, originalName: file.name }
-    });
+    try {
+      await ref.put(file, {
+        contentType,
+        customMetadata: { ownerUid: currentUser.uid, originalName: file.name }
+      });
+    } catch(e) {
+      throw new Error('파일 업로드 권한을 확인해주세요. ' + e.message);
+    }
     const payload = {
       taxCertificateName: file.name,
       taxCertificatePath: path,
       taxCertificateUrl: firebase.firestore.FieldValue.delete(),
-      taxCertificateContentType: file.type || '',
+      taxCertificateContentType: contentType,
       taxCertificateSize: file.size,
       taxCertificateUploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
       taxInvoiceEnabled: true,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
-    await db.collection('users').doc(currentUser.uid).update(payload);
+    try {
+      await db.collection('users').doc(currentUser.uid).update(payload);
+    } catch(e) {
+      storage.ref(path).delete().catch(()=>{});
+      throw new Error('업로드 정보 저장 권한을 확인해주세요. ' + e.message);
+    }
     if (oldPath && oldPath !== path) storage.ref(oldPath).delete().catch(()=>{});
     userProfile = {
       ...userProfile,
       taxCertificateName: file.name,
       taxCertificatePath: path,
       taxCertificateUrl: '',
-      taxCertificateContentType: file.type || '',
+      taxCertificateContentType: contentType,
       taxCertificateSize: file.size,
       taxCertificateUploadedAt: new Date(),
       taxInvoiceEnabled: true
