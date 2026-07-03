@@ -796,6 +796,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <button class="refresh-btn" onclick="exportKakaoSummary()"><svg class="action-icon"><use href="#admin-i-chat"></use></svg><span>카톡용 복사</span></button>
     <button class="print-btn" onclick="printTodayProductionSheet()"><svg class="action-icon"><use href="#admin-i-receipt"></use></svg><span>집계 인쇄</span></button>
     <button class="today-btn" onclick="completeSelectedDeliveries()"><svg class="action-icon"><use href="#admin-i-truck"></use></svg><span>배송 완료</span></button>
+    <button class="manual-btn" onclick="cancelAllDeliveriesForDate()"><svg class="action-icon"><use href="#admin-i-truck"></use></svg><span>배송완료 취소</span></button>
     <button class="manual-btn" id="order-lock-btn" onclick="toggleOrderLock()"><span>주문 잠금</span></button>
     <button class="manual-btn" onclick="openManualOrderModal()"><svg class="action-icon"><use href="#admin-i-edit"></use></svg><span>수동 배송 입력</span></button>
     <button class="manual-btn" onclick="openBatchEntry()"><svg class="action-icon"><use href="#admin-i-orders"></use></svg><span>일괄 입력</span></button>
@@ -4336,9 +4337,12 @@ async function loadOrders() {
         const deleteOrderHtml = canDeleteOrder && !o.zeroQuantityHoliday
           ? `<button class="danger-btn" onclick="deleteOrderItem('${jsString(o.uid)}')">삭제</button>`
           : '';
+        const cancelDeliveryHtml = o.delivered
+          ? `<button class="mini-btn" onclick="cancelDeliveryRecord('${jsString(o.uid)}')">배송취소</button>`
+          : '';
         const manageHtml = canDeleteOrder
-          ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${deleteOrderHtml}</div>`
-          : `<div class="inline-actions"><button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button></div>`;
+          ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${cancelDeliveryHtml}${deleteOrderHtml}</div>`
+          : `<div class="inline-actions"><button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${cancelDeliveryHtml}</div>`;
         const mobileQtyDetail = `도 ${o.lunchCount ?? 0} · 샐 ${o.saladCount ?? 0}${eventLunch ? ` · 일 ${eventLunch}` : ''}`;
         tr.innerHTML = `
           <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${(!o.delivered && !isSelfHoliday) ? 'checked' : ''} ${disabledAttr}></td>
@@ -4835,6 +4839,138 @@ async function completeSelectedDeliveries() {
     if (activeAdminTab === 'settlements') loadSettlements();
   } catch(e) {
     showToast('배송 완료 처리 실패: ' + e.message);
+  }
+}
+
+async function rebuildSettlementsForUids(month, uids) {
+  const targetUids = [...new Set((uids || []).filter(Boolean))];
+  if (!month || targetUids.length === 0) return;
+  const [adminDoc, settlementItems] = await Promise.all([
+    db.collection('users').doc(adminUid).get(),
+    loadSettlementItems(month).catch(() => ({}))
+  ]);
+  const adminData = adminDoc.exists ? adminDoc.data() : {};
+  const deliveryRecords = deliveryRecordsFromData(adminData);
+
+  for (const uid of targetUids) {
+    const user = allUsers[uid] || deletedUsers[uid] || {};
+    const saved = settlementItems[uid] || {};
+    let lunch = 0;
+    let salad = 0;
+    let eventLunch = 0;
+    let eventPrice = userLunchPrice(user) || 0;
+    const daily = {};
+    monthDates(month).forEach(ds => {
+      const record = (deliveryRecords[ds] || {})[uid];
+      if (!record || record.deleted || record.orderDeleted || !record.delivered) return;
+      const dl = orderLunchQty(record);
+      const dsalad = orderSaladQty(record);
+      const de = orderEventLunchQty(record);
+      const recordEventPrice = orderEventLunchPrice(record);
+      lunch += dl;
+      salad += dsalad;
+      eventLunch += de;
+      if (recordEventPrice) eventPrice = recordEventPrice;
+      if (dl || dsalad || de) daily[ds] = { lunch: dl, salad: dsalad, eventLunch: de };
+    });
+
+    const paidTotal = settlementPaidTotal(saved);
+    if ((lunch + salad + eventLunch) <= 0) {
+      if (settlementItems[uid] && paidTotal <= 0) {
+        await settlementItemRef(month, uid).delete();
+        applySettlementToUserCache(uid, month, null);
+      }
+      continue;
+    }
+
+    const lunchPrice = userLunchPrice(user) || 0;
+    const saladPrice = userSaladPrice(user) || 0;
+    const amount = settlementLunchAmount({ lunch, lunchPrice })
+      + settlementSaladAmount({ salad, saladPrice })
+      + settlementEventAmount({ eventLunch, eventPrice });
+    const adjust = parseInt(saved.adjust, 10) || 0;
+    const payments = saved.payments || [];
+    const status = paidTotal > 0 && paidTotal >= (amount + adjust) ? '입금완료' : '청구완료';
+    const invoiceNo = saved.invoiceNo || await generateInvoiceNo(month);
+    const dueDate = saved.dueDate || defaultDueDate(month);
+    await saveSettlementItem(month, uid, {
+      uid, user, lunch, salad, eventLunch, lunchPrice, saladPrice, eventPrice, amount, dateBreakdown: daily
+    }, {
+      status,
+      note: saved.note || '',
+      amount,
+      adjust,
+      invoiceNo,
+      dueDate,
+      payments,
+      paidDate: saved.paidDate || (payments.length ? payments[payments.length - 1].date : ''),
+      paidAmount: paidTotal,
+      lunchTotal: lunch,
+      saladTotal: salad,
+      eventLunchTotal: eventLunch,
+      lunch,
+      salad,
+      eventLunch,
+      lunchPrice,
+      saladPrice,
+      eventPrice,
+      daily,
+      autoBilled: true,
+      autoBilledAt: new Date().toISOString()
+    });
+  }
+}
+
+function deliveryRecordDeleteArgs(date, uid) {
+  return [
+    new firebase.firestore.FieldPath('deliveryRecords', date, uid), firebase.firestore.FieldValue.delete(),
+    new firebase.firestore.FieldPath(`deliveryRecords.${date}.${uid}`), firebase.firestore.FieldValue.delete()
+  ];
+}
+
+async function cancelDeliveryRecord(uid, date = currentDateStr) {
+  if (!uid || !date) return;
+  const row = currentOrderRows.find(item => item.uid === uid) || {};
+  const rec = (cachedDeliveryRecords[date] || {})[uid] || {};
+  const name = row.businessName || rec.businessName || uid;
+  if (!confirm(`${name}의 ${formatDateKR(date)} 배송 완료를 취소할까요?\n해당 일자 금액이 정산에서 제외됩니다.`)) return;
+  try {
+    await db.collection('users').doc(adminUid).update(...deliveryRecordDeleteArgs(date, uid));
+    if (cachedDeliveryRecords[date]) delete cachedDeliveryRecords[date][uid];
+    await rebuildSettlementsForUids(date.slice(0, 7), [uid]);
+    showToast(`${name} 배송 완료를 취소했습니다.`);
+    loadOrders();
+    if (activeAdminTab === 'settlements') loadSettlements();
+    if (activeAdminTab === 'stats') loadOrderStats();
+  } catch(e) {
+    showToast('배송 취소 실패: ' + e.message);
+  }
+}
+
+async function cancelAllDeliveriesForDate(date = currentDateStr) {
+  if (!date) return;
+  try {
+    const adminDoc = await db.collection('users').doc(adminUid).get();
+    const records = adminDoc.exists ? deliveryRecordsFromData(adminDoc.data()) : {};
+    const dayRecords = records[date] || {};
+    const uids = Object.entries(dayRecords)
+      .filter(([uid, rec]) => rec && rec.delivered && !String(uid).startsWith('event_'))
+      .map(([uid]) => uid);
+    if (uids.length === 0) {
+      showToast(`${formatDateKR(date)}에 취소할 배송 완료 기록이 없습니다.`);
+      return;
+    }
+    if (!confirm(`${formatDateKR(date)} 배송 완료 ${uids.length}건을 모두 취소할까요?\n해당 일자 금액이 정산에서 제외됩니다.\n(날짜를 잘못 눌러 완료 처리한 경우 사용하세요)`)) return;
+    const args = uids.flatMap(uid => deliveryRecordDeleteArgs(date, uid));
+    await db.collection('users').doc(adminUid).update(...args);
+    uids.forEach(uid => { if (cachedDeliveryRecords[date]) delete cachedDeliveryRecords[date][uid]; });
+    await rebuildSettlementsForUids(date.slice(0, 7), uids);
+    showToast(`${formatDateKR(date)} 배송 완료 ${uids.length}건을 취소했습니다.`);
+    loadOrders();
+    if (activeAdminTab === 'settlements') loadSettlements();
+    if (activeAdminTab === 'stats') loadOrderStats();
+  } catch(e) {
+    showToast('배송 취소 실패: ' + e.message);
   }
 }
 
