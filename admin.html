@@ -4688,6 +4688,8 @@ async function saveInlineQty(uid) {
   });
   try {
     await db.collection('orders').doc(currentDateStr).collection('items').doc(uid).set({
+      uid,
+      targetDate: currentDateStr,
       lunchCount: values.lunch,
       saladCount: values.salad,
       eventLunchCount: values.event,
@@ -5745,6 +5747,7 @@ async function saveManualOrder() {
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
   const payload = {
     uid: manualUid,
+    targetDate: currentDateStr,
     businessName: bizname || (user.businessName || '수동입력'),
     lunchQty: values.lunch,
     lunchPrice,
