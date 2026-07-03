@@ -304,14 +304,14 @@ service cloud.firestore {
     }
 
     function validOrderUpdate(date, userId) {
-      return validOrderWrite(date, userId);
+      return (!('uid' in resource.data.keys()) || resource.data.uid == userId)
+        && validOrderWrite(date, userId);
     }
 
-    function validOrderDelete(userId) {
+    function validOrderDelete(date, userId) {
       return isOwner(userId)
-        && orderDateUnlocked(resource.data.targetDate)
-        && resource.data.uid == userId
-        && resource.data.keys().hasOnly(orderKeys());
+        && orderDateUnlocked(date)
+        && (!('uid' in resource.data.keys()) || resource.data.uid == userId);
     }
 
     function eventOrderKeys() {
@@ -505,7 +505,7 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAdmin() || validOrderCreate(date, userId);
       allow update: if isAdmin() || validOrderUpdate(date, userId);
-      allow delete: if isAdmin() || validOrderDelete(userId);
+      allow delete: if isAdmin() || validOrderDelete(date, userId);
     }
 
     match /orderLocks/{date} {
