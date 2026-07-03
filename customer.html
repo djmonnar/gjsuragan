@@ -4302,7 +4302,7 @@ async function submitOrder(source) {
     }
   } catch(e) {
     console.error('주문 전송 오류:', e);
-    showToast('전송 실패. 다시 시도해주세요.', 'error');
+    showToast(`전송 실패: ${e.message || '다시 시도해주세요.'}`, 'error');
     btn.disabled = false;
     btn.textContent = '주문 전송하기';
   }

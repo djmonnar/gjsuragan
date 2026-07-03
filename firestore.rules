@@ -304,9 +304,7 @@ service cloud.firestore {
     }
 
     function validOrderUpdate(date, userId) {
-      return resource.data.uid == userId
-        && resource.data.keys().hasOnly(orderKeys())
-        && validOrderWrite(date, userId);
+      return validOrderWrite(date, userId);
     }
 
     function validOrderDelete(userId) {
