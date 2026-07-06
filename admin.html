@@ -610,8 +610,18 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .map-info-window .iw-addr{color:#667085;font-size:12px;margin-bottom:4px}
 .map-info-window .iw-qty{color:#1a9e72;font-weight:700}
 .map-iw-copy{margin-top:7px;border:1px solid #d0d5dd;background:#fff;color:#344054;border-radius:7px;padding:5px 8px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.map-floating-actions{position:absolute;z-index:119;top:58px;left:16px;display:flex;gap:8px;flex-wrap:wrap;max-width:calc(100% - 32px)}
+.map-floating-actions.search-open{display:none}
+.map-float-btn{border:1px solid var(--border);background:rgba(255,255,255,.96);color:var(--text);border-radius:999px;padding:9px 13px;font:inherit;font-size:13px;font-weight:900;cursor:pointer;box-shadow:0 8px 22px rgba(15,23,42,.14);backdrop-filter:blur(8px)}
+.map-float-btn.today{border-color:#bbf7d0;background:#ecfdf3;color:#047857}
 .map-search-panel{position:absolute;z-index:120;top:58px;left:16px;width:min(360px,calc(100% - 32px));background:rgba(255,255,255,.96);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 28px rgba(15,23,42,.18);padding:12px;backdrop-filter:blur(8px);touch-action:pan-y;overscroll-behavior:contain}
+.map-search-panel.collapsed{display:none}
 .map-search-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;font-weight:900;color:var(--text);margin-bottom:8px}
+.map-search-title-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.map-panel-close{border:1px solid var(--border);background:#fff;color:var(--sub);border-radius:8px;width:30px;height:30px;font:inherit;font-size:18px;font-weight:900;cursor:pointer;line-height:1}
+.map-search-mode-row{display:flex;gap:7px;margin-bottom:8px}
+.map-search-mode-row button{flex:1;border:1px solid var(--border);background:#fff;color:var(--sub);border-radius:9px;padding:7px 8px;font:inherit;font-size:12px;font-weight:900;cursor:pointer}
+.map-search-mode-row button.active{background:#ecfdf3;border-color:#a7f3d0;color:#047857}
 .map-search-input-row{display:flex;gap:7px;align-items:center}
 .map-search-input{margin:0;min-width:0;flex:1;height:40px;padding:8px 10px;font-size:15px}
 .map-search-clear{border:1px solid var(--border);background:#fff;color:var(--sub);border-radius:9px;width:40px;height:40px;font-size:18px;font-weight:900;cursor:pointer;font-family:inherit}
@@ -686,7 +696,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   .map-section.admin-tab-panel{height:calc(100dvh - 106px)}
   .map-toolbar{padding:8px 10px;gap:7px}
   .map-legend{margin-left:0;width:100%;gap:8px;overflow-x:auto;white-space:nowrap;padding-bottom:2px}
+  .map-floating-actions{top:92px;left:10px;right:10px;max-width:none}
+  .map-float-btn{flex:1;padding:10px 12px}
   .map-search-panel{top:92px;left:10px;right:10px;width:auto;padding:10px;border-radius:12px}
+  .map-search-mode-row button{min-height:36px}
   .map-search-results{max-height:178px}
   .map-selected-actions button{flex:1;min-height:36px}
   .order-log-head,.order-log-main{align-items:stretch;flex-direction:column}
@@ -1374,13 +1387,24 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       </div>
     </div>
     <div id="delivery-map"></div>
-    <div class="map-search-panel" id="map-search-panel">
+    <div class="map-floating-actions" id="map-floating-actions">
+      <button class="map-float-btn" type="button" id="map-search-toggle-btn" onclick="openMapSearchPanel()">🔍 업체 찾기</button>
+      <button class="map-float-btn today" type="button" onclick="openMapTodayList()">🚚 오늘 배송 목록</button>
+    </div>
+    <div class="map-search-panel collapsed" id="map-search-panel" aria-hidden="true">
       <div class="map-search-title">
-        <span>업체 위치 찾기</span>
-        <span id="map-search-loaded-count" style="color:var(--sub);font-size:12px">0곳</span>
+        <span id="map-search-panel-title">업체 위치 찾기</span>
+        <span class="map-search-title-actions">
+          <span id="map-search-loaded-count" style="color:var(--sub);font-size:12px">0곳</span>
+          <button class="map-panel-close" type="button" onclick="closeMapSearchPanel()" aria-label="지도 검색창 닫기">×</button>
+        </span>
+      </div>
+      <div class="map-search-mode-row">
+        <button type="button" id="map-search-mode-all" onclick="setMapSearchTodayOnly(false)">전체검색</button>
+        <button type="button" id="map-search-mode-today" onclick="setMapSearchTodayOnly(true)">오늘 배송</button>
       </div>
       <div class="map-search-input-row">
-        <input class="form-input map-search-input" type="search" id="map-search-input" placeholder="업체명, 전화, 주소 검색" oninput="renderMapSearchResults()" onkeydown="if(event.key==='Escape') clearMapSearch()">
+        <input class="form-input map-search-input" type="search" id="map-search-input" placeholder="업체명, 전화, 주소 검색" oninput="renderMapSearchResults()" onkeydown="if(event.key==='Escape'){event.preventDefault();closeMapSearchPanel()}">
         <button class="map-search-clear" type="button" onclick="clearMapSearch()" aria-label="지도 검색 초기화">×</button>
       </div>
       <div class="map-search-results" id="map-search-results">
@@ -9786,6 +9810,8 @@ let mapNoOrderMarkers = [];
 let mapHideNoOrder = false;
 let mapSearchEntries = [];
 let mapOpenInfoWindow = null;
+let mapSearchPanelOpen = false;
+let mapSearchTodayOnly = false;
 let kakaoMapScriptLoaded = false;
 let kakaoMapScriptLoadingPromise = null;
 let kakaoMapInstance = null;
@@ -9916,6 +9942,60 @@ function registerMapSearchEntry(entry) {
   if (countEl) countEl.textContent = `${mapSearchEntries.length}곳`;
 }
 
+function isMapTodayDeliveryEntry(entry = {}) {
+  return Boolean(entry.hasOrder || entry.type === 'event');
+}
+
+function syncMapSearchPanelUi() {
+  const panel = document.getElementById('map-search-panel');
+  const actions = document.getElementById('map-floating-actions');
+  const titleEl = document.getElementById('map-search-panel-title');
+  const input = document.getElementById('map-search-input');
+  const allBtn = document.getElementById('map-search-mode-all');
+  const todayBtn = document.getElementById('map-search-mode-today');
+  if (panel) {
+    panel.classList.toggle('collapsed', !mapSearchPanelOpen);
+    panel.setAttribute('aria-hidden', mapSearchPanelOpen ? 'false' : 'true');
+  }
+  if (actions) actions.classList.toggle('search-open', mapSearchPanelOpen);
+  if (titleEl) titleEl.textContent = mapSearchTodayOnly ? '오늘 배송해야 할 목록' : '업체 위치 찾기';
+  if (input) input.placeholder = mapSearchTodayOnly ? '오늘 배송 업체 검색' : '업체명, 전화, 주소 검색';
+  if (allBtn) allBtn.classList.toggle('active', !mapSearchTodayOnly);
+  if (todayBtn) todayBtn.classList.toggle('active', mapSearchTodayOnly);
+}
+
+function openMapSearchPanel() {
+  mapSearchPanelOpen = true;
+  mapSearchTodayOnly = false;
+  syncMapSearchPanelUi();
+  renderMapSearchResults();
+  setTimeout(() => document.getElementById('map-search-input')?.focus(), 0);
+}
+
+function openMapTodayList() {
+  mapSearchPanelOpen = true;
+  mapSearchTodayOnly = true;
+  const input = document.getElementById('map-search-input');
+  if (input) input.value = '';
+  syncMapSearchPanelUi();
+  renderMapSearchResults();
+}
+
+function closeMapSearchPanel() {
+  mapSearchPanelOpen = false;
+  syncMapSearchPanelUi();
+}
+
+function setMapSearchTodayOnly(value) {
+  mapSearchTodayOnly = Boolean(value);
+  if (mapSearchTodayOnly) {
+    const input = document.getElementById('map-search-input');
+    if (input) input.value = '';
+  }
+  syncMapSearchPanelUi();
+  renderMapSearchResults();
+}
+
 function mapSearchResultBadge(entry = {}) {
   if (entry.type === 'event') return '<span class="map-result-badge event">행사</span>';
   if (entry.hasOrder) return '<span class="map-result-badge has-order">오늘</span>';
@@ -9926,25 +10006,35 @@ function renderMapSearchResults() {
   const listEl = document.getElementById('map-search-results');
   const countEl = document.getElementById('map-search-loaded-count');
   if (!listEl) return;
+  syncMapSearchPanelUi();
   const query = document.getElementById('map-search-input')?.value.trim() || '';
   const needle = normalizeMemberSearchText(query);
-  if (countEl) countEl.textContent = `${mapSearchEntries.length}곳`;
+  const source = mapSearchTodayOnly
+    ? mapSearchEntries.filter(entry => isMapTodayDeliveryEntry(entry))
+    : mapSearchEntries;
+  if (countEl) countEl.textContent = mapSearchTodayOnly ? `오늘 ${source.length}곳` : `${mapSearchEntries.length}곳`;
   if (!mapSearchEntries.length) {
     listEl.innerHTML = '<div class="map-search-empty">지도 주소를 불러오는 중입니다.</div>';
     return;
   }
+  if (mapSearchTodayOnly && !source.length) {
+    listEl.innerHTML = '<div class="map-search-empty">오늘 배송해야 할 업체가 없습니다.</div>';
+    return;
+  }
   const base = needle
-    ? mapSearchEntries.filter(entry => entry.searchText.includes(needle))
-    : mapSearchEntries.filter(entry => entry.hasOrder || entry.type === 'event');
+    ? source.filter(entry => entry.searchText.includes(needle))
+    : mapSearchTodayOnly
+      ? source
+      : source.filter(entry => isMapTodayDeliveryEntry(entry));
   const rows = base
     .slice()
     .sort((a, b) => {
-      const orderScore = Number(Boolean(b.hasOrder || b.type === 'event')) - Number(Boolean(a.hasOrder || a.type === 'event'));
+      const orderScore = Number(isMapTodayDeliveryEntry(b)) - Number(isMapTodayDeliveryEntry(a));
       return orderScore || (a.name || '').localeCompare(b.name || '', 'ko');
     })
     .slice(0, 7);
   if (!rows.length) {
-    listEl.innerHTML = `<div class="map-search-empty">${needle ? '검색 결과가 없습니다. 업체명이나 주소 일부를 다시 입력해주세요.' : '오늘 주문 업체가 없습니다. 업체명을 검색하면 전체 업체를 찾을 수 있습니다.'}</div>`;
+    listEl.innerHTML = `<div class="map-search-empty">${needle ? '검색 결과가 없습니다. 업체명이나 주소 일부를 다시 입력해주세요.' : '오늘 배송 업체가 없습니다. 업체명을 검색하면 전체 업체를 찾을 수 있습니다.'}</div>`;
     return;
   }
   listEl.innerHTML = rows.map(entry => `
