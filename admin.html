@@ -2078,6 +2078,25 @@ function isWeekendDate(dStr) {
   const dt = new Date(`${dStr}T00:00:00+09:00`);
   return dt.getDay() === 0 || dt.getDay() === 6;
 }
+function timestampToDate(value) {
+  if (!value) return null;
+  if (typeof value.toDate === 'function') return value.toDate();
+  if (typeof value.seconds === 'number') return new Date(value.seconds * 1000);
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+function kstDateStrFromTimestamp(value) {
+  const date = timestampToDate(value);
+  if (!date) return '';
+  return dateStr(new Date(date.getTime() + 9 * 60 * 60 * 1000));
+}
+function userCreatedDateStr(user = {}) {
+  return kstDateStrFromTimestamp(user.createdAt || user.registeredAt || user.joinedAt);
+}
+function isUserActiveOnDate(user = {}, dStr = currentDateStr) {
+  const createdDate = userCreatedDateStr(user);
+  return !createdDate || createdDate <= dStr;
+}
 let adminDeadline = { hour: 9, minute: 20 };
 let settlementSheetNoteTemplate = DEFAULT_SETTLEMENT_SHEET_NOTE_TEMPLATE;
 
@@ -3768,6 +3787,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
   }
   Object.entries(allUsers).forEach(([uid, user]) => {
     if (defaultSourceMap.has(uid)) return;
+    if (!isUserActiveOnDate(user, dStr)) return;
     const defaults = defaultMealsForDate(user, dStr);
     defaultSourceMap.set(uid, {
       ...user,
@@ -3779,6 +3799,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
   });
   const defaultSource = [...defaultSourceMap.entries()];
   defaultSource.forEach(([uid, user]) => {
+    if (!isUserActiveOnDate(user, dStr)) return;
     const defaults = defaultSnapshots
       ? { lunch: parseCount(user.lunchCount, 0), salad: parseCount(user.saladCount, 0), event: parseDeliveryCount(user.eventLunchCount ?? user.eventLunchQty, 0) }
       : { lunch: user.defaultLunchForDate, salad: user.defaultSaladForDate, event: 0 };
@@ -4210,6 +4231,7 @@ function orderReferenceItemsForDate(date, orderSnap, rows = []) {
   Object.entries(allUsers).forEach(([uid, user]) => {
     if (!uid || deliveryUids.has(uid) || selfHolidayUids.has(uid)) return;
     if (user.deleted || user.disabled) return;
+    if (!isUserActiveOnDate(user, date)) return;
     const order = orderDocsByUid.get(uid);
     if (order?.selfHoliday) return;
     if (order && orderTotalQty(order) <= 0) {
@@ -4436,6 +4458,7 @@ async function lockOrderDate(date = currentDateStr) {
     const ops = [];
     if (existing) existing.docs.forEach(doc => ops.push({ type: 'delete', ref: doc.ref }));
     Object.entries(allUsers).forEach(([uid, user]) => {
+      if (!isUserActiveOnDate(user, date)) return;
       const defaults = defaultMealsForDate(user, date);
       const counts = normalizeQtyValuesForUser(user, { lunch: defaults.lunch, salad: defaults.salad, event: 0 });
       ops.push({
