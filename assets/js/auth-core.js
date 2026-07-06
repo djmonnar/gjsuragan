@@ -309,6 +309,7 @@ function initFirestore(){
     snap => {
       custs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
       refreshAll();
+      autoResumePausedCustomers();
 
       const loading = document.getElementById('loading');
       if(loading) loading.style.display = 'none';
@@ -498,6 +499,7 @@ async function saveEdit(){
   const isSub = current.orderType === 'sub';
   const orderDate = g('e-orderdate') || customerOrderDateInputValue(current);
 
+  const statusVal = g('est');
   const upd = {
     name:g('en'),
     phone:g('ep'),
@@ -506,7 +508,7 @@ async function saveEdit(){
     request:g('er'),
     set:['A','B','C'].includes(esVal) ? esVal : (esVal || ''),
     productId:esVal,
-    status:g('est'),
+    status:statusVal,
     remain:parseInt(g('erem')) || 0,
     total:parseInt(g('etot')) || 1,
     memo:g('em'),
@@ -514,6 +516,16 @@ async function saveEdit(){
     orderDate,
     orderNum:document.getElementById('e-ordernum').value.trim()
   };
+
+  if(statusVal === 'pause'){
+    const resume = g('e-resume');
+    if(resume && resume <= todayStr()){ toast('재개 예정일은 내일 이후 날짜로 선택하세요','er'); return; }
+    upd.resumeDate = resume || firebase.firestore.FieldValue.delete();
+    if(current.status !== 'pause') upd.pausedAt = todayStr();
+  } else {
+    upd.resumeDate = firebase.firestore.FieldValue.delete();
+    upd.pausedAt = firebase.firestore.FieldValue.delete();
+  }
 
   if(isSub){
     const freq = document.getElementById('e-freq').value;
@@ -600,24 +612,93 @@ async function chargeRemain(id){
 }
 
 // 일시정지 / 재개 토글
+let pauseTargetId = null;
+
 async function togglePause(id){
   const c = custs.find(x => x.id === id);
   if(!c) return;
+  if(c.status === 'pause') resumeCustomer(id);
+  else openPauseModal(id);
+}
 
-  const isPaused = c.status === 'pause';
-  const newStatus = isPaused ? 'active' : 'pause';
-  const label = isPaused ? '재개' : '일시정지';
+function openPauseModal(id){
+  const c = custs.find(x => x.id === id);
+  if(!c) return;
+  pauseTargetId = id;
+  const nameEl = document.getElementById('pauseM-name');
+  if(nameEl) nameEl.textContent = `${c.name}${c.scheduleName ? ' · ' + c.scheduleName : ''}${c.orderType === 'sub' ? ` · 잔여 ${c.remain || 0}회` : ''}`;
+  const inp = document.getElementById('pauseM-resume');
+  if(inp){
+    inp.value = c.resumeDate || '';
+    inp.min = addDays(todayStr(), 1);
+  }
+  openM('pauseM');
+}
 
-  if(!confirm(`${c.name} 구독을 ${label}하시겠습니까?`)) return;
-
+async function confirmPause(){
+  const c = custs.find(x => x.id === pauseTargetId);
+  if(!c){ closeM('pauseM'); return; }
+  const resumeDate = document.getElementById('pauseM-resume')?.value || '';
+  if(resumeDate && resumeDate <= todayStr()){
+    toast('재개 예정일은 내일 이후 날짜로 선택하세요', 'er');
+    return;
+  }
   try{
-    await window.__DB.collection('customers').doc(id).update({
-      status:newStatus
+    await window.__DB.collection('customers').doc(pauseTargetId).update({
+      status:'pause',
+      pausedAt:todayStr(),
+      resumeDate:resumeDate || firebase.firestore.FieldValue.delete()
     });
-
-    toast(`${c.name} 구독 ${label}됨`, 'ok');
-
+    closeM('pauseM');
+    toast(`${c.name} 일시정지됨${resumeDate ? ` · ${resumeDate} 자동 재개 예정` : ' · 재개 버튼을 누를 때까지 유지'}`, 'ok');
   } catch(e){
     toast('오류: ' + e.message, 'er');
+  }
+}
+
+async function resumeCustomer(id){
+  const c = custs.find(x => x.id === id);
+  if(!c) return;
+  const schedInfo = c.orderType === 'sub' ? (c.scheduleName || '일정 미설정') : (c.onceDate || '예정일 미설정');
+  if(!confirm(`${c.name} 배송을 재개하시겠습니까?\n\n현재 배송일정: ${schedInfo}\n재개하면 다음 배송일부터 목록에 다시 포함됩니다.`)) return;
+  try{
+    await window.__DB.collection('customers').doc(id).update({
+      status:'active',
+      resumeDate:firebase.firestore.FieldValue.delete(),
+      pausedAt:firebase.firestore.FieldValue.delete()
+    });
+    toast(`${c.name} 배송 재개됨`, 'ok');
+    if(c.orderType === 'sub' && confirm('배송 요일(일정)도 변경하시겠어요?\n확인을 누르면 수정 창이 열리고 배송 일정 항목이 표시됩니다.')){
+      setTimeout(() => openEditSchedule(id), 150);
+    }
+  } catch(e){
+    toast('오류: ' + e.message, 'er');
+  }
+}
+
+// 재개 예정일이 지난 정지 고객 자동 재개
+let _autoResumeInFlight = false;
+async function autoResumePausedCustomers(){
+  if(_autoResumeInFlight) return;
+  if(typeof todayStr !== 'function') return;
+  const today = todayStr();
+  const due = custs.filter(c => c.status === 'pause' && c.resumeDate && c.resumeDate <= today);
+  if(!due.length) return;
+  _autoResumeInFlight = true;
+  try{
+    const batch = window.__DB.batch();
+    due.forEach(c => {
+      batch.update(window.__DB.collection('customers').doc(c.id), {
+        status:'active',
+        resumeDate:firebase.firestore.FieldValue.delete(),
+        pausedAt:firebase.firestore.FieldValue.delete()
+      });
+    });
+    await batch.commit();
+    toast(`재개 예정일 도래 → 자동 재개: ${due.map(c => c.name).join(', ')}`, 'ok');
+  } catch(e){
+    console.warn('자동 재개 실패:', e.message);
+  } finally {
+    _autoResumeInFlight = false;
   }
 }

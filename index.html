@@ -27,7 +27,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<link rel="stylesheet" href="assets/css/index.css?v=20260624-route3">
+<link rel="stylesheet" href="assets/css/index.css?v=20260706-pause1">
 
 
 </head>
@@ -114,6 +114,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
     <div class="sc cd"><div class="sl" id="dash-date-lbl">오늘 배송</div><div class="sv" id="s2">0</div><div class="ss">건 출고</div></div>
     <div class="sc ci"><div class="sl">이번 주</div><div class="sv" id="s3">0</div><div class="ss">건 예정</div></div>
     <div class="sc cw"><div class="sl">내일 배송</div><div class="sv" id="s4">0</div><div class="ss">건 예정</div></div>
+    <div class="sc" style="cursor:pointer;" onclick="goPausedCustomers()" title="클릭하면 일시정지 고객만 필터됩니다"><div class="sl">일시정지</div><div class="sv" id="s5" style="color:#b58900;">0</div><div class="ss" id="s5sub">명 정지 중</div></div>
   </div>
 
   <div class="cancel-notice" id="cancelNotice" style="display:none;">
@@ -653,7 +654,8 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
             </optgroup>
           </select>
         </div>
-        <div class="fgrp"><div class="flab">상태</div><select class="inp" id="est"><option value="active">진행 중</option><option value="pause">일시정지</option><option value="end">종료</option></select></div>
+        <div class="fgrp"><div class="flab">상태</div><select class="inp" id="est" onchange="syncEditResumeField()"><option value="active">진행 중</option><option value="pause">일시정지</option><option value="end">종료</option></select></div>
+        <div class="fgrp" id="ef-resume-wrap" style="display:none;"><div class="flab">재개 예정일 <span style="font-size:10px;color:var(--text3);">(비우면 무기한 정지)</span></div><input type="date" class="inp" id="e-resume"></div>
         <div class="fgrp"><div class="flab">잔여 수량</div><input type="number" class="inp" id="erem" min="0"></div>
         <div class="fgrp"><div class="flab">총 수량 / 횟수</div><input type="number" class="inp" id="etot" min="1"></div>
         <!-- 정기배송 일정 (정기배송일 때만 표시) -->
@@ -694,6 +696,32 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
   </div>
 </div>
 
+
+<!-- ══ 배송 일시정지 모달 ══ -->
+<div class="mbg" id="pauseM">
+  <div class="modal" style="width:440px;">
+    <div class="mh"><div class="mt">배송 일시정지</div><div class="mx" onclick="closeM('pauseM')">✕</div></div>
+    <div class="mb" style="display:flex;flex-direction:column;gap:14px;">
+      <div id="pauseM-name" style="font-size:15px;font-weight:700;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);"></div>
+      <div class="ibox" style="margin:0;">
+        정지하는 동안 <b>배송 관리 · 배송지도 · 택배 전달 목록에서 자동 제외</b>됩니다.<br>
+        잔여 횟수는 그대로 유지되고, 재개하면 저장된 배송 요일에 따라 다시 배송됩니다.
+      </div>
+      <div class="fgrp">
+        <div class="flab">재개 예정일 <span style="font-size:10px;color:var(--text3);">(선택)</span></div>
+        <input type="date" class="inp" id="pauseM-resume">
+        <div style="font-size:11px;color:var(--text3);margin-top:6px;line-height:1.6;">
+          날짜를 정하면 <b>그날 자동으로 재개</b>됩니다.<br>
+          비워두면 ‘재개’ 버튼을 누를 때까지 정지가 유지됩니다.
+        </div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeM('pauseM')">취소</button>
+      <button class="btn btn-p" onclick="confirmPause()">⏸ 일시정지</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══ 파싱 확인 모달 ══ -->
 <div class="mbg" id="parseM">
@@ -799,14 +827,14 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 </div>
 
 
-<script src="assets/js/auth-core.js?v=20260629-orderdate1" defer></script>
+<script src="assets/js/auth-core.js?v=20260706-pause1" defer></script>
 <script src="assets/js/imweb.js?v=20260625-door-x1" defer></script>
 <script src="assets/js/schedule-report.js?v=20260507-3" defer></script>
-<script src="assets/js/rendering.js?v=20260629-orderdate1" defer></script>
+<script src="assets/js/rendering.js?v=20260706-pause1" defer></script>
 <script src="assets/js/route-map.js?v=20260626-roundtrip1" defer></script>
 <script src="assets/js/import-export.js?v=20260625-door-x1" defer></script>
 <script src="assets/js/logen.js?v=20260625-logen-change1" defer></script>
-<script src="assets/js/ui.js?v=20260629-orderdate1" defer></script>
+<script src="assets/js/ui.js?v=20260706-pause1" defer></script>
 
 
 <div id="tw"></div>

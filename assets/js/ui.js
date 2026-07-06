@@ -34,9 +34,16 @@ function copyLozen(id){
 function statusLabel(c){
   if(!c) return '';
   if(c.status==='active') return c.orderType==='sub' ? '구독중' : '진행중';
-  if(c.status==='pause') return c.orderType==='sub' ? '정지' : '보류';
+  if(c.status==='pause'){
+    const base = c.orderType==='sub' ? '정지' : '보류';
+    return c.resumeDate ? `${base}·${shortDate(c.resumeDate)} 재개` : base;
+  }
   if(c.status==='end') return '—';
   return SL[c.status] || c.status || '';
+}
+function shortDate(ds){
+  const parts = String(ds||'').split('-').map(Number);
+  return parts.length === 3 ? `${parts[1]}/${parts[2]}` : (ds || '');
 }
 function s(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 function g(id){return document.getElementById(id)?.value.trim()||'';}
@@ -79,6 +86,8 @@ function openEdit(id){
   g2('en',c.name);g2('ep',c.phone);g2('ea',c.addr);g2('ed',c.door);g2('er',c.request);
   document.getElementById('es').value=c.productId||c.set||'A';
   document.getElementById('est').value=c.status;
+  g2('e-resume',c.resumeDate||'');
+  syncEditResumeField();
   g2('erem',c.remain);g2('etot',c.total);g2('em',c.memo);g2('eodate',c.onceDate||'');
   g2('e-startdate',c.startDate||'');
   g2('e-orderdate',typeof customerOrderDateInputValue === 'function' ? customerOrderDateInputValue(c) : (c.orderDate || ''));
@@ -120,6 +129,42 @@ function openEdit(id){
   }
 
   openM('editM');
+}
+
+// 상태가 '일시정지'일 때만 재개 예정일 필드 표시
+function syncEditResumeField(){
+  const st = document.getElementById('est')?.value;
+  const wrap = document.getElementById('ef-resume-wrap');
+  if(wrap) wrap.style.display = st === 'pause' ? '' : 'none';
+  const inp = document.getElementById('e-resume');
+  if(inp && typeof todayStr === 'function' && typeof addDays === 'function') inp.min = addDays(todayStr(), 1);
+}
+
+// 재개 직후 배송 요일 변경 유도: 수정 모달을 열고 일정 항목을 강조
+function openEditSchedule(id){
+  openEdit(id);
+  setTimeout(() => {
+    const freqEl = document.getElementById('e-freq');
+    if(!freqEl) return;
+    freqEl.scrollIntoView({ behavior:'smooth', block:'center' });
+    freqEl.focus();
+    ['ef-sched-wrap','ef-sched-sel'].forEach(wid => {
+      const w = document.getElementById(wid);
+      if(!w) return;
+      w.style.transition = 'background .4s';
+      w.style.background = 'rgba(227,98,9,.14)';
+      w.style.borderRadius = '8px';
+      setTimeout(() => { w.style.background = ''; }, 2600);
+    });
+  }, 180);
+}
+
+// 대시보드 '일시정지' 카드 클릭 → 고객관리 탭 + 정지 필터
+function goPausedCustomers(){
+  goTab('customers');
+  const sel = document.getElementById('srchSt');
+  if(sel) sel.value = 'pause';
+  renderCust();
 }
 
 function sameNumberArray(a, b){

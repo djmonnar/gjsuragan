@@ -306,6 +306,10 @@ function renderDash(){
   const tmrCourierList = tmrList.filter(c=>!c.isDirect);
   s('s0',custs.length); s('s1',custs.filter(c=>c.orderType==='sub'&&c.status==='active').length);
   s('s2',tl.length); s('s3',wk); s('s4',tmrList.length);
+  const pausedList = custs.filter(c=>c.status==='pause');
+  s('s5', pausedList.length);
+  const nextResume = pausedList.map(c=>c.resumeDate).filter(Boolean).sort()[0];
+  s('s5sub', nextResume ? `명 · ${shortDate(nextResume)} 재개 예정 있음` : '명 정지 중');
   s('sA',tl.filter(c=>(c.productId||c.set)==='A').length);
   s('sB',tl.filter(c=>(c.productId||c.set)==='B').length);
   s('sC',tl.filter(c=>(c.productId||c.set)==='C').length);
