@@ -3578,7 +3578,7 @@ function openRegAddressSearch() {
 
 async function doRegister() {
   const bizname = document.getElementById('reg-bizname').value.trim();
-  const email = document.getElementById('reg-email').value.trim();
+  const email = document.getElementById('reg-email').value.trim().toLowerCase();
   const phone = document.getElementById('reg-phone').value.trim();
   const deliveryPlace = document.getElementById('reg-place').value.trim();
   const deliveryPlaceDetail = document.getElementById('reg-place-detail').value.trim();
@@ -3615,6 +3615,7 @@ async function doRegister() {
     return;
   }
   try {
+    await cred.user.getIdToken(true);
     await db.collection('users').doc(cred.user.uid).set({
       businessName: bizname, email, phone,
       deliveryPlace, deliveryPlaceDetail,
@@ -3633,8 +3634,9 @@ async function doRegister() {
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch(e) {
+    console.error('회원 프로필 저장 오류:', e);
     await cred.user.delete();
-    showError('reg-error', '프로필 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+    showError('reg-error', `프로필 저장 실패: ${e.message || '다시 시도해주세요.'}`);
   }
 }
 
