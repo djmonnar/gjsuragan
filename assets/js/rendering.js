@@ -1464,7 +1464,7 @@ function renderCust(){
         <td style="white-space:nowrap;">${customerText(g.phone || '-')}</td>
         <td>${customerProductChips(g)}</td>
         <td>${customerTypeChips(g)}</td>
-        <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${customerText(customerGroupSchedule(g))}</td>
+        <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${customerText(customerGroupSchedule(g))}${g.orders.some(c=>c.pendingSchedule) ? ' <span class="badge" style="background:#fef3c7;color:#92400e;border-color:#f59e0b;font-size:9px;">변경예약</span>' : ''}</td>
         <td>${customerDeliveryChips(g)}</td>
         <td>${customerGroupRemain(g)}</td>
         <td><span class="badge b-${status.cls}">${customerText(status.label)}</span></td>
@@ -1537,6 +1537,7 @@ function customerGroupOrderSummary(c, idx){
         <div style="display:grid;grid-template-columns:72px 1fr;gap:6px 8px;font-size:12px;">
           <div style="color:var(--text3);">주문일자</div><div>${customerText(customerOrderDate(c))}</div>
           <div style="color:var(--text3);">배송일정</div><div>${customerText(scheduleDisp(c) || c.scheduleName || c.onceDate || '-')}</div>
+          ${c.pendingSchedule ? `<div style="color:#b58900;">변경예약</div><div style="color:#b58900;font-weight:700;">${customerText(c.pendingSchedule.effectiveDate)}부터 ${customerText(c.pendingSchedule.scheduleName)} <button class="btn btn-g sm" style="font-size:10px;padding:2px 8px;margin-left:6px;" onclick="event.stopPropagation();cancelPendingSchedule('${customerJsArg(c.id)}')">예약취소</button></div>` : ''}
           <div style="color:var(--text3);">배송방식</div><div>${c.isDirect ? '<span class="badge b-direct">직배송</span>' : '<span style="font-size:12px;color:var(--text3);">택배</span>'}</div>
           <div style="color:var(--text3);">${c.orderType === 'sub' ? '잔여' : '수량'}</div><div>${gauge(c)}</div>
           <div style="color:var(--text3);">완료이력</div><div>${dateHtml}</div>
@@ -1670,7 +1671,7 @@ function renderCust(){
         <td style="white-space:nowrap;">${customerText(g.phone || '-')}</td>
         <td>${customerProductChips(g)}</td>
         <td>${customerTypeChips(g)}</td>
-        <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${customerText(customerGroupSchedule(g))}</td>
+        <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${customerText(customerGroupSchedule(g))}${g.orders.some(c=>c.pendingSchedule) ? ' <span class="badge" style="background:#fef3c7;color:#92400e;border-color:#f59e0b;font-size:9px;">변경예약</span>' : ''}</td>
         <td>${customerDeliveryChips(g)}</td>
         <td>${customerGroupRemain(g)}</td>
         <td><span class="badge b-${status.cls}">${customerText(status.label)}</span></td>

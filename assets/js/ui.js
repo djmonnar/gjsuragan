@@ -99,6 +99,8 @@ function openEdit(id){
   document.getElementById('ef-sched-wrap').style.display = isSub ? '' : 'none';
   document.getElementById('ef-sched-sel').style.display  = isSub ? '' : 'none';
   document.getElementById('ef-start-wrap').style.display = isSub ? '' : 'none';
+  const schedFromWrap = document.getElementById('ef-sched-from-wrap');
+  if(schedFromWrap) schedFromWrap.style.display = isSub ? '' : 'none';
   document.getElementById('ef-oncedate-wrap').style.display = isSub ? 'none' : '';
 
   // 선택주문이면 반드시 초기화 (이전 정기배송 값 잔류 방지)
@@ -108,23 +110,40 @@ function openEdit(id){
   }
 
   if(isSub){
-    // 현재 저장된 cookDays로 주기·일정 역산
-    const freq = String(c.type || (c.cookDays && c.cookDays.length) || '');
+    // 일정 변경 예약이 있으면 예약 내용을, 없으면 현재 cookDays를 역산해서 표시
+    const pend = c.pendingSchedule || null;
+    const srcType = pend ? pend.type : c.type;
+    const srcCookDays = (pend ? pend.cookDays : c.cookDays) || [];
+    const freq = String(srcType || srcCookDays.length || '');
     document.getElementById('e-freq').value = freq;
     editUpdSch(); // 드롭다운 옵션 생성
 
-    // 현재 cookDays와 일치하는 인덱스 선택
-    if(freq && c.cookDays && c.cookDays.length){
-      const cookKey = c.cookDays.slice().sort((a,b)=>a-b).join(',');
+    // cookDays와 일치하는 인덱스 선택
+    if(freq && srcCookDays.length){
+      const cookKey = srcCookDays.slice().sort((a,b)=>a-b).join(',');
       const schIndexMap = {
         '1':{1:0,2:1,3:2,4:3,5:4},
         '2':{'1,3':0,'1,4':1,'2,4':2,'3,5':3,'1,5':4},
         '3':{'1,3,5':0,'2,4,5':1},
       };
       const idx = freq === '1'
-        ? (schIndexMap['1'][c.cookDays[0]] ?? '')
+        ? (schIndexMap['1'][srcCookDays[0]] ?? '')
         : (schIndexMap[freq]?.[cookKey] ?? '');
       document.getElementById('e-sched').value = String(idx);
+    }
+
+    g2('e-sched-from', pend?.effectiveDate || '');
+    const fromInp = document.getElementById('e-sched-from');
+    if(fromInp && typeof todayStr === 'function' && typeof addDays === 'function') fromInp.min = addDays(todayStr(), 1);
+    const pendInfo = document.getElementById('e-sched-pending-info');
+    if(pendInfo){
+      if(pend){
+        pendInfo.style.display = '';
+        pendInfo.textContent = `⏱ 일정 변경 예약됨: ${pend.effectiveDate}부터 ${pend.scheduleName} (현재는 ${c.scheduleName || '-'})`;
+      } else {
+        pendInfo.style.display = 'none';
+        pendInfo.textContent = '';
+      }
     }
   }
 

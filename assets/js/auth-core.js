@@ -310,6 +310,7 @@ function initFirestore(){
       custs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
       refreshAll();
       autoResumePausedCustomers();
+      autoApplyPendingSchedules();
 
       const loading = document.getElementById('loading');
       if(loading) loading.style.display = 'none';
@@ -531,6 +532,7 @@ async function saveEdit(){
     const freq = document.getElementById('e-freq').value;
     const schIdx = document.getElementById('e-sched').value;
     const sd = g('e-startdate');
+    const applyFrom = g('e-sched-from');
 
     if(!freq){ toast('배송 주기를 선택하세요','er'); return; }
     if(schIdx === ''){ toast('배송 일정을 선택하세요','er'); return; }
@@ -539,13 +541,30 @@ async function saveEdit(){
     const sch = SCH[freq][parseInt(schIdx)];
 
     if(sch){
-      upd.type = parseInt(freq);
-      upd.scheduleName = sch.l;
-      upd.cookDays = sch.c;
-      upd.arriveDays = sch.a;
-      upd.startDate = sd;
-      upd.needsReview = false;
-      upd.reviewReason = '';
+      const scheduleChanged = current.type !== parseInt(freq) || !sameNumberArray(sch.c, current.cookDays);
+      if(applyFrom && applyFrom > todayStr() && scheduleChanged){
+        // 일정 변경 예약: 적용일까지 현재 일정 유지, 적용일에 자동 반영
+        upd.pendingSchedule = {
+          type:parseInt(freq),
+          scheduleName:sch.l,
+          cookDays:sch.c,
+          arriveDays:sch.a,
+          effectiveDate:applyFrom,
+          createdAt:todayStr()
+        };
+        upd.startDate = sd;
+        upd.needsReview = false;
+        upd.reviewReason = '';
+      } else {
+        upd.type = parseInt(freq);
+        upd.scheduleName = sch.l;
+        upd.cookDays = sch.c;
+        upd.arriveDays = sch.a;
+        upd.startDate = sd;
+        upd.needsReview = false;
+        upd.reviewReason = '';
+        upd.pendingSchedule = firebase.firestore.FieldValue.delete();
+      }
     }
 
   } else {
@@ -566,7 +585,10 @@ async function saveEdit(){
     }
     await window.__DB.collection('customers').doc(editId).update(upd);
     closeM('editM');
-    toast(upd.name + ' 수정 완료', 'ok');
+    const pend = upd.pendingSchedule && upd.pendingSchedule.effectiveDate
+      ? ` · ${upd.pendingSchedule.effectiveDate}부터 ${upd.pendingSchedule.scheduleName} 적용 예약`
+      : '';
+    toast(upd.name + ' 수정 완료' + pend, 'ok');
   } catch(e){
     toast('오류: ' + e.message, 'er');
   }
@@ -671,6 +693,52 @@ async function resumeCustomer(id){
     if(c.orderType === 'sub' && confirm('배송 요일(일정)도 변경하시겠어요?\n확인을 누르면 수정 창이 열리고 배송 일정 항목이 표시됩니다.')){
       setTimeout(() => openEditSchedule(id), 150);
     }
+  } catch(e){
+    toast('오류: ' + e.message, 'er');
+  }
+}
+
+// 적용일이 된 일정 변경 예약 자동 반영
+let _autoScheduleInFlight = false;
+async function autoApplyPendingSchedules(){
+  if(_autoScheduleInFlight) return;
+  if(typeof todayStr !== 'function') return;
+  const today = todayStr();
+  const due = custs.filter(c => c.pendingSchedule && c.pendingSchedule.effectiveDate && c.pendingSchedule.effectiveDate <= today);
+  if(!due.length) return;
+  _autoScheduleInFlight = true;
+  try{
+    const batch = window.__DB.batch();
+    due.forEach(c => {
+      const p = c.pendingSchedule;
+      batch.update(window.__DB.collection('customers').doc(c.id), {
+        type:p.type,
+        scheduleName:p.scheduleName,
+        cookDays:p.cookDays,
+        arriveDays:p.arriveDays,
+        pendingSchedule:firebase.firestore.FieldValue.delete()
+      });
+    });
+    await batch.commit();
+    toast(`예약된 배송일정 적용: ${due.map(c => `${c.name}(${c.pendingSchedule.scheduleName})`).join(', ')}`, 'ok');
+  } catch(e){
+    console.warn('일정 변경 예약 적용 실패:', e.message);
+  } finally {
+    _autoScheduleInFlight = false;
+  }
+}
+
+// 일정 변경 예약 취소
+async function cancelPendingSchedule(id){
+  const c = custs.find(x => x.id === id);
+  if(!c || !c.pendingSchedule) return;
+  const p = c.pendingSchedule;
+  if(!confirm(`${c.name}의 일정 변경 예약을 취소할까요?\n\n예약 내용: ${p.effectiveDate}부터 ${p.scheduleName}\n취소하면 현재 일정(${c.scheduleName || '-'})이 그대로 유지됩니다.`)) return;
+  try{
+    await window.__DB.collection('customers').doc(id).update({
+      pendingSchedule:firebase.firestore.FieldValue.delete()
+    });
+    toast(`${c.name} 일정 변경 예약 취소됨`, 'ok');
   } catch(e){
     toast('오류: ' + e.message, 'er');
   }
