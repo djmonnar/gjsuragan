@@ -191,7 +191,37 @@ async function inquirySlipNos(orders) {
   return normalizeInquiryResults(orders, response);
 }
 
+async function contractFares() {
+  const cfg = config();
+  const response = await postLogen('/contPickFares', {
+    userId: cfg.userId,
+    data: [{
+      custCd: cfg.custCd,
+      fareTy: cfg.fareTy
+    }]
+  });
+  const rows = resultRows(response);
+  const fareRows = rows.flatMap(row => Array.isArray(row.data1) ? row.data1 : []);
+  return {
+    ok: String(response?.sttsCd || '').toUpperCase() === 'SUCCESS' || fareRows.length > 0,
+    env: cfg.env,
+    baseUrl: cfg.baseUrl,
+    sttsCd: response?.sttsCd || '',
+    sttsMsg: response?.sttsMsg || '',
+    resultCd: rows[0]?.resultCd || '',
+    resultMsg: rows[0]?.resultMsg || '',
+    fareTy: cfg.fareTy,
+    fareCount: fareRows.length,
+    fares: fareRows.slice(0, 10).map(row => ({
+      boxTyCd: row.boxTyCd || '',
+      boxTyNm: row.boxTyNm || '',
+      dlvFare: row.dlvFare || 0
+    }))
+  };
+}
+
 module.exports = {
   registerOrders,
-  inquirySlipNos
+  inquirySlipNos,
+  contractFares
 };

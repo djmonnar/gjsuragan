@@ -3,8 +3,10 @@ const { onDocumentCreated, onDocumentWritten, onDocumentWrittenWithAuthContext }
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onRequest } = require('firebase-functions/v2/https');
 const { logger } = require('firebase-functions');
+const crypto = require('crypto');
 const logenClient = require('./logenClient');
 const { mapCustomerToLogenOrder, orderNumber } = require('./logenMapper');
+const { parseMealPlanOcr } = require('./mealPlanParser');
 
 admin.initializeApp();
 
@@ -16,6 +18,7 @@ const KAKAO_MAX_TEXT = 950;
 const KAKAO_MAX_DELIVERY_ITEMS = 10;
 const KAKAO_MAX_SEARCH_ITEMS = 6;
 const KAKAO_MAX_TASK_ITEMS = 5;
+const KAKAO_MAX_MONTHLY_MEAL_ITEMS = 24;
 const KAKAO_WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const KAKAO_KOREA_HOLIDAYS = {
   '2026-01-01': '신정',
@@ -55,6 +58,7 @@ const KAKAO_FIXED_KOREA_HOLIDAYS = {
 };
 const NAVER_DIRECTION_CANDIDATE_LIMIT = Number(process.env.NAVER_DIRECTION_CANDIDATE_LIMIT || 6);
 const NAVER_DIRECTION_MAX_STOPS = Number(process.env.NAVER_DIRECTION_MAX_STOPS || 25);
+const MEAL_OCR_MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html#changeRequests';
 const ORDER_ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html';
 const EVENT_ORDER_ADMIN_URL = 'https://djmonnar.github.io/gjsuragan/admin.html#eventOrders';
@@ -217,6 +221,11 @@ exports.api = onRequest({
   }
 
   try {
+    if (pathname === '/api/logen/health' || pathname === '/logen/health') {
+      const result = await handleLogenHealth(req);
+      sendJson(res, 200, { ok: true, ...result });
+      return;
+    }
     const user = pathname === '/api/route/optimize' || pathname === '/route/optimize'
       ? await verifyRouteRequest(req)
       : await verifyAdminRequest(req);
@@ -232,6 +241,11 @@ exports.api = onRequest({
     }
     if (pathname === '/api/route/optimize' || pathname === '/route/optimize') {
       const result = await handleRouteOptimize(req.body || {}, user);
+      sendJson(res, 200, { ok: true, ...result });
+      return;
+    }
+    if (pathname === '/api/meal-ocr/parse' || pathname === '/meal-ocr/parse') {
+      const result = await handleMealOcrParse(req.body || {}, user);
       sendJson(res, 200, { ok: true, ...result });
       return;
     }
@@ -253,6 +267,173 @@ function sendJson(res, status, body) {
   res.status(status).json(body);
 }
 
+async function handleLogenHealth(req) {
+  const expected = String(process.env.LOGEN_HEALTH_TOKEN || '').trim();
+  const given = String(req.get('x-logen-health-token') || req.body?.token || '').trim();
+  if (!expected || given !== expected) {
+    const error = new Error('Logen health check token is invalid');
+    error.status = 403;
+    throw error;
+  }
+  return logenClient.contractFares();
+}
+
+async function handleMealOcrParse(body, user) {
+  const imageBase64 = String(body.imageBase64 || '').replace(/^data:[^;]+;base64,/, '').trim();
+  const mimeType = String(body.mimeType || 'image/jpeg').trim();
+  const fileName = String(body.fileName || 'meal-plan').slice(0, 120);
+  const baseDate = String(body.baseDate || kakaoToday()).trim();
+
+  if (!imageBase64) {
+    const error = new Error('식단표 이미지가 없습니다.');
+    error.status = 400;
+    throw error;
+  }
+
+  const imageBytes = Buffer.byteLength(imageBase64, 'base64');
+  if (!imageBytes || imageBytes > MEAL_OCR_MAX_IMAGE_BYTES) {
+    const error = new Error('이미지 용량은 8MB 이하만 업로드할 수 있습니다.');
+    error.status = 400;
+    throw error;
+  }
+
+  const ocr = await callClovaOcr({ imageBase64, mimeType, fileName });
+  const parsed = parseMealPlanOcr({
+    fields: ocr.fields,
+    text: ocr.rawText,
+    baseDate
+  });
+
+  const rows = parsed.rows.map(row => ({
+    date: row.date,
+    dayOfWeek: row.dayOfWeek,
+    lunchItems: row.lunchItems,
+    saladItems: row.saladItems,
+    note: row.note || '',
+    warnings: row.warnings || []
+  }));
+  const warnings = [...new Set([...(ocr.warnings || []), ...(parsed.warnings || []), ...rows.flatMap(row => row.warnings || [])].filter(Boolean))];
+  if (!rows.length) {
+    warnings.push('저장할 식단 행을 찾지 못했습니다. 업로드 페이지에서 직접 보정해주세요.');
+  }
+
+  const jobRef = await db.collection('mealOcrJobs').add({
+    source: 'admin_clova_ocr',
+    status: rows.length ? 'parsed' : 'needs_review',
+    baseDate,
+    fileName,
+    mimeType,
+    imageBytes,
+    ocrEngine: 'naver_clova_ocr',
+    ocrText: kakaoShort(ocr.rawText || parsed.rawText || '', 16000),
+    rows,
+    warnings,
+    stats: parsed.stats,
+    createdBy: user.email || user.uid || '',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return {
+    jobId: jobRef.id,
+    items: rows,
+    warnings,
+    rawText: ocr.rawText,
+    stats: parsed.stats
+  };
+}
+
+async function callClovaOcr({ imageBase64, mimeType, fileName }) {
+  const invokeUrl = process.env.CLOVA_OCR_INVOKE_URL || process.env.NAVER_CLOVA_OCR_INVOKE_URL || '';
+  const secret = process.env.CLOVA_OCR_SECRET || process.env.NAVER_CLOVA_OCR_SECRET || '';
+  if (!invokeUrl || !secret) {
+    const error = new Error('CLOVA OCR 환경변수(CLOVA_OCR_INVOKE_URL, CLOVA_OCR_SECRET)가 필요합니다.');
+    error.status = 503;
+    throw error;
+  }
+
+  const format = clovaImageFormat(mimeType, fileName);
+  let response;
+  try {
+    logger.info('CLOVA OCR request start', {
+      endpointHost: kakaoUrlHost(invokeUrl),
+      format,
+      fileName: kakaoShort(fileName || 'meal-plan', 80),
+      imageBytes: Buffer.byteLength(imageBase64 || '', 'base64')
+    });
+    response = await fetch(invokeUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-OCR-SECRET': secret
+      },
+      body: JSON.stringify({
+        version: 'V2',
+        requestId: crypto.randomUUID ? crypto.randomUUID() : `meal-${Date.now()}`,
+        timestamp: Date.now(),
+        lang: 'ko',
+        images: [{
+          format,
+          name: fileName || 'meal-plan',
+          data: imageBase64
+        }]
+      })
+    });
+  } catch (error) {
+    logger.warn('CLOVA OCR fetch failed', {
+      endpointHost: kakaoUrlHost(invokeUrl),
+      error: error.message,
+      cause: error.cause?.message || '',
+      code: error.cause?.code || error.code || ''
+    });
+    const nextError = new Error(`CLOVA OCR 연결 실패: ${error.cause?.code || error.message}`);
+    nextError.status = 502;
+    throw nextError;
+  }
+  const responseText = await response.text().catch(() => '');
+  let data = {};
+  try {
+    data = responseText ? JSON.parse(responseText) : {};
+  } catch (_) {
+    data = {};
+  }
+  if (!response.ok) {
+    logger.warn('CLOVA OCR response error', {
+      endpointHost: kakaoUrlHost(invokeUrl),
+      status: response.status,
+      statusText: response.statusText,
+      contentType: response.headers.get('content-type') || '',
+      responseBody: kakaoShort(responseText, 1000)
+    });
+    const message = data?.message || data?.error?.message || kakaoShort(responseText, 240) || `${response.status} ${response.statusText}`;
+    const error = new Error(`CLOVA OCR 오류: ${message}`);
+    error.status = response.status >= 500 ? 502 : 400;
+    throw error;
+  }
+
+  const image = Array.isArray(data.images) ? (data.images[0] || {}) : {};
+  const fields = Array.isArray(image.fields) ? image.fields : [];
+  const rawText = fields.map(field => field.inferText || '').filter(Boolean).join('\n');
+  const warnings = [];
+  if (image.inferResult && image.inferResult !== 'SUCCESS') {
+    warnings.push(`OCR 결과 확인 필요: ${image.inferResult}`);
+  }
+  if (!fields.length) {
+    warnings.push('OCR이 글자를 찾지 못했습니다.');
+  }
+
+  return { fields, rawText, warnings, raw: data };
+}
+
+function clovaImageFormat(mimeType, fileName) {
+  const ext = String(fileName || '').split('.').pop().toLowerCase();
+  if (['jpg', 'jpeg', 'png', 'tif', 'tiff', 'pdf'].includes(ext)) return ext === 'jpeg' ? 'jpg' : ext;
+  if (/png/i.test(mimeType)) return 'png';
+  if (/pdf/i.test(mimeType)) return 'pdf';
+  if (/tiff?/i.test(mimeType)) return 'tiff';
+  return 'jpg';
+}
+
 function isKakaoWebhookPath(pathname) {
   return pathname === '/api/kakao/webhook' || pathname === '/kakao/webhook';
 }
@@ -270,8 +451,19 @@ async function handleKakaoWebhookRequest(req, res) {
   try {
     const payload = req.body && typeof req.body === 'object' ? req.body : {};
     const utterance = kakaoUtterance(payload);
+    kakaoLogWebhookDebug(payload, utterance);
+
+    const mealOcrResponse = await kakaoHandleMealOcrFlow(payload, utterance);
+    if (mealOcrResponse) {
+      sendKakaoResponse(res, mealOcrResponse);
+      return;
+    }
 
     const cmd = kakaoResolveCommand(payload, utterance);
+    if (cmd.type === 'monthly_meals') {
+      sendKakaoResponse(res, await kakaoBuildMonthlyMealListText(cmd.date, cmd.label));
+      return;
+    }
     if (cmd.type === 'event_lunch') {
       sendKakaoResponse(res, await kakaoBuildEventLunchText(cmd.date, cmd.label));
       return;
@@ -321,11 +513,13 @@ function kakaoTextResponse(text) {
       outputs,
       quickReplies: [
         { label: '오늘일정', action: 'message', messageText: '오늘일정' },
+        { label: '오늘월식', action: 'message', messageText: '오늘월식' },
         { label: '오늘행사', action: 'message', messageText: '오늘 행사도시락' },
         { label: '내일일정', action: 'message', messageText: '내일 일정' },
         { label: '오늘배송', action: 'message', messageText: '오늘배송' },
         { label: '내일배송', action: 'message', messageText: '내일배송' },
         { label: '모레배송', action: 'message', messageText: '모레배송' },
+        { label: '식단표등록', action: 'message', messageText: '식단표 등록' },
         { label: '요약', action: 'message', messageText: '요약' },
         { label: '고객검색', action: 'message', messageText: '고객검색 ' }
       ]
@@ -364,10 +558,341 @@ function kakaoActionParams(payload) {
   return payload?.action?.params || {};
 }
 
-function kakaoUserKey(payload) {
+function kakaoLogWebhookDebug(payload, utterance) {
+  try {
+    const params = payload?.userRequest?.params || {};
+    const actionParams = kakaoActionParams(payload);
+    const media = params.media || actionParams.media || {};
+    const imageUrl = kakaoFindImageUrl(payload);
+    logger.info('Kakao webhook debug', {
+      utterance: kakaoShort(utterance || '', 120),
+      userKeys: kakaoUserKeys(payload),
+      hasUserRequestMedia: Boolean(params.media),
+      mediaType: media?.type || '',
+      hasImageUrl: Boolean(imageUrl),
+      imageUrlHost: kakaoUrlHost(imageUrl),
+      userRequestParamKeys: Object.keys(params).slice(0, 20),
+      actionParamKeys: Object.keys(actionParams).slice(0, 20)
+    });
+  } catch (error) {
+    logger.info('Kakao webhook debug failed', { error: error.message });
+  }
+}
+
+async function kakaoHandleMealOcrFlow(payload, utterance) {
+  const text = String(utterance || '').trim();
+  const userKeys = kakaoUserKeys(payload);
+  const userKey = userKeys[0] || 'anonymous';
+  const now = Date.now();
+  const imageUrl = kakaoFindImageUrl(payload);
+
+  if (kakaoIsMealOcrStartText(text)) {
+    const sessionPayload = {
+      state: 'awaiting_meal_image',
+      userKey,
+      aliases: userKeys,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: new Date(now + KAKAO_SESSION_TTL_MS)
+    };
+    await Promise.all(userKeys.map(key => db.collection('kakaoBotSessions').doc(`meal-ocr-${key}`).set(sessionPayload, { merge: true })));
+    return kakaoMealOcrUploadGuide();
+  }
+
+  const sessionResult = await kakaoFindMealOcrSession(userKeys);
+  if (!sessionResult?.snap?.exists) {
+    if (imageUrl) {
+      return [
+        '식단표 사진은 받았지만 등록 대기 상태가 아닙니다.',
+        '',
+        '먼저 "식단등록"이라고 입력한 뒤 사진을 다시 보내주세요.'
+      ].join('\n');
+    }
+    return null;
+  }
+  const { ref: sessionRef, snap: sessionSnap } = sessionResult;
+  const session = sessionSnap.data() || {};
+
+  if (session.expiresAt?.toMillis && session.expiresAt.toMillis() < now) {
+    await kakaoDeleteMealOcrSessions(userKeys, session).catch(() => {});
+    return null;
+  }
+
+  if (session.state === 'meal_ocr_preview') {
+    if (kakaoIsCancelText(text)) {
+      await kakaoDeleteMealOcrSessions(userKeys, session);
+      return '식단표 등록을 취소했습니다.';
+    }
+    if (kakaoIsEditText(text)) {
+      return [
+        '챗봇 안에서 세밀한 수정은 어렵습니다.',
+        '관리자 식단관리 탭에서 이미지를 올리고 미리보기 표를 직접 수정해주세요.',
+        '',
+        'https://djmonnar.github.io/gjsuragan/admin.html#menus'
+      ].join('\n');
+    }
+    if (kakaoIsConfirmText(text)) {
+      const rows = Array.isArray(session.items) ? session.items : [];
+      const saved = await kakaoSaveMealOcrRows(rows, userKey);
+      await kakaoDeleteMealOcrSessions(userKeys, session);
+      return `식단표 등록이 완료되었습니다.\n총 ${saved}일치 식단을 저장했습니다.`;
+    }
+  }
+
+  if (session.state === 'awaiting_meal_image') {
+    if (!imageUrl) {
+      return null;
+    }
+    try {
+      const image = await kakaoDownloadImage(imageUrl);
+      const ocr = await callClovaOcr({
+        imageBase64: image.imageBase64,
+        mimeType: image.mimeType,
+        fileName: 'kakao-meal-plan.jpg'
+      });
+      const parsed = parseMealPlanOcr({
+        fields: ocr.fields,
+        text: ocr.rawText,
+        baseDate: kakaoToday()
+      });
+      const rows = parsed.rows.map(row => ({
+        date: row.date,
+        dayOfWeek: row.dayOfWeek,
+        lunchItems: row.lunchItems,
+        saladItems: row.saladItems,
+        note: row.note || '',
+        warnings: row.warnings || []
+      }));
+      const warnings = [...new Set([...(ocr.warnings || []), ...(parsed.warnings || []), ...rows.flatMap(row => row.warnings || [])].filter(Boolean))];
+      const jobRef = await db.collection('mealOcrJobs').add({
+        source: 'kakao_clova_ocr',
+        status: rows.length ? 'preview' : 'needs_review',
+        userKey,
+        ocrEngine: 'naver_clova_ocr',
+        ocrText: kakaoShort(ocr.rawText || parsed.rawText || '', 16000),
+        rows,
+        warnings,
+        stats: parsed.stats,
+        createdBy: `kakao:${userKey}`,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      await sessionRef.set({
+        state: 'meal_ocr_preview',
+        userKey,
+        jobId: jobRef.id,
+        items: rows,
+        warnings,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: new Date(now + KAKAO_SESSION_TTL_MS)
+      }, { merge: true });
+      if (!rows.length) {
+        return [
+          '식단표를 읽었지만 저장할 날짜별 메뉴를 찾지 못했습니다.',
+          '표가 작거나 흐리면 관리자 업로드 페이지에서 원본 사진을 올려주세요.',
+          '',
+          'https://djmonnar.github.io/gjsuragan/admin.html#menus'
+        ].join('\n');
+      }
+      return kakaoMealOcrPreviewText(rows, warnings);
+    } catch (error) {
+      logger.warn('Kakao meal OCR failed', { error: error.message });
+      return [
+        '식단표 OCR 처리에 실패했습니다.',
+        error.message || String(error),
+        '',
+        '사진이 작거나 흐리면 관리자 업로드 페이지에서 원본을 올려주세요.',
+        'https://djmonnar.github.io/gjsuragan/admin.html#menus'
+      ].join('\n');
+    }
+  }
+
+  return null;
+}
+
+async function kakaoFindMealOcrSession(userKeys = []) {
+  for (const key of userKeys) {
+    const ref = db.collection('kakaoBotSessions').doc(`meal-ocr-${key}`);
+    const snap = await ref.get().catch(() => null);
+    if (snap?.exists) return { ref, snap, key };
+  }
+  return null;
+}
+
+async function kakaoDeleteMealOcrSessions(userKeys = [], session = {}) {
+  const keys = [...new Set([...(userKeys || []), ...(Array.isArray(session.aliases) ? session.aliases : []), session.userKey].filter(Boolean))];
+  await Promise.all(keys.map(key => db.collection('kakaoBotSessions').doc(`meal-ocr-${key}`).delete().catch(() => {})));
+}
+
+function kakaoIsMealOcrStartText(text) {
+  return /식단\s*(등록|업로드)|식단표\s*(등록|업로드)|이번주\s*식단\s*등록|주간\s*식단\s*등록/.test(String(text || '').replace(/\s+/g, ' '));
+}
+
+function kakaoIsConfirmText(text) {
+  return /^(확인|저장|등록|오케이|ok)$/i.test(String(text || '').trim());
+}
+
+function kakaoIsCancelText(text) {
+  return /^(취소|그만|중단)$/i.test(String(text || '').trim());
+}
+
+function kakaoIsEditText(text) {
+  return /^(수정|편집)$/i.test(String(text || '').trim());
+}
+
+function kakaoMealOcrUploadGuide() {
+  return [
+    '식단표 사진을 보내주세요.',
+    '',
+    '표가 작거나 흐리면 아래 관리자 업로드 페이지에서 원본 사진을 올려주세요.',
+    'OCR 결과는 바로 저장되지 않고 미리보기 후 확인해야 저장됩니다.',
+    '',
+    'https://djmonnar.github.io/gjsuragan/admin.html#menus'
+  ].join('\n');
+}
+
+function kakaoMealOcrPreviewText(rows, warnings = []) {
+  const shown = rows.slice(0, 7);
+  const lines = [
+    '식단표를 읽었습니다.',
+    '',
+    `총 ${rows.length}일치 식단을 찾았습니다.`
+  ];
+  shown.forEach(row => {
+    lines.push('', `${row.date} ${row.dayOfWeek || ''}`.trim());
+    if (row.lunchItems?.length) lines.push(`도시락: ${row.lunchItems.join(', ')}`);
+    if (row.saladItems?.length) lines.push(`샐러드: ${row.saladItems.join(', ')}`);
+    if (row.note && !row.lunchItems?.length && !row.saladItems?.length) lines.push(`비고: ${row.note}`);
+  });
+  if (rows.length > shown.length) {
+    lines.push('', `외 ${rows.length - shown.length}일은 생략했습니다.`);
+  }
+  if (warnings.length) {
+    lines.push('', '확인 필요: ' + warnings.slice(0, 3).join(' / '));
+  }
+  lines.push('', "맞으면 '확인', 취소하려면 '취소', 직접 고치려면 '수정'이라고 보내주세요.");
+  return lines.join('\n');
+}
+
+async function kakaoSaveMealOcrRows(rows, userKey) {
+  const validRows = (Array.isArray(rows) ? rows : [])
+    .filter(row => /^\d{4}-\d{2}-\d{2}$/.test(row.date || '') && ((row.lunchItems || []).length || (row.saladItems || []).length || row.note));
+  if (!validRows.length) {
+    const error = new Error('저장할 식단이 없습니다.');
+    error.status = 400;
+    throw error;
+  }
+  const batch = db.batch();
+  validRows.forEach(row => {
+    batch.set(db.collection('mealMenus').doc(row.date), {
+      date: row.date,
+      title: '오늘의 식단',
+      lunchItems: row.lunchItems || [],
+      saladItems: row.saladItems || [],
+      note: row.note || '',
+      source: 'kakao_ocr',
+      updatedBy: `kakao:${userKey}`,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  });
+  await batch.commit();
+  return validRows.length;
+}
+
+function kakaoFindImageUrl(value, depth = 0) {
+  if (!value || depth > 8) return '';
+  if (typeof value === 'string') {
+    const text = value.trim();
+    if (/^https?:\/\//i.test(text) && (/\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(text) || /image|kakao|talk|cdn|file/i.test(text))) {
+      return text;
+    }
+    return '';
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = kakaoFindImageUrl(item, depth + 1);
+      if (found) return found;
+    }
+    return '';
+  }
+  if (typeof value === 'object') {
+    const preferredKeys = ['url', 'imageUrl', 'image_url', 'mediaUrl', 'media_url', 'thumbnailUrl'];
+    for (const key of preferredKeys) {
+      const found = kakaoFindImageUrl(value[key], depth + 1);
+      if (found) return found;
+    }
+    for (const item of Object.values(value)) {
+      const found = kakaoFindImageUrl(item, depth + 1);
+      if (found) return found;
+    }
+  }
+  return '';
+}
+
+function kakaoUrlHost(url) {
+  try {
+    return url ? new URL(url).host : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+async function kakaoDownloadImage(url) {
+  let response;
+  try {
+    logger.info('Kakao image download start', {
+      imageUrlHost: kakaoUrlHost(url)
+    });
+    response = await fetch(url);
+  } catch (error) {
+    logger.warn('Kakao image download fetch failed', {
+      imageUrlHost: kakaoUrlHost(url),
+      error: error.message,
+      cause: error.cause?.message || '',
+      code: error.cause?.code || error.code || ''
+    });
+    const nextError = new Error(`카카오 이미지 다운로드 연결 실패: ${error.cause?.code || error.message}`);
+    nextError.status = 502;
+    throw nextError;
+  }
+  if (!response.ok) {
+    const error = new Error(`이미지를 다운로드하지 못했습니다: ${response.status}`);
+    error.status = 400;
+    throw error;
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length > MEAL_OCR_MAX_IMAGE_BYTES) {
+    const error = new Error('이미지 용량은 8MB 이하만 처리할 수 있습니다.');
+    error.status = 400;
+    throw error;
+  }
+  return {
+    imageBase64: buffer.toString('base64'),
+    mimeType: response.headers.get('content-type') || 'image/jpeg'
+  };
+}
+
+function kakaoUserKeys(payload) {
   const user = payload?.userRequest?.user || {};
   const props = user.properties || {};
-  return String(user.id || props.appUserId || props.plusfriendUserKey || props.botUserKey || 'anonymous');
+  const params = payload?.userRequest?.params || {};
+  const detailParams = payload?.action?.detailParams || {};
+  const candidates = [
+    user.id,
+    props.appUserId,
+    props.plusfriendUserKey,
+    props.botUserKey,
+    params.userId,
+    params.user_id,
+    detailParams.userId?.value,
+    detailParams.user_id?.value,
+    'anonymous'
+  ];
+  return [...new Set(candidates.map(v => String(v || '').trim()).filter(Boolean))].slice(0, 8);
+}
+
+function kakaoUserKey(payload) {
+  return kakaoUserKeys(payload)[0] || 'anonymous';
 }
 
 function kakaoAllowedUsers() {
@@ -436,10 +961,17 @@ function kakaoResolveCommand(payload, utterance) {
   const keyword = String(params.keyword || params.name || params.phone || '').trim();
   const dateParam = String(params.date || '').trim();
   const commandText = `${mode} ${utterance}`;
+  const compactCommand = commandText.replace(/\s+/g, '').toLowerCase();
   const today = kakaoToday();
 
   if (kakaoIsTodayDeliveryCompleteCommand(commandText)) {
     return { type: 'complete_delivery', date: today, label: '오늘 배송 완료' };
+  }
+  if (/^(오늘|금일)?월식$|오늘월식|금일월식|todaymonthly|monthlymealstoday/i.test(compactCommand)) {
+    return { type: 'monthly_meals', date: today, label: '오늘 월식' };
+  }
+  if (/^내일월식$|내일월식|tomorrowmonthly|monthlymealstomorrow/i.test(compactCommand)) {
+    return { type: 'monthly_meals', date: kakaoAddDays(today, 1), label: '내일 월식' };
   }
   const eventCommand = kakaoResolveEventLunchCommand(commandText, dateParam, today);
   if (eventCommand) return eventCommand;
@@ -610,6 +1142,38 @@ function kakaoOrderEventLunchQty(order = {}) {
   return Number(order.eventLunchQty ?? order.eventLunchCount ?? order.eventLunch ?? 0) || 0;
 }
 
+function kakaoIsDisposableLunchUser(user = {}) {
+  return Boolean(user.disposableLunch || user.useDisposableLunch || user.disposableLunchCustomer);
+}
+
+function kakaoDisposableLunchFlagFromRecord(record = {}) {
+  const keys = ['disposableLunch', 'useDisposableLunch', 'disposableLunchCustomer'];
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(record || {}, key) && record[key] !== undefined && record[key] !== null) return Boolean(record[key]);
+  }
+  return null;
+}
+
+function kakaoDisposableLunchUserForRecord(user = {}, record = {}) {
+  const flag = kakaoDisposableLunchFlagFromRecord(record);
+  if (flag === null) return user;
+  return {
+    ...user,
+    disposableLunch: flag,
+    useDisposableLunch: flag,
+    disposableLunchCustomer: flag
+  };
+}
+
+function kakaoNormalizeQtyForUser(user = {}, row = {}) {
+  const effectiveUser = kakaoDisposableLunchUserForRecord(user, row);
+  const lunch = kakaoParseCount(kakaoOrderLunchQty(row), 0, 999);
+  const salad = kakaoParseCount(kakaoOrderSaladQty(row), 0, 999);
+  const disposable = kakaoParseCount(kakaoOrderEventLunchQty(row), 0, 999);
+  if (!kakaoIsDisposableLunchUser(effectiveUser)) return { lunch, salad, disposable };
+  return { lunch: 0, salad, disposable: lunch + disposable };
+}
+
 function kakaoIsEventOrder(order = {}) {
   return order.kind === 'eventLunch' || String(order.uid || '').startsWith('event_');
 }
@@ -682,8 +1246,9 @@ function kakaoIsNoMonthlyDeliveryDate(dateStr, customHolidays = {}) {
 
 async function kakaoFetchMonthlyMealSummary(dateStr) {
   try {
-    const [usersSnap, ordersSnap, lockDoc, defaultSnap, holidaysDoc] = await Promise.all([
+    const [usersSnap, privateSnap, ordersSnap, lockDoc, defaultSnap, holidaysDoc] = await Promise.all([
       db.collection('users').limit(1000).get(),
+      db.collection('userPrivate').limit(1000).get().catch(() => null),
       db.collection('orders').doc(dateStr).collection('items').get(),
       db.collection('orderLocks').doc(dateStr).get().catch(() => null),
       db.collection('orderDefaultSnapshots').doc(dateStr).collection('items').get().catch(() => null),
@@ -692,15 +1257,21 @@ async function kakaoFetchMonthlyMealSummary(dateStr) {
 
     const customHolidays = holidaysDoc?.exists ? (holidaysDoc.data().custom || {}) : {};
     if (kakaoIsNoMonthlyDeliveryDate(dateStr, customHolidays)) {
-      return { ok: true, noDelivery: true, lunch: 0, salad: 0, count: 0 };
+      return { ok: true, noDelivery: true, lunch: 0, salad: 0, disposable: 0, count: 0 };
     }
 
     const adminEmails = kakaoAdminEmails();
     const users = {};
     const deletedUsers = {};
     let adminData = {};
+    const privateByUid = {};
+    if (privateSnap) {
+      privateSnap.forEach(doc => {
+        privateByUid[doc.id] = doc.data() || {};
+      });
+    }
     usersSnap.forEach(doc => {
-      const data = doc.data() || {};
+      const data = { ...(doc.data() || {}), ...(privateByUid[doc.id] || {}) };
       const email = String(data.email || '').toLowerCase();
       if (adminEmails.includes(email)) {
         adminData = data;
@@ -718,10 +1289,10 @@ async function kakaoFetchMonthlyMealSummary(dateStr) {
     const useSnapshots = Boolean(lockDoc?.exists && defaultSnap);
     const rowsByUid = {};
     const addRow = (uid, row) => {
-      const lunch = kakaoOrderLunchQty(row);
-      const salad = kakaoOrderSaladQty(row);
-      if ((lunch + salad) <= 0) return;
-      rowsByUid[uid] = { ...row, lunchCount: lunch, saladCount: salad };
+      const user = users[uid] || deletedUsers[uid] || row || {};
+      const counts = kakaoNormalizeQtyForUser(user, row);
+      if ((counts.lunch + counts.salad + counts.disposable) <= 0) return;
+      rowsByUid[uid] = { ...row, lunchCount: counts.lunch, saladCount: counts.salad, eventLunchCount: counts.disposable };
     };
 
     if (useSnapshots) {
@@ -732,7 +1303,9 @@ async function kakaoFetchMonthlyMealSummary(dateStr) {
         if (delivered?.orderDeleted) return;
         const defaults = {
           lunchCount: kakaoParseCount(data.lunchCount ?? data.lunch, 0, 999),
-          saladCount: kakaoParseCount(data.saladCount ?? data.salad, 0, 999)
+          saladCount: kakaoParseCount(data.saladCount ?? data.salad, 0, 999),
+          eventLunchCount: kakaoParseCount(data.eventLunchCount ?? data.eventLunchQty, 0, 999),
+          disposableLunch: data.disposableLunch
         };
         addRow(uid, delivered || defaults);
       });
@@ -770,7 +1343,9 @@ async function kakaoFetchMonthlyMealSummary(dateStr) {
       addRow(uid, {
         businessName: user.businessName || order.businessName || '',
         lunchCount: deliveredOverride ? kakaoOrderLunchQty(delivered) : lunch,
-        saladCount: deliveredOverride ? kakaoOrderSaladQty(delivered) : salad
+        saladCount: deliveredOverride ? kakaoOrderSaladQty(delivered) : salad,
+        eventLunchCount: deliveredOverride ? kakaoOrderEventLunchQty(delivered) : eventLunch,
+        disposableLunch: deliveredOverride ? delivered.disposableLunch : order.disposableLunch
       });
     });
 
@@ -785,11 +1360,164 @@ async function kakaoFetchMonthlyMealSummary(dateStr) {
       noDelivery: false,
       lunch: rows.reduce((sum, row) => sum + kakaoOrderLunchQty(row), 0),
       salad: rows.reduce((sum, row) => sum + kakaoOrderSaladQty(row), 0),
+      disposable: rows.reduce((sum, row) => sum + kakaoOrderEventLunchQty(row), 0),
       count: rows.length
     };
   } catch (error) {
-    return { ok: false, noDelivery: false, lunch: 0, salad: 0, count: 0, error: error.message };
+    return { ok: false, noDelivery: false, lunch: 0, salad: 0, disposable: 0, count: 0, error: error.message };
   }
+}
+
+async function kakaoFetchMonthlyMealRows(dateStr) {
+  try {
+    const [usersSnap, privateSnap, ordersSnap, lockDoc, defaultSnap, holidaysDoc] = await Promise.all([
+      db.collection('users').limit(1000).get(),
+      db.collection('userPrivate').limit(1000).get().catch(() => null),
+      db.collection('orders').doc(dateStr).collection('items').get(),
+      db.collection('orderLocks').doc(dateStr).get().catch(() => null),
+      db.collection('orderDefaultSnapshots').doc(dateStr).collection('items').get().catch(() => null),
+      db.collection('config').doc('holidays').get().catch(() => null)
+    ]);
+
+    const customHolidays = holidaysDoc?.exists ? (holidaysDoc.data().custom || {}) : {};
+    if (kakaoIsNoMonthlyDeliveryDate(dateStr, customHolidays)) {
+      return { ok: true, noDelivery: true, rows: [], lunch: 0, salad: 0, disposable: 0, count: 0 };
+    }
+
+    const adminEmails = kakaoAdminEmails();
+    const users = {};
+    const deletedUsers = {};
+    let adminData = {};
+    const privateByUid = {};
+    if (privateSnap) {
+      privateSnap.forEach(doc => {
+        privateByUid[doc.id] = doc.data() || {};
+      });
+    }
+    usersSnap.forEach(doc => {
+      const data = { ...(doc.data() || {}), ...(privateByUid[doc.id] || {}) };
+      const email = String(data.email || '').toLowerCase();
+      if (adminEmails.includes(email)) {
+        adminData = data;
+        return;
+      }
+      if (data.adminEvents && !data.businessName) return;
+      if (data.deleted || data.disabled) {
+        deletedUsers[doc.id] = data;
+        return;
+      }
+      users[doc.id] = data;
+    });
+
+    const deliveredRecords = kakaoDeliveryRecordsFromData(adminData)[dateStr] || {};
+    const useSnapshots = Boolean(lockDoc?.exists && defaultSnap);
+    const rowsByUid = {};
+    const addRow = (uid, row = {}) => {
+      const user = users[uid] || deletedUsers[uid] || {};
+      const counts = kakaoNormalizeQtyForUser(user, row);
+      if ((counts.lunch + counts.salad + counts.disposable) <= 0) return;
+      const addressSource = {
+        deliveryPlace: row.deliveryPlace || user.deliveryPlace,
+        deliveryAddress: row.deliveryAddress || user.deliveryAddress,
+        address: row.address || user.address,
+        addr: row.addr || user.addr,
+        deliveryPlaceDetail: row.deliveryPlaceDetail || user.deliveryPlaceDetail,
+        addressDetail: row.addressDetail || user.addressDetail,
+        detailAddress: row.detailAddress || user.detailAddress
+      };
+      rowsByUid[uid] = {
+        uid,
+        businessName: row.businessName || user.businessName || row.name || user.name || uid,
+        phone: row.phone || user.phone || row.phoneNumber || user.phoneNumber || '',
+        address: kakaoMonthlyMealAddress(addressSource),
+        deliveryTime: row.deliveryTime || user.deliveryTime || row.mealTime || user.mealTime || '',
+        lunchCount: counts.lunch,
+        saladCount: counts.salad,
+        eventLunchCount: counts.disposable
+      };
+    };
+
+    if (useSnapshots) {
+      defaultSnap.forEach(doc => {
+        const uid = doc.id;
+        const data = doc.data() || {};
+        const delivered = deliveredRecords[uid];
+        if (delivered?.orderDeleted) return;
+        const defaults = {
+          lunchCount: kakaoParseCount(data.lunchCount ?? data.lunch, 0, 999),
+          saladCount: kakaoParseCount(data.saladCount ?? data.salad, 0, 999),
+          eventLunchCount: kakaoParseCount(data.eventLunchCount ?? data.eventLunchQty, 0, 999),
+          disposableLunch: data.disposableLunch
+        };
+        addRow(uid, delivered || defaults);
+      });
+    } else {
+      Object.entries(users).forEach(([uid, user]) => {
+        const delivered = deliveredRecords[uid];
+        if (delivered?.orderDeleted) return;
+        const defaults = kakaoDefaultMealsForDate(user, dateStr);
+        addRow(uid, delivered || {
+          lunchCount: defaults.lunch,
+          saladCount: defaults.salad
+        });
+      });
+    }
+
+    ordersSnap.forEach(doc => {
+      const order = { uid: doc.id, ...doc.data() };
+      if (kakaoIsEventOrder(order)) return;
+      const uid = order.uid || doc.id;
+      const user = users[uid] || deletedUsers[uid] || {};
+      const delivered = deliveredRecords[uid];
+      const deliveredOverride = delivered && !delivered.orderDeleted && (delivered.delivered || delivered.adminAdjusted || delivered.adminManual);
+      const lunch = kakaoOrderLunchQty(order);
+      const salad = kakaoOrderSaladQty(order);
+      const eventLunch = kakaoOrderEventLunchQty(order);
+
+      if (order.selfHoliday) {
+        delete rowsByUid[uid];
+        return;
+      }
+      if ((lunch + salad + eventLunch) <= 0) {
+        delete rowsByUid[uid];
+        return;
+      }
+      addRow(uid, {
+        businessName: user.businessName || order.businessName || '',
+        lunchCount: deliveredOverride ? kakaoOrderLunchQty(delivered) : lunch,
+        saladCount: deliveredOverride ? kakaoOrderSaladQty(delivered) : salad,
+        eventLunchCount: deliveredOverride ? kakaoOrderEventLunchQty(delivered) : eventLunch,
+        disposableLunch: deliveredOverride ? delivered.disposableLunch : order.disposableLunch,
+        deliveryPlace: order.deliveryPlace,
+        deliveryPlaceDetail: order.deliveryPlaceDetail,
+        deliveryTime: order.deliveryTime
+      });
+    });
+
+    Object.entries(deliveredRecords).forEach(([uid, data]) => {
+      if (!data || !data.adminManual) return;
+      addRow(uid, data);
+    });
+
+    const rows = Object.values(rowsByUid).sort((a, b) => (a.businessName || '').localeCompare(b.businessName || '', 'ko'));
+    return {
+      ok: true,
+      noDelivery: false,
+      rows,
+      lunch: rows.reduce((sum, row) => sum + kakaoOrderLunchQty(row), 0),
+      salad: rows.reduce((sum, row) => sum + kakaoOrderSaladQty(row), 0),
+      disposable: rows.reduce((sum, row) => sum + kakaoOrderEventLunchQty(row), 0),
+      count: rows.length
+    };
+  } catch (error) {
+    return { ok: false, noDelivery: false, rows: [], lunch: 0, salad: 0, disposable: 0, count: 0, error: error.message };
+  }
+}
+
+function kakaoMonthlyMealAddress(item = {}) {
+  const base = item.deliveryPlace || item.deliveryAddress || item.address || item.addr || '';
+  const detail = item.deliveryPlaceDetail || item.addressDetail || item.detailAddress || '';
+  return [base, detail].map(v => String(v || '').trim()).filter(Boolean).join(' ') || '-';
 }
 
 function kakaoWasDeliveredOn(c, dateStr) {
@@ -953,6 +1681,59 @@ function kakaoSetCountText(list = []) {
   if (counts.단품) parts.push(`단품 ${counts.단품}`);
   if (counts.기타) parts.push(`기타 ${counts.기타}`);
   return parts.join(' · ');
+}
+
+async function kakaoBuildMonthlyMealListText(dateStr, label) {
+  const result = await kakaoFetchMonthlyMealRows(dateStr);
+  const title = label || `${kakaoDateLabel(dateStr).replace(' 배송', '')} 월식`;
+  const lines = [
+    `[궁중수라간 ${title}]`,
+    `조회 날짜: ${dateStr}`
+  ];
+
+  if (!result.ok) {
+    lines.push('', '월식 목록을 불러오지 못했습니다.', `오류: ${result.error || '-'}`);
+    return lines.join('\n');
+  }
+  if (result.noDelivery) {
+    lines.push('', '해당 날짜는 월식 배송 없는 날입니다.');
+    return lines.join('\n');
+  }
+  if (!result.rows.length) {
+    lines.push('', '조회된 월식 주문이 없습니다.');
+    return lines.join('\n');
+  }
+
+  lines.push(
+    `총 ${result.count}곳 / 도시락 ${result.lunch}개 / 샐러드 ${result.salad}개${result.disposable ? ` / 일회용 ${result.disposable}개` : ''}`,
+    ''
+  );
+
+  result.rows.slice(0, KAKAO_MAX_MONTHLY_MEAL_ITEMS).forEach((row, idx) => {
+    lines.push(
+      `${idx + 1}. ${row.businessName || '-'}`,
+      `수량: ${kakaoMonthlyMealQtyLabel(row)}`,
+      `주소: ${kakaoFullText(row.address)}`
+    );
+    if (row.deliveryTime) lines.push(`시간: ${row.deliveryTime}`);
+    lines.push('');
+  });
+
+  if (result.rows.length > KAKAO_MAX_MONTHLY_MEAL_ITEMS) {
+    lines.push(`외 ${result.rows.length - KAKAO_MAX_MONTHLY_MEAL_ITEMS}곳은 관리자 주문 탭에서 확인하세요.`, ORDER_ADMIN_URL);
+  }
+  return lines.join('\n').trim();
+}
+
+function kakaoMonthlyMealQtyLabel(row = {}) {
+  const parts = [];
+  const lunch = kakaoOrderLunchQty(row);
+  const salad = kakaoOrderSaladQty(row);
+  const disposable = kakaoOrderEventLunchQty(row);
+  if (lunch) parts.push(`도시락 ${lunch}개`);
+  if (salad) parts.push(`샐러드 ${salad}개`);
+  if (disposable) parts.push(`일회용 ${disposable}개`);
+  return parts.join(' · ') || '0개';
 }
 
 function kakaoQtyText(c) {
@@ -1351,7 +2132,7 @@ async function kakaoBuildTasksText(customers, targetDate, label, dateWord, nextD
     '월식',
     monthlyMeals.noDelivery
       ? '- 배송 없음'
-      : `- 도시락 ${monthlyMeals.lunch}개 · 샐러드 ${monthlyMeals.salad}개`,
+      : `- 도시락 ${monthlyMeals.lunch}개 · 샐러드 ${monthlyMeals.salad}개${monthlyMeals.disposable ? ` · 일회용 ${monthlyMeals.disposable}개` : ''}`,
     '',
     '배송관리',
     `- 전체 ${targetList.length}건 | 직배송 ${direct.length} · 택배 ${courier.length}`,
