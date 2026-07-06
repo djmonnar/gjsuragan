@@ -10032,7 +10032,7 @@ function renderMapSearchResults() {
       const orderScore = Number(isMapTodayDeliveryEntry(b)) - Number(isMapTodayDeliveryEntry(a));
       return orderScore || (a.name || '').localeCompare(b.name || '', 'ko');
     })
-    .slice(0, 7);
+    .slice(0, mapSearchTodayOnly ? 200 : 10);
   if (!rows.length) {
     listEl.innerHTML = `<div class="map-search-empty">${needle ? '검색 결과가 없습니다. 업체명이나 주소 일부를 다시 입력해주세요.' : '오늘 배송 업체가 없습니다. 업체명을 검색하면 전체 업체를 찾을 수 있습니다.'}</div>`;
     return;
