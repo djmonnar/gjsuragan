@@ -205,6 +205,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .biz-name-button{border:0;background:transparent;color:inherit;font:inherit;font-weight:inherit;padding:0;cursor:pointer;text-align:left;max-width:100%}
 .biz-name-button:hover .biz-title{text-decoration:underline;text-underline-offset:3px}
 .admin-memo-chip{display:inline-flex;align-items:center;max-width:180px;border:1px solid #fde68a;background:#fffbeb;color:#92400e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:900;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.new-member-chip{display:inline-flex;align-items:center;border:1px solid #bbf7d0;background:#ecfdf3;color:#047857;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:900;line-height:1.35;white-space:nowrap;vertical-align:middle}
 .qty-cell{text-align:center;font-size:18px;font-weight:800;color:var(--primary)}
 .qty-edit{width:56px;padding:6px 6px;border:1px solid var(--border);border-radius:8px;text-align:center;font-size:16px;font-weight:800;color:var(--primary);font-family:inherit;background:#fff}
 .qty-stepper{display:inline-flex;align-items:center;gap:6px}
@@ -2097,6 +2098,18 @@ function isUserActiveOnDate(user = {}, dStr = currentDateStr) {
   const createdDate = userCreatedDateStr(user);
   return !createdDate || createdDate <= dStr;
 }
+const NEW_MEMBER_BADGE_DAYS = 3;
+function isNewMember(user = {}) {
+  const createdAt = timestampToDate(user.createdAt || user.registeredAt || user.joinedAt);
+  if (!createdAt) return false;
+  const ageMs = Date.now() - createdAt.getTime();
+  return ageMs >= 0 && ageMs < NEW_MEMBER_BADGE_DAYS * 24 * 60 * 60 * 1000;
+}
+function newMemberBadgeHtml(user = {}) {
+  return isNewMember(user)
+    ? `<span class="new-member-chip" title="가입 후 ${NEW_MEMBER_BADGE_DAYS}일 동안 표시됩니다">NEW</span>`
+    : '';
+}
 let adminDeadline = { hour: 9, minute: 20 };
 let settlementSheetNoteTemplate = DEFAULT_SETTLEMENT_SHEET_NOTE_TEMPLATE;
 
@@ -2287,7 +2300,8 @@ function bizNameWithAdminMemoHtml(name = '-', memo = '', withDot = false) {
   return `<span class="biz-name-line">${withDot ? '<span class="dot"></span>' : ''}<span class="biz-title">${escapeHtml(name || '-')}</span>${adminMemoChipHtml(memo)}</span>`;
 }
 function orderBizNameButtonHtml(row = {}) {
-  const content = bizNameWithAdminMemoHtml(row.businessName || '-', orderAdminMemo(row), true);
+  const user = allUsers[row.uid] || deletedUsers[row.uid] || {};
+  const content = `<span class="biz-name-line"><span class="dot"></span><span class="biz-title">${escapeHtml(row.businessName || user.businessName || '-')}</span>${newMemberBadgeHtml(user)}${adminMemoChipHtml(orderAdminMemo(row))}</span>`;
   return `<button type="button" class="biz-name-button" onclick="openOrderMemberInfo('${jsString(row.uid)}')">${content}</button>`;
 }
 function orderDeliveryTimeHtml(row = {}) {
@@ -5566,7 +5580,7 @@ function renderMembers() {
           : '';
         return `
         <div class="member-card" onclick="openMemberEdit('${uid}')">
-          <div class="m-name">${bizNameWithAdminMemoHtml(u.businessName || '-', adminMemoValue(u))}${disposableLunchBadgeHtml(u)}${taxInvoiceBadgeHtml(u)}${duplicateBadge}</div>
+          <div class="m-name">${bizNameWithAdminMemoHtml(u.businessName || '-', adminMemoValue(u))}${newMemberBadgeHtml(u)}${disposableLunchBadgeHtml(u)}${taxInvoiceBadgeHtml(u)}${duplicateBadge}</div>
           <div class="m-info">연락처 ${escapeHtml(u.phone || '-')}</div>
           <div class="m-info">이메일 ${escapeHtml(u.email || '-')}</div>
           <div class="m-info">${escapeHtml(u.deliveryPlace || '배송지 미입력')}${u.mealTime ? ` · ${u.mealTime}` : ''}</div>
