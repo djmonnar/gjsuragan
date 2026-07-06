@@ -176,36 +176,17 @@ service cloud.firestore {
         && (!('salad' in meal.keys()) || safeCount(meal.salad));
     }
 
+    // NOTE: Firestore rules abort a request after ~1000 evaluated expressions.
+    // Keep this validator lean — per-field string length checks pushed the
+    // users create/update chain over that budget and blocked ALL signups.
     function validUserProfile(data) {
-      return optionalString(data, 'businessName', 80)
-        && optionalString(data, 'email', 160)
-        && optionalString(data, 'phone', 40)
-        && optionalString(data, 'deliveryPlace', 200)
-        && optionalString(data, 'deliveryPlaceDetail', 200)
-        && optionalString(data, 'mealTime', 20)
-        && optionalSafeCount(data, 'defaultLunch')
+      return optionalSafeCount(data, 'defaultLunch')
         && optionalSafeCount(data, 'defaultSalad')
         && optionalSafePrice(data, 'lunchPrice')
         && optionalSafePrice(data, 'saladPrice')
         && optionalSafePrice(data, 'priceLunch')
         && optionalSafePrice(data, 'priceSalad')
-        && optionalBool(data, 'sameDailyMeal')
-        && optionalBool(data, 'sameDailyMealExplicit')
-        && optionalBool(data, 'privacyConsent')
-        && optionalBool(data, 'taxInvoiceEnabled')
-        && optionalString(data, 'taxInvoiceEmail', 160)
-        && optionalString(data, 'taxBusinessNo', 40)
-        && optionalString(data, 'taxCashReceiptPhone', 40)
-        && optionalString(data, 'taxCertificateName', 300)
-        && optionalString(data, 'taxCertificatePath', 500)
-        && optionalString(data, 'taxCertificateUrl', 2000)
-        && optionalString(data, 'taxCertificateContentType', 80)
-        && optionalFileSize(data, 'taxCertificateSize')
-        && validWeekdayMeals(data)
-        && optionalTimestamp(data, 'createdAt')
-        && optionalTimestamp(data, 'updatedAt')
-        && optionalTimestamp(data, 'privacyConsentAt')
-        && optionalTimestamp(data, 'taxCertificateUploadedAt');
+        && validWeekdayMeals(data);
     }
 
     function validUserCreate(userId) {

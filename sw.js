@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v49-admin-delivery-cancel';
+const CACHE = 'gjsuragan-v50-signup-rules-budget-fix';
 const PRECACHE = [
   './customer.html',
   './admin.html',

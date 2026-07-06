@@ -3446,7 +3446,7 @@ auth.onAuthStateChanged(async (user) => {
       subscribeCustomerChangeRequests();
     } catch(e) {
       console.error('프로필 로딩 오류:', e.code, e.message);
-      if (e.message && (e.message.includes('삭제') || e.message.includes('비활성'))) {
+      if (e.message && (e.message.includes('삭제') || e.message.includes('비활성') || e.message.includes('가입이 완료되지'))) {
         showToast(e.message, 'error');
         auth.signOut();
         return;
@@ -3463,7 +3463,7 @@ async function loadUserProfile() {
   const doc = await db.collection('users').doc(currentUser.uid).get();
   if (!doc.exists) {
     userProfile = null;
-    throw new Error('회원 정보가 아직 생성되지 않았습니다. 다시 로그인해주세요.');
+    throw new Error('가입이 완료되지 않은 계정입니다. 회원가입 화면에서 같은 이메일과 비밀번호로 다시 가입하면 자동으로 복구됩니다.');
   }
   const data = doc.data() || {};
   if (data.deleted || data.disabled) {
@@ -3605,14 +3605,40 @@ async function doRegister() {
   if (!mealTimeInfo.valid) {
     showError('reg-error', '식사 받는 시간은 오전 10시 30분부터 오후 12시 30분까지 선택해주세요.'); return;
   }
+  const buildProfilePayload = () => ({
+    businessName: bizname, email, phone,
+    deliveryPlace, deliveryPlaceDetail,
+    mealTime,
+    defaultLunch: lunch, defaultSalad: salad,
+    lunchPrice: DEFAULT_MEAL_PRICE,
+    saladPrice: DEFAULT_MEAL_PRICE,
+    priceLunch: DEFAULT_MEAL_PRICE,
+    priceSalad: DEFAULT_MEAL_PRICE,
+    sameDailyMeal,
+    sameDailyMealExplicit: true,
+    weekdayMeals,
+    privacyConsent: true,
+    privacyConsentAt: firebase.firestore.FieldValue.serverTimestamp(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
   let cred = null;
   isRegisteringProfile = true;
   try {
     cred = await auth.createUserWithEmailAndPassword(email, pw);
   } catch(e) {
-    isRegisteringProfile = false;
     if (e.code === 'auth/email-already-in-use') {
-      showError('reg-error', '이미 가입된 이메일입니다. 관리자에게 계정 삭제를 요청한 후 다시 가입해주세요.');
+      await recoverStrandedSignup(email, pw, buildProfilePayload);
+      return;
+    }
+    isRegisteringProfile = false;
+    if (e.code === 'auth/weak-password') {
+      showError('reg-error', '비밀번호가 너무 단순합니다. 6자리 이상으로 다시 정해주세요.');
+    } else if (e.code === 'auth/invalid-email') {
+      showError('reg-error', '이메일 주소 형식을 확인해주세요.');
+    } else if (e.code === 'auth/network-request-failed') {
+      showError('reg-error', '네트워크 연결이 불안정합니다. 잠시 후 다시 시도해주세요.');
     } else {
       showError('reg-error', '가입 중 오류: ' + e.message);
     }
@@ -3620,23 +3646,7 @@ async function doRegister() {
   }
   try {
     await cred.user.getIdToken(true);
-    await db.collection('users').doc(cred.user.uid).set({
-      businessName: bizname, email, phone,
-      deliveryPlace, deliveryPlaceDetail,
-      mealTime,
-      defaultLunch: lunch, defaultSalad: salad,
-      lunchPrice: DEFAULT_MEAL_PRICE,
-      saladPrice: DEFAULT_MEAL_PRICE,
-      priceLunch: DEFAULT_MEAL_PRICE,
-      priceSalad: DEFAULT_MEAL_PRICE,
-      sameDailyMeal,
-      sameDailyMealExplicit: true,
-      weekdayMeals,
-      privacyConsent: true,
-      privacyConsentAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    await saveProfileWithRetry(cred.user.uid, buildProfilePayload);
   } catch(e) {
     console.error('회원 프로필 저장 오류:', e);
     try {
@@ -3646,12 +3656,53 @@ async function doRegister() {
       try { await auth.signOut(); } catch(signOutError) { console.warn('가입 실패 후 로그아웃 오류:', signOutError); }
     }
     isRegisteringProfile = false;
-    showError('reg-error', `프로필 저장 실패: ${e.message || '다시 시도해주세요.'}`);
+    showError('reg-error', `프로필 저장 실패: ${e.message || '다시 시도해주세요.'}\n같은 이메일로 다시 가입을 시도하면 이어서 진행됩니다.`);
     return;
   }
 
+  await finishRegistration(cred.user);
+}
+
+async function saveProfileWithRetry(uid, buildProfilePayload) {
   try {
-    currentUser = cred.user;
+    await db.collection('users').doc(uid).set(buildProfilePayload());
+  } catch(e) {
+    if (e.code === 'permission-denied') throw e;
+    console.warn('프로필 저장 1차 실패, 재시도:', e.code || e.message);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    await db.collection('users').doc(uid).set(buildProfilePayload());
+  }
+}
+
+async function recoverStrandedSignup(email, pw, buildProfilePayload) {
+  let cred = null;
+  try {
+    cred = await auth.signInWithEmailAndPassword(email, pw);
+  } catch(e) {
+    isRegisteringProfile = false;
+    showError('reg-error', '이미 가입된 이메일입니다.\n기존 계정 비밀번호로 로그인하거나, 비밀번호가 기억나지 않으면 로그인 화면의 비밀번호 재설정을 이용해주세요.');
+    return;
+  }
+  try {
+    const doc = await db.collection('users').doc(cred.user.uid).get();
+    if (!doc.exists) {
+      await saveProfileWithRetry(cred.user.uid, buildProfilePayload);
+      showToast('이전에 완료되지 않았던 가입을 복구했습니다.', 'success');
+    } else {
+      showToast('이미 가입된 계정입니다. 바로 로그인합니다.', 'success');
+    }
+    await finishRegistration(cred.user);
+  } catch(e) {
+    console.error('가입 복구 오류:', e);
+    isRegisteringProfile = false;
+    showError('reg-error', `가입 복구 실패: ${e.message || '다시 시도해주세요.'}`);
+    try { await auth.signOut(); } catch(signOutError) { console.warn('가입 복구 실패 후 로그아웃 오류:', signOutError); }
+  }
+}
+
+async function finishRegistration(user) {
+  try {
+    currentUser = user;
     await loadCustomHolidays();
     await loadSettings();
     await loadUserProfile();
