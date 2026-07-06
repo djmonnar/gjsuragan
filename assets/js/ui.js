@@ -273,7 +273,7 @@ function clearAdd(){
 }
 
 function goTab(name){
-  const tabs=['dash','today','route','report','customers','export','import'];
+  const tabs=['dash','today','route','report','customers','export','import','manual'];
   document.querySelectorAll('.ni').forEach((t,i)=>t.classList.toggle('on',tabs[i]===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.getElementById('page-'+name).classList.add('on');
