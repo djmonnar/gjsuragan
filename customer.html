@@ -2546,6 +2546,7 @@ function openInstallGuide() {
 // ───────── 전역 상태 ─────────
 let currentUser = null;
 let userProfile = null;
+let isRegisteringProfile = false;
 let taxCertificateRecord = null;
 let currentCustomerSettlement = null;
 let currentCustomerSettlementMonth = '';
@@ -3436,6 +3437,7 @@ function goTaxCertificateUpload() {
 auth.onAuthStateChanged(async (user) => {
   hideLoading();
   if (user) {
+    if (isRegisteringProfile) return;
     currentUser = user;
     try {
       await loadCustomHolidays();
@@ -3461,7 +3463,7 @@ async function loadUserProfile() {
   const doc = await db.collection('users').doc(currentUser.uid).get();
   if (!doc.exists) {
     userProfile = null;
-    throw new Error('삭제된 회원입니다. 관리자에게 문의해주세요.');
+    throw new Error('회원 정보가 아직 생성되지 않았습니다. 다시 로그인해주세요.');
   }
   const data = doc.data() || {};
   if (data.deleted || data.disabled) {
@@ -3604,9 +3606,11 @@ async function doRegister() {
     showError('reg-error', '식사 받는 시간은 오전 10시 30분부터 오후 12시 30분까지 선택해주세요.'); return;
   }
   let cred = null;
+  isRegisteringProfile = true;
   try {
     cred = await auth.createUserWithEmailAndPassword(email, pw);
   } catch(e) {
+    isRegisteringProfile = false;
     if (e.code === 'auth/email-already-in-use') {
       showError('reg-error', '이미 가입된 이메일입니다. 관리자에게 계정 삭제를 요청한 후 다시 가입해주세요.');
     } else {
@@ -3635,8 +3639,30 @@ async function doRegister() {
     });
   } catch(e) {
     console.error('회원 프로필 저장 오류:', e);
-    await cred.user.delete();
+    try {
+      await cred.user.delete();
+    } catch(deleteError) {
+      console.warn('프로필 저장 실패 후 Auth 계정 정리 오류:', deleteError);
+      try { await auth.signOut(); } catch(signOutError) { console.warn('가입 실패 후 로그아웃 오류:', signOutError); }
+    }
+    isRegisteringProfile = false;
     showError('reg-error', `프로필 저장 실패: ${e.message || '다시 시도해주세요.'}`);
+    return;
+  }
+
+  try {
+    currentUser = cred.user;
+    await loadCustomHolidays();
+    await loadSettings();
+    await loadUserProfile();
+    subscribeCustomerChangeRequests();
+    isRegisteringProfile = false;
+    showMain();
+  } catch(e) {
+    console.error('가입 후 화면 로딩 오류:', e);
+    isRegisteringProfile = false;
+    showToast('가입은 완료됐지만 화면을 불러오지 못했습니다. 다시 로그인해주세요.', 'error');
+    try { await auth.signOut(); } catch(signOutError) { console.warn('가입 후 로그아웃 오류:', signOutError); }
   }
 }
 

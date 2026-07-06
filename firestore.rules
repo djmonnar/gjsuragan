@@ -212,7 +212,6 @@ service cloud.firestore {
       return isOwner(userId)
         && request.resource.data.keys().hasOnly(userCreateKeys())
         && validUserProfile(request.resource.data)
-        && request.resource.data.email == request.auth.token.email
         && request.resource.data.privacyConsent == true
         && request.resource.data.privacyConsentAt == request.time;
     }
