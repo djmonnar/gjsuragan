@@ -642,6 +642,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .map-selected-meta{font-size:12px;color:var(--sub);font-weight:700;margin-top:4px}
 .map-selected-actions{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
 .map-selected-actions button{border-radius:8px;border:1px solid #a7f3d0;background:#fff;color:#047857;padding:7px 9px;font:inherit;font-size:12px;font-weight:900;cursor:pointer}
+.order-mobile-floating,.order-mobile-search-panel{display:none}
+.order-row-highlight{animation:orderRowPulse 1.4s ease-in-out 2;outline:3px solid rgba(30,110,64,.35);outline-offset:-3px}
+@keyframes orderRowPulse{0%,100%{background:inherit}50%{background:#ecfdf3}}
 .member-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:12px}
 .member-title-wrap{display:flex;flex-direction:column;gap:4px}
 .member-hint{font-size:12px;color:var(--sub);font-weight:700}
@@ -693,6 +696,25 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   .member-search-input{min-width:0;width:100%}
   .member-sort-select{width:100%}
   .member-search-count{white-space:normal}
+  .order-mobile-floating.admin-tab-panel{position:fixed;right:12px;bottom:16px;z-index:150;display:flex;gap:8px;align-items:center}
+  .order-mobile-floating button{border:none;border-radius:999px;padding:11px 14px;font:inherit;font-size:13px;font-weight:900;box-shadow:0 10px 24px rgba(15,23,42,.22);cursor:pointer}
+  .order-mobile-floating .search{background:#1f6f4a;color:#fff}
+  .order-mobile-floating .map{background:#fff;color:#1f6f4a;border:1px solid #bbf7d0}
+  .order-mobile-search-panel.admin-tab-panel{position:fixed;left:10px;right:10px;bottom:74px;z-index:160;display:none;background:rgba(255,255,255,.98);border:1px solid var(--border);border-radius:14px;box-shadow:0 16px 38px rgba(15,23,42,.22);padding:12px;max-height:min(70dvh,560px);overflow:hidden;backdrop-filter:blur(8px)}
+  .order-mobile-search-panel.show{display:block}
+  .order-mobile-search-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;font-size:14px;font-weight:900;color:var(--text)}
+  .order-mobile-search-close{width:32px;height:32px;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--sub);font:inherit;font-size:19px;font-weight:900}
+  .order-mobile-search-row{display:flex;gap:7px}
+  .order-mobile-search-row input{margin:0;min-width:0;height:42px;font-size:15px}
+  .order-mobile-search-clear{width:42px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--sub);font:inherit;font-size:18px;font-weight:900}
+  .order-mobile-search-results{margin-top:9px;max-height:calc(min(70dvh,560px) - 118px);overflow-y:auto;display:flex;flex-direction:column;gap:7px}
+  .order-mobile-search-empty{border:1px dashed #d0d5dd;background:#f8fafc;border-radius:10px;padding:12px;color:var(--sub);font-size:13px;font-weight:700;line-height:1.45}
+  .order-mobile-search-result{width:100%;border:1px solid var(--border);background:#fff;border-radius:11px;padding:10px;text-align:left;font:inherit;display:flex;justify-content:space-between;gap:9px;cursor:pointer}
+  .order-mobile-result-main{min-width:0;display:flex;flex-direction:column;gap:4px}
+  .order-mobile-result-name{font-size:14px;font-weight:900;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .order-mobile-result-meta{font-size:12px;font-weight:700;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .order-mobile-result-badge{flex:0 0 auto;align-self:flex-start;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:900;background:#eef2ff;color:#4f46e5;border:1px solid #c7d2fe}
+  .order-mobile-result-badge.member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1}
   .map-section.admin-tab-panel{height:calc(100dvh - 106px)}
   .map-toolbar{padding:8px 10px;gap:7px}
   .map-legend{margin-left:0;width:100%;gap:8px;overflow-x:auto;white-space:nowrap;padding-bottom:2px}
@@ -925,6 +947,24 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   <div class="not-submitted-section admin-tab-panel" data-tab="orders">
     <div class="section-title" id="not-sub-title">아직 미제출 업체</div>
     <div class="not-submitted-list" id="not-submitted-list"></div>
+  </div>
+
+  <div class="order-mobile-floating admin-tab-panel" data-tab="orders" id="order-mobile-floating">
+    <button class="search" type="button" onclick="openOrderMobileSearch()">🔎 고객검색</button>
+    <button class="map" type="button" onclick="goToOrderMapTab()">🗺️ 지도</button>
+  </div>
+  <div class="order-mobile-search-panel admin-tab-panel" data-tab="orders" id="order-mobile-search-panel" aria-hidden="true">
+    <div class="order-mobile-search-head">
+      <span>주문 고객 찾기</span>
+      <button class="order-mobile-search-close" type="button" onclick="closeOrderMobileSearch()" aria-label="주문 고객 검색 닫기">×</button>
+    </div>
+    <div class="order-mobile-search-row">
+      <input class="form-input" type="search" id="order-mobile-search-input" placeholder="업체명, 연락처, 주소 검색" oninput="renderOrderMobileSearchResults()" onkeydown="if(event.key==='Escape'){event.preventDefault();closeOrderMobileSearch()}">
+      <button class="order-mobile-search-clear" type="button" onclick="clearOrderMobileSearch()" aria-label="주문 고객 검색 초기화">×</button>
+    </div>
+    <div class="order-mobile-search-results" id="order-mobile-search-results">
+      <div class="order-mobile-search-empty">검색어를 입력하면 오늘 주문표와 회원 목록에서 찾아드립니다.</div>
+    </div>
   </div>
 
   <!-- 회원 관리 -->
@@ -2029,6 +2069,7 @@ let currentOrderRows = [];
 let currentOrderEventRows = [];
 let currentOrderReferenceItems = [];
 let currentOrderLocked = false;
+let orderMobileSearchOpen = false;
 let previousIncompleteAlertState = null;
 let previousIncompleteAlertHiddenDate = '';
 let mealMenus = [];
@@ -4388,6 +4429,7 @@ async function loadOrders() {
     setOrderSummaryValues(0, 0, 0, 0);
     document.getElementById('not-sub-title').textContent = '🚚 배송 없음';
     document.getElementById('not-submitted-list').innerHTML = '<div class="no-not">공휴일과 주말은 주문 확인 대상에서 제외됩니다.</div>';
+    renderOrderMobileSearchResults();
     checkPreviousIncompleteDeliveries();
     return;
   }
@@ -4498,6 +4540,7 @@ async function loadOrders() {
 
     setOrderSummaryValues(orders.length, totalLunch, totalSalad, totalEventLunch);
     renderNotSubmitted(orders);
+    renderOrderMobileSearchResults();
     checkPreviousIncompleteDeliveries();
   } catch(e) {
     document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="12">불러오기 실패: ' + e.message + '</td></tr>';
@@ -5129,6 +5172,168 @@ function compareMemberEntries(a, b) {
 
 function normalizeMemberSearchText(value) {
   return String(value ?? '').toLowerCase().replace(/[\s\-().]/g, '');
+}
+
+function orderMobileSearchFields(uid, user = {}, row = {}) {
+  return [
+    uid,
+    row.businessName,
+    user.businessName,
+    user.name,
+    row.phone,
+    user.phone,
+    user.email,
+    row.deliveryPlace,
+    row.deliveryAddress,
+    user.deliveryPlace,
+    user.deliveryAddress,
+    user.address,
+    user.addressDetail,
+    row.mealTime,
+    user.mealTime,
+    row.memo,
+    user.memo,
+    user.request,
+    orderAdminMemo(row)
+  ].map(normalizeMemberSearchText).join(' ');
+}
+
+function orderMobileSearchResultRows() {
+  const query = (document.getElementById('order-mobile-search-input')?.value || '').trim();
+  const needle = normalizeMemberSearchText(query);
+  if (!needle) return [];
+  const orderUidSet = new Set(currentOrderRows.map(row => row.uid));
+  const orderRows = currentOrderRows
+    .filter(row => {
+      const user = allUsers[row.uid] || deletedUsers[row.uid] || {};
+      return orderMobileSearchFields(row.uid, user, row).includes(needle);
+    })
+    .map(row => {
+      const user = allUsers[row.uid] || deletedUsers[row.uid] || {};
+      return {
+        uid: row.uid,
+        type: 'order',
+        name: row.businessName || user.businessName || '-',
+        phone: row.phone || user.phone || '',
+        place: row.deliveryPlace || user.deliveryPlace || user.deliveryAddress || user.address || '',
+        qty: orderTotalQty(row),
+        lunch: row.lunchCount || 0,
+        salad: row.saladCount || 0,
+        status: row.delivered ? '완료' : row.source === 'default' ? '제출안함' : row.selfHoliday ? '휴무' : '오늘'
+      };
+    });
+  const memberRows = Object.entries(allUsers)
+    .filter(([uid, user]) => !orderUidSet.has(uid) && orderMobileSearchFields(uid, user, {}).includes(needle))
+    .map(([uid, user]) => ({
+      uid,
+      type: 'member',
+      name: user.businessName || user.name || '-',
+      phone: user.phone || '',
+      place: user.deliveryPlace || user.deliveryAddress || user.address || '',
+      status: '회원'
+    }));
+  return orderRows.concat(memberRows)
+    .sort((a, b) => {
+      const typeScore = (a.type === 'order' ? 0 : 1) - (b.type === 'order' ? 0 : 1);
+      return typeScore || (a.name || '').localeCompare(b.name || '', 'ko');
+    })
+    .slice(0, 30);
+}
+
+function renderOrderMobileSearchResults() {
+  const list = document.getElementById('order-mobile-search-results');
+  if (!list) return;
+  const query = (document.getElementById('order-mobile-search-input')?.value || '').trim();
+  if (!query) {
+    list.innerHTML = '<div class="order-mobile-search-empty">검색어를 입력하면 오늘 주문표와 회원 목록에서 찾아드립니다.</div>';
+    return;
+  }
+  const rows = orderMobileSearchResultRows();
+  if (!rows.length) {
+    list.innerHTML = '<div class="order-mobile-search-empty">검색 결과가 없습니다. 업체명, 연락처, 주소 일부를 다시 입력해주세요.</div>';
+    return;
+  }
+  list.innerHTML = rows.map(row => {
+    const badgeClass = row.type === 'member' ? ' member' : '';
+    const qtyText = row.type === 'order'
+      ? `총 ${row.qty || 0}개 · 도시락 ${row.lunch || 0} · 샐러드 ${row.salad || 0}`
+      : '오늘 주문표에는 없음';
+    const meta = [row.phone, row.place, qtyText].filter(Boolean).join(' · ');
+    return `
+      <button class="order-mobile-search-result" type="button" onclick="focusOrderMobileSearchResult('${jsString(row.uid)}','${row.type}')">
+        <span class="order-mobile-result-main">
+          <span class="order-mobile-result-name">${escapeHtml(row.name)}</span>
+          <span class="order-mobile-result-meta">${escapeHtml(meta || '-')}</span>
+        </span>
+        <span class="order-mobile-result-badge${badgeClass}">${escapeHtml(row.status)}</span>
+      </button>
+    `;
+  }).join('');
+}
+
+function syncOrderMobileSearchPanel() {
+  const panel = document.getElementById('order-mobile-search-panel');
+  if (!panel) return;
+  panel.classList.toggle('show', orderMobileSearchOpen);
+  panel.setAttribute('aria-hidden', orderMobileSearchOpen ? 'false' : 'true');
+}
+
+function openOrderMobileSearch() {
+  orderMobileSearchOpen = true;
+  syncOrderMobileSearchPanel();
+  renderOrderMobileSearchResults();
+  setTimeout(() => document.getElementById('order-mobile-search-input')?.focus(), 0);
+}
+
+function closeOrderMobileSearch() {
+  orderMobileSearchOpen = false;
+  syncOrderMobileSearchPanel();
+}
+
+function clearOrderMobileSearch() {
+  const input = document.getElementById('order-mobile-search-input');
+  if (input) input.value = '';
+  renderOrderMobileSearchResults();
+  input?.focus();
+}
+
+function orderRowElementByUid(uid) {
+  return Array.from(document.querySelectorAll('#order-tbody tr[data-order-uid]'))
+    .find(row => row.dataset.orderUid === uid) || null;
+}
+
+function focusOrderMobileSearchResult(uid, type = 'order') {
+  const rowEl = orderRowElementByUid(uid);
+  if (rowEl) {
+    closeOrderMobileSearch();
+    rowEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    rowEl.classList.remove('order-row-highlight');
+    void rowEl.offsetWidth;
+    rowEl.classList.add('order-row-highlight');
+    showToast('주문 행으로 이동했습니다.');
+    return;
+  }
+  closeOrderMobileSearch();
+  const user = allUsers[uid];
+  if (user) {
+    switchAdminTab('members');
+    const input = document.getElementById('member-search-input');
+    if (input) input.value = user.businessName || user.phone || '';
+    renderMembers();
+    setTimeout(() => openMemberEdit(uid), 120);
+    showToast('오늘 주문표에는 없어 회원정보를 열었습니다.');
+    return;
+  }
+  showToast(type === 'member' ? '회원 정보를 찾지 못했습니다.' : '주문 행을 찾지 못했습니다.');
+}
+
+function goToOrderMapTab() {
+  closeOrderMobileSearch();
+  switchAdminTab('map');
+  setTimeout(() => {
+    document.querySelector('.map-section[data-tab="map"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    openMapTodayList();
+  }, 250);
 }
 
 function memberMatchesSearch(uid, user = {}, query = '') {
@@ -7093,6 +7298,7 @@ async function saveMealPdfCandidates() {
 
 function switchAdminTab(tab) {
   activeAdminTab = tab;
+  if (tab !== 'orders') closeOrderMobileSearch();
   ['orders','members','events','menus','changeRequests','settlements','taxInvoices','receipts','stats','settings','manual','map'].forEach(name => {
     document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
   });
