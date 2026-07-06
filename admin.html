@@ -609,6 +609,29 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .map-info-window .iw-name{font-weight:800;font-size:14px;color:#0d3d2b;margin-bottom:4px}
 .map-info-window .iw-addr{color:#667085;font-size:12px;margin-bottom:4px}
 .map-info-window .iw-qty{color:#1a9e72;font-weight:700}
+.map-iw-copy{margin-top:7px;border:1px solid #d0d5dd;background:#fff;color:#344054;border-radius:7px;padding:5px 8px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.map-search-panel{position:absolute;z-index:120;top:58px;left:16px;width:min(360px,calc(100% - 32px));background:rgba(255,255,255,.96);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 28px rgba(15,23,42,.18);padding:12px;backdrop-filter:blur(8px);touch-action:pan-y;overscroll-behavior:contain}
+.map-search-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;font-weight:900;color:var(--text);margin-bottom:8px}
+.map-search-input-row{display:flex;gap:7px;align-items:center}
+.map-search-input{margin:0;min-width:0;flex:1;height:40px;padding:8px 10px;font-size:15px}
+.map-search-clear{border:1px solid var(--border);background:#fff;color:var(--sub);border-radius:9px;width:40px;height:40px;font-size:18px;font-weight:900;cursor:pointer;font-family:inherit}
+.map-search-results{margin-top:8px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.map-search-empty{padding:10px;border:1px dashed #d0d5dd;border-radius:9px;color:var(--sub);font-size:12px;font-weight:700;line-height:1.45;background:#f8fafc}
+.map-search-result{width:100%;border:1px solid var(--border);background:#fff;border-radius:10px;padding:9px 10px;text-align:left;font-family:inherit;cursor:pointer;display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.map-search-result:active{transform:translateY(1px)}
+.map-result-main{min-width:0;display:flex;flex-direction:column;gap:3px}
+.map-result-name{font-size:14px;font-weight:900;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-result-addr{font-size:12px;font-weight:700;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-result-badge{flex:0 0 auto;border-radius:999px;padding:3px 7px;font-size:11px;font-weight:900;background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1}
+.map-result-badge.has-order{background:#ecfdf3;color:#047857;border-color:#bbf7d0}
+.map-result-badge.event{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+.map-selected-card{margin-top:8px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px;padding:10px;display:none}
+.map-selected-card.show{display:block}
+.map-selected-name{font-size:14px;font-weight:900;color:#064e3b;margin-bottom:5px}
+.map-selected-address{font-size:13px;font-weight:800;color:#344054;line-height:1.45;word-break:keep-all}
+.map-selected-meta{font-size:12px;color:var(--sub);font-weight:700;margin-top:4px}
+.map-selected-actions{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
+.map-selected-actions button{border-radius:8px;border:1px solid #a7f3d0;background:#fff;color:#047857;padding:7px 9px;font:inherit;font-size:12px;font-weight:900;cursor:pointer}
 .member-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:12px}
 .member-title-wrap{display:flex;flex-direction:column;gap:4px}
 .member-hint{font-size:12px;color:var(--sub);font-weight:700}
@@ -660,6 +683,12 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   .member-search-input{min-width:0;width:100%}
   .member-sort-select{width:100%}
   .member-search-count{white-space:normal}
+  .map-section.admin-tab-panel{height:calc(100dvh - 106px)}
+  .map-toolbar{padding:8px 10px;gap:7px}
+  .map-legend{margin-left:0;width:100%;gap:8px;overflow-x:auto;white-space:nowrap;padding-bottom:2px}
+  .map-search-panel{top:92px;left:10px;right:10px;width:auto;padding:10px;border-radius:12px}
+  .map-search-results{max-height:178px}
+  .map-selected-actions button{flex:1;min-height:36px}
   .order-log-head,.order-log-main{align-items:stretch;flex-direction:column}
   .manual-grid,.manual-checklist{grid-template-columns:1fr}
   .manual-hero h2{font-size:21px}
@@ -1345,6 +1374,20 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       </div>
     </div>
     <div id="delivery-map"></div>
+    <div class="map-search-panel" id="map-search-panel">
+      <div class="map-search-title">
+        <span>업체 위치 찾기</span>
+        <span id="map-search-loaded-count" style="color:var(--sub);font-size:12px">0곳</span>
+      </div>
+      <div class="map-search-input-row">
+        <input class="form-input map-search-input" type="search" id="map-search-input" placeholder="업체명, 전화, 주소 검색" oninput="renderMapSearchResults()" onkeydown="if(event.key==='Escape') clearMapSearch()">
+        <button class="map-search-clear" type="button" onclick="clearMapSearch()" aria-label="지도 검색 초기화">×</button>
+      </div>
+      <div class="map-search-results" id="map-search-results">
+        <div class="map-search-empty">지도를 불러온 뒤 업체명을 검색할 수 있습니다.</div>
+      </div>
+      <div class="map-selected-card" id="map-selected-card"></div>
+    </div>
     <button id="map-hide-noorder-btn" onclick="toggleNoOrderMarkers()" style="position:absolute;bottom:16px;right:16px;z-index:100;background:rgba(255,255,255,.93);border:1px solid var(--border);border-radius:20px;padding:7px 16px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);color:var(--text)">⚫ 주문없는곳 숨기기</button>
   </div>
 
@@ -9741,6 +9784,8 @@ let mapScriptLoadingPromise = null;
 let mapMarkers = [];
 let mapNoOrderMarkers = [];
 let mapHideNoOrder = false;
+let mapSearchEntries = [];
+let mapOpenInfoWindow = null;
 let kakaoMapScriptLoaded = false;
 let kakaoMapScriptLoadingPromise = null;
 let kakaoMapInstance = null;
@@ -9839,6 +9884,160 @@ function loadKakaoMapScript() {
   return kakaoMapScriptLoadingPromise;
 }
 
+function resetMapSearchEntries() {
+  try { if (mapOpenInfoWindow) mapOpenInfoWindow.close(); } catch(e) {}
+  mapSearchEntries = [];
+  mapOpenInfoWindow = null;
+  renderMapSearchResults();
+  renderMapSelectedEntry(null);
+}
+
+function mapEntryFullAddress(entry = {}) {
+  return [entry.address, entry.detail].map(v => String(v || '').trim()).filter(Boolean).join(' ') || '주소 미입력';
+}
+
+function mapSearchNeedle(entry = {}) {
+  return normalizeMemberSearchText([
+    entry.name,
+    entry.phone,
+    entry.address,
+    entry.detail,
+    entry.mealTime
+  ].join(' '));
+}
+
+function registerMapSearchEntry(entry) {
+  if (!entry?.id) return;
+  mapSearchEntries = mapSearchEntries.filter(item => item.id !== entry.id).concat({
+    ...entry,
+    searchText: mapSearchNeedle(entry)
+  });
+  const countEl = document.getElementById('map-search-loaded-count');
+  if (countEl) countEl.textContent = `${mapSearchEntries.length}곳`;
+}
+
+function mapSearchResultBadge(entry = {}) {
+  if (entry.type === 'event') return '<span class="map-result-badge event">행사</span>';
+  if (entry.hasOrder) return '<span class="map-result-badge has-order">오늘</span>';
+  return '<span class="map-result-badge">업체</span>';
+}
+
+function renderMapSearchResults() {
+  const listEl = document.getElementById('map-search-results');
+  const countEl = document.getElementById('map-search-loaded-count');
+  if (!listEl) return;
+  const query = document.getElementById('map-search-input')?.value.trim() || '';
+  const needle = normalizeMemberSearchText(query);
+  if (countEl) countEl.textContent = `${mapSearchEntries.length}곳`;
+  if (!mapSearchEntries.length) {
+    listEl.innerHTML = '<div class="map-search-empty">지도 주소를 불러오는 중입니다.</div>';
+    return;
+  }
+  const base = needle
+    ? mapSearchEntries.filter(entry => entry.searchText.includes(needle))
+    : mapSearchEntries.filter(entry => entry.hasOrder || entry.type === 'event');
+  const rows = base
+    .slice()
+    .sort((a, b) => {
+      const orderScore = Number(Boolean(b.hasOrder || b.type === 'event')) - Number(Boolean(a.hasOrder || a.type === 'event'));
+      return orderScore || (a.name || '').localeCompare(b.name || '', 'ko');
+    })
+    .slice(0, 7);
+  if (!rows.length) {
+    listEl.innerHTML = `<div class="map-search-empty">${needle ? '검색 결과가 없습니다. 업체명이나 주소 일부를 다시 입력해주세요.' : '오늘 주문 업체가 없습니다. 업체명을 검색하면 전체 업체를 찾을 수 있습니다.'}</div>`;
+    return;
+  }
+  listEl.innerHTML = rows.map(entry => `
+    <button type="button" class="map-search-result" onclick="focusMapSearchEntry('${jsString(entry.id)}')">
+      <span class="map-result-main">
+        <span class="map-result-name">${escapeHtml(entry.name || '-')}</span>
+        <span class="map-result-addr">${escapeHtml(mapEntryFullAddress(entry))}</span>
+      </span>
+      ${mapSearchResultBadge(entry)}
+    </button>
+  `).join('');
+}
+
+function renderMapSelectedEntry(entry) {
+  const card = document.getElementById('map-selected-card');
+  if (!card) return;
+  if (!entry) {
+    card.classList.remove('show');
+    card.innerHTML = '';
+    return;
+  }
+  const qtyText = entry.type === 'event'
+    ? [entry.eventDate, entry.eventTime].filter(Boolean).join(' ') || '행사도시락'
+    : entry.hasOrder
+      ? `도시락 ${entry.lunch || 0}개 · 샐러드 ${entry.salad || 0}개`
+      : '오늘 주문 없음';
+  card.innerHTML = `
+    <div class="map-selected-name">${escapeHtml(entry.name || '-')}</div>
+    <div class="map-selected-address">${escapeHtml(mapEntryFullAddress(entry))}</div>
+    <div class="map-selected-meta">${entry.mealTime ? `식사시간 ${escapeHtml(entry.mealTime)} · ` : ''}${escapeHtml(qtyText)}</div>
+    <div class="map-selected-actions">
+      <button type="button" onclick="copyMapEntryAddress('${jsString(entry.id)}')">주소 복사</button>
+      ${entry.phone ? `<button type="button" onclick="copyMapEntryPhone('${jsString(entry.id)}')">연락처 복사</button>` : ''}
+    </div>
+  `;
+  card.classList.add('show');
+}
+
+function openMapEntryInfo(entry) {
+  if (!entry?.infoWindow || !entry?.marker) return;
+  try { if (mapOpenInfoWindow) mapOpenInfoWindow.close(); } catch(e) {}
+  if (entry.provider === 'kakao') {
+    if (entry.marker.setMap) entry.marker.setMap(kakaoMapInstance);
+    entry.infoWindow.open(kakaoMapInstance, entry.marker);
+  } else {
+    if (entry.marker.setMap) entry.marker.setMap(naverMapInstance);
+    entry.infoWindow.open(naverMapInstance, entry.marker);
+  }
+  mapOpenInfoWindow = entry.infoWindow;
+}
+
+function focusMapSearchEntry(id) {
+  const entry = mapSearchEntries.find(item => item.id === id);
+  if (!entry) return;
+  if (entry.provider === 'kakao' && kakaoMapInstance && entry.position) {
+    if (entry.marker?.setMap) entry.marker.setMap(kakaoMapInstance);
+    kakaoMapInstance.panTo(entry.position);
+    if (kakaoMapInstance.getLevel && kakaoMapInstance.getLevel() > 3) kakaoMapInstance.setLevel(3);
+  } else if (naverMapInstance && entry.position) {
+    if (entry.marker?.setMap) entry.marker.setMap(naverMapInstance);
+    naverMapInstance.panTo(entry.position);
+    if (naverMapInstance.getZoom && naverMapInstance.getZoom() < 16) naverMapInstance.setZoom(16);
+  }
+  openMapEntryInfo(entry);
+  renderMapSelectedEntry(entry);
+}
+
+async function copyMapEntryAddress(id) {
+  const entry = mapSearchEntries.find(item => item.id === id);
+  if (!entry) {
+    showToast('복사할 주소를 찾지 못했습니다.');
+    return;
+  }
+  await copyTextToClipboard(mapEntryFullAddress(entry), '주소를 복사했습니다.');
+}
+
+async function copyMapEntryPhone(id) {
+  const entry = mapSearchEntries.find(item => item.id === id);
+  if (!entry?.phone) {
+    showToast('복사할 연락처를 찾지 못했습니다.');
+    return;
+  }
+  await copyTextToClipboard(entry.phone, '연락처를 복사했습니다.');
+}
+
+function clearMapSearch() {
+  const input = document.getElementById('map-search-input');
+  if (input) input.value = '';
+  renderMapSearchResults();
+  renderMapSelectedEntry(null);
+  input?.focus();
+}
+
 async function initDeliveryMap(forceRefresh) {
   const mapEl = document.getElementById('delivery-map');
   const statusEl = document.getElementById('map-status');
@@ -9862,6 +10061,7 @@ async function initDeliveryMap(forceRefresh) {
   kakaoMapMarkers.forEach(m => m.setMap(null));
   kakaoMapMarkers = [];
   kakaoMapNoOrderMarkers = [];
+  resetMapSearchEntries();
 
   const members = Object.entries(allUsers).filter(([, u]) => !u.deleted && !u.disabled);
   if (!members.length) {
@@ -9918,6 +10118,7 @@ async function initDeliveryMap(forceRefresh) {
       }
       if (!coords) continue;
       try {
+        const entryId = `event:${order.id}`;
         const marker = new naver.maps.Marker({
           position: new naver.maps.LatLng(coords.lat, coords.lng),
           map: naverMapInstance,
@@ -9932,11 +10133,27 @@ async function initDeliveryMap(forceRefresh) {
             <div class="iw-addr">${escapeHtml(address)}${order.placeDetail ? ' ' + escapeHtml(order.placeDetail) : ''}</div>
             <div style="font-size:12px;color:#667085">행사일: ${order.eventDate || '-'} ${order.eventTime || ''}</div>
             <div style="font-size:12px;color:#667085">${escapeHtml((order.menuText || '').slice(0, 60))}</div>
+            <button type="button" class="map-iw-copy" onclick="copyMapEntryAddress('${jsString(entryId)}')">주소 복사</button>
           </div>`;
         const infoWindow = new naver.maps.InfoWindow({ content: infoContent, borderWidth: 1, borderColor: '#d0d5dd', backgroundColor: '#fff' });
+        const entry = {
+          id: entryId,
+          type: 'event',
+          provider: 'naver',
+          name: `행사 — ${order.businessName || '-'}`,
+          phone: order.contactPhone || '',
+          address,
+          detail: order.placeDetail || '',
+          eventDate: order.eventDate || '',
+          eventTime: order.eventTime || '',
+          marker,
+          infoWindow,
+          position: new naver.maps.LatLng(coords.lat, coords.lng)
+        };
+        registerMapSearchEntry(entry);
         naver.maps.Event.addListener(marker, 'click', () => {
-          if (infoWindow.getMap()) { infoWindow.close(); return; }
-          infoWindow.open(naverMapInstance, marker);
+          openMapEntryInfo(entry);
+          renderMapSelectedEntry(entry);
         });
         mapMarkers.push(marker);
       } catch(e) {
@@ -9946,6 +10163,7 @@ async function initDeliveryMap(forceRefresh) {
     }
   }
 
+  renderMapSearchResults();
   if (statusEl) statusEl.textContent = `${members.length}개 업체 표시됨${failed ? ` · 주소 실패 ${failed}곳` : ''}. 마커를 클릭하면 상세 정보를 볼 수 있습니다.`;
 }
 
@@ -9966,6 +10184,7 @@ async function initKakaoDeliveryMap(forceRefresh) {
   kakaoMapMarkers.forEach(m => m.setMap(null));
   kakaoMapMarkers = [];
   kakaoMapNoOrderMarkers = [];
+  resetMapSearchEntries();
 
   const members = Object.entries(allUsers).filter(([, u]) => !u.deleted && !u.disabled);
   if (!members.length) {
@@ -10012,6 +10231,7 @@ async function initKakaoDeliveryMap(forceRefresh) {
       if (!coords) continue;
       const pos = new window.kakao.maps.LatLng(coords.lat, coords.lng);
       const marker = new window.kakao.maps.Marker({ position: pos, map: kakaoMapInstance });
+      const entryId = `event:${order.id}`;
       const info = new window.kakao.maps.InfoWindow({
         content: `
           <div class="map-info-window">
@@ -10019,9 +10239,28 @@ async function initKakaoDeliveryMap(forceRefresh) {
             <div class="iw-addr">${escapeHtml(address)}${order.placeDetail ? ' ' + escapeHtml(order.placeDetail) : ''}</div>
             <div style="font-size:12px;color:#667085">행사일: ${order.eventDate || '-'} ${order.eventTime || ''}</div>
             <div style="font-size:12px;color:#667085">${escapeHtml((order.menuText || '').slice(0, 60))}</div>
+            <button type="button" class="map-iw-copy" onclick="copyMapEntryAddress('${jsString(entryId)}')">주소 복사</button>
           </div>`
       });
-      window.kakao.maps.event.addListener(marker, 'click', () => info.open(kakaoMapInstance, marker));
+      const entry = {
+        id: entryId,
+        type: 'event',
+        provider: 'kakao',
+        name: `행사 — ${order.businessName || '-'}`,
+        phone: order.contactPhone || '',
+        address,
+        detail: order.placeDetail || '',
+        eventDate: order.eventDate || '',
+        eventTime: order.eventTime || '',
+        marker,
+        infoWindow: info,
+        position: pos
+      };
+      registerMapSearchEntry(entry);
+      window.kakao.maps.event.addListener(marker, 'click', () => {
+        openMapEntryInfo(entry);
+        renderMapSelectedEntry(entry);
+      });
       kakaoMapMarkers.push(marker);
       bounds.extend(pos);
       if (!firstPos) firstPos = pos;
@@ -10032,6 +10271,7 @@ async function initKakaoDeliveryMap(forceRefresh) {
 
   if (mapped > 1) kakaoMapInstance.setBounds(bounds);
   else if (firstPos) kakaoMapInstance.setCenter(firstPos);
+  renderMapSearchResults();
   if (statusEl) statusEl.textContent = `카카오 지도 ${mapped}곳 표시됨${failed ? ` · 주소 실패 ${failed}곳` : ''}. 마커를 클릭하면 상세 정보를 볼 수 있습니다.`;
 }
 
@@ -10052,6 +10292,7 @@ async function placeDeliveryMarker(uid, user, address, orderRow, forceRefresh) {
   }
 
   try {
+    const entryId = `member:${uid}`;
     const marker = new naver.maps.Marker({
       position: markerPos,
       map: naverMapInstance,
@@ -10068,12 +10309,31 @@ async function placeDeliveryMarker(uid, user, address, orderRow, forceRefresh) {
         <div class="iw-addr">${escapeHtml(address || '주소 미입력')}</div>
         ${user.deliveryPlaceDetail ? `<div style="font-size:12px;color:#4b5563;margin-top:1px">└ ${escapeHtml(user.deliveryPlaceDetail)}</div>` : ''}
         ${hasOrder ? `<div class="iw-qty">🍱 도시락 ${lunch}개 · 샐러드 ${salad}개</div>` : '<div style="color:#98a2b3;font-size:12px;margin-top:4px">오늘 주문 없음</div>'}
+        <button type="button" class="map-iw-copy" onclick="copyMapEntryAddress('${jsString(entryId)}')">주소 복사</button>
       </div>`;
     const infoWindow = new naver.maps.InfoWindow({ content: infoContent, borderWidth: 1, borderColor: '#d0d5dd', backgroundColor: '#fff' });
+    const entry = {
+      id: entryId,
+      type: 'member',
+      provider: 'naver',
+      uid,
+      name: user.businessName || '-',
+      phone: user.phone || '',
+      address: address || '',
+      detail: user.deliveryPlaceDetail || '',
+      mealTime: user.mealTime || '',
+      lunch,
+      salad,
+      hasOrder,
+      marker,
+      infoWindow,
+      position: markerPos
+    };
+    registerMapSearchEntry(entry);
 
     naver.maps.Event.addListener(marker, 'click', () => {
-      if (infoWindow.getMap()) { infoWindow.close(); return; }
-      infoWindow.open(naverMapInstance, marker);
+      openMapEntryInfo(entry);
+      renderMapSelectedEntry(entry);
     });
 
     mapMarkers.push(marker);
@@ -10095,6 +10355,7 @@ async function placeKakaoDeliveryMarker(uid, user, address, orderRow, forceRefre
 
   const pos = new window.kakao.maps.LatLng(coords.lat, coords.lng);
   const marker = new window.kakao.maps.Marker({ position: pos, map: kakaoMapInstance });
+  const entryId = `member:${uid}`;
   const infoContent = `
     <div class="map-info-window">
       <div class="iw-name">${escapeHtml(user.businessName || '-')}</div>
@@ -10102,10 +10363,32 @@ async function placeKakaoDeliveryMarker(uid, user, address, orderRow, forceRefre
       <div class="iw-addr">${escapeHtml(address || '주소 미입력')}</div>
       ${user.deliveryPlaceDetail ? `<div style="font-size:12px;color:#4b5563;margin-top:1px">└ ${escapeHtml(user.deliveryPlaceDetail)}</div>` : ''}
       ${hasOrder ? `<div class="iw-qty">🍱 도시락 ${lunch}개 · 샐러드 ${salad}개</div>` : '<div style="color:#98a2b3;font-size:12px;margin-top:4px">오늘 주문 없음</div>'}
+      <button type="button" class="map-iw-copy" onclick="copyMapEntryAddress('${jsString(entryId)}')">주소 복사</button>
     </div>`;
   const infoWindow = new window.kakao.maps.InfoWindow({ content: infoContent });
+  const entry = {
+    id: entryId,
+    type: 'member',
+    provider: 'kakao',
+    uid,
+    name: user.businessName || '-',
+    phone: user.phone || '',
+    address: address || '',
+    detail: user.deliveryPlaceDetail || '',
+    mealTime: user.mealTime || '',
+    lunch,
+    salad,
+    hasOrder,
+    marker,
+    infoWindow,
+    position: pos
+  };
+  registerMapSearchEntry(entry);
 
-  window.kakao.maps.event.addListener(marker, 'click', () => infoWindow.open(kakaoMapInstance, marker));
+  window.kakao.maps.event.addListener(marker, 'click', () => {
+    openMapEntryInfo(entry);
+    renderMapSelectedEntry(entry);
+  });
   kakaoMapMarkers.push(marker);
   if (!hasOrder) {
     kakaoMapNoOrderMarkers.push(marker);
