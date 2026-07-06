@@ -614,6 +614,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .member-hint{font-size:12px;color:var(--sub);font-weight:700}
 .member-search-bar{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px 12px;margin-bottom:14px}
 .member-search-input{flex:1;min-width:180px;margin:0}
+.member-sort-select{width:auto;min-width:145px;margin:0}
 .member-search-count{font-size:12px;color:var(--sub);font-weight:800;white-space:nowrap}
 .member-search-clear{border:1px solid var(--border);background:#fff;color:var(--sub);border-radius:9px;padding:9px 12px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap}
 .member-search-clear:hover{background:#f8fafc;color:var(--text)}
@@ -657,6 +658,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   .member-toolbar{align-items:flex-start;flex-direction:column}
   .member-search-bar{align-items:stretch;flex-direction:column}
   .member-search-input{min-width:0;width:100%}
+  .member-sort-select{width:100%}
   .member-search-count{white-space:normal}
   .order-log-head,.order-log-main{align-items:stretch;flex-direction:column}
   .manual-grid,.manual-checklist{grid-template-columns:1fr}
@@ -894,6 +896,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     </div>
     <div class="member-search-bar">
       <input class="form-input member-search-input" type="search" id="member-search-input" placeholder="업체명, 연락처, 주소, 이메일 검색" oninput="renderMembers()" onkeydown="if(event.key==='Escape') clearMemberSearch()">
+      <select class="form-input member-sort-select" id="member-sort-select" onchange="renderMembers()" aria-label="회원 정렬">
+        <option value="name">업체명순</option>
+        <option value="latest">최신순</option>
+        <option value="orders">주문 많은순</option>
+      </select>
       <div class="member-search-count" id="member-search-count">전체 0곳</div>
       <button class="member-search-clear" type="button" onclick="clearMemberSearch()">초기화</button>
     </div>
@@ -5020,6 +5027,39 @@ function memberSearchQuery() {
   return (document.getElementById('member-search-input')?.value || '').trim();
 }
 
+function memberSortMode() {
+  return document.getElementById('member-sort-select')?.value || 'name';
+}
+
+function memberCreatedMillis(user = {}) {
+  const createdAt = timestampToDate(user.createdAt || user.registeredAt || user.joinedAt);
+  return createdAt ? createdAt.getTime() : 0;
+}
+
+function memberWeeklyOrderQty(user = {}) {
+  const fallbackLunch = parseCount(user.defaultLunch, 2);
+  const fallbackSalad = parseCount(user.defaultSalad, 0);
+  const meals = normalizeWeekdayMeals(user, fallbackLunch, fallbackSalad);
+  return WEEKDAY_KEYS.reduce((sum, key) => {
+    const item = meals[key] || {};
+    return sum + parseCount(item.lunch, 0) + parseCount(item.salad, 0);
+  }, 0);
+}
+
+function compareMemberEntries(a, b) {
+  const mode = memberSortMode();
+  const nameCompare = (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko');
+  if (mode === 'latest') {
+    const diff = memberCreatedMillis(b[1]) - memberCreatedMillis(a[1]);
+    return diff || nameCompare;
+  }
+  if (mode === 'orders') {
+    const diff = memberWeeklyOrderQty(b[1]) - memberWeeklyOrderQty(a[1]);
+    return diff || nameCompare;
+  }
+  return nameCompare;
+}
+
 function normalizeMemberSearchText(value) {
   return String(value ?? '').toLowerCase().replace(/[\s\-().]/g, '');
 }
@@ -5571,7 +5611,7 @@ function renderMembers() {
     html += '<div style="color:var(--sub);font-size:14px;grid-column:1/-1">검색 결과가 없습니다. 업체명, 연락처, 주소를 다시 확인해주세요.</div>';
   } else {
     html += users
-      .sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'))
+      .sort(compareMemberEntries)
       .map(([uid, u]) => {
         const duplicateKey = `${normalizeMemberSearchText(u.businessName || u.name || '')}|${normalizeMemberSearchText(u.phone || '')}`;
         const duplicateCount = duplicateCounts.get(duplicateKey) || 0;
