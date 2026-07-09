@@ -534,6 +534,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .source-badge.default{background:#eff6ff;color:#2563eb;border-color:#dbeafe}
 .source-badge.manual{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe}
 .source-badge.holiday{background:#fef2f2;color:#c0392b;border-color:#fecaca}
+.mini-btn.save-dirty{background:#fff7ed;color:#c2410c;border-color:#fed7aa;box-shadow:0 0 0 2px rgba(251,146,60,.18)}
 .not-chip{background:#fff7ed;border-color:#fed7aa;color:#c2410c;border-radius:7px}
 .not-submitted-list{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow)}
 .no-not,.no-order-row td{color:var(--sub)}
@@ -4493,8 +4494,8 @@ async function loadOrders() {
           ? `<button class="mini-btn" onclick="cancelDeliveryRecord('${jsString(o.uid)}')">배송취소</button>`
           : '';
         const manageHtml = canDeleteOrder
-          ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${cancelDeliveryHtml}${deleteOrderHtml}</div>`
-          : `<div class="inline-actions"><button class="mini-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${cancelDeliveryHtml}</div>`;
+          ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="mini-btn order-save-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${cancelDeliveryHtml}${deleteOrderHtml}</div>`
+          : `<div class="inline-actions"><button class="mini-btn order-save-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${cancelDeliveryHtml}</div>`;
         const mobileQtyDetail = `도 ${o.lunchCount ?? 0} · 샐 ${o.saladCount ?? 0}${eventLunch ? ` · 일 ${eventLunch}` : ''}`;
         tr.innerHTML = `
           <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${(!o.delivered && !isSelfHoliday) ? 'checked' : ''} ${disabledAttr}></td>
@@ -4503,7 +4504,7 @@ async function loadOrders() {
           <td class="qty-cell">
             <div class="qty-stepper">
               <button type="button" class="qty-step-btn" onclick="adjustQty(this,-1)" ${disabledAttr}>−</button>
-              <input class="qty-edit deliver-lunch" type="number" min="0" max="999" value="${o.lunchCount ?? 0}" ${disabledAttr}>
+              <input class="qty-edit deliver-lunch" type="number" min="0" max="999" value="${o.lunchCount ?? 0}" oninput="handleOrderQtyInput('${jsString(o.uid)}')" ${disabledAttr}>
               <button type="button" class="qty-step-btn" onclick="adjustQty(this,1)" ${disabledAttr}>+</button>
             </div>
             <button type="button" class="mobile-qty-btn" onclick="openOrderQtyModal('${jsString(o.uid)}')" ${disabledAttr}>
@@ -4514,14 +4515,14 @@ async function loadOrders() {
           <td class="qty-cell">
             <div class="qty-stepper">
               <button type="button" class="qty-step-btn" onclick="adjustQty(this,-1)" ${disabledAttr}>−</button>
-              <input class="qty-edit deliver-salad" type="number" min="0" max="999" value="${o.saladCount ?? 0}" ${disabledAttr}>
+              <input class="qty-edit deliver-salad" type="number" min="0" max="999" value="${o.saladCount ?? 0}" oninput="handleOrderQtyInput('${jsString(o.uid)}')" ${disabledAttr}>
               <button type="button" class="qty-step-btn" onclick="adjustQty(this,1)" ${disabledAttr}>+</button>
             </div>
           </td>
           <td class="qty-cell">
             <div class="qty-stepper">
               <button type="button" class="qty-step-btn" onclick="adjustQty(this,-1)" ${disabledAttr}>−</button>
-              <input class="qty-edit deliver-event-lunch" type="number" min="0" max="999" value="${eventLunch}" ${disabledAttr}>
+              <input class="qty-edit deliver-event-lunch" type="number" min="0" max="999" value="${eventLunch}" oninput="handleOrderQtyInput('${jsString(o.uid)}')" ${disabledAttr}>
               <button type="button" class="qty-step-btn" onclick="adjustQty(this,1)" ${disabledAttr}>+</button>
             </div>
           </td>
@@ -4736,6 +4737,22 @@ function refreshOrderRowCalculatedCells(uid) {
   refreshOrderSummaryFromInputs();
 }
 
+function markOrderRowDirty(uid) {
+  const rowEl = orderRowElementByUid(uid);
+  if (!rowEl) return;
+  rowEl.dataset.dirty = 'true';
+  const saveBtn = rowEl.querySelector('.order-save-btn');
+  if (saveBtn) {
+    saveBtn.classList.add('save-dirty');
+    saveBtn.textContent = '저장 필요';
+  }
+}
+
+function handleOrderQtyInput(uid) {
+  refreshOrderRowCalculatedCells(uid);
+  markOrderRowDirty(uid);
+}
+
 function refreshOrderSummaryFromInputs() {
   let totalLunch = 0;
   let totalSalad = 0;
@@ -4817,6 +4834,7 @@ function saveOrderQtyModal() {
   if (saladEl) saladEl.value = values.salad;
   if (eventEl) eventEl.value = values.event;
   refreshOrderRowCalculatedCells(uid);
+  markOrderRowDirty(uid);
   closeOrderQtyModal();
   showToast('수량을 표에 반영했습니다. 배송 완료를 누르면 저장됩니다.');
 }
@@ -4897,9 +4915,13 @@ async function saveInlineQty(uid) {
       const skippedText = result.skipped ? ' / 보류 상태라 정산 제외' : '';
       showToast(`✅ ${user.businessName || row.businessName || '주문'} 수량 저장 · 정산 ${result.billed ? '반영됨' : '유지됨'}${skippedText}`);
       if (activeAdminTab === 'settlements') loadSettlements();
+      await loadOrders();
+      scheduleOrderLogRefresh();
       return;
     }
 
+    await loadOrders();
+    scheduleOrderLogRefresh();
     showToast(`✅ ${user.businessName || row.businessName || '주문'} 수량 저장됨`);
   } catch(e) {
     showToast('저장 실패: ' + e.message, 'error');
@@ -5763,6 +5785,10 @@ function orderLogValue(snapshot = null) {
   if (!snapshot) return '-';
   if (snapshot.zeroQuantityHoliday || snapshot.source === 'zeroHoliday' || snapshot.source === 'zeroDefault') return '0개 휴무';
   if (snapshot.selfHoliday) return '자체휴무';
+  const lunch = Number(snapshot.lunchCount || 0) || 0;
+  const salad = Number(snapshot.saladCount || 0) || 0;
+  const eventLunchCount = Number(snapshot.eventLunchCount || 0) || 0;
+  if (lunch + salad + eventLunchCount <= 0) return '0개 휴무';
   const eventText = Number(snapshot.eventLunchCount || 0) > 0 ? ` / 일회용 ${snapshot.eventLunchCount}` : '';
   const noteText = snapshot.note ? ` / 메모: ${snapshot.note}` : '';
   return `도시락 ${snapshot.lunchCount || 0} / 샐러드 ${snapshot.saladCount || 0}${eventText}${noteText}`;
@@ -5839,6 +5865,12 @@ function toggleOrderLogPanel(forceOpen = null) {
   const open = forceOpen === null ? panel.classList.contains('collapsed') : Boolean(forceOpen);
   panel.classList.toggle('collapsed', !open);
   if (label) label.textContent = open ? '로그 접기' : '로그 펼치기';
+}
+
+function scheduleOrderLogRefresh(delayMs = 1800) {
+  setTimeout(() => {
+    loadRecentOrderLogs();
+  }, delayMs);
 }
 
 async function loadRecentOrderLogs() {
