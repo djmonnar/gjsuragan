@@ -519,6 +519,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .order-table tbody tr:last-child td{border-bottom:0}
 .event-list-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}
 .event-list-count{font-size:14px;font-weight:900;color:#27364a}
+.event-sort-controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-left:auto}
+.event-sort-label{font-size:12px;font-weight:900;color:#667085;white-space:nowrap}
+.event-sort-select{width:auto;min-width:130px;margin:0}
 .event-list-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .event-month-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px;background:#fff;border:1px solid #ead7c4;border-radius:14px;box-shadow:var(--shadow);padding:12px}
 .event-month-controls .form-input{width:170px;margin:0}
@@ -568,6 +571,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   .event-month-controls .form-input{width:100%}
   .event-month-controls .event-month-today{grid-column:1/-1}
   .event-list-toolbar{align-items:flex-start;flex-wrap:wrap}
+  .event-list-count{width:100%}
+  .event-sort-controls{width:100%;margin-left:0}
+  .event-sort-select{flex:1;width:100%;min-width:0}
   .event-list-actions{width:100%;justify-content:stretch}
   .event-list-actions .secondary-btn{flex:1}
   .event-mobile-card-grid{grid-template-columns:1fr}
@@ -1160,6 +1166,14 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     </div>
     <div class="event-list-toolbar">
       <div class="event-list-count" id="event-list-count">최신 주문순 · 불러오는 중</div>
+      <div class="event-sort-controls">
+        <span class="event-sort-label">보기</span>
+        <select class="form-input event-sort-select" id="event-list-sort" onchange="setEventLunchSortMode(this.value)">
+          <option value="order">주문순</option>
+          <option value="name">이름순</option>
+          <option value="delivery">배송일순</option>
+        </select>
+      </div>
       <div class="event-list-actions">
         <button class="secondary-btn" onclick="openNewEventLunchModal()">+ 새 등록</button>
         <button class="secondary-btn" onclick="loadEventLunches()">새로고침</button>
@@ -2178,6 +2192,7 @@ let deletedUsers = {};
 let eventLunches = [];
 let eventLunchMonth = '';
 let eventLunchVisibleLimit = 30;
+let eventLunchSortMode = 'order';
 let pendingPublicEventOrderId = '';
 let pendingPublicEventOrder = null;
 let adminEventDraftItems = [];
@@ -7701,6 +7716,43 @@ function sortEventLunchesLatestFirst(items) {
   });
 }
 
+function eventLunchSortLabel(mode = eventLunchSortMode) {
+  if (mode === 'name') return '이름순';
+  if (mode === 'delivery') return '배송일순';
+  return '주문순';
+}
+
+function eventLunchNameKey(item = {}) {
+  return String(eventCustomerName(item) || item.businessName || item.customerName || item.companyName || '')
+    .trim()
+    .toLocaleLowerCase('ko-KR');
+}
+
+function eventLunchDeliverySortMillis(item = {}) {
+  return eventDateTimeMillis(item) || eventLatestSortMillis(item) || eventSortMillisValue(item.id);
+}
+
+function sortEventLunchesForView(items = []) {
+  const list = [...items];
+  if (eventLunchSortMode === 'name') {
+    return list.sort((a, b) => {
+      const nameDiff = eventLunchNameKey(a).localeCompare(eventLunchNameKey(b), 'ko-KR', { numeric: true, sensitivity: 'base' });
+      if (nameDiff) return nameDiff;
+      const dateDiff = eventLunchDeliverySortMillis(a) - eventLunchDeliverySortMillis(b);
+      if (dateDiff) return dateDiff;
+      return eventLatestSortMillis(b) - eventLatestSortMillis(a);
+    });
+  }
+  if (eventLunchSortMode === 'delivery') {
+    return list.sort((a, b) => {
+      const dateDiff = eventLunchDeliverySortMillis(a) - eventLunchDeliverySortMillis(b);
+      if (dateDiff) return dateDiff;
+      return eventLunchNameKey(a).localeCompare(eventLunchNameKey(b), 'ko-KR', { numeric: true, sensitivity: 'base' });
+    });
+  }
+  return sortEventLunchesLatestFirst(list);
+}
+
 function normalizeEventLunchMonth(month) {
   return /^\d{4}-\d{2}$/.test(String(month || '')) ? String(month) : currentMonthStr();
 }
@@ -7714,6 +7766,18 @@ function syncEventLunchMonthInput() {
   eventLunchMonth = normalizeEventLunchMonth(eventLunchMonth);
   const input = document.getElementById('event-list-month');
   if (input && input.value !== eventLunchMonth) input.value = eventLunchMonth;
+}
+
+function syncEventLunchSortInput() {
+  const select = document.getElementById('event-list-sort');
+  if (select && select.value !== eventLunchSortMode) select.value = eventLunchSortMode;
+}
+
+function setEventLunchSortMode(mode) {
+  eventLunchSortMode = ['order', 'name', 'delivery'].includes(mode) ? mode : 'order';
+  syncEventLunchSortInput();
+  eventLunchVisibleLimit = 30;
+  renderEventLunches();
 }
 
 function setEventLunchMonth(month) {
@@ -7789,7 +7853,7 @@ function updateEventListControls(visibleCount = 0) {
   if (countEl) {
     const allSuffix = eventLunches.length !== monthlyItems.length ? ` · 전체 ${eventLunches.length}건` : '';
     countEl.textContent = monthlyItems.length
-      ? `${eventLunchMonthLabel(eventLunchMonth)} · 최신 주문순 · ${visibleCount}/${monthlyItems.length}건 표시${allSuffix}`
+      ? `${eventLunchMonthLabel(eventLunchMonth)} · ${eventLunchSortLabel()} · ${visibleCount}/${monthlyItems.length}건 표시${allSuffix}`
       : `${eventLunchMonthLabel(eventLunchMonth)} · 0건${allSuffix}`;
   }
   const moreBtn = document.getElementById('event-list-more');
@@ -7877,6 +7941,7 @@ async function loadEventLunches() {
 
 function renderEventLunches() {
   syncEventLunchMonthInput();
+  syncEventLunchSortInput();
   const tbody = document.getElementById('event-tbody');
   if (eventLunches.length === 0) {
     tbody.innerHTML = '<tr class="no-order-row"><td colspan="11">등록된 행사도시락이 없습니다</td></tr>';
@@ -7884,7 +7949,7 @@ function renderEventLunches() {
     updateEventListControls(0);
     return;
   }
-  const monthlyItems = filteredEventLunchesByMonth();
+  const monthlyItems = sortEventLunchesForView(filteredEventLunchesByMonth());
   if (monthlyItems.length === 0) {
     const monthLabel = eventLunchMonthLabel(eventLunchMonth);
     tbody.innerHTML = `<tr class="no-order-row"><td colspan="11">${escapeHtml(monthLabel)} 행사도시락이 없습니다</td></tr>`;
