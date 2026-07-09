@@ -97,8 +97,10 @@ exports.onEventOrderCreated = onDocumentCreated('eventOrders/{orderId}', async (
   const businessName = order.businessName || '고객';
   const eventDate = order.eventDate || '';
   const menuText = order.menuText ? order.menuText.slice(0, 40) : '';
-  const title = '궁중수라간 행사도시락 견적 요청';
-  const body = `${businessName}님 ${eventDate} 행사: ${menuText}`;
+  const hasQuoteRequest = Boolean(order.quoteRequested || order.quoteBudgetText || order.quoteMemo);
+  const title = hasQuoteRequest ? '궁중수라간 행사도시락 맞춤 견적' : '궁중수라간 행사도시락 주문';
+  const quoteText = order.quoteBudgetText ? ` / 예산: ${String(order.quoteBudgetText).slice(0, 24)}` : '';
+  const body = `${businessName}님 ${eventDate} 행사: ${menuText}${quoteText}`;
 
   await sendPushToAdmins({
     title,

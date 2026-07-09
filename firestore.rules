@@ -306,6 +306,10 @@ service cloud.firestore {
         'menuText',
         'items',
         'requestNote',
+        'quoteRequested',
+        'quoteBudgetText',
+        'quoteMemo',
+        'quoteStatus',
         'paymentCash',
         'paymentTransfer',
         'paymentCard',
@@ -358,6 +362,11 @@ service cloud.firestore {
         && request.resource.data.items.size() > 0
         && request.resource.data.items.size() <= 20
         && optionalString(request.resource.data, 'requestNote', 500)
+        && optionalBool(request.resource.data, 'quoteRequested')
+        && optionalString(request.resource.data, 'quoteBudgetText', 120)
+        && optionalString(request.resource.data, 'quoteMemo', 300)
+        && (!('quoteStatus' in request.resource.data.keys())
+          || request.resource.data.quoteStatus in ['none', 'requested'])
         && request.resource.data.paymentCash is bool
         && request.resource.data.paymentTransfer is bool
         && request.resource.data.paymentCard is bool

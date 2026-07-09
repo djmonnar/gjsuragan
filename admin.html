@@ -296,11 +296,20 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .event-menu-grid{display:grid;grid-template-columns:1fr 1fr 110px;gap:8px;align-items:center}
 .event-menu-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .event-menu-item{display:flex;justify-content:space-between;gap:8px;align-items:center;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px}
+.event-menu-item>div:first-child{flex:1;min-width:0}
 .event-menu-item strong{display:block;color:var(--primary);font-size:13px;margin-bottom:2px}
 .event-menu-meta{font-size:12px;color:var(--sub);line-height:1.45}
 .event-menu-remove{border:0;background:#fdecea;color:var(--danger);border-radius:6px;padding:7px 9px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;flex:0 0 auto}
 .event-menu-total{font-size:13px;color:var(--sub);font-weight:800;margin-top:10px}
 .event-menu-add{width:100%;margin-top:8px}
+.event-menu-controls{display:grid;grid-template-columns:90px 120px 1fr;gap:8px;align-items:end;margin-top:8px}
+.event-menu-controls label{display:grid;gap:4px;font-size:11px;font-weight:800;color:var(--sub)}
+.event-menu-controls input{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 9px;font:inherit;font-size:13px;font-weight:800}
+.event-menu-amount{font-size:12px;color:var(--primary);font-weight:900;padding-bottom:8px}
+.event-quote-panel{border:1px solid #f0d9c0;background:#fffaf5;border-radius:var(--radius);padding:14px}
+.event-quote-title{font-size:14px;font-weight:900;color:var(--primary);margin-bottom:8px}
+.event-quote-grid{display:grid;grid-template-columns:160px 1fr;gap:8px;margin-bottom:8px}
+.quote-badge{display:inline-flex;align-items:center;border-radius:999px;background:#fff3e0;color:#b45309;border:1px solid #fed7aa;padding:3px 8px;font-size:11px;font-weight:900;margin-left:5px;white-space:nowrap}
 .change-request-section{padding:0 24px 36px}
 .change-request-layout{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:16px;align-items:start}
 .push-setting-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
@@ -370,6 +379,8 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .batch-toolbar{gap:8px}
   .receipt-item-row{grid-template-columns:1fr 1fr}
   .event-menu-grid{grid-template-columns:1fr}
+  .event-menu-controls{grid-template-columns:1fr 1fr}
+  .event-menu-amount{grid-column:1/-1}
   .settlement-summary,.settlement-summary2{grid-template-columns:repeat(2,1fr)}
   .summary-value{font-size:22px}
   .current-date{min-width:130px;font-size:14px}
@@ -1041,6 +1052,20 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
             <div class="event-menu-list" id="event-menu-list"></div>
             <div class="event-menu-total" id="event-menu-total"></div>
           </div>
+        </div>
+        <div class="full event-quote-panel">
+          <div class="event-quote-title">맞춤형 견적</div>
+          <div class="event-quote-grid">
+            <select class="form-input" id="event-quote-status">
+              <option value="none">일반 주문</option>
+              <option value="requested">고객 견적 요청</option>
+              <option value="drafting">견적 작성중</option>
+              <option value="sent">견적 안내완료</option>
+              <option value="confirmed">견적 확정</option>
+            </select>
+            <input class="form-input" type="text" id="event-quote-budget" maxlength="120" placeholder="고객 희망 예산 또는 단가">
+          </div>
+          <textarea class="form-textarea" id="event-quote-note" maxlength="500" placeholder="견적 메모, 맞춤 구성, 고객과 협의한 금액 등을 적어두세요."></textarea>
         </div>
         <div class="full">
           <label class="form-label">배송장소</label>
@@ -7371,9 +7396,11 @@ function switchAdminTab(tab) {
 }
 
 function resetEventForm() {
-  ['event-id','event-name','event-date','event-time','event-business','event-phone','event-place','event-count','event-price','event-note'].forEach(id => {
+  ['event-id','event-name','event-date','event-time','event-business','event-phone','event-place','event-count','event-price','event-note','event-quote-budget','event-quote-note'].forEach(id => {
     document.getElementById(id).value = '';
   });
+  const quoteStatusEl = document.getElementById('event-quote-status');
+  if (quoteStatusEl) quoteStatusEl.value = 'none';
   pendingPublicEventOrderId = '';
   pendingPublicEventOrder = null;
   setAdminEventDraftItems([]);
@@ -7444,7 +7471,16 @@ function renderAdminEventDraftItems() {
     <div class="event-menu-item">
       <div>
         <strong>${escapeHtml(item.name)}</strong>
-        <div class="event-menu-meta">${escapeHtml(item.category)} · ${item.qty}개 · ${formatMoney(item.price)} · ${formatMoney(item.amount ?? (item.qty * item.price))}</div>
+        <div class="event-menu-meta">${escapeHtml(item.category)}</div>
+        <div class="event-menu-controls">
+          <label>수량
+            <input type="number" min="1" max="999" value="${item.qty}" oninput="updateAdminEventItem(${idx}, 'qty', this.value)">
+          </label>
+          <label>단가
+            <input type="number" min="0" value="${item.price}" oninput="updateAdminEventItem(${idx}, 'price', this.value)">
+          </label>
+          <div class="event-menu-amount" id="event-menu-amount-${idx}">${formatMoney(item.amount ?? (item.qty * item.price))}</div>
+        </div>
       </div>
       <button class="event-menu-remove" type="button" onclick="removeAdminEventMenuItem(${idx})">삭제</button>
     </div>
@@ -7572,7 +7608,7 @@ function renderEventLunches() {
     <tr>
       <td>${escapeHtml(item.eventDate || '-')}</td>
       <td>${escapeHtml(item.eventTime || '-')}</td>
-      <td class="biz-name">${item.source === 'publicEventOrder' ? '<span class="note-badge">비회원</span> ' : ''}${escapeHtml(eventCustomerName(item))}${item.contactPhone ? `<br><span style="font-size:12px;color:var(--sub);font-weight:500">${escapeHtml(item.contactPhone)}</span>` : ''}</td>
+      <td class="biz-name">${item.source === 'publicEventOrder' ? '<span class="note-badge">비회원</span> ' : ''}${escapeHtml(eventCustomerName(item))}${eventQuoteBadge(item)}${item.contactPhone ? `<br><span style="font-size:12px;color:var(--sub);font-weight:500">${escapeHtml(item.contactPhone)}</span>` : ''}</td>
       <td class="note-cell">${escapeHtml(eventOrderItemsSummary(item) || item.name || '-')}</td>
       <td class="qty-cell">${eventOrderTotalQty(item) || item.count || 0}</td>
       <td>${formatMoney(eventOrderTotalAmount(item) || item.amount || 0)}</td>
@@ -7584,7 +7620,7 @@ function renderEventLunches() {
         <div class="inline-actions">
           <button class="secondary-btn" onclick="copyEventLunchKakao('${item.id}')">카톡복사</button>
           ${item.source === 'publicEventOrder'
-            ? `<button class="secondary-btn" onclick="registerPublicEventOrder('${item.id}')">수정</button><button class="save-btn" style="width:auto;padding:8px 10px" onclick="completePublicEventOrder('${item.id}')">배송완료</button><button class="danger-btn" onclick="deletePublicEventOrder('${item.id}')">삭제</button>`
+            ? `<button class="secondary-btn" onclick="registerPublicEventOrder('${item.id}')">견적/수정</button><button class="save-btn" style="width:auto;padding:8px 10px" onclick="completePublicEventOrder('${item.id}')">배송완료</button><button class="danger-btn" onclick="deletePublicEventOrder('${item.id}')">삭제</button>`
             : `<button class="secondary-btn" onclick="editEventLunch('${item.id}')">수정</button><button class="save-btn" style="width:auto;padding:8px 10px" onclick="toggleEventDelivered('${item.id}')">${item.delivered ? '완료취소' : '배송완료'}</button><button class="danger-btn" onclick="deleteEventLunch('${item.id}')">삭제</button>`}
         </div>
       </td>
@@ -7599,6 +7635,36 @@ function paymentLabel(item) {
     item.paymentTransfer ? '이체' : '',
     item.paymentCard ? '카드계산' : ''
   ].filter(Boolean).join(', ');
+}
+
+function eventQuoteStatusLabel(status) {
+  return {
+    none: '일반',
+    requested: '견적요청',
+    drafting: '견적작성',
+    sent: '견적안내',
+    confirmed: '견적확정'
+  }[status || 'none'] || '견적';
+}
+
+function eventQuoteStatus(item = {}) {
+  if (item.quoteStatus) return item.quoteStatus;
+  return item.quoteRequested ? 'requested' : 'none';
+}
+
+function eventQuoteBadge(item = {}) {
+  const status = eventQuoteStatus(item);
+  if (!item.quoteRequested && status === 'none' && !item.quoteBudgetText && !item.quoteMemo) return '';
+  return `<span class="quote-badge">${escapeHtml(eventQuoteStatusLabel(status))}</span>`;
+}
+
+function eventQuoteInfoText(item = {}) {
+  const lines = [];
+  if (item.quoteBudgetText) lines.push(`희망예산: ${item.quoteBudgetText}`);
+  if (item.quoteMemo) lines.push(`견적메모: ${item.quoteMemo}`);
+  const status = eventQuoteStatus(item);
+  if (status && status !== 'none') lines.unshift(`상태: ${eventQuoteStatusLabel(status)}`);
+  return lines.join(' / ');
 }
 
 function eventCustomerName(item) {
@@ -7695,7 +7761,7 @@ function eventKakaoTotalAmount(item) {
 }
 
 function buildEventLunchKakaoText(item) {
-  return [
+  const lines = [
     '<행사도시락주문>',
     '',
     `상호명: ${eventKakaoBusinessName(item)}`,
@@ -7710,9 +7776,16 @@ function buildEventLunchKakaoText(item) {
     '',
     `도시락 전체금액: ${eventKakaoTotalAmount(item)}`,
     '',
+  ];
+  const quoteText = eventQuoteInfoText(item);
+  if (quoteText) {
+    lines.push(`맞춤견적: ${quoteText}`, '');
+  }
+  lines.push(
     `요청사항: ${eventKakaoRequest(item)}`,
     `연락처: ${eventKakaoPhone(item)}`
-  ].join('\n');
+  );
+  return lines.join('\n');
 }
 
 async function copyTextToClipboard(text, successMessage) {
@@ -7740,6 +7813,10 @@ function currentEventDraftForKakao() {
     place: document.getElementById('event-place')?.value.trim() || '',
     note: document.getElementById('event-note')?.value.trim() || '',
     requestNote: document.getElementById('event-note')?.value.trim() || '',
+    quoteRequested: document.getElementById('event-quote-status')?.value !== 'none' || Boolean(document.getElementById('event-quote-budget')?.value.trim() || document.getElementById('event-quote-note')?.value.trim()),
+    quoteStatus: document.getElementById('event-quote-status')?.value || 'none',
+    quoteBudgetText: document.getElementById('event-quote-budget')?.value.trim() || '',
+    quoteMemo: document.getElementById('event-quote-note')?.value.trim() || '',
     items: adminEventDraftItems.map(item => ({ ...item }))
   };
 }
@@ -7826,6 +7903,10 @@ function eventRecordFromOrder(item, docId, overrides = {}) {
     paymentCard: Boolean(item.paymentCard),
     paymentLabel: paymentLabel(item),
     requestNote: item.requestNote || '',
+    quoteRequested: Boolean(item.quoteRequested || item.quoteStatus && item.quoteStatus !== 'none' || item.quoteBudgetText || item.quoteMemo),
+    quoteStatus: item.quoteStatus || (item.quoteRequested ? 'requested' : 'none'),
+    quoteBudgetText: item.quoteBudgetText || '',
+    quoteMemo: item.quoteMemo || '',
     delivered,
     deliveredAt: delivered ? (overrides.deliveredAt || item.deliveredAt || now) : '',
     deliveredBy: delivered ? (overrides.deliveredBy || item.deliveredBy || adminUid) : '',
@@ -7852,9 +7933,13 @@ async function registerPublicEventOrder(id) {
   document.getElementById('event-business').value = item.businessName || '';
   document.getElementById('event-phone').value = item.contactPhone || '';
   document.getElementById('event-place').value = item.place || '';
+  document.getElementById('event-quote-status').value = item.quoteStatus || (item.quoteRequested ? 'requested' : 'none');
+  document.getElementById('event-quote-budget').value = item.quoteBudgetText || '';
+  document.getElementById('event-quote-note').value = item.quoteMemo || '';
   document.getElementById('event-note').value = [
     item.businessName ? `상호명: ${item.businessName}` : '',
     item.contactPhone ? `연락처: ${item.contactPhone}` : '',
+    eventQuoteInfoText(item) ? `맞춤견적: ${eventQuoteInfoText(item)}` : '',
     item.requestNote ? `요청사항: ${item.requestNote}` : '',
     paymentLabel(item) ? `결제: ${paymentLabel(item)}` : ''
   ].filter(Boolean).join('\n');
@@ -7908,9 +7993,14 @@ async function saveEventLunch() {
   const count = parseInt(document.getElementById('event-count').value, 10) || 0;
   const price = parseInt(document.getElementById('event-price').value, 10) || 0;
   const note = document.getElementById('event-note').value.trim();
-  const errEl = document.getElementById('event-error');
   const existingEvent = id ? eventLunches.find(item => item.id === id) : null;
   const isPublicRegistration = Boolean(pendingPublicEventOrderId);
+  const sourceOrder = pendingPublicEventOrderId ? pendingPublicEventOrder : null;
+  const quoteStatus = document.getElementById('event-quote-status')?.value || 'none';
+  const quoteBudgetText = document.getElementById('event-quote-budget')?.value.trim() || '';
+  const quoteMemo = document.getElementById('event-quote-note')?.value.trim() || '';
+  const quoteRequested = quoteStatus !== 'none' || Boolean(quoteBudgetText || quoteMemo);
+  const errEl = document.getElementById('event-error');
   errEl.classList.remove('show');
   if (!eventDate || !eventTime || !place || adminEventDraftItems.length === 0 || count <= 0 || price < 0) {
     errEl.textContent = '날짜, 시간, 배송장소, 도시락 메뉴와 수량을 입력해주세요.';
@@ -7918,7 +8008,6 @@ async function saveEventLunch() {
     return;
   }
   const docId = eventDocId(id);
-  const sourceOrder = pendingPublicEventOrderId ? pendingPublicEventOrder : null;
   const items = adminEventDraftItems.map(item => ({ ...item }));
   const amount = eventOrderTotalAmount({ items });
   const payload = {
@@ -7933,6 +8022,10 @@ async function saveEventLunch() {
     paymentCard: Boolean(sourceOrder?.paymentCard ?? existingEvent?.paymentCard),
     paymentLabel: sourceOrder ? paymentLabel(sourceOrder) : (existingEvent?.paymentLabel || paymentLabel(existingEvent || {})),
     requestNote: sourceOrder?.requestNote || existingEvent?.requestNote || '',
+    quoteRequested,
+    quoteStatus: quoteRequested ? quoteStatus : 'none',
+    quoteBudgetText,
+    quoteMemo,
     delivered: existingEvent ? Boolean(existingEvent.delivered) : false,
     deliveredAt: existingEvent?.deliveredAt || '',
     deliveredBy: existingEvent?.deliveredBy || '',
@@ -7977,6 +8070,9 @@ function editEventLunch(id) {
   document.getElementById('event-phone').value = item.contactPhone || eventNoteField(item, '연락처');
   document.getElementById('event-place').value = item.place || '';
   document.getElementById('event-note').value = item.note || '';
+  document.getElementById('event-quote-status').value = item.quoteStatus || (item.quoteRequested ? 'requested' : 'none');
+  document.getElementById('event-quote-budget').value = item.quoteBudgetText || '';
+  document.getElementById('event-quote-note').value = item.quoteMemo || '';
   pendingPublicEventOrderId = '';
   pendingPublicEventOrder = null;
   setAdminEventDraftItems(Array.isArray(item.items) && item.items.length
@@ -10146,6 +10242,20 @@ function loadKakaoMapScript() {
     document.head.appendChild(script);
   });
   return kakaoMapScriptLoadingPromise;
+}
+
+function updateAdminEventItem(index, field, value) {
+  const item = adminEventDraftItems[index];
+  if (!item) return;
+  const numeric = Math.max(0, parseInt(value, 10) || 0);
+  if (field === 'qty') item.qty = numeric;
+  if (field === 'price') item.price = numeric;
+  item.amount = item.qty * item.price;
+  const amountEl = document.getElementById(`event-menu-amount-${index}`);
+  if (amountEl) amountEl.textContent = formatMoney(item.amount);
+  const total = document.getElementById('event-menu-total');
+  if (total) total.textContent = `총 ${eventOrderTotalQty({ items: adminEventDraftItems })}개 · ${formatMoney(eventOrderTotalAmount({ items: adminEventDraftItems }))}`;
+  syncAdminEventHiddenFields();
 }
 
 function resetMapSearchEntries() {

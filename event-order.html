@@ -51,6 +51,10 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .menu-item-main{font-size:13px;line-height:1.45}
 .menu-item-main strong{display:block;color:var(--primary);font-size:14px}
 .menu-remove{border:0;background:#fdecea;color:var(--danger);border-radius:6px;padding:7px 9px;font:inherit;font-size:12px;font-weight:900;cursor:pointer;flex:0 0 auto}
+.quote-box{border:1px solid #f0d9c0;border-radius:8px;background:#fffaf5;padding:13px;display:grid;gap:10px}
+.quote-check{display:flex;align-items:flex-start;gap:9px;font-size:14px;font-weight:900;color:var(--primary);line-height:1.45}
+.quote-check input{width:18px;height:18px;flex:0 0 18px;margin-top:1px;accent-color:var(--primary)}
+.quote-help{font-size:12px;color:var(--sub);line-height:1.55}
 .time-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .time-btn{border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;padding:11px 8px;font:inherit;font-size:14px;font-weight:900;color:#4b5563;cursor:pointer}
 .time-btn.active{border-color:var(--primary);background:#fff4e4;color:var(--primary)}
@@ -148,6 +152,18 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
       <div class="field">
         <label class="label" for="requestNote">요청사항</label>
         <textarea class="textarea" id="requestNote" maxlength="500" placeholder="포장, 알레르기, 수저 필요 여부 등"></textarea>
+      </div>
+      <div class="field">
+        <div class="label">맞춤형 금액 제안</div>
+        <div class="quote-box">
+          <label class="quote-check" for="quoteRequested">
+            <input type="checkbox" id="quoteRequested">
+            <span>예산에 맞춘 메뉴 구성이나 금액 제안이 필요합니다</span>
+          </label>
+          <input class="input" id="quoteBudgetText" maxlength="120" placeholder="예) 1인 15,000원 안쪽 / 총 50만원 예산">
+          <textarea class="textarea" id="quoteMemo" maxlength="300" placeholder="원하는 구성, 제외할 메뉴, 단체 특성 등을 적어주세요."></textarea>
+          <div class="quote-help">남겨주신 예산을 기준으로 확인 후 연락드립니다. 최종 금액은 상담 후 확정됩니다.</div>
+        </div>
       </div>
       <div class="field" data-field="paymentMethod">
         <div class="label">결제 <span class="required">*</span></div>
@@ -352,6 +368,9 @@ form.addEventListener('submit', async (e) => {
   const paymentCash = paymentMethod === 'cash';
   const paymentTransfer = paymentMethod === 'transfer';
   const paymentCard = paymentMethod === 'card';
+  const quoteBudgetText = value('quoteBudgetText');
+  const quoteMemo = value('quoteMemo');
+  const quoteRequested = document.getElementById('quoteRequested').checked || Boolean(quoteBudgetText || quoteMemo);
   const payload = {
     businessName: value('businessName'),
     contactPhone: value('contactPhone'),
@@ -363,6 +382,10 @@ form.addEventListener('submit', async (e) => {
     menuText: menuSummary(),
     items: orderItems,
     requestNote: value('requestNote'),
+    quoteRequested,
+    quoteBudgetText,
+    quoteMemo,
+    quoteStatus: quoteRequested ? 'requested' : 'none',
     paymentCash,
     paymentTransfer,
     paymentCard,
