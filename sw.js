@@ -1,10 +1,11 @@
-const CACHE = 'gjsuragan-v50-signup-rules-budget-fix';
+const CACHE = 'gjsuragan-v51-notice-memos';
 const PRECACHE = [
   './customer.html',
   './admin.html',
   './event-order.html',
   './links.html',
   './map/index.html',
+  './assets/js/notice-memos.js',
   './assets/img/event-lunch-banner.jpg',
   './assets/img/event-menu.jpg',
   './icons/icon.svg',
