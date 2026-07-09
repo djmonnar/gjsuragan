@@ -510,6 +510,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .event-list-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}
 .event-list-count{font-size:13px;font-weight:700;color:var(--sub)}
 .event-list-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.event-month-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.event-month-controls .form-input{width:170px;margin:0}
+.event-month-controls .secondary-btn{white-space:nowrap}
 .event-list-more-wrap{display:flex;justify-content:center;margin-top:12px}
 .event-desktop-table-wrap{display:block}
 .event-mobile-list{display:none}
@@ -547,6 +550,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   .event-edit-modal-box #event-editor-panel{display:block;border:0;padding:0;margin:0}
   .event-desktop-table-wrap{display:none}
   .event-mobile-list{display:grid;gap:10px}
+  .event-month-controls{display:grid;grid-template-columns:44px 1fr 44px;gap:8px}
+  .event-month-controls .form-input{width:100%}
+  .event-month-controls .event-month-today{grid-column:1/-1}
   .event-list-toolbar{align-items:flex-start;flex-wrap:wrap}
   .event-list-actions{width:100%;justify-content:stretch}
   .event-list-actions .secondary-btn{flex:1}
@@ -1132,6 +1138,12 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="error-msg" id="event-error"></div>
     </div>
     <div class="section-title">행사도시락 목록</div>
+    <div class="event-month-controls">
+      <button class="secondary-btn" type="button" onclick="shiftEventLunchMonth(-1)">‹</button>
+      <input class="form-input" type="month" id="event-list-month" onchange="setEventLunchMonth(this.value)">
+      <button class="secondary-btn" type="button" onclick="shiftEventLunchMonth(1)">›</button>
+      <button class="secondary-btn event-month-today" type="button" onclick="setEventLunchMonth(currentMonthStr())">이번 달</button>
+    </div>
     <div class="event-list-toolbar">
       <div class="event-list-count" id="event-list-count">최신 주문순 · 불러오는 중</div>
       <div class="event-list-actions">
@@ -2150,6 +2162,7 @@ let currentDateStr = '';
 let allUsers = {};
 let deletedUsers = {};
 let eventLunches = [];
+let eventLunchMonth = '';
 let eventLunchVisibleLimit = 30;
 let pendingPublicEventOrderId = '';
 let pendingPublicEventOrder = null;
@@ -7653,6 +7666,49 @@ function sortEventLunchesLatestFirst(items) {
   });
 }
 
+function normalizeEventLunchMonth(month) {
+  return /^\d{4}-\d{2}$/.test(String(month || '')) ? String(month) : currentMonthStr();
+}
+
+function eventLunchMonthLabel(month) {
+  const [year, mon] = normalizeEventLunchMonth(month).split('-');
+  return `${year}년 ${parseInt(mon, 10)}월`;
+}
+
+function syncEventLunchMonthInput() {
+  eventLunchMonth = normalizeEventLunchMonth(eventLunchMonth);
+  const input = document.getElementById('event-list-month');
+  if (input && input.value !== eventLunchMonth) input.value = eventLunchMonth;
+}
+
+function setEventLunchMonth(month) {
+  eventLunchMonth = normalizeEventLunchMonth(month);
+  syncEventLunchMonthInput();
+  eventLunchVisibleLimit = 30;
+  renderEventLunches();
+}
+
+function shiftEventLunchMonth(delta) {
+  const [year, mon] = normalizeEventLunchMonth(eventLunchMonth).split('-').map(Number);
+  const dt = new Date(Date.UTC(year, mon - 1 + delta, 1));
+  const nextMonth = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
+  setEventLunchMonth(nextMonth);
+}
+
+function eventLunchItemMonth(item = {}) {
+  return String(item.eventDate || '').slice(0, 7);
+}
+
+function filteredEventLunchesByMonth() {
+  const month = normalizeEventLunchMonth(eventLunchMonth);
+  const currentMonth = currentMonthStr();
+  return eventLunches.filter(item => {
+    const itemMonth = eventLunchItemMonth(item);
+    if (itemMonth) return itemMonth === month;
+    return month === currentMonth;
+  });
+}
+
 function eventMobileStatusText(item = {}) {
   if (item.source === 'publicEventOrder') return '접수';
   return item.delivered ? '배송완료' : '대기';
@@ -7694,14 +7750,16 @@ function renderEventMobileList(items = []) {
 
 function updateEventListControls(visibleCount = 0) {
   const countEl = document.getElementById('event-list-count');
+  const monthlyItems = filteredEventLunchesByMonth();
   if (countEl) {
-    countEl.textContent = eventLunches.length
-      ? `최신 주문순 · ${visibleCount}/${eventLunches.length}건 표시`
-      : '최신 주문순 · 0건';
+    const allSuffix = eventLunches.length !== monthlyItems.length ? ` · 전체 ${eventLunches.length}건` : '';
+    countEl.textContent = monthlyItems.length
+      ? `${eventLunchMonthLabel(eventLunchMonth)} · 최신 주문순 · ${visibleCount}/${monthlyItems.length}건 표시${allSuffix}`
+      : `${eventLunchMonthLabel(eventLunchMonth)} · 0건${allSuffix}`;
   }
   const moreBtn = document.getElementById('event-list-more');
   if (!moreBtn) return;
-  const remaining = Math.max(eventLunches.length - visibleCount, 0);
+  const remaining = Math.max(monthlyItems.length - visibleCount, 0);
   moreBtn.style.display = remaining > 0 ? 'inline-flex' : 'none';
   moreBtn.textContent = remaining > 0 ? `더보기 (${remaining}건 남음)` : '더보기';
 }
@@ -7754,6 +7812,7 @@ function openEventLunchMobileEdit(id) {
 }
 
 async function loadEventLunches() {
+  syncEventLunchMonthInput();
   const tbody = document.getElementById('event-tbody');
   tbody.innerHTML = '<tr class="no-order-row"><td colspan="11">불러오는 중...</td></tr>';
   renderEventMobileList([]);
@@ -7782,6 +7841,7 @@ async function loadEventLunches() {
 }
 
 function renderEventLunches() {
+  syncEventLunchMonthInput();
   const tbody = document.getElementById('event-tbody');
   if (eventLunches.length === 0) {
     tbody.innerHTML = '<tr class="no-order-row"><td colspan="11">등록된 행사도시락이 없습니다</td></tr>';
@@ -7789,7 +7849,16 @@ function renderEventLunches() {
     updateEventListControls(0);
     return;
   }
-  const visibleItems = eventLunches.slice(0, eventLunchVisibleLimit);
+  const monthlyItems = filteredEventLunchesByMonth();
+  if (monthlyItems.length === 0) {
+    const monthLabel = eventLunchMonthLabel(eventLunchMonth);
+    tbody.innerHTML = `<tr class="no-order-row"><td colspan="11">${escapeHtml(monthLabel)} 행사도시락이 없습니다</td></tr>`;
+    const mobileList = document.getElementById('event-mobile-list');
+    if (mobileList) mobileList.innerHTML = `<div class="event-mobile-empty">${escapeHtml(monthLabel)} 행사도시락이 없습니다.</div>`;
+    updateEventListControls(0);
+    return;
+  }
+  const visibleItems = monthlyItems.slice(0, eventLunchVisibleLimit);
   tbody.innerHTML = visibleItems.map(item => `
     <tr>
       <td>${escapeHtml(item.eventDate || '-')}</td>
@@ -8307,6 +8376,8 @@ async function saveEventLunch() {
     }
     const modalWasOpen = document.getElementById('event-edit-modal')?.classList.contains('open');
     showToast(isPublicRegistration ? '✅ 비회원 행사도시락 주문이 등록되었습니다.' : (id ? '✅ 행사도시락이 수정되었습니다.' : '✅ 행사도시락이 등록되었습니다.'));
+    eventLunchMonth = normalizeEventLunchMonth(eventDate.slice(0, 7));
+    syncEventLunchMonthInput();
     resetEventForm();
     if (modalWasOpen) closeEventEditModal();
     loadEventLunches();
