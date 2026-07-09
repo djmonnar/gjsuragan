@@ -524,6 +524,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .event-month-controls .form-input{width:170px;margin:0}
 .event-month-controls .secondary-btn{white-space:nowrap}
 .event-list-more-wrap{display:flex;justify-content:center;margin-top:12px}
+.event-new-chip{border-color:#f6c76a;background:#fff7d6;color:#a15c00;margin-left:6px}
 .event-desktop-table-wrap{display:block}
 .event-mobile-list{display:none}
 .event-section .order-table th{background:#f8fafc;color:#27364a;font-size:13px;font-weight:900}
@@ -4399,7 +4400,7 @@ function renderOrderEventLunches(rows = currentOrderEventRows) {
       <div class="order-event-card">
         <div class="order-event-head">
           <div>
-            <div class="order-event-name">${escapeHtml(eventCustomerName(item))}</div>
+            <div class="order-event-name">${escapeHtml(eventCustomerName(item))}${eventLunchNewBadgeHtml(item)}</div>
             <div style="margin-top:5px">${eventDeliveryBadge(item)}</div>
           </div>
           <div class="order-event-qty">${qty}개</div>
@@ -7671,6 +7672,27 @@ function eventLatestSortMillis(item = {}) {
     || eventSortMillisValue(item.id);
 }
 
+const EVENT_LUNCH_NEW_BADGE_MS = 24 * 60 * 60 * 1000;
+function eventLunchCreatedMillis(item = {}) {
+  return eventSortMillisValue(item.createdAt)
+    || eventSortMillisValue(item.requestedAt)
+    || eventSortMillisValue(item.submittedAt)
+    || eventSortMillisValue(item.registeredAt);
+}
+
+function isNewEventLunch(item = {}) {
+  const createdMs = eventLunchCreatedMillis(item);
+  if (!createdMs) return false;
+  const ageMs = Date.now() - createdMs;
+  return ageMs >= 0 && ageMs < EVENT_LUNCH_NEW_BADGE_MS;
+}
+
+function eventLunchNewBadgeHtml(item = {}) {
+  return isNewEventLunch(item)
+    ? '<span class="new-member-chip event-new-chip" title="최근 24시간 이내 접수된 행사도시락">NEW</span>'
+    : '';
+}
+
 function sortEventLunchesLatestFirst(items) {
   return items.sort((a, b) => {
     const diff = eventLatestSortMillis(b) - eventLatestSortMillis(a);
@@ -7743,7 +7765,7 @@ function renderEventMobileList(items = []) {
       <button type="button" class="event-mobile-card" onclick="openEventLunchMobileEdit('${item.id}')">
         <div class="event-mobile-card-head">
           <div class="event-mobile-card-name">
-            ${item.source === 'publicEventOrder' ? '<span class="note-badge">비회원</span> ' : ''}${escapeHtml(eventCustomerName(item))}${eventQuoteBadge(item)}
+            ${item.source === 'publicEventOrder' ? '<span class="note-badge">비회원</span> ' : ''}${escapeHtml(eventCustomerName(item))}${eventLunchNewBadgeHtml(item)}${eventQuoteBadge(item)}
           </div>
           <div class="event-mobile-card-date">${escapeHtml(item.eventDate || '-')}<br>${escapeHtml(item.eventTime || '-')}</div>
         </div>
@@ -7876,7 +7898,7 @@ function renderEventLunches() {
     <tr>
       <td>${escapeHtml(item.eventDate || '-')}</td>
       <td>${escapeHtml(item.eventTime || '-')}</td>
-      <td class="biz-name">${item.source === 'publicEventOrder' ? '<span class="note-badge">비회원</span> ' : ''}${escapeHtml(eventCustomerName(item))}${eventQuoteBadge(item)}${item.contactPhone ? `<br><span style="font-size:12px;color:var(--sub);font-weight:500">${escapeHtml(item.contactPhone)}</span>` : ''}</td>
+      <td class="biz-name">${item.source === 'publicEventOrder' ? '<span class="note-badge">비회원</span> ' : ''}${escapeHtml(eventCustomerName(item))}${eventLunchNewBadgeHtml(item)}${eventQuoteBadge(item)}${item.contactPhone ? `<br><span style="font-size:12px;color:var(--sub);font-weight:500">${escapeHtml(item.contactPhone)}</span>` : ''}</td>
       <td class="note-cell">${escapeHtml(eventOrderItemsSummary(item) || item.name || '-')}</td>
       <td class="qty-cell">${eventOrderTotalQty(item) || item.count || 0}</td>
       <td>${formatMoney(eventOrderTotalAmount(item) || item.amount || 0)}</td>
