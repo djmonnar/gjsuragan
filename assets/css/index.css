@@ -433,6 +433,37 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 .vt{padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:var(--tr);}
 .vt.on{background:var(--surface);color:var(--text);box-shadow:var(--sh0);}
 
+/* ── 공지메모 ── */
+.notice-memo-grid{display:grid;grid-template-columns:minmax(320px,420px) minmax(0,1fr);gap:18px;align-items:start;}
+.notice-memo-form{padding:18px;position:sticky;top:14px;}
+.notice-form-title{font-size:15px;font-weight:900;color:var(--text);margin-bottom:14px;}
+.notice-active-toggle{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);font-size:13px;font-weight:800;color:var(--text2);cursor:pointer;}
+.notice-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+.notice-memo-list-wrap{display:flex;flex-direction:column;gap:10px;min-width:0;}
+.notice-summary{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;font-size:13px;font-weight:800;color:var(--text2);box-shadow:var(--sh0);}
+.notice-memo-list{display:flex;flex-direction:column;gap:10px;}
+.notice-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh0);padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
+.notice-card.is-active{border-left:4px solid var(--accent);}
+.notice-card.is-inactive{opacity:.72;background:var(--surface2);}
+.notice-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.notice-card-title{font-size:15px;font-weight:900;color:var(--text);line-height:1.35;}
+.notice-card-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.notice-pill{display:inline-flex;align-items:center;border-radius:999px;border:1px solid var(--border);background:var(--surface2);padding:2px 8px;font-size:11px;font-weight:800;color:var(--text2);}
+.notice-pill.active{background:rgba(26,107,60,.1);border-color:rgba(26,107,60,.25);color:var(--accent);}
+.notice-pill.off{background:rgba(107,114,128,.1);color:var(--text3);}
+.notice-pill.date{background:rgba(3,102,214,.08);border-color:rgba(3,102,214,.18);color:var(--info);}
+.notice-body{font-size:14px;color:var(--text);line-height:1.65;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;}
+.notice-card-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:10px;}
+.notice-updated{font-size:11px;color:var(--text3);}
+.notice-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.notice-start-modal{width:min(720px,calc(100vw - 36px));}
+.notice-popup-help{margin-bottom:12px;}
+.notice-popup-list{display:flex;flex-direction:column;gap:10px;}
+.notice-popup-item{border:1px solid rgba(26,107,60,.2);background:var(--surface2);border-left:4px solid var(--accent);border-radius:var(--r);padding:12px 14px;}
+.notice-popup-title{font-size:15px;font-weight:900;color:var(--text);margin-bottom:6px;}
+.notice-popup-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+.notice-empty{background:var(--surface);border:1px dashed var(--borders);border-radius:var(--r);padding:28px 16px;text-align:center;color:var(--text3);font-size:13px;}
+
 
 /* ════════════════════════════════════════
    모바일 반응형 (전면 개편)
@@ -466,6 +497,14 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 
   /* ── 그리드 ── */
   .g2, .g3, .g4 { grid-template-columns: 1fr; gap: 10px; }
+  .notice-memo-grid { grid-template-columns: 1fr; gap: 10px; }
+  .notice-memo-form { position: static; padding: 14px; }
+  .notice-card { padding: 13px 14px; }
+  .notice-card-top { flex-direction: column; align-items: flex-start; }
+  .notice-card-foot { align-items: stretch; }
+  .notice-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+  .notice-actions .btn { justify-content: center; }
+  .notice-start-modal { width: 100% !important; }
   .fg { grid-template-columns: 1fr; gap: 10px; }
   .fgf { grid-column: 1; }
 

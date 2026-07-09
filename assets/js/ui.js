@@ -273,7 +273,7 @@ function clearAdd(){
 }
 
 function goTab(name){
-  const tabs=['dash','today','route','report','customers','export','import','manual'];
+  const tabs=['dash','today','route','notice','report','customers','export','import','manual'];
   document.querySelectorAll('.ni').forEach((t,i)=>t.classList.toggle('on',tabs[i]===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.getElementById('page-'+name).classList.add('on');
@@ -282,6 +282,7 @@ function goTab(name){
     if(typeof renderCancelLogs === 'function') renderCancelLogs();
   }
   if(name==='route' && typeof renderRouteMap === 'function') renderRouteMap();
+  if(name==='notice' && typeof renderNoticeMemos === 'function') renderNoticeMemos();
   if(name==='customers') renderCust();
   if(name==='report') renderReport();
 }

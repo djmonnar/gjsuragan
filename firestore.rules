@@ -559,6 +559,10 @@ service cloud.firestore {
       allow read, write: if isAdmin() || isDriverAnon();
     }
 
+    match /deliveryNoticeMemos/{memoId} {
+      allow read, write: if isAdmin();
+    }
+
     match /customers/{document=**} {
       allow read: if isAdmin() || (isDriverAnon() && resource.data.isDirect == true);
       allow create, delete: if isAdmin();
