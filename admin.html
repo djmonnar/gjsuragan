@@ -2251,6 +2251,7 @@ const USER_PRIVATE_FIELDS = [
   'status',
   'role'
 ];
+const DEFAULT_USER_MEAL_PRICE = 8000;
 
 window.addEventListener('hashchange', () => {
   if (location.hash === '#changeRequests' && document.getElementById('main-screen')?.classList.contains('active')) {
@@ -2738,10 +2739,10 @@ function isEventOrder(order) {
   return order?.kind === 'eventLunch' || String(order?.uid || '').startsWith('event_');
 }
 function userLunchPrice(user) {
-  return Number(user?.lunchPrice ?? user?.priceLunch ?? 0) || 0;
+  return Number(user?.lunchPrice ?? user?.priceLunch ?? DEFAULT_USER_MEAL_PRICE) || 0;
 }
 function userSaladPrice(user) {
-  return Number(user?.saladPrice ?? user?.priceSalad ?? 0) || 0;
+  return Number(user?.saladPrice ?? user?.priceSalad ?? DEFAULT_USER_MEAL_PRICE) || 0;
 }
 function parseCount(value, fallback = 0) {
   const parsed = parseInt(value, 10);

@@ -3602,10 +3602,6 @@ async function doRegister() {
     deliveryPlace, deliveryPlaceDetail,
     mealTime,
     defaultLunch: lunch, defaultSalad: salad,
-    lunchPrice: DEFAULT_MEAL_PRICE,
-    saladPrice: DEFAULT_MEAL_PRICE,
-    priceLunch: DEFAULT_MEAL_PRICE,
-    priceSalad: DEFAULT_MEAL_PRICE,
     sameDailyMeal,
     sameDailyMealExplicit: true,
     weekdayMeals,
@@ -3808,9 +3804,9 @@ function customerSettlementQty(s, totalKey, legacyKey) {
 
 function customerSettlementPrices(s) {
   return {
-    lunch: Number(s?.lunchPrice ?? userProfile?.lunchPrice ?? userProfile?.priceLunch ?? 0) || 0,
-    salad: Number(s?.saladPrice ?? userProfile?.saladPrice ?? userProfile?.priceSalad ?? 0) || 0,
-    eventLunch: Number(s?.eventPrice ?? s?.eventLunchPrice ?? s?.lunchPrice ?? userProfile?.lunchPrice ?? 0) || 0
+    lunch: Number(s?.lunchPrice ?? userProfile?.lunchPrice ?? userProfile?.priceLunch ?? DEFAULT_MEAL_PRICE) || 0,
+    salad: Number(s?.saladPrice ?? userProfile?.saladPrice ?? userProfile?.priceSalad ?? DEFAULT_MEAL_PRICE) || 0,
+    eventLunch: Number(s?.eventPrice ?? s?.eventLunchPrice ?? s?.lunchPrice ?? userProfile?.lunchPrice ?? DEFAULT_MEAL_PRICE) || 0
   };
 }
 
