@@ -3803,10 +3803,13 @@ function customerSettlementQty(s, totalKey, legacyKey) {
 }
 
 function customerSettlementPrices(s) {
+  const lunch = Number(s?.lunchPrice ?? userProfile?.lunchPrice ?? userProfile?.priceLunch ?? DEFAULT_MEAL_PRICE);
+  const salad = Number(s?.saladPrice ?? userProfile?.saladPrice ?? userProfile?.priceSalad ?? DEFAULT_MEAL_PRICE);
+  const eventLunch = Number(s?.eventPrice ?? s?.eventLunchPrice ?? s?.lunchPrice ?? userProfile?.lunchPrice ?? 0);
   return {
-    lunch: Number(s?.lunchPrice ?? userProfile?.lunchPrice ?? userProfile?.priceLunch ?? 0) || 0,
-    salad: Number(s?.saladPrice ?? userProfile?.saladPrice ?? userProfile?.priceSalad ?? 0) || 0,
-    eventLunch: Number(s?.eventPrice ?? s?.eventLunchPrice ?? s?.lunchPrice ?? userProfile?.lunchPrice ?? 0) || 0
+    lunch: Number.isFinite(lunch) ? lunch : DEFAULT_MEAL_PRICE,
+    salad: Number.isFinite(salad) ? salad : DEFAULT_MEAL_PRICE,
+    eventLunch: Number.isFinite(eventLunch) ? eventLunch : 0
   };
 }
 

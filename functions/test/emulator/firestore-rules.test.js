@@ -87,13 +87,24 @@ test('signed-in owner can create a profile without price fields', async () => {
 
 test('owner cannot set price fields during profile creation', async () => {
   const db = env.authenticatedContext('test-owner', { email: 'owner@example.invalid' }).firestore();
-  await assertFails(setDoc(doc(db, 'users/test-owner'), { ...validProfile(), lunchPrice: 8000 }));
+  await assertFails(setDoc(doc(db, 'users/test-owner'), {
+    ...validProfile(),
+    lunchPrice: 8000,
+    saladPrice: 8000,
+    priceLunch: 8000,
+    priceSalad: 8000
+  }));
 });
 
 test('owner cannot update price fields after signup', async () => {
   const db = env.authenticatedContext('test-owner', { email: 'owner@example.invalid' }).firestore();
   await assertSucceeds(setDoc(doc(db, 'users/test-owner'), validProfile()));
-  await assertFails(updateDoc(doc(db, 'users/test-owner'), { lunchPrice: 9000 }));
+  await assertFails(updateDoc(doc(db, 'users/test-owner'), {
+    lunchPrice: 9000,
+    saladPrice: 9000,
+    priceLunch: 9000,
+    priceSalad: 9000
+  }));
 });
 
 test('owner cannot read or update another user profile', async () => {
@@ -112,6 +123,8 @@ test('existing administrator claim can set customer prices', async () => {
   const adminDb = env.authenticatedContext('test-admin', { email: testAdminEmail }).firestore();
   await assertSucceeds(updateDoc(doc(adminDb, 'users/test-owner'), {
     lunchPrice: 8000,
-    saladPrice: 8000
+    saladPrice: 8000,
+    priceLunch: 8000,
+    priceSalad: 8000
   }));
 });
