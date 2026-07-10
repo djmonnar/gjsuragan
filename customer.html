@@ -3402,15 +3402,7 @@ function hasSeenTaxCertificateNotice() {
 }
 
 function maybeShowTaxCertificateNotice() {
-  const modal = document.getElementById('tax-certificate-notice-modal');
-  if (!modal || !currentUser || hasSeenTaxCertificateNotice()) return;
-  const cert = taxCertificateMeta();
-  if (cert.path || cert.url) return;
-  markTaxCertificateNoticeSeen();
-  setTimeout(() => {
-    if (document.getElementById('ios-guide')?.style.display === 'block') return;
-    modal.classList.add('open');
-  }, 900);
+  return;
 }
 
 function closeTaxCertificateNotice() {
@@ -3755,7 +3747,6 @@ function showMain() {
       openInstallGuide();
     }, 2500);
   }
-  maybeShowTaxCertificateNotice();
 }
 function showLogin() {
   document.getElementById('login-form').style.display = 'block';
