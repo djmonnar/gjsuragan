@@ -7,10 +7,19 @@
   "main": "index.js",
   "scripts": {
     "lint": "node --check index.js",
+    "test:unit": "node --test test/unit/*.test.js",
+    "test:emulator:inside": "node --test --test-concurrency=1 test/emulator/*.test.js",
+    "test:emulator": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-gjsuragan-safety \"npm run test:emulator:inside\"",
+    "test:smoke": "node scripts/check-static-pages.js",
+    "test": "npm run test:unit && npm run test:emulator && npm run test:smoke",
     "deploy": "firebase deploy --only functions"
   },
   "dependencies": {
     "firebase-admin": "^13.6.0",
     "firebase-functions": "^7.2.5"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "firebase": "^12.6.0"
   }
 }

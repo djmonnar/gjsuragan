@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const logenClient = require('./logenClient');
 const { mapCustomerToLogenOrder, orderNumber } = require('./logenMapper');
 const { parseMealPlanOcr } = require('./mealPlanParser');
+const kakaoAuth = require('./kakaoAuth');
 
 admin.initializeApp();
 
@@ -455,6 +456,18 @@ async function handleKakaoWebhookRequest(req, res) {
     const utterance = kakaoUtterance(payload);
     kakaoLogWebhookDebug(payload, utterance);
 
+    if (kakaoAuthEnforcementEnabled()) {
+      const auth = await kakaoCheckAuth(payload, utterance);
+      if (!auth.ok) {
+        sendKakaoResponse(res, kakaoAuthMessage(auth));
+        return;
+      }
+      if (auth.justAuthed) {
+        sendKakaoResponse(res, '관리자 인증이 완료되었습니다.\n이제 조회 또는 업무 명령을 다시 입력해주세요.');
+        return;
+      }
+    }
+
     const mealOcrResponse = await kakaoHandleMealOcrFlow(payload, utterance);
     if (mealOcrResponse) {
       sendKakaoResponse(res, mealOcrResponse);
@@ -898,45 +911,24 @@ function kakaoUserKey(payload) {
 }
 
 function kakaoAllowedUsers() {
-  return String(process.env.KAKAO_ALLOWED_USERS || '')
-    .split(',')
-    .map(v => v.trim())
-    .filter(Boolean);
+  return kakaoAuth.kakaoAllowedUsersFromEnv(process.env);
+}
+
+function kakaoAuthEnforcementEnabled() {
+  return kakaoAuth.isKakaoAuthEnforcementEnabled(process.env);
 }
 
 async function kakaoCheckAuth(payload, utterance) {
-  const userKey = kakaoUserKey(payload);
-  const allowed = kakaoAllowedUsers();
-  if (allowed.length && !allowed.includes(userKey)) {
-    return { ok: false, reason: 'not_allowed', userKey };
-  }
-
-  const expected = String(process.env.KAKAO_ADMIN_PIN || '').trim();
-  if (!expected) return { ok: false, reason: 'pin_missing' };
-
-  const sessionId = Buffer.from(userKey).toString('base64url').slice(0, 120) || 'anonymous';
-  const sessionRef = db.collection('kakaoBotSessions').doc(sessionId);
-  const session = await sessionRef.get().catch(() => null);
-  const expiresAt = session?.exists ? session.data()?.expiresAt?.toMillis?.() : 0;
-  if (expiresAt && expiresAt > Date.now()) return { ok: true, justAuthed: false };
-
-  const params = kakaoActionParams(payload);
-  let given = String(params.pin || params.adminPin || '').trim();
-  if (!given) {
-    const match = String(utterance || '').match(/(?:인증|핀|pin)\s*[:：]?\s*([^\s]+)/i);
-    given = match ? String(match[1]).trim() : '';
-  }
-
-  if (given && given === expected) {
-    await sessionRef.set({
-      userKey,
-      authedAt: admin.firestore.FieldValue.serverTimestamp(),
-      expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + KAKAO_SESSION_TTL_MS)
-    }, { merge: true });
-    return { ok: true, justAuthed: true };
-  }
-
-  return { ok: false, reason: 'need_auth' };
+  return kakaoAuth.checkKakaoAuth({
+    db,
+    env: process.env,
+    userKey: kakaoUserKey(payload),
+    utterance,
+    params: kakaoActionParams(payload),
+    sessionTtlMs: KAKAO_SESSION_TTL_MS,
+    timestampFromMillis: value => admin.firestore.Timestamp.fromMillis(value),
+    serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp()
+  });
 }
 
 function kakaoAuthMessage(auth) {

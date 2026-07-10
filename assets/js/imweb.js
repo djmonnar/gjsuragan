@@ -298,11 +298,11 @@ function renderImwebOrders(){
     return `<tr id="iw-row-${i}">
       <td><input type="checkbox" class="iw-ck" data-idx="${i}" checked></td>
       <td style="color:var(--text3);">${i+1}</td>
-      <td style="font-size:11px;font-family:monospace;">${o.order_no||''}</td>
-      <td><strong>${recv.name||o.member_id||''}</strong></td>
-      <td style="white-space:nowrap;">${recv.phone||''}</td>
-      <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${addr}">${addr}</td>
-      <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${prodName}">${prodName||'—'}</td>
+      <td style="font-size:11px;font-family:monospace;">${escHtml(o.order_no||'')}</td>
+      <td><strong>${escHtml(recv.name||o.member_id||'')}</strong></td>
+      <td style="white-space:nowrap;">${escHtml(recv.phone||'')}</td>
+      <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(addr)}">${escHtml(addr)}</td>
+      <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(prodName)}">${escHtml(prodName||'—')}</td>
       <td>
         <select class="inp inp-sm" id="iw-prod-${i}" style="width:130px;">
           <option value="" ${!autoProd?'selected':''}>미선택</option>
@@ -317,8 +317,8 @@ function renderImwebOrders(){
           </optgroup>
         </select>
       </td>
-      <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${recv.memo||'—'}</td>
-      <td style="font-size:11px;white-space:nowrap;">${dateStr}</td>
+      <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(recv.memo||'—')}</td>
+      <td style="font-size:11px;white-space:nowrap;">${escHtml(dateStr)}</td>
       <td><button class="btn btn-d sm" onclick="iwRemoveRow(${i})">✕</button></td>
     </tr>`;
   }).join('');
@@ -567,7 +567,7 @@ function iwRenderXl(){
     // 배송일/일정 표시
     let dateDisplay = '';
     if(row.orderType === 'once'){
-      dateDisplay = `<input type="date" class="inp inp-sm" id="iw-xl-date-${i}" value="${row.onceDate}" style="width:130px;">`;
+      dateDisplay = `<input type="date" class="inp inp-sm" id="iw-xl-date-${i}" value="${escHtml(row.onceDate)}" style="width:130px;">`;
     } else {
       // 정기: 주기 + 일정 선택
       const freq = row.schInfo.freq || '';
@@ -582,10 +582,10 @@ function iwRenderXl(){
     }
     return `<tr id="iw-xl-row-${i}">
       <td style="color:var(--text3);">${i+1}</td>
-      <td style="font-size:10px;font-family:monospace;">${row.orderNo}</td>
-      <td><strong>${row.recv}</strong></td>
-      <td style="white-space:nowrap;font-size:12px;">${row.phone}</td>
-      <td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${row.addr}">${row.addr}</td>
+      <td style="font-size:10px;font-family:monospace;">${escHtml(row.orderNo)}</td>
+      <td><strong>${escHtml(row.recv)}</strong></td>
+      <td style="white-space:nowrap;font-size:12px;">${escHtml(row.phone)}</td>
+      <td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(row.addr)}">${escHtml(row.addr)}</td>
       <td>${typeBadge}</td>
       <td>
         <select class="inp inp-sm" id="iw-xl-prod-${i}" style="width:130px;">
@@ -594,7 +594,7 @@ function iwRenderXl(){
       </td>
       <td style="min-width:140px;">${dateDisplay}</td>
       <td style="text-align:center;">${row.qty}</td>
-      <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${row.memo||'—'}</td>
+      <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(row.memo||'—')}</td>
       <td><button class="btn btn-d sm" onclick="iwXlRemove(${i})">✕</button></td>
     </tr>`;
   }).join('');
@@ -799,16 +799,14 @@ async function quickDelete(id, name){
 
 async function markDone(id, dateStr){
   const c=custs.find(x=>x.id===id); if(!c) return;
-  if(c.remain<=0){ toast('이미 배송 완료된 건입니다','er'); return; }
   const t=dateStr||todayStr();
-  if((c.deliveredDates||[]).includes(t)){ toast('해당 날짜 이미 처리됨','er'); return; }
-  const rem=c.remain-1;
-  const dates=[...(c.deliveredDates||[]),t];
-  // 선택주문: 무조건 1번이면 end / 정기배송: remain 0이면 end
-  const st = rem===0 ? 'end' : c.status;
-  const upd = {remain:rem, deliveredDates:dates, status:st};
   try{
-    await window.__DB.collection('customers').doc(id).update(upd);
+    const result=await runDeliveryTransaction(window.__DB,id,t,'complete');
+    if(!result.changed){
+      toast(result.reason==='already_completed'?'해당 날짜 이미 처리됨':'이미 배송 완료된 건입니다','er');
+      return;
+    }
+    const rem=result.patch.remain;
     if(c.orderType==='once'){
       toast(c.name+' 배송 완료! (주문 종료)','ok');
     } else {
@@ -820,14 +818,10 @@ async function markDone(id, dateStr){
 // 배송완료 취소 (실수 방지)
 async function undoMarkDone(id, dateStr){
   const c=custs.find(x=>x.id===id); if(!c) return;
-  const dates=(c.deliveredDates||[]).filter(d=>d!==dateStr);
-  const newRemain=c.remain+1;
-  const newStatus=c.status==='end'?'active':c.status;
   if(!confirm(`${c.name}의 [${dateStr}] 배송완료를 취소하시겠습니까?`)) return;
   try{
-    await window.__DB.collection('customers').doc(id).update({
-      remain:newRemain, deliveredDates:dates, status:newStatus
-    });
+    const result=await runDeliveryTransaction(window.__DB,id,dateStr,'cancel');
+    if(!result.changed){ toast('해당 날짜는 완료 기록이 없습니다','er'); return; }
     toast(c.name+' 배송완료 취소됨','ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
 }
@@ -838,13 +832,7 @@ async function markAll(){
   if(!list.length){ toast('해당 날짜 배송 없음','er'); return; }
   if(!confirm(list.length+'건 전체 완료 처리?')) return;
   try{
-    await Promise.all(list.map(c=>{
-      if((c.deliveredDates||[]).includes(dateStr)) return;
-      const rem=c.remain-1;
-      return window.__DB.collection('customers').doc(c.id).update({
-        remain:rem,deliveredDates:[...(c.deliveredDates||[]),dateStr],status:rem===0?'end':c.status
-      });
-    }));
+    await Promise.all(list.map(c=>runDeliveryTransaction(window.__DB,c.id,dateStr,'complete')));
     toast(list.length+'건 완료!','ok');
   } catch(e){ toast('오류: '+e.message,'er'); }
 }

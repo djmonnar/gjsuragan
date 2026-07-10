@@ -198,34 +198,31 @@ async function markDone(id, dateStr){
   const c = custs.find(x => x.id === id);
   if (!c) return;
   const t = dateStr || todayStr();
-  if ((c.deliveredDates || []).includes(t)) {
-    toast('이미 완료 처리된 날짜입니다.', 'er');
-    return;
+  try {
+    const result = await runDeliveryTransaction(window.__DB, id, t, 'complete');
+    if (!result.changed) {
+      toast(result.reason === 'already_completed' ? '이미 완료 처리된 날짜입니다.' : '이미 배송 완료된 주문입니다.', 'er');
+      return;
+    }
+    toast(`${c.name || '고객'} 배송완료`, 'ok');
+  } catch (error) {
+    toast('배송완료 처리 실패: ' + (error.message || error), 'er');
   }
-  const remain = Number(c.remain || 0);
-  if (remain <= 0) {
-    toast('이미 배송 완료된 주문입니다.', 'er');
-    return;
-  }
-  const nextRemain = remain - 1;
-  await window.__DB.collection('customers').doc(id).update({
-    remain: nextRemain,
-    deliveredDates: [...(c.deliveredDates || []), t],
-    status: nextRemain === 0 ? 'end' : c.status
-  });
-  toast(`${c.name || '고객'} 배송완료`, 'ok');
 }
 async function undoMarkDone(id, dateStr){
   const c = custs.find(x => x.id === id);
   if (!c) return;
   if (!confirm(`${c.name || '고객'} [${dateStr}] 배송완료를 취소할까요?`)) return;
-  const dates = (c.deliveredDates || []).filter(d => d !== dateStr);
-  await window.__DB.collection('customers').doc(id).update({
-    remain: Number(c.remain || 0) + 1,
-    deliveredDates: dates,
-    status: c.status === 'end' ? 'active' : c.status
-  });
-  toast(`${c.name || '고객'} 배송완료 취소`, 'ok');
+  try {
+    const result = await runDeliveryTransaction(window.__DB, id, dateStr, 'cancel');
+    if (!result.changed) {
+      toast('해당 날짜는 완료 기록이 없습니다.', 'er');
+      return;
+    }
+    toast(`${c.name || '고객'} 배송완료 취소`, 'ok');
+  } catch (error) {
+    toast('배송완료 취소 실패: ' + (error.message || error), 'er');
+  }
 }
 function showAppScreen(){
   document.getElementById('loading').style.display = 'none';
@@ -271,6 +268,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
+<script src="../assets/js/delivery-transaction.js?v=20260710-safety1" defer></script>
 <script src="../assets/js/route-map.js?v=20260626-roundtrip1" defer></script>
 </body>
 </html>

@@ -14,11 +14,11 @@ function genExport(){
     return;
   }
   tb.innerHTML=list.map((c,i)=>`<tr>
-    <td style="color:var(--text3);">${i+1}</td><td><strong>${c.name}</strong></td>
-    <td style="white-space:nowrap;">${c.phone}</td>
-    <td style="font-size:11px;">${c.addr}</td>
-    <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
-    <td style="font-size:11px;color:var(--text2);">${c.request||''}</td>
+    <td style="color:var(--text3);">${i+1}</td><td><strong>${escHtml(c.name)}</strong></td>
+    <td style="white-space:nowrap;">${escHtml(c.phone)}</td>
+    <td style="font-size:11px;">${escHtml(c.addr)}</td>
+    <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${escHtml(productLabel(c.productId||c.set))}</span></td>
+    <td style="font-size:11px;color:var(--text2);">${escHtml(c.request||'')}</td>
   </tr>`).join('');
   const directList  = list.filter(c=>c.isDirect);
   const courierList = list.filter(c=>!c.isDirect);
@@ -384,18 +384,18 @@ function parseText(){
     // 미리보기
     let rowsHtml=`
       <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;">${orders.length}건의 주문이 감지되었습니다</div>
-      <div class="prr"><div class="prk">이름</div><div class="prv">${mainName||'(미인식)'}</div></div>
-      <div class="prr"><div class="prk">연락처</div><div class="prv">${mainPhone||'(미인식)'}</div></div>
-      <div class="prr"><div class="prk">주소</div><div class="prv">${mainAddr||'(미인식)'}</div></div>
-      <div class="prr"><div class="prk">현관번호</div><div class="prv">${door||'—'}</div></div>
-      <div class="prr"><div class="prk">요청사항</div><div class="prv">${request||'—'}</div></div>
+      <div class="prr"><div class="prk">이름</div><div class="prv">${escHtml(mainName||'(미인식)')}</div></div>
+      <div class="prr"><div class="prk">연락처</div><div class="prv">${escHtml(mainPhone||'(미인식)')}</div></div>
+      <div class="prr"><div class="prk">주소</div><div class="prv">${escHtml(mainAddr||'(미인식)')}</div></div>
+      <div class="prr"><div class="prk">현관번호</div><div class="prv">${escHtml(door||'—')}</div></div>
+      <div class="prr"><div class="prk">요청사항</div><div class="prv">${escHtml(request||'—')}</div></div>
       <div style="height:1px;background:var(--border);margin:8px 0;"></div>`;
     orders.forEach((o,i)=>{
       rowsHtml+=`
       <div style="background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px;">
         <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px;">주문 ${i+1}</div>
-        <div class="prr"><div class="prk">배송일</div><div class="prv">${o.onceDate||'(미인식)'}</div></div>
-        <div class="prr"><div class="prk">상품</div><div class="prv">${o.prodId?productLabel(o.prodId):'(미인식)'}</div></div>
+        <div class="prr"><div class="prk">배송일</div><div class="prv">${escHtml(o.onceDate||'(미인식)')}</div></div>
+        <div class="prr"><div class="prk">상품</div><div class="prv">${escHtml(o.prodId?productLabel(o.prodId):'(미인식)')}</div></div>
         <div class="prr"><div class="prk">수량</div><div class="prv">${o.qty}개</div></div>
       </div>`;
     });
@@ -487,7 +487,7 @@ function parseText(){
   }
   if(p.isDirect!==undefined) previewRows.push(['배송방식',p.isDirect?'직배송':'택배']);
   if(p.memo) previewRows.push(['메모',p.memo]);
-  document.getElementById('parseRows').innerHTML=previewRows.map(([k,v])=>`<div class="prr"><div class="prk">${k}</div><div class="prv">${v}</div></div>`).join('');
+  document.getElementById('parseRows').innerHTML=previewRows.map(([k,v])=>`<div class="prr"><div class="prk">${escHtml(k)}</div><div class="prv">${escHtml(v)}</div></div>`).join('');
   document.getElementById('parseResult').classList.add('on');
   toast('인식 완료. 확인 후 등록하세요','info');
 }
@@ -573,11 +573,11 @@ function renderPmOrderList(orders){
         </div>
         <div class="fgrp">
           <div class="flab">배송 예정일 *</div>
-          <input type="date" class="inp" id="pm-ord-date-${i}" value="${o.onceDate||''}">
+          <input type="date" class="inp" id="pm-ord-date-${i}" value="${escHtml(o.onceDate||'')}">
         </div>
         <div class="fgrp">
           <div class="flab">수량</div>
-          <input type="number" class="inp" id="pm-ord-qty-${i}" value="${o.qty||1}" min="1" max="99" style="text-align:center;font-weight:700;">
+          <input type="number" class="inp" id="pm-ord-qty-${i}" value="${escHtml(o.qty||1)}" min="1" max="99" style="text-align:center;font-weight:700;">
         </div>
       </div>
     </div>`).join('');
@@ -836,9 +836,9 @@ function renderXlPreview(){
   document.getElementById('xlPrev').innerHTML = xlData.map((c,i)=>`
     <tr id="xlrow-${i}">
       <td>${i+1}</td>
-      <td><strong>${c.name}</strong></td>
-      <td style="white-space:nowrap;">${c.phone}</td>
-      <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.addr}">${c.addr}</td>
+      <td><strong>${escHtml(c.name)}</strong></td>
+      <td style="white-space:nowrap;">${escHtml(c.phone)}</td>
+      <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(c.addr)}">${escHtml(c.addr)}</td>
       <td>
         <select class="inp inp-sm" onchange="xlData[${i}].set=this.value" style="width:80px;">
           <option value="" ${!c.set?'selected':''}>미정</option>
@@ -848,7 +848,7 @@ function renderXlPreview(){
         </select>
       </td>
       <td><span class="badge ${c.orderType==='sub'?'b-sub':'b-once'}">${c.orderType==='sub'?'정기':'선택'}</span></td>
-      <td style="font-size:11px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.request}">${c.request||'—'}</td>
+      <td style="font-size:11px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(c.request)}">${escHtml(c.request||'—')}</td>
       <td>
         <button class="btn btn-d sm" onclick="xlData.splice(${i},1);renderXlPreview();document.getElementById('xlCnt').textContent=xlData.length+'건';">✕</button>
       </td>

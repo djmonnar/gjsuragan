@@ -1,6 +1,8 @@
 # gjsuragan
 궁중수라간 배송 시스템
 
+리뉴얼 전 안전성 기준, 테스트 및 운영 전환 절차는 [RENEWAL_SAFETY.md](RENEWAL_SAFETY.md)를 참고하세요.
+
 ## 관리자 모바일 푸시 알림
 
 고객이 `customer.html`에서 주문 변경요청을 남기면 Firestore `changeRequests` 컬렉션에 새 문서가 생성됩니다. 관리자 화면 `admin.html`은 이 컬렉션을 실시간 구독해서 화면 알림, 소리, 진동, 배지를 즉시 표시합니다.
