@@ -13,10 +13,10 @@ window.addEventListener('resize', ()=>{
 function dashDeliveryRow(c, showGauge = true){
   const productBadges = `${deliveryProductBadgeHtml(c)}${deliveryFirstOrderBadge(c)}${lastBoxDeliveryBadge(c)}`;
   return `<tr>
-    <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
+    <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${customerJsArg(c.id)}')">${escHtml(c.name)}</strong></td>
     <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${productBadges}</div></td>
     <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-    <td>${c.phone||'-'}</td>
+    <td>${escHtml(c.phone||'-')}</td>
     ${showGauge ? `<td>${gauge(c)}</td>` : ''}
   </tr>`;
 }
@@ -32,7 +32,7 @@ function escHtml(v){
 
 function deliveryProductBadgeHtml(c){
   const key = c?.productId || c?.set;
-  return `<span class="badge ${productBadgeClass(key)}">${productLabel(key)}</span>`;
+  return `<span class="badge ${productBadgeClass(key)}">${escHtml(productLabel(key))}</span>`;
 }
 
 function isLastBoxDelivery(c){
@@ -325,10 +325,10 @@ function renderDash(){
   if(dDirectWrap && dTodayDirect){
     dDirectWrap.style.display = directList.length ? '' : 'none';
     dTodayDirect.innerHTML = directList.map(c=>`<tr>
-      <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
+      <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${customerJsArg(c.id)}')">${escHtml(c.name)}</strong></td>
       <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${deliveryProductBadgeHtml(c)}${deliveryFirstOrderBadge(c)}${lastBoxDeliveryBadge(c)}</div></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-      <td>${c.phone||'—'}</td>
+      <td>${escHtml(c.phone||'—')}</td>
       <td>${gauge(c)}</td>
     </tr>`).join('');
   }
@@ -393,20 +393,20 @@ function renderToday(){
               <div style="background:var(--surface);border:1px solid rgba(192,32,176,.2);border-radius:10px;margin:4px 0;padding:12px 14px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                   <div style="display:flex;align-items:center;gap:8px;">
-                    <input type="checkbox" class="ck-direct" data-id="${c.id}">
-                    <strong style="font-size:15px;cursor:pointer;color:var(--accent);" onclick="openEdit('${c.id}')">${c.name}</strong>
+                    <input type="checkbox" class="ck-direct" data-id="${escHtml(c.id)}">
+                    <strong style="font-size:15px;cursor:pointer;color:var(--accent);" onclick="openEdit('${customerJsArg(c.id)}')">${escHtml(c.name)}</strong>
                     ${deliveryProductBadgeHtml(c)}${deliveryFirstOrderBadge(c)}${lastBoxDeliveryBadge(c)}
                   </div>
                   ${done
                     ? '<span class="badge b-ok">완료</span>'
-                    : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${c.id}','${ds}')">완료</button>`
+                    : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${customerJsArg(c.id)}','${customerJsArg(ds)}')">완료</button>`
                   }
                 </div>
-                <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">연락처 ${c.phone}</div>
-                <div class="delivery-address-card" onclick="showAddrModal('${c.id}')"><span class="delivery-address-label">배송지</span>${c.addr||'주소 미입력'}</div>
-                ${c.door ? `<div style="font-size:12px;color:var(--text3);">현관: ${c.door}</div>` : ''}
-                ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">요청: ${c.request}</div>` : ''}
-                <div style="font-size:11px;color:var(--text3);margin-top:4px;">${scheduleDisp(c)}</div>
+                <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">연락처 ${escHtml(c.phone)}</div>
+                <div class="delivery-address-card" onclick="showAddrModal('${customerJsArg(c.id)}')"><span class="delivery-address-label">배송지</span>${escHtml(c.addr||'주소 미입력')}</div>
+                ${c.door ? `<div style="font-size:12px;color:var(--text3);">현관: ${escHtml(c.door)}</div>` : ''}
+                ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">요청: ${escHtml(c.request)}</div>` : ''}
+                <div style="font-size:11px;color:var(--text3);margin-top:4px;">${escHtml(scheduleDisp(c))}</div>
                 <div style="margin-top:6px;">${gauge(c)}</div>
               </div>
             </td>
@@ -417,17 +417,17 @@ function renderToday(){
         dtb.innerHTML = filteredDirect.map(c => {
           const done = (c.deliveredDates||[]).includes(ds);
           return `<tr class="${done?'trd':''}">
-            <td><input type="checkbox" class="ck-direct" data-id="${c.id}"></td>
-            <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-            <td style="white-space:nowrap;">${c.phone}</td>
-            <td class="delivery-address-cell" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr||'주소 미입력'}</td>
+            <td><input type="checkbox" class="ck-direct" data-id="${escHtml(c.id)}"></td>
+            <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${customerJsArg(c.id)}')">${escHtml(c.name)}</strong></td>
+            <td style="white-space:nowrap;">${escHtml(c.phone)}</td>
+            <td class="delivery-address-cell" title="${escHtml(c.addr)}" onclick="showAddrModal('${customerJsArg(c.id)}')">${escHtml(c.addr||'주소 미입력')}</td>
             <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${deliveryProductBadgeHtml(c)}${deliveryFirstOrderBadge(c)}${lastBoxDeliveryBadge(c)}</div></td>
-            <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${scheduleDisp(c)||'—'}</td>
-            <td style="font-size:12px;">${c.door||'—'}</td>
-            <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
+            <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${escHtml(scheduleDisp(c)||'—')}</td>
+            <td style="font-size:12px;">${escHtml(c.door||'—')}</td>
+            <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${escHtml(c.request||'')}">${escHtml(c.request||'—')}</td>
             <td>${gauge(c)}</td>
             <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
-            <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">완료</button>`}</td>
+            <td>${done?'':` <button class="btn btn-s sm" onclick="markDone('${customerJsArg(c.id)}','${customerJsArg(ds)}')">완료</button>`}</td>
           </tr>`;
         }).join('');
       }
@@ -458,23 +458,23 @@ function renderToday(){
                   <div style="background:var(--surface);border:1px solid rgba(3,102,214,.15);border-radius:10px;margin:4px 0;padding:12px 14px;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                        <input type="checkbox" class="ck-courier" data-id="${c.id}">
-                        <strong style="font-size:15px;cursor:pointer;color:var(--accent);" onclick="openEdit('${c.id}')">${c.name}</strong>
-                        <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
+                        <input type="checkbox" class="ck-courier" data-id="${escHtml(c.id)}">
+                        <strong style="font-size:15px;cursor:pointer;color:var(--accent);" onclick="openEdit('${customerJsArg(c.id)}')">${escHtml(c.name)}</strong>
+                        <span class="badge ${productBadgeClass(c.productId||c.set)}">${escHtml(productLabel(c.productId||c.set))}</span>
                         ${deliveryFirstOrderBadge(c)}
                         <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span>
                       </div>
                       ${done
                         ? '<span class="badge b-ok">완료</span>'
-                        : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${c.id}','${ds}')">완료</button>`
+                        : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${customerJsArg(c.id)}','${customerJsArg(ds)}')">완료</button>`
                       }
                     </div>
-                    <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">연락처 ${c.phone}</div>
-                    <div class="delivery-address-card" onclick="showAddrModal('${c.id}')"><span class="delivery-address-label">배송지</span>${c.addr||'주소 미입력'}</div>
-                    ${c.door ? `<div style="font-size:12px;color:var(--text3);">현관: ${c.door}</div>` : ''}
-                    ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">요청: ${c.request}</div>` : ''}
+                    <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">연락처 ${escHtml(c.phone)}</div>
+                    <div class="delivery-address-card" onclick="showAddrModal('${customerJsArg(c.id)}')"><span class="delivery-address-label">배송지</span>${escHtml(c.addr||'주소 미입력')}</div>
+                    ${c.door ? `<div style="font-size:12px;color:var(--text3);">현관: ${escHtml(c.door)}</div>` : ''}
+                    ${c.request ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">요청: ${escHtml(c.request)}</div>` : ''}
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
-                      <div style="font-size:11px;color:var(--text3);">${c.scheduleName||''}</div>
+                      <div style="font-size:11px;color:var(--text3);">${escHtml(c.scheduleName||'')}</div>
                       <div>${gauge(c)}</div>
                     </div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;">
@@ -492,15 +492,15 @@ function renderToday(){
           : filteredCourier.map(c => {
               const done = (c.deliveredDates||[]).includes(ds);
               return `<tr class="${done?'trd':''}">
-                <td><input type="checkbox" class="ck-courier" data-id="${c.id}"></td>
-                <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${c.id}')">${c.name}</strong></td>
-                <td style="white-space:nowrap;">${c.phone}</td>
-                <td class="delivery-address-cell" title="${c.addr}" onclick="showAddrModal('${c.id}')">${c.addr||'주소 미입력'}</td>
-                <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;"><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>${deliveryFirstOrderBadge(c)}</div></td>
+                <td><input type="checkbox" class="ck-courier" data-id="${escHtml(c.id)}"></td>
+                <td><strong style="cursor:pointer;color:var(--accent);text-decoration:underline dotted;" onclick="openEdit('${customerJsArg(c.id)}')">${escHtml(c.name)}</strong></td>
+                <td style="white-space:nowrap;">${escHtml(c.phone)}</td>
+                <td class="delivery-address-cell" title="${escHtml(c.addr)}" onclick="showAddrModal('${customerJsArg(c.id)}')">${escHtml(c.addr||'주소 미입력')}</td>
+                <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;"><span class="badge ${productBadgeClass(c.productId||c.set)}">${escHtml(productLabel(c.productId||c.set))}</span>${deliveryFirstOrderBadge(c)}</div></td>
                 <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-                <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${c.scheduleName||''}</td>
-                <td style="font-size:12px;">${c.door||'—'}</td>
-                <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${c.request||''}">${c.request||'—'}</td>
+                <td style="font-size:11px;color:var(--text3);white-space:nowrap;">${escHtml(c.scheduleName||'')}</td>
+                <td style="font-size:12px;">${escHtml(c.door||'—')}</td>
+                <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);" title="${escHtml(c.request||'')}">${escHtml(c.request||'—')}</td>
                 <td style="font-size:12px;font-weight:700;">${c.qty || c.total || 1}</td>
                 <td>${gauge(c)}</td>
                 <td>${typeof logenStatusBadgeHtml==='function'?logenStatusBadgeHtml(c, ds):'—'}</td>
@@ -508,7 +508,7 @@ function renderToday(){
                 <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
                 <td>
                   <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;">
-                    ${done?'':`<button class="btn btn-s sm" onclick="markDone('${c.id}','${ds}')">완료</button>`}
+                    ${done?'':`<button class="btn btn-s sm" onclick="markDone('${customerJsArg(c.id)}','${customerJsArg(ds)}')">완료</button>`}
                     ${typeof logenActionHtml==='function'?logenActionHtml(c, ds):''}
                   </div>
                 </td>
@@ -528,13 +528,13 @@ function printCourierList(){
   const rows = filtered.map((c,i)=>`
     <tr>
       <td>${i+1}</td>
-      <td><strong>${c.name}</strong></td>
-      <td>${c.phone}</td>
-      <td>${c.addr||''}</td>
-      <td>${c.door||''}</td>
-      <td>${productLabel(c.productId||c.set)}</td>
-      <td>${scheduleDisp(c)}</td>
-      <td>${c.request||''}</td>
+      <td><strong>${escHtml(c.name)}</strong></td>
+      <td>${escHtml(c.phone)}</td>
+      <td>${escHtml(c.addr||'')}</td>
+      <td>${escHtml(c.door||'')}</td>
+      <td>${escHtml(productLabel(c.productId||c.set))}</td>
+      <td>${escHtml(scheduleDisp(c))}</td>
+      <td>${escHtml(c.request||'')}</td>
     </tr>`).join('');
 
   const win = window.open('','_blank');
@@ -569,13 +569,13 @@ function printDirectList(){
   const rows = filtered.map((c,i)=>`
     <tr>
       <td>${i+1}</td>
-      <td><strong>${c.name}</strong></td>
-      <td>${c.phone}</td>
-      <td>${c.addr||''}</td>
-      <td>${c.door||''}</td>
-      <td>${productLabel(c.productId||c.set)}</td>
-      <td>${scheduleDisp(c)}</td>
-      <td>${c.request||''}</td>
+      <td><strong>${escHtml(c.name)}</strong></td>
+      <td>${escHtml(c.phone)}</td>
+      <td>${escHtml(c.addr||'')}</td>
+      <td>${escHtml(c.door||'')}</td>
+      <td>${escHtml(productLabel(c.productId||c.set))}</td>
+      <td>${escHtml(scheduleDisp(c))}</td>
+      <td>${escHtml(c.request||'')}</td>
     </tr>`).join('');
 
   const win = window.open('','_blank');
@@ -615,14 +615,14 @@ function deliveryPrintRows(list){
   return list.map((c,i)=>`
     <tr>
       <td>${i+1}</td>
-      <td><strong>${c.name}</strong></td>
-      <td>${c.phone||''}</td>
-      <td>${c.addr||''}</td>
-      <td>${c.door||''}</td>
-      <td>${productLabel(c.productId||c.set)}</td>
+      <td><strong>${escHtml(c.name)}</strong></td>
+      <td>${escHtml(c.phone||'')}</td>
+      <td>${escHtml(c.addr||'')}</td>
+      <td>${escHtml(c.door||'')}</td>
+      <td>${escHtml(productLabel(c.productId||c.set))}</td>
       <td>${c.orderType==='once'?'선택':'정기'}</td>
-      <td>${scheduleDisp(c)}</td>
-      <td>${c.request||''}</td>
+      <td>${escHtml(scheduleDisp(c))}</td>
+      <td>${escHtml(c.request||'')}</td>
     </tr>`).join('');
 }
 
@@ -671,13 +671,7 @@ async function markAllDirect(){
   const list = listFor(ds).filter(c=>c.isDirect);
   if(!list.length){ toast('직배송 없음','er'); return; }
   if(!confirm(list.length+'건 직배송 전체 완료?')) return;
-  await Promise.all(list.map(c=>{
-    if((c.deliveredDates||[]).includes(ds)) return;
-    const rem = c.remain-1;
-    return window.__DB.collection('customers').doc(c.id).update({
-      remain:rem, deliveredDates:[...(c.deliveredDates||[]),ds], status:rem===0?'end':c.status
-    });
-  }));
+  await Promise.all(list.map(c=>runDeliveryTransaction(window.__DB,c.id,ds,'complete')));
   toast('직배송 전체 완료!','ok');
 }
 
@@ -687,13 +681,7 @@ async function markAllCourier(){
   const list = listFor(ds).filter(c=>!c.isDirect);
   if(!list.length){ toast('택배 없음','er'); return; }
   if(!confirm(list.length+'건 택배 전체 완료?')) return;
-  await Promise.all(list.map(c=>{
-    if((c.deliveredDates||[]).includes(ds)) return;
-    const rem = c.remain-1;
-    return window.__DB.collection('customers').doc(c.id).update({
-      remain:rem, deliveredDates:[...(c.deliveredDates||[]),ds], status:rem===0?'end':c.status
-    });
-  }));
+  await Promise.all(list.map(c=>runDeliveryTransaction(window.__DB,c.id,ds,'complete')));
   toast('택배 전체 완료!','ok');
 }
 
@@ -737,23 +725,23 @@ function renderCust(){
     tb.innerHTML = list.map(c=>`<tr>
       <td colspan="9" style="padding:0;border:none;">
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;margin:4px 0;padding:12px 14px;cursor:pointer;"
-             onclick="openEdit('${c.id}')">
+             onclick="openEdit('${customerJsArg(c.id)}')">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-              <strong style="font-size:14px;">${c.name}</strong>
-              <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
+              <strong style="font-size:14px;">${customerText(c.name)}</strong>
+              <span class="badge ${productBadgeClass(c.productId||c.set)}">${customerText(productLabel(c.productId||c.set))}</span>
               <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span>
               ${c.isDirect?'<span class="badge b-direct">직배</span>':''}
             </div>
             <span class="badge b-${c.status}">${statusLabel(c)}</span>
           </div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:3px;">연락처 ${c.phone}</div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">${scheduleDisp(c)}</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:3px;">연락처 ${customerText(c.phone)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">${customerText(scheduleDisp(c))}</div>
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div>${gauge(c)}</div>
             <div style="display:flex;gap:6px;" onclick="event.stopPropagation()">
-              ${c.orderType==='sub'?`<button class="btn sm" style="background:rgba(3,102,214,.1);color:#0366d6;border:1px solid rgba(3,102,214,.3);font-size:11px;" onclick="chargeRemain('${c.id}')">충전</button>`:''}
-              <button class="btn btn-d sm" style="font-size:11px;" onclick="quickDelete('${c.id}','${c.name}')">삭제</button>
+              ${c.orderType==='sub'?`<button class="btn sm" style="background:rgba(3,102,214,.1);color:#0366d6;border:1px solid rgba(3,102,214,.3);font-size:11px;" onclick="chargeRemain('${customerJsArg(c.id)}')">충전</button>`:''}
+              <button class="btn btn-d sm" style="font-size:11px;" onclick="quickDelete('${customerJsArg(c.id)}','${customerJsArg(c.name)}')">삭제</button>
             </div>
           </div>
         </div>
@@ -761,22 +749,22 @@ function renderCust(){
     </tr>`).join('');
   } else {
     tb.closest('table').style.minWidth = '';
-    tb.innerHTML=list.map(c=>`<tr class="trc" onclick="showDet('${c.id}')">
+    tb.innerHTML=list.map(c=>`<tr class="trc" onclick="showDet('${customerJsArg(c.id)}')">
       <td>
-        <strong>${c.name}</strong>
-        ${c.orderNum?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">#${c.orderNum}</div>`:''}
+        <strong>${customerText(c.name)}</strong>
+        ${c.orderNum?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">#${customerText(c.orderNum)}</div>`:''}
       </td>
-      <td style="white-space:nowrap;">${c.phone}</td>
-      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span></td>
+      <td style="white-space:nowrap;">${customerText(c.phone)}</td>
+      <td><span class="badge ${productBadgeClass(c.productId||c.set)}">${customerText(productLabel(c.productId||c.set))}</span></td>
       <td><span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span></td>
-      <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${scheduleDisp(c)}</td>
+      <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${customerText(scheduleDisp(c))}</td>
       <td>${c.isDirect?'<span class="badge b-direct">직배송</span>':'<span style="font-size:11px;color:var(--text3);">택배</span>'}</td>
       <td>${gauge(c)}</td>
       <td><span class="badge b-${c.status}">${statusLabel(c)}</span></td>
       <td style="display:flex;gap:4px;flex-wrap:wrap;">
-        <button class="btn btn-g sm" onclick="event.stopPropagation();openEdit('${c.id}')">수정</button>
-        ${c.orderType==='sub'?`<button class="btn sm" style="background:rgba(3,102,214,.1);color:#0366d6;border:1px solid rgba(3,102,214,.3);" onclick="event.stopPropagation();chargeRemain('${c.id}')">충전</button>`:''}
-        <button class="btn btn-d sm" onclick="event.stopPropagation();quickDelete('${c.id}','${c.name}')">삭제</button>
+        <button class="btn btn-g sm" onclick="event.stopPropagation();openEdit('${customerJsArg(c.id)}')">수정</button>
+        ${c.orderType==='sub'?`<button class="btn sm" style="background:rgba(3,102,214,.1);color:#0366d6;border:1px solid rgba(3,102,214,.3);" onclick="event.stopPropagation();chargeRemain('${customerJsArg(c.id)}')">충전</button>`:''}
+        <button class="btn btn-d sm" onclick="event.stopPropagation();quickDelete('${customerJsArg(c.id)}','${customerJsArg(c.name)}')">삭제</button>
       </td>
     </tr>`).join('');
   }
@@ -823,24 +811,24 @@ function showDet(id){
     <div class="dp">
       <div class="dph">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div style="font-size:16px;font-weight:700;">${c.name}</div>
+          <div style="font-size:16px;font-weight:700;">${customerText(c.name)}</div>
           <span class="badge b-${c.status}">${statusLabel(c)}</span>
         </div>
         <div style="display:flex;gap:6px;">
-          <span class="badge ${productBadgeClass(c.productId||c.set)}">${productLabel(c.productId||c.set)}</span>
+          <span class="badge ${productBadgeClass(c.productId||c.set)}">${customerText(productLabel(c.productId||c.set))}</span>
           <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택주문':'정기배송'}</span>
         </div>
       </div>
       <div class="dpb">
-        <div class="dpr"><div class="dpl">연락처</div><div class="dpv">${c.phone}</div></div>
-        <div class="dpr"><div class="dpl">배송지</div><div class="dpv" style="font-size:12px;">${c.addr}</div></div>
-        <div class="dpr"><div class="dpl">현관번호</div><div class="dpv">${c.door||'—'}</div></div>
-        <div class="dpr"><div class="dpl">요청사항</div><div class="dpv" style="font-size:12px;">${c.request||'—'}</div></div>
-        <div class="dpr"><div class="dpl">배송일정</div><div class="dpv" style="font-size:12px;">${c.scheduleName||'—'}</div></div>
+        <div class="dpr"><div class="dpl">연락처</div><div class="dpv">${customerText(c.phone)}</div></div>
+        <div class="dpr"><div class="dpl">배송지</div><div class="dpv" style="font-size:12px;">${customerText(c.addr)}</div></div>
+        <div class="dpr"><div class="dpl">현관번호</div><div class="dpv">${customerText(c.door||'—')}</div></div>
+        <div class="dpr"><div class="dpl">요청사항</div><div class="dpv" style="font-size:12px;">${customerText(c.request||'—')}</div></div>
+        <div class="dpr"><div class="dpl">배송일정</div><div class="dpv" style="font-size:12px;">${customerText(c.scheduleName||'—')}</div></div>
         <div class="dpr"><div class="dpl">배송 방식</div><div class="dpv">${c.isDirect?'<span class="badge b-direct">직배송</span>':'<span style="font-size:12px;">택배</span>'}</div></div>
-        ${c.orderNum?`<div class="dpr"><div class="dpl">주문번호</div><div class="dpv" style="font-size:12px;font-family:monospace;">${c.orderNum}</div></div>`:''}
+        ${c.orderNum?`<div class="dpr"><div class="dpl">주문번호</div><div class="dpv" style="font-size:12px;font-family:monospace;">${customerText(c.orderNum)}</div></div>`:''}
         ${c.qty&&c.qty>1?`<div class="dpr"><div class="dpl">수량</div><div class="dpv" style="font-weight:700;color:var(--accent);">${c.qty}개</div></div>`:''}
-        ${c.onceDate?`<div class="dpr"><div class="dpl">배송예정일</div><div class="dpv">${c.onceDate}</div></div>`:''}
+        ${c.onceDate?`<div class="dpr"><div class="dpl">배송예정일</div><div class="dpv">${customerText(c.onceDate)}</div></div>`:''}
         ${c.orderType==='sub'?`
         <div class="dpr">
           <div class="dpl">잔여 횟수</div>
@@ -849,28 +837,28 @@ function showDet(id){
             <div class="gt" style="height:6px;"><div class="gf ${isLow?'low':''}" style="width:${pct}%"></div></div>
           </div>
         </div>`:''}
-        ${c.memo?`<div class="dpr"><div class="dpl">메모</div><div class="dpv" style="font-size:12px;background:var(--bg3);padding:8px;border-radius:4px;">${c.memo}</div></div>`:''}
+        ${c.memo?`<div class="dpr"><div class="dpl">메모</div><div class="dpv" style="font-size:12px;background:var(--bg3);padding:8px;border-radius:4px;">${customerText(c.memo)}</div></div>`:''}
         <div class="dpr">
           <div class="dpl">배송 이력 <span style="font-size:9px;color:var(--text3);">(클릭 → 취소)</span></div>
           <div style="margin-top:4px;">
             ${(c.deliveredDates||[]).slice(-5).reverse().map(d=>`
               <div class="dhi" style="display:flex;align-items:center;justify-content:space-between;">
-                <span>${d}</span>
-                <button onclick="undoMarkDone('${c.id}','${d}')" style="border:none;background:none;color:var(--danger);cursor:pointer;font-size:11px;padding:0 2px;" title="취소">↩</button>
+                <span>${customerText(d)}</span>
+                <button onclick="undoMarkDone('${customerJsArg(c.id)}','${customerJsArg(d)}')" style="border:none;background:none;color:var(--danger);cursor:pointer;font-size:11px;padding:0 2px;" title="취소">↩</button>
               </div>`).join('')||'<div style="font-size:12px;color:var(--text3);">이력 없음</div>'}
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
-          <button class="btn btn-p" style="font-size:12px;" onclick="openEdit('${c.id}')">✏ 수정</button>
-          <button class="btn btn-s" style="font-size:12px;" onclick="markDone('${c.id}')">배송완료</button>
-          <button class="btn btn-g" style="font-size:12px;grid-column:1/-1;" onclick="copyLozen('${c.id}')">로젠택배 복사</button>
+          <button class="btn btn-p" style="font-size:12px;" onclick="openEdit('${customerJsArg(c.id)}')">✏ 수정</button>
+          <button class="btn btn-s" style="font-size:12px;" onclick="markDone('${customerJsArg(c.id)}')">배송완료</button>
+          <button class="btn btn-g" style="font-size:12px;grid-column:1/-1;" onclick="copyLozen('${customerJsArg(c.id)}')">로젠택배 복사</button>
           ${c.orderType==='sub'?`
-          <button class="btn btn-g" style="font-size:12px;" onclick="togglePause('${c.id}')">${c.status==='pause'?'▶ 재개':'⏸ 일시정지'}</button>
-          <button class="btn" style="font-size:12px;background:rgba(3,102,214,.1);color:#0366d6;border-color:rgba(3,102,214,.3);" onclick="chargeRemain('${c.id}')">＋ 횟수 충전</button>
+          <button class="btn btn-g" style="font-size:12px;" onclick="togglePause('${customerJsArg(c.id)}')">${c.status==='pause'?'▶ 재개':'⏸ 일시정지'}</button>
+          <button class="btn" style="font-size:12px;background:rgba(3,102,214,.1);color:#0366d6;border-color:rgba(3,102,214,.3);" onclick="chargeRemain('${customerJsArg(c.id)}')">＋ 횟수 충전</button>
           `:`
-          <button class="btn btn-g" style="font-size:12px;grid-column:1/-1;" onclick="editOnceDate('${c.id}','${c.onceDate||''}')">📅 배송일 변경</button>
+          <button class="btn btn-g" style="font-size:12px;grid-column:1/-1;" onclick="editOnceDate('${customerJsArg(c.id)}','${customerJsArg(c.onceDate||'')}')">📅 배송일 변경</button>
           `}
-          <button class="btn btn-d" style="font-size:12px;grid-column:1/-1;" onclick="quickDelete('${c.id}','${c.name}')">🗑 삭제</button>
+          <button class="btn btn-d" style="font-size:12px;grid-column:1/-1;" onclick="quickDelete('${customerJsArg(c.id)}','${customerJsArg(c.name)}')">🗑 삭제</button>
         </div>
       </div>
     </div>`;

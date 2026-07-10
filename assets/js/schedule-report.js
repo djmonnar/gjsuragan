@@ -300,39 +300,42 @@ function jumpToDate(ds){
     ds = ds || selectedDeliveryDate();
     if(!id){ deliveryToast('고객 ID가 없습니다.','er'); return; }
     if(!window.__DB){ deliveryToast('DB 연결을 확인해주세요.','er'); return; }
-    const ref = window.__DB.collection('customers').doc(id);
     const doneAt = new Date().toISOString();
     try{
-      let patch = null;
-      await window.__DB.runTransaction(async tx=>{
-        const snap = await tx.get(ref);
-        if(!snap.exists) throw new Error('해당 주문을 찾지 못했습니다. 새로고침 후 다시 시도해주세요.');
-        const c = snap.data() || {};
-        const oldDates = cleanDates(c.deliveredDates);
-        const already = oldDates.includes(ds);
-        const deliveredDates = already ? oldDates : [...oldDates, ds];
-        const isOnce = c.orderType === 'once';
-        const rawRemain = Number(c.remain);
-        const remainNow = Number.isFinite(rawRemain) ? rawRemain : 1;
-        const nextRemain = already ? remainNow : (isOnce ? 0 : Math.max(0, remainNow - 1));
-        const nextStatus = nextRemain <= 0 ? 'end' : (c.status || 'active');
-        patch = {
-          deliveredDates,
-          remain: nextRemain,
-          status: nextStatus,
-          lastDeliveredDate: ds,
-          deliveredAt: doneAt,
-          updatedAt: doneAt,
-          deliveryState: 'done'
-        };
-        tx.update(ref, patch);
-      });
+      const result = await runDeliveryTransaction(window.__DB,id,ds,'complete',{
+        lastDeliveredDate: ds,
+        deliveredAt: doneAt,
+        updatedAt: doneAt,
+        deliveryState: 'done'
+      }, { completeAllForOnce:true });
+      if(!result.changed){
+        deliveryToast(result.reason==='already_completed'?'이미 완료 처리된 날짜입니다.':'이미 배송 완료된 주문입니다.','er');
+        return;
+      }
+      const patch = result.patch;
       patchLocalCustomer(id, patch);
       rerenderDeliveryScreens();
       deliveryToast('배송완료 처리됨','ok');
     }catch(e){
       console.error('markDone failed', e);
       deliveryToast('배송완료 처리 실패: '+(e.message||e),'er');
+    }
+  }
+  async function stableUndoMarkDone(id, ds){
+    ds = ds || selectedDeliveryDate();
+    const local = Array.isArray(window.custs) ? window.custs.find(c=>c.id===id) : null;
+    if(!id){ deliveryToast('고객 ID가 없습니다.','er'); return; }
+    if(!window.__DB){ deliveryToast('DB 연결을 확인해주세요.','er'); return; }
+    if(!confirm(`${local?.name || '고객'}의 [${ds}] 배송완료를 취소하시겠습니까?`)) return;
+    try{
+      const result = await runDeliveryTransaction(window.__DB,id,ds,'cancel');
+      if(!result.changed){ deliveryToast('해당 날짜는 완료 기록이 없습니다.','er'); return; }
+      patchLocalCustomer(id, result.patch);
+      rerenderDeliveryScreens();
+      deliveryToast((local?.name || '고객')+' 배송완료 취소됨','ok');
+    }catch(e){
+      console.error('undoMarkDone failed', e);
+      deliveryToast('배송완료 취소 실패: '+(e.message||e),'er');
     }
   }
   async function markMany(list, ds, label){
@@ -347,6 +350,7 @@ function jumpToDate(ds){
   }
   function installStableDeliveryHandlers(){
     window.markDone = stableMarkDone;
+    window.undoMarkDone = stableUndoMarkDone;
     window.markAll = function(){
       const ds = selectedDeliveryDate();
       markMany(listFor(ds), ds, '전체');
