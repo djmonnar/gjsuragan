@@ -7,3 +7,4 @@ functions/.env.*
 firebase-debug.log
 firestore-debug.log
 npm-debug.log*
+.tmp/
