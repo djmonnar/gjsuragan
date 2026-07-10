@@ -4,8 +4,17 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { deliveryStatePatch } = require('../../../assets/js/delivery-transaction');
 
-test('remain 2 completion decrements once', () => {
+test('regular order remain 2 completion decrements once', () => {
   const result = deliveryStatePatch({ remain: 2, deliveredDates: [], status: 'active' }, '2026-07-10', 'complete');
+  assert.deepEqual(result.patch, { remain: 1, deliveredDates: ['2026-07-10'], status: 'active' });
+});
+
+test('map and imweb one-time order remain 2 completion decrements once', () => {
+  const result = deliveryStatePatch(
+    { remain: 2, deliveredDates: [], status: 'active', orderType: 'once' },
+    '2026-07-10',
+    'complete'
+  );
   assert.deepEqual(result.patch, { remain: 1, deliveredDates: ['2026-07-10'], status: 'active' });
 });
 

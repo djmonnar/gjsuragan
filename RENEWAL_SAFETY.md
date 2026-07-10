@@ -13,7 +13,7 @@
 - 행사도시락 주문 페이지는 공개 주문 입력 화면이며 `eventOrders`에 요청을 저장한다. 공개 주문 구조와 권한 모델은 이번 작업에서 변경하지 않았다.
 - 프론트는 Firebase compat SDK를 사용한다. 직원/배송지도는 10.12 계열, 관리자·고객·행사 주문은 9.22 계열 스크립트를 사용하며 이번 작업에서 버전을 변경하지 않았다.
 - Functions 런타임은 Node.js 22이다.
-- 저장소에는 자동 배포 GitHub Actions 워크플로가 없다. Firebase 설정은 `firebase.json`, `firestore.rules`, `firestore.indexes.json`, `storage.rules`, `functions/`에 있다.
+- Firebase 설정은 `firebase.json`, `firestore.rules`, `firestore.indexes.json`, `storage.rules`, `functions/`에 있다. 자동 배포 워크플로는 없으며, PR 검증 전용 GitHub Actions만 추가했다.
 
 ## 이번 안전성 보강
 
@@ -41,6 +41,17 @@
 - 직원 화면에서 선택주문을 한 번에 종료하는 기존 규칙은 해당 호출에서만 유지한다.
 - 기존 완료 메타데이터(`lastDeliveredDate`, `deliveredAt`, `updatedAt`, `deliveryState`)도 기존 직원 흐름에서 유지한다.
 
+화면마다 기존 선택주문 완료 규칙이 달랐으므로 이번 작업에서 임의로 통일하지 않았다.
+
+| 완료 경로 | PR 이전 선택주문 `remain: 2` | 현재 결과 | 정기배송 `remain: 2` |
+| --- | --- | --- | --- |
+| 직원 화면 개별 완료 | `remain: 0`, `status: end` | 동일 | `remain: 1`, `status: active` |
+| 직원 화면 전체·직배송·택배 일괄 완료 | 직원 개별 완료 함수를 사용해 `remain: 0`, `status: end` | 동일 | `remain: 1`, `status: active` |
+| 배송지도 개별 완료 | `remain: 1`, `status: active` | 동일 | `remain: 1`, `status: active` |
+| 아임웹 기본 완료 함수 | `remain: 1`, `status: active` | 동일 | `remain: 1`, `status: active` |
+
+직원 페이지에서는 `schedule-report.js`가 최종 핸들러를 설치하므로 화면의 실제 개별·일괄 완료는 직원 규칙을 따른다. `imweb.js`의 기본 완료 함수 자체는 기존 한 회차 차감 규칙을 유지한다.
+
 ### 외부 문자열 출력
 
 기존 `escHtml()`을 재사용해 다음 렌더링 경로의 외부 문자열을 문자 그대로 표시한다.
@@ -60,7 +71,16 @@
 - 고객은 가입 시 또는 이후 수정으로 가격 필드를 쓸 수 없다.
 - 기존 관리자 쓰기 권한은 유지한다.
 - 기존 고객 문서는 변경하거나 마이그레이션하지 않는다.
-- 가격 필드가 아직 없는 신규 고객 화면은 기존 기본 단가를 사용한다.
+- 가격 필드가 없는 고객에게 8,000원을 새로 적용하지 않는다.
+
+PR 기준 커밋의 가격 계산을 다시 확인한 결과는 다음과 같다.
+
+- 관리자 가격 helper는 가격이 없을 때 `0`을 반환했다.
+- 고객 정산 가격 helper도 가격이 없을 때 `0`을 반환했다.
+- 기존 `DEFAULT_MEAL_PRICE = 8000`은 가입 payload에 가격을 저장할 때 사용됐으며 정산 fallback이 아니었다.
+- 이번 PR에서는 가입 payload의 가격 필드만 제거하고, 정산 계산은 기존처럼 가격 미설정 시 `0`을 사용한다.
+- 행사도시락은 저장된 `eventPrice` 또는 `eventLunchPrice`를 우선한다. 명시 가격이 없을 때 기존 월식 도시락 단가를 참조하는 순서는 유지했지만, 새 8,000원 기본값은 추가하지 않았다.
+- 배송완료 시 정산이 자동 생성될 수 있으므로 관리자가 가격을 설정하기 전 완료하면 금액이 `0`으로 기록될 수 있다. 이번 PR에서는 별도 가격 정책을 만들지 않으며 운영자가 가격 설정 여부를 확인해야 한다.
 
 ## 테스트 실행
 
@@ -68,7 +88,7 @@ Functions 디렉터리에서 실행한다.
 
 ```bash
 cd functions
-npm install
+npm ci
 npm run lint
 npm run test:unit
 npm run test:emulator
@@ -88,9 +108,23 @@ Firestore Emulator에는 Java 21 이상이 필요하다. 테스트는 `demo-gjsu
 - 카카오 플래그 기본 비활성, 잘못된 PIN, 정상 PIN, 세션 만료, 화이트리스트, 설정 누락
 - 인증 게이트가 OCR·조회·배송 명령보다 먼저 실행되는지 확인
 - 배송 완료/취소 단위 테스트와 동시 트랜잭션 테스트
+- 직원·배송지도·아임웹·일괄 완료 경로별 선택주문 규칙 고정 테스트
 - 가입 가격 필드 Firestore Rules Emulator 테스트
+- 가격 미설정, 기존 가격, 관리자 설정 가격 및 행사도시락 가격 우선순위 테스트
 - 지정된 HTML/XSS 문자열 escape 테스트
 - 직원, 관리자, 고객, 배송지도, 행사 주문 페이지와 로컬 스크립트 문법 스모크 검사
+
+## GitHub Actions
+
+`.github/workflows/safety-check.yml`은 `main` 대상 pull request와 수동 실행에서만 동작한다.
+
+- Ubuntu, Node.js 22, Java 21
+- `functions/package-lock.json` 기준 `npm ci`
+- 고정 버전 Firebase CLI를 설치해 로컬 Firestore Emulator만 실행
+- lint, unit, smoke, Firestore Emulator 테스트
+- Emulator 프로젝트 ID: `demo-gjsuragan-safety`
+- Firebase 로그인, 운영 Secret, 운영 자격증명, deploy 명령 없음
+- 자동 병합과 자동 배포 없음
 
 ## 운영 활성화 전 설정
 
@@ -107,10 +141,15 @@ Firestore Emulator에는 Java 21 이상이 필요하다. 테스트는 `demo-gjsu
 - [ ] 직원 페이지 로그인과 주문/배송 목록 로딩
 - [ ] 관리자 페이지 로그인과 고객/정산 화면 로딩
 - [ ] 고객 신규가입과 기존 고객 로그인
-- [ ] 신규 고객 기본 단가 표시
+- [ ] 가격 미설정 신규 고객이 임의의 8,000원으로 저장·계산되지 않음
 - [ ] 관리자 가격 설정 및 저장
+- [ ] 가격 설정 후 설정한 단가가 정산에 사용됨
 - [ ] 배송완료 1회 처리와 같은 날짜 연속 클릭
 - [ ] 배송완료 취소 1회 처리와 같은 날짜 연속 취소
+- [ ] 선택주문 `remain: 2` 직원 완료는 즉시 종료
+- [ ] 선택주문 `remain: 2` 배송지도 완료는 `remain: 1`
+- [ ] 선택주문 `remain: 2` 아임웹 기본 완료 함수는 `remain: 1`
+- [ ] 정기배송 `remain: 2` 완료는 `remain: 1`
 - [ ] 직배송 지도 익명 세션과 완료/취소
 - [ ] 일괄 배송완료
 - [ ] 카카오 플래그 비활성 상태의 기존 명령
@@ -152,3 +191,4 @@ Firestore Emulator에는 Java 21 이상이 필요하다. 테스트는 `demo-gjsu
 - 배송지도 익명 인증과 행사도시락 공개 주문의 보안 모델은 운영 영향이 커 이번 범위에서 변경하지 않았다.
 - Functions 의존성 감사에서 중간/높음 등급의 기존 전이 의존성 경고가 남아 있다. 자동 `npm audit fix`는 런타임 변경 위험 때문에 실행하지 않았으며 별도 검토가 필요하다.
 - 카카오 인증 플래그는 기본 비활성이다. 운영 설정과 수동 확인 없이 활성화하지 않는다.
+- 가격 미설정 상태에서도 배송완료로 정산이 생성될 수 있으며 이때 기존 동작대로 금액은 `0`이다. 실제 기본 단가 정책은 이 안전성 PR에서 결정하지 않는다.

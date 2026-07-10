@@ -43,6 +43,33 @@ test('remain 1 completion ends and never becomes negative', async () => {
   assert.deepEqual(saved.deliveredDates, ['2026-07-10']);
 });
 
+test('employee screen finishes a one-time remain 2 order', async () => {
+  const ref = db.collection('customers').doc('employee-once-complete');
+  await ref.set({ remain: 2, deliveredDates: [], status: 'active', orderType: 'once' });
+  await runDeliveryTransaction(
+    db,
+    ref.id,
+    '2026-07-10',
+    'complete',
+    {},
+    { completeAllForOnce: true }
+  );
+  const saved = (await ref.get()).data();
+  assert.equal(saved.remain, 0);
+  assert.equal(saved.status, 'end');
+  assert.deepEqual(saved.deliveredDates, ['2026-07-10']);
+});
+
+test('map and imweb complete a one-time remain 2 order by one delivery', async () => {
+  const ref = db.collection('customers').doc('map-imweb-once-complete');
+  await ref.set({ remain: 2, deliveredDates: [], status: 'active', orderType: 'once' });
+  await runDeliveryTransaction(db, ref.id, '2026-07-10', 'complete');
+  const saved = (await ref.get()).data();
+  assert.equal(saved.remain, 1);
+  assert.equal(saved.status, 'active');
+  assert.deepEqual(saved.deliveredDates, ['2026-07-10']);
+});
+
 test('two concurrent cancellations restore remain only once', async () => {
   const ref = db.collection('customers').doc('concurrent-cancel');
   await ref.set({ remain: 0, deliveredDates: ['2026-07-10'], status: 'end' });
