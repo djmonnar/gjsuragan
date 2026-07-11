@@ -24,12 +24,6 @@ function dashEmptyRow(colspan, icon, text){
   return `<tr><td colspan="${colspan}"><div class="empty"><div class="ei">${icon}</div><div>${text}</div></div></td></tr>`;
 }
 
-function escHtml(v){
-  return String(v ?? '').replace(/[&<>"']/g, ch => ({
-    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
-  }[ch]));
-}
-
 function deliveryProductBadgeHtml(c){
   const key = c?.productId || c?.set;
   return `<span class="badge ${productBadgeClass(key)}">${escHtml(productLabel(key))}</span>`;
@@ -58,10 +52,6 @@ function customerIsFirstOrder(c){
   const sameCustomerOrders = (custs || []).filter(item => customerGroupKey(item) === key);
   if(sameCustomerOrders.length !== 1) return false;
   return customerDeliveredCount(c) === 0;
-}
-
-function firstOrderBadgeHtml(){
-  return '<span class="badge" title="이 고객의 첫 배송 전 주문" style="background:#ecfdf5;color:#047857;border-color:#86efac;font-weight:900;letter-spacing:.2px;">첫주문</span>';
 }
 
 function deliveryFirstOrderBadge(c){
@@ -870,18 +860,6 @@ let __customerGroups = [];
 let __selectedCustomerGroupKey = '';
 let __expandedCustomerOrderId = '';
 
-function customerText(v){
-  return escHtml(v ?? '');
-}
-
-function customerJsArg(v){
-  return customerText(String(v ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' '));
-}
-
-function customerPhoneDigits(phone){
-  return String(phone || '').replace(/\D/g, '');
-}
-
 function customerGroupKey(c){
   const name = String(c?.name || '').trim();
   const phone = customerPhoneDigits(c?.phone);
@@ -930,23 +908,6 @@ function customerOrderDate(c){
 
 const CUSTOMER_NEW_BADGE_MS = 24 * 60 * 60 * 1000;
 
-function customerTimestampMs(value){
-  if(!value) return 0;
-  if(value instanceof Date){
-    const t = value.getTime();
-    return Number.isNaN(t) ? 0 : t;
-  }
-  if(typeof value?.toDate === 'function'){
-    const t = value.toDate().getTime();
-    return Number.isNaN(t) ? 0 : t;
-  }
-  if(typeof value?.seconds === 'number'){
-    return (value.seconds * 1000) + Math.floor((value.nanoseconds || 0) / 1000000);
-  }
-  const t = new Date(value).getTime();
-  return Number.isNaN(t) ? 0 : t;
-}
-
 function customerCreatedTime(c){
   return customerTimestampMs(c?.createdAt) || customerTimestampMs(c?.updatedAt);
 }
@@ -956,10 +917,6 @@ function customerIsNewOrder(c){
   if(!created) return false;
   const age = Date.now() - created;
   return age >= 0 && age <= CUSTOMER_NEW_BADGE_MS;
-}
-
-function customerNewBadgeHtml(){
-  return '<span class="badge" title="최근 24시간 이내 신규 주문" style="background:#fff3bf;color:#9a6700;border-color:#d9a441;font-weight:900;letter-spacing:.2px;">NEW</span>';
 }
 
 function customerOrderNewBadge(c){
@@ -1167,19 +1124,6 @@ function focusRiskOrder(orderId){
 
 function customerIsActiveOrder(c){
   return c && c.status === 'active' && Number(c.remain || 0) > 0;
-}
-
-function customerProductKey(c){
-  return c ? (c.productId || c.set || '') : '';
-}
-
-function customerOrderTypeLabel(c){
-  if(c?.orderType === 'sub') return '정기';
-  return ['pork_rib','beef_la','beef_soup'].includes(customerProductKey(c)) ? '단품' : '선택';
-}
-
-function customerOrderTypeBadge(c){
-  return c?.orderType === 'sub' ? 'b-sub' : 'b-once';
 }
 
 function customerGroupStatus(g){

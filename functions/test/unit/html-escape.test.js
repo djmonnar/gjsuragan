@@ -6,7 +6,7 @@ const vm = require('vm');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const source = fs.readFileSync(path.resolve(__dirname, '../../../assets/js/rendering.js'), 'utf8');
+const source = fs.readFileSync(path.resolve(__dirname, '../../../assets/js/rendering-formatters.js'), 'utf8');
 const helperSource = source.match(/function escHtml\(v\)\{[\s\S]*?\n\}/)?.[0];
 assert.ok(helperSource, 'escHtml helper must exist');
 const escHtml = vm.runInNewContext(`(${helperSource})`);

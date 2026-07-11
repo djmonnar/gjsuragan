@@ -23,6 +23,7 @@ const expectedScriptSources = [
   'assets/js/delivery-transaction.js?v=20260710-safety1',
   'assets/js/imweb.js?v=20260625-door-x1',
   'assets/js/schedule-report.js?v=20260507-3',
+  'assets/js/rendering-formatters.js?v=20260711-helper1',
   'assets/js/rendering.js?v=20260706-pause2',
   'assets/js/route-map.js?v=20260626-roundtrip1',
   'assets/js/import-export.js?v=20260625-door-x1',
