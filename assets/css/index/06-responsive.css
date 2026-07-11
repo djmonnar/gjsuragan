@@ -1,0 +1,178 @@
+
+
+/* ════════════════════════════════════════
+   모바일 반응형 (전면 개편)
+   ════════════════════════════════════════ */
+
+/* ── 헤더 ── */
+@media (max-width: 768px) {
+  .header { padding: 0 12px; height: 52px; }
+  .logo { font-size: 14px; gap: 8px; }
+  .logo-mark { width: 26px; height: 26px; font-size: 12px; }
+  .hdate, .divv, .fb-dot { display: none; }
+  .tbtn { width: 32px; height: 32px; }
+  .header-right { gap: 6px; }
+  .header-right .btn.sm { padding: 5px 10px; font-size: 11px; }
+
+  /* ── 탭 네비 ── */
+  .nav { padding: 0 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .ni { padding: 0 11px; font-size: 12px; white-space: nowrap; height: 40px; }
+  .nb { padding: 1px 5px; font-size: 9px; }
+
+  /* ── 페이지 ── */
+  .page { padding: 12px; gap: 12px; max-height: calc(100vh - 96px); }
+
+  /* ── 통계 카드 2열 ── */
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sc { padding: 12px 14px; }
+  .sv { font-size: 22px; }
+  .sl { font-size: 10px; margin-bottom: 6px; }
+  .ss { font-size: 10px; margin-top: 4px; }
+
+  /* ── 그리드 ── */
+  .g2, .g3, .g4 { grid-template-columns: 1fr; gap: 10px; }
+  .notice-memo-grid { grid-template-columns: 1fr; gap: 10px; }
+  .notice-memo-form { position: static; padding: 14px; }
+  .notice-card { padding: 13px 14px; }
+  .notice-card-top { flex-direction: column; align-items: flex-start; }
+  .notice-card-foot { align-items: stretch; }
+  .notice-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+  .notice-actions .btn { justify-content: center; }
+  .notice-start-modal { width: 100% !important; }
+  .fg { grid-template-columns: 1fr; gap: 10px; }
+  .fgf { grid-column: 1; }
+
+  /* ── 날짜 네비 ── */
+  .date-nav { padding: 8px 10px; gap: 6px; flex-wrap: wrap; }
+  .date-nav input[type="date"] { width: 130px !important; font-size: 12px; padding: 6px 8px; }
+  .date-disp { font-size: 12px; flex: 1; }
+  .date-nav-btn { width: 28px; height: 28px; }
+  .date-today-btn { padding: 4px 10px; font-size: 11px; }
+
+  /* ── 모달: 하단 시트 ── */
+  .mbg { align-items: flex-end; padding-bottom: 0; }
+  .modal {
+    width: 100% !important;
+    max-height: 88vh;
+    border-radius: 18px 18px 0 0;
+    animation: mobileSlideUp .22s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes mobileSlideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+  .mh { padding: 14px 16px 10px; }
+  .mt { font-size: 15px; }
+  .mb { padding: 14px 16px; }
+  .mf { padding: 10px 16px 20px; gap: 8px; }
+  .mf .btn { flex: 1; justify-content: center; font-size: 13px; }
+
+  /* ── 대시보드 오늘배송 패널 ── */
+  #dash-direct-wrap .card table,
+  #dToday { font-size: 12px; }
+
+  /* ── 배송관리: 날짜줄 정리 ── */
+  #page-today > div:first-child {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  #page-today > div:first-child .date-nav { flex: none; }
+  #page-today > div:first-child > div:last-child {
+    display: flex; gap: 8px; justify-content: space-between; align-items: center;
+  }
+
+  /* ── 배송 섹션 헤더 ── */
+  #today-direct-section > div:first-child,
+  #today-courier-section > div:first-child {
+    flex-wrap: wrap; gap: 8px;
+  }
+
+  /* ── 필터 체크박스 ── */
+  .route-header{gap:8px;margin-bottom:10px;}
+  .route-title{font-size:18px;}
+  .route-date-nav{flex:1 1 100%;}
+  .route-summary{grid-template-columns:repeat(3,1fr);gap:8px;}
+  .route-stat{padding:11px 12px;}
+  .route-stat b{font-size:21px;}
+  .route-toolbar{align-items:stretch;}
+  .route-toolbar .btn,.route-toggle{flex:1 1 calc(50% - 4px);justify-content:center;}
+  .route-layout{grid-template-columns:1fr;gap:10px;}
+  .route-map-panel{position:relative;top:auto;}
+  #routeMap{height:280px;min-height:240px;}
+  .route-map-shell:not(.map-touch-on) #routeMap{pointer-events:none;}
+  .route-map-touch-btn{display:block;}
+  .route-card{border-radius:12px;}
+  .route-card-summary{padding:12px;}
+  .route-card-detail{padding:10px 12px 12px;}
+  .route-card-top{align-items:flex-start;}
+  .route-card-name{font-size:16px;}
+  .route-info-grid{grid-template-columns:1fr;}
+  .route-actions{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .route-actions .btn{min-height:40px;}
+
+  #today-courier-section .today-filter-ck,
+  #today-direct-section .today-filter-ck { width: 13px; height: 13px; }
+
+  /* ── 카드형 테이블: min-width 제거 ── */
+  .tw { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .cancel-notice .tw{display:none!important;}
+  .cancel-log-cards{display:none!important;}
+
+  /* ── 고객관리 필터 줄 ── */
+  #page-customers .sh > div:last-child {
+    flex-wrap: wrap; gap: 6px;
+  }
+  #page-customers .sh > div:last-child .inp-sm {
+    flex: 1 1 calc(50% - 6px); min-width: 0;
+  }
+  #page-customers .sh > div:last-child input[type="text"] {
+    flex: 1 1 100%;
+  }
+  #page-customers .sh > div:last-child .btn {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  /* ── 고객관리 그리드 ── */
+  .cust-grid { grid-template-columns: 1fr !important; }
+  #custDetail { display: none; }
+
+  /* ── 택배 전달: 세로 레이아웃 ── */
+  #page-export .g2 { grid-template-columns: 1fr; }
+  #page-export .exptxt { max-height: 200px; font-size: 11px; }
+  #page-export table { min-width: 0; font-size: 12px; }
+  #page-export th, #page-export td { padding: 7px 8px; }
+
+  /* ── 주간/월간 ── */
+  .week-grid { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .week-grid > * { min-width: 44px; }
+  .day-cell { padding: 8px 4px; }
+  .dc-cnt { font-size: 16px; }
+  .month-grid { gap: 3px; }
+  .mc { min-height: 38px; }
+  .mc-d { font-size: 10px; }
+  .mc-n { font-size: 9px; }
+  .g4 { grid-template-columns: 1fr 1fr; }
+
+  /* ── 일괄 등록 ── */
+  .dz { padding: 20px; }
+  .dz > div:first-child { font-size: 24px; }
+  #page-import .g2 { grid-template-columns: 1fr; }
+
+  /* ── 로그인 ── */
+  .login-box { width: 92%; padding: 28px 20px; }
+
+  /* ── 요약카드 ── */
+  .sum-card { padding: 12px 14px; }
+  .sum-val { font-size: 20px; }
+  .view-tabs { width: 100%; }
+  .vt { flex: 1; text-align: center; }
+}
+
+@media (max-width: 480px) {
+  .ni { padding: 0 9px; font-size: 11px; }
+  .stat-grid { gap: 6px; }
+  .g4 { grid-template-columns: 1fr 1fr; }
+  #page-export .exptxt { font-size: 10px; }
+}
