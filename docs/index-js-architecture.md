@@ -2,8 +2,8 @@
 
 ## Scope and constraints
 
-This audit describes the JavaScript loaded by the employee `index.html` at main
-`7b0c44ffe8c74726aa3ad536d0f2cb5d19d3ae49`. It does not change runtime code,
+This audit describes the JavaScript loaded by the employee `index.html` from the
+formatter extraction baseline `b0bc70f2c14e6ad25cc805fce80404eb1faf1ea9`. It does not change business rules,
 business rules, Firebase configuration, Firestore rules, HTML, CSS, or script
 order. The machine-readable source of truth is
 [`index-js-architecture.json`](./index-js-architecture.json).
@@ -20,16 +20,17 @@ The current order is part of the application contract.
 | 2 | `delivery-transaction.js` | 78 | 2,962 | 3 | Atomic delivery state transitions |
 | 3 | `imweb.js` | 838 | 33,970 | 47 | Imweb integration, spreadsheet import, legacy completion handlers |
 | 4 | `schedule-report.js` | 371 | 17,010 | 37 | Date/schedule/report calculation and final delivery policy |
-| 5 | `rendering.js` | 1,672 | 84,478 | 92 | Dashboard, delivery, customer and modal rendering |
-| 6 | `route-map.js` | 762 | 28,321 | 43 | Route page, geocoding cache, map and route proxy |
-| 7 | `import-export.js` | 890 | 41,864 | 39 | Text/XLSX import, previews and export |
-| 8 | `logen.js` | 296 | 12,449 | 27 | Logen registration and slip lookup UI |
-| 9 | `ui.js` | 437 | 17,841 | 37 | Navigation, forms, modals and compatibility wrappers |
-| 10 | `notice-memos.js` | 300 | 11,046 | 22 | Delivery notice memo feature in a private IIFE |
-| **Total** |  | **6,416** | **274,637** | **372** | **55** | |
+| 5 | `rendering-formatters.js` | 55 | 1,736 | 10 | Pure text, badge and order-label formatters |
+| 6 | `rendering.js` | 1,616 | 82,741 | 82 | Dashboard, delivery, customer and modal rendering |
+| 7 | `route-map.js` | 762 | 28,321 | 43 | Route page, geocoding cache, map and route proxy |
+| 8 | `import-export.js` | 890 | 41,864 | 39 | Text/XLSX import, previews and export |
+| 9 | `logen.js` | 296 | 12,449 | 27 | Logen registration and slip lookup UI |
+| 10 | `ui.js` | 437 | 17,841 | 37 | Navigation, forms, modals and compatibility wrappers |
+| 11 | `notice-memos.js` | 300 | 11,046 | 22 | Delivery notice memo feature in a private IIFE |
+| **Total** |  | **6,415** | **274,636** | **372** | **55** | |
 
 The audit found 344 callable global names, 57 shared global state declarations,
-3 IIFE-private state declarations, 22 explicit `window`/root exports, 108 static
+3 IIFE-private state declarations, 22 explicit `window`/root exports, 118 static
 cross-file call relationships, and 150 inline event attributes referencing 73
 distinct call-like names.
 
@@ -45,15 +46,57 @@ distinct call-like names.
 4. `schedule-report.js` deliberately replaces those handlers with stable
    transaction-backed implementations. It installs them immediately and again
    on lifecycle/timer callbacks to resist late replacement.
-5. `rendering.js` provides the base `listFor` consumer and `renderDash` renderer.
-6. `ui.js` deliberately wraps `listFor` and wraps `renderDash` twice: once for
+5. `rendering-formatters.js` declares ten side-effect-free classic-script globals
+   immediately before their rendering consumers.
+6. `rendering.js` provides the base `listFor` consumer and `renderDash` renderer.
+7. `ui.js` deliberately wraps `listFor` and wraps `renderDash` twice: once for
    completed-row presentation and once for active-set statistics. These wrappers
    depend on both the schedule and rendering files already being loaded.
-7. `notice-memos.js` keeps feature state private and exposes only its eight HTML
+8. `notice-memos.js` keeps feature state private and exposes only its eight HTML
    handler functions.
 
 Changing this sequence can silently change delivery behavior or remove wrapper
 features without producing a syntax error.
+
+## Extracted pure formatters
+
+The extraction moved only the following declarations. Function names,
+parameters, bodies after whitespace normalization, return values, and classic
+global visibility are unchanged.
+
+| Function | Baseline line | Reads globals | External calls | DOM/Firestore | Input mutation | Decision |
+| --- | ---: | --- | --- | --- | --- | --- |
+| `escHtml` | 27 | none | none | none | no | moved |
+| `firstOrderBadgeHtml` | 63 | none | none | none | no | moved |
+| `customerText` | 873 | `escHtml` pure helper | `escHtml` | none | no | moved |
+| `customerJsArg` | 877 | `customerText` pure helper | `customerText` | none | no | moved |
+| `customerPhoneDigits` | 881 | none | none | none | no | moved |
+| `customerTimestampMs` | 933 | none | input `toDate` when supplied | none | no | moved |
+| `customerNewBadgeHtml` | 961 | none | none | none | no | moved |
+| `customerProductKey` | 1172 | none | none | none | no | moved |
+| `customerOrderTypeLabel` | 1176 | `customerProductKey` pure helper | `customerProductKey` | none | no | moved |
+| `customerOrderTypeBadge` | 1181 | none | none | none | no | moved |
+
+None is called directly from an HTML inline handler. `escHtml` is also consumed
+by `imweb.js` and `import-export.js`; all other calls are from `rendering.js`.
+The helper file has no top-level execution beyond function declaration
+instantiation and contains no DOM, storage, Firebase, timer, listener, or network
+reference.
+
+### Reviewed but excluded
+
+| Candidate | Exclusion reason |
+| --- | --- |
+| `dashDeliveryRow`, `deliveryProductBadgeHtml` | Depend on mutable cross-file label/class functions and other rendering helpers |
+| `customerIsFirstOrder`, `deliveryFirstOrderBadge` | Depend on shared mutable `custs` state |
+| `productFilterKey` | Depends on the retained global `SINGLE_PRODUCT_IDS` state |
+| `filterDeliveryByProduct` | Reads the DOM |
+| `cancelLogTime` | Locale/time-zone display is environment-sensitive and calls retained escape logic |
+| `customerOrderTime`, `customerOrderDate` | Date policy and external mutable helper dependency |
+| `customerIsNewOrder` | Depends on current time and `CUSTOMER_NEW_BADGE_MS` |
+| `customerUniqueBy` | General grouping helper rather than a display/string formatter |
+| `customerGroupStatus`, chip helpers | Compose business state and mutable cross-file label functions |
+| `customerNextDelivery`, group schedule/remain | Depend on date, schedule, delivery and gauge policy |
 
 ## Deliberate overwrites
 
@@ -152,14 +195,12 @@ DOM availability can break a button while all static JavaScript still parses.
 - Duplicate declarations in `rendering.js`.
 - D5 completion/cancellation behavior.
 
-## Recommended next PR
+## Extraction boundary
 
-The smallest safe follow-up is to extract only pure customer/dashboard formatting
-helpers from `rendering.js` into one classic script loaded immediately before
-`rendering.js`. Keep every existing global name, script order, DOM ID, output
-string, and renderer entry point unchanged. Add snapshot-like unit fixtures for
-the extracted pure functions and a static load-order check. Do not begin with
-`auth-core.js`, completion handlers, or the `ui.js` wrappers.
+The first safe extraction is complete in `rendering-formatters.js`. Further
+movement from `rendering.js` requires separate approval and new behavior fixtures.
+Do not proceed into `auth-core.js`, completion handlers, `ui.js` wrappers, or the
+duplicate customer render declarations as part of this extraction.
 
 ## Automated guard
 
