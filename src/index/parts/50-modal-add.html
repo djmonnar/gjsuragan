@@ -1,0 +1,79 @@
+
+<!-- ══ 신규 등록 모달 ══ -->
+<div class="mbg" id="addM">
+  <div class="modal">
+    <div class="mh"><div class="mt">신규 고객 등록</div><div class="mx" onclick="closeM('addM')">✕</div></div>
+    <div class="mb">
+      <div class="fgrp" style="margin-bottom:16px;">
+        <div class="flab">주문 유형</div>
+        <div class="ttabs">
+          <div class="ttab on" id="tTab-sub" onclick="setTypeTab('sub')">정기배송</div>
+          <div class="ttab" id="tTab-once" onclick="setTypeTab('once')">선택주문 (1회)</div>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="fsec">기본 정보</div>
+        <div class="fgrp"><div class="flab">주문자명 *</div><input type="text" class="inp" id="an" placeholder="홍길동"></div>
+        <div class="fgrp"><div class="flab">연락처 *</div><input type="text" class="inp" id="ap" placeholder="010-0000-0000"></div>
+        <div class="fgrp fgf"><div class="flab">배송지 주소 *</div><input type="text" class="inp" id="aa" placeholder="도로명 주소"></div>
+        <div class="fgrp"><div class="flab">현관 비밀번호</div><input type="text" class="inp" id="ad" placeholder="#1234*"></div>
+        <div class="fgrp"><div class="flab">요청사항</div><input type="text" class="inp" id="ar" placeholder="문 앞에 놓아주세요"></div>
+        <div class="fdiv"></div>
+        <div class="fsec">구독 설정</div>
+        <!-- 정기배송: 세트 선택 -->
+        <div class="fgrp" id="af-set"><div class="flab">세트 *</div>
+          <select class="inp" id="as">
+            <option value="">선택</option>
+            <option value="A">A세트</option>
+            <option value="B">B세트</option>
+            <option value="C">C세트</option>
+          </select>
+        </div>
+        <!-- 선택주문: 상품 선택 -->
+        <div class="fgrp fgf" id="af-prod" style="display:none;"><div class="flab">상품 *</div>
+          <select class="inp" id="aprod">
+            <option value="">선택하세요</option>
+            <optgroup label="반찬 세트">
+              <option value="A">A세트</option>
+              <option value="B">B세트</option>
+              <option value="C">C세트</option>
+            </optgroup>
+            <optgroup label="단품 상품">
+              <option value="pork_rib">수제 돼지양념갈비</option>
+              <option value="beef_la">양념 LA갈비</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="fgrp" id="af-freq"><div class="flab">배송 주기</div><select class="inp" id="at" onchange="updSch()"><option value="">선택</option><option value="1">주 1회</option><option value="2">주 2회</option><option value="3">주 3회</option></select></div>
+        <div class="fgrp fgf" id="af-sched"><div class="flab">배송 일정 *</div><select class="inp" id="ach"><option value="">주기를 먼저 선택하세요</option></select></div>
+        <div class="fgrp" id="af-total"><div class="flab">총 구독 횟수 *</div><input type="number" class="inp" id="ato" placeholder="12" min="1"></div>
+        <div class="fgrp"><div class="flab">시작일 *</div><input type="date" class="inp" id="asd"></div>
+        <div class="fgrp" id="af-once-date" style="display:none;"><div class="flab">배송 예정일 *</div><input type="date" class="inp" id="aod"></div>
+        <div class="fgrp" id="af-qty" style="display:none;">
+          <div class="flab">수량 *</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button type="button" onclick="changeQty(-1)" style="width:32px;height:36px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+            <input type="number" class="inp" id="aqty" value="1" min="1" max="99" style="text-align:center;font-weight:700;font-size:16px;width:64px;">
+            <button type="button" onclick="changeQty(1)" style="width:32px;height:36px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">＋</button>
+            <span style="font-size:12px;color:var(--text3);">개</span>
+          </div>
+        </div>
+        <div class="fdiv"></div>
+        <div class="fsec">추가 정보</div>
+        <div class="fgrp"><div class="flab">주문번호</div><input type="text" class="inp" id="a-ordernum" placeholder="202603258223322"></div>
+        <div class="fgrp"><div class="flab">배송 방식</div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:2px;">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400;color:var(--text);">
+              <input type="checkbox" id="a-direct" style="width:16px;height:16px;"> 직배송 (당일 배송)
+            </label>
+            <span style="font-size:11px;color:var(--text3);">사천·진주 지역 등</span>
+          </div>
+        </div>
+        <div class="fdiv"></div>
+        <div class="fsec">메모</div>
+        <div class="fgrp fgf"><div class="flab">내부 메모</div><textarea class="inp" id="am" placeholder="알러지, 특이사항 등"></textarea></div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeM('addM')">취소</button><button class="btn btn-p" onclick="saveNew()">등록 완료</button></div>
+  </div>
+</div>

@@ -1,0 +1,27 @@
+
+
+<!-- ══ 배송 일시정지 모달 ══ -->
+<div class="mbg" id="pauseM">
+  <div class="modal" style="width:440px;">
+    <div class="mh"><div class="mt">배송 일시정지</div><div class="mx" onclick="closeM('pauseM')">✕</div></div>
+    <div class="mb" style="display:flex;flex-direction:column;gap:14px;">
+      <div id="pauseM-name" style="font-size:15px;font-weight:700;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);"></div>
+      <div class="ibox" style="margin:0;">
+        정지하는 동안 <b>배송 관리 · 배송지도 · 택배 전달 목록에서 자동 제외</b>됩니다.<br>
+        잔여 횟수는 그대로 유지되고, 재개하면 저장된 배송 요일에 따라 다시 배송됩니다.
+      </div>
+      <div class="fgrp">
+        <div class="flab">재개 예정일 <span style="font-size:10px;color:var(--text3);">(선택)</span></div>
+        <input type="date" class="inp" id="pauseM-resume">
+        <div style="font-size:11px;color:var(--text3);margin-top:6px;line-height:1.6;">
+          날짜를 정하면 <b>그날 자동으로 재개</b>됩니다.<br>
+          비워두면 ‘재개’ 버튼을 누를 때까지 정지가 유지됩니다.
+        </div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeM('pauseM')">취소</button>
+      <button class="btn btn-p" onclick="confirmPause()">⏸ 일시정지</button>
+    </div>
+  </div>
+</div>

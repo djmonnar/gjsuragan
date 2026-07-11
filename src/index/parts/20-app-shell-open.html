@@ -1,0 +1,41 @@
+
+<!-- ══ 앱 전체 ══ -->
+<div id="app">
+
+<!-- 헤더 -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo"><img class="logo-mark-img" src="assets/img/suragan-mark.png" alt="">궁중수라간</div>
+    <div class="divv"></div>
+    <span class="hdate" id="hDate"></span>
+  </div>
+  <div class="header-right">
+    <div class="fb-dot"><div class="dot" id="fbDot"></div><span id="fbTxt">연결 중</span></div>
+    <div class="cancel-pill-wrap" id="cancelPillWrap" style="display:none;">
+      <div class="cancel-pill" id="cancelPill" onclick="toggleCancelPopover(event)">
+        취소삭제 <span id="cancelPillCount">0</span>
+      </div>
+      <div class="cancel-popover" id="cancelPopover">
+        <div class="cancel-pop-title">아임웹 취소삭제 내역</div>
+        <div class="cancel-pop-list" id="cancelPopoverList"></div>
+        <button class="btn btn-g sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="goTab('dash');closeCancelPopover();document.getElementById('cancelNotice')?.scrollIntoView({behavior:'smooth',block:'center'});">대시보드에서 보기</button>
+      </div>
+    </div>
+    <div class="tbtn" onclick="toggleTheme()" id="themeBtn" title="테마 전환">다크</div>
+    <button class="btn btn-g sm" onclick="doLogout()">로그아웃</button>
+    <button class="btn btn-p sm" onclick="openM('addM')">＋ 신규 등록</button>
+  </div>
+</header>
+
+<!-- 탭 -->
+<nav class="nav">
+  <div class="ni on"  onclick="goTab('dash')"><span class="nav-ico">DB</span>대시보드</div>
+  <div class="ni"     onclick="goTab('today')"><span class="nav-ico">DV</span>배송 관리 <span class="nb" id="nBadge">0</span></div>
+  <div class="ni"     onclick="goTab('route')"><span class="nav-ico">MP</span>배송지도</div>
+  <div class="ni"     onclick="goTab('notice')"><span class="nav-ico">NT</span>공지메모 <span class="nb" id="noticeMemoBadge" style="display:none;">0</span></div>
+  <div class="ni"     onclick="goTab('report')"><span class="nav-ico">RP</span>주간 · 월간</div>
+  <div class="ni"     onclick="goTab('customers')"><span class="nav-ico">CS</span>고객 관리</div>
+  <div class="ni"     onclick="goTab('export')"><span class="nav-ico">TX</span>택배 전달</div>
+  <div class="ni"     onclick="goTab('import')"><span class="nav-ico">IN</span>일괄 등록</div>
+  <div class="ni"     onclick="goTab('manual')"><span class="nav-ico">MN</span>매뉴얼</div>
+</nav>

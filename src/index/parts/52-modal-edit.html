@@ -1,0 +1,72 @@
+
+<!-- 수정 모달 -->
+<div class="mbg" id="editM">
+  <div class="modal">
+    <div class="mh"><div class="mt">고객 정보 수정</div><div class="mx" onclick="closeM('editM')">✕</div></div>
+    <div class="mb">
+      <div class="fg">
+        <div class="fgrp"><div class="flab">주문자명</div><input type="text" class="inp" id="en"></div>
+        <div class="fgrp"><div class="flab">연락처</div><input type="text" class="inp" id="ep"></div>
+        <div class="fgrp fgf"><div class="flab">배송지</div><input type="text" class="inp" id="ea"></div>
+        <div class="fgrp"><div class="flab">현관 비밀번호</div><input type="text" class="inp" id="ed"></div>
+        <div class="fgrp"><div class="flab">요청사항</div><input type="text" class="inp" id="er"></div>
+        <div class="fgrp"><div class="flab">상품</div>
+          <select class="inp" id="es">
+            <optgroup label="정기배송 세트">
+              <option value="A">A세트</option>
+              <option value="B">B세트</option>
+              <option value="C">C세트</option>
+            </optgroup>
+            <optgroup label="단품 상품">
+              <option value="pork_rib">수제 돼지양념갈비</option>
+              <option value="beef_la">양념 LA갈비</option>
+              <option value="beef_soup">소고기무국</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="fgrp"><div class="flab">상태</div><select class="inp" id="est" onchange="syncEditResumeField()"><option value="active">진행 중</option><option value="pause">일시정지</option><option value="end">종료</option></select></div>
+        <div class="fgrp" id="ef-resume-wrap" style="display:none;"><div class="flab">재개 예정일 <span style="font-size:10px;color:var(--text3);">(비우면 무기한 정지)</span></div><input type="date" class="inp" id="e-resume"></div>
+        <div class="fgrp"><div class="flab">잔여 수량</div><input type="number" class="inp" id="erem" min="0"></div>
+        <div class="fgrp"><div class="flab">총 수량 / 횟수</div><input type="number" class="inp" id="etot" min="1"></div>
+        <!-- 정기배송 일정 (정기배송일 때만 표시) -->
+        <div class="fgrp" id="ef-sched-wrap">
+          <div class="flab">배송 주기</div>
+          <select class="inp" id="e-freq" onchange="editUpdSch()">
+            <option value="">선택</option>
+            <option value="1">주 1회</option>
+            <option value="2">주 2회</option>
+            <option value="3">주 3회</option>
+          </select>
+        </div>
+        <div class="fgrp" id="ef-sched-sel">
+          <div class="flab">배송 일정</div>
+          <select class="inp" id="e-sched">
+            <option value="">주기를 먼저 선택하세요</option>
+          </select>
+        </div>
+        <div class="fgrp" id="ef-start-wrap">
+          <div class="flab">정기 시작일</div>
+          <input type="date" class="inp" id="e-startdate">
+        </div>
+        <div class="fgrp" id="ef-sched-from-wrap">
+          <div class="flab">새 일정 적용 시작일 <span style="font-size:10px;color:var(--text3);">(비우면 저장 즉시 적용)</span></div>
+          <input type="date" class="inp" id="e-sched-from">
+          <div id="e-sched-pending-info" style="font-size:11px;color:#b58900;font-weight:700;margin-top:4px;display:none;"></div>
+        </div>
+        <div class="fgrp">
+          <div class="flab">주문 일자 <span style="font-size:10px;color:var(--text3);">(아임웹 주문일 · 직접 수정 가능)</span></div>
+          <input type="date" class="inp" id="e-orderdate">
+        </div>
+        <div class="fgrp" id="ef-oncedate-wrap"><div class="flab">배송 예정일 <span style="font-size:10px;color:var(--text3);">(선택주문 · 날짜 변경 시 수정)</span></div><input type="date" class="inp" id="eodate"></div>
+        <div class="fgrp"><div class="flab">주문번호</div><input type="text" class="inp" id="e-ordernum" placeholder="202603258223322"></div>
+        <div class="fgrp"><div class="flab">배송 방식</div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400;color:var(--text);margin-top:6px;">
+            <input type="checkbox" id="e-direct" style="width:16px;height:16px;"> 직배송 (당일 배송)
+          </label>
+        </div>
+        <div class="fgrp fgf"><div class="flab">메모</div><textarea class="inp" id="em"></textarea></div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-d" onclick="delCust()">🗑 삭제</button><button class="btn btn-g" onclick="closeM('editM')">취소</button><button class="btn btn-p" onclick="saveEdit()">저장</button></div>
+  </div>
+</div>

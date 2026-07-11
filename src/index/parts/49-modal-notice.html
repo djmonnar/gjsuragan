@@ -1,0 +1,18 @@
+
+<!-- ══ 시작 공지메모 팝업 ══ -->
+<div class="mbg" id="noticePopupM">
+  <div class="modal notice-start-modal">
+    <div class="mh">
+      <div class="mt">배송 공지메모</div>
+      <div class="mx" onclick="closeNoticeMemoPopup()">✕</div>
+    </div>
+    <div class="mb">
+      <div class="ibox notice-popup-help">오늘 배송 전에 확인해야 할 메모입니다. 처리했거나 더 이상 필요 없으면 공지메모 탭에서 팝업을 꺼주세요.</div>
+      <div class="notice-popup-list" id="noticePopupList"></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeNoticeMemoPopup()">닫기</button>
+      <button class="btn btn-p" onclick="openNoticeMemoTabFromPopup()">공지메모 관리</button>
+    </div>
+  </div>
+</div>

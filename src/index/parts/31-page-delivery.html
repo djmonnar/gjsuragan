@@ -1,0 +1,88 @@
+
+<!-- ══════════ 배송 관리 (날짜 선택) ══════════ -->
+<div class="page" id="page-today">
+
+  <!-- 날짜 네비 + 버튼 -->
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <div class="date-nav" style="flex:1;">
+      <button class="date-nav-btn" onclick="moveTodayDate(-1)">&#8249;</button>
+      <input type="date" class="inp" id="todayDate" style="width:160px;text-align:center;font-weight:700;" onchange="renderToday()">
+      <button class="date-nav-btn" onclick="moveTodayDate(1)">&#8250;</button>
+      <span class="date-disp" id="todayDateDisp"></span>
+      <button class="date-today-btn" onclick="resetTodayDate()">오늘</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span style="font-size:12px;color:var(--text3);" id="todayCnt"></span>
+      <button class="btn btn-g sm" onclick="printAllDeliveryList()">전체 인쇄</button>
+      <button class="btn btn-s sm" onclick="markAll()">전체 완료</button>
+      <button class="btn btn-g sm" onclick="goTab('export')">택배 내보내기</button>
+    </div>
+  </div>
+
+  <!-- 🚗 직배송 섹션 -->
+  <div id="today-direct-section">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;">
+        <div style="width:4px;height:20px;background:#c020b0;border-radius:2px;"></div>
+        <span style="font-size:15px;font-weight:700;color:var(--text);">🚗 직배송</span>
+        <span id="direct-cnt" style="font-size:12px;background:rgba(192,32,176,.1);color:#c020b0;border:1px solid rgba(192,32,176,.25);border-radius:20px;padding:2px 10px;font-weight:600;"></span>
+      </div>
+      <!-- 직배송 세트 필터 -->
+      <div style="display:flex;gap:10px;align-items:center;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;">
+        <span style="font-size:11px;color:var(--text3);font-weight:600;">필터:</span>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="A" onchange="renderToday()" checked> A세트</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="B" onchange="renderToday()" checked> B세트</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="C" onchange="renderToday()" checked> C세트</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="direct-filter-ck" value="single" onchange="renderToday()" checked> 단품</label>
+      </div>
+      <button class="btn btn-g sm" onclick="printDirectList()">🖨 인쇄</button>
+      <button class="btn btn-s sm" onclick="markAllDirect()">직배송 전체 완료</button>
+    </div>
+    <div class="card"><div class="tw">
+      <table>
+        <thead><tr>
+          <th><input type="checkbox" id="chkDirect" onchange="toggleDirect(this)"></th>
+          <th>고객명</th><th>연락처</th><th>배송지</th>
+          <th>세트</th><th>배송일정</th><th>현관번호</th><th>요청사항</th><th>잔여</th><th>상태</th><th>처리</th>
+        </tr></thead>
+        <tbody id="directList"></tbody>
+      </table>
+    </div></div>
+  </div>
+
+  <!-- 택배 섹션 -->
+  <div id="today-courier-section">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;">
+        <div style="width:4px;height:20px;background:var(--info);border-radius:2px;"></div>
+        <span style="font-size:15px;font-weight:700;color:var(--text);">택배</span>
+        <span id="courier-cnt" style="font-size:12px;background:rgba(3,102,214,.1);color:var(--info);border:1px solid rgba(3,102,214,.25);border-radius:20px;padding:2px 10px;font-weight:600;"></span>
+      </div>
+      <!-- 세트 필터 체크박스 -->
+      <div style="display:flex;gap:10px;align-items:center;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;">
+        <span style="font-size:11px;color:var(--text3);font-weight:600;">필터:</span>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="today-filter-ck" value="A" onchange="renderToday()" checked> A세트</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="today-filter-ck" value="B" onchange="renderToday()" checked> B세트</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="today-filter-ck" value="C" onchange="renderToday()" checked> C세트</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" class="today-filter-ck" value="single" onchange="renderToday()" checked> 단품</label>
+      </div>
+      <button class="btn btn-p sm" onclick="sendSelectedLogenOrders()">선택 로젠 전송</button>
+      <button class="btn btn-g sm" onclick="sendUnsentLogenOrders()">미전송 전체 전송</button>
+      <button class="btn btn-g sm" onclick="inquireLogenSlipNos()">송장번호 조회</button>
+      <button class="btn btn-g sm" onclick="printCourierList()">🖨 인쇄</button>
+      <button class="btn btn-s sm" onclick="markAllCourier()">택배 전체 완료</button>
+    </div>
+    <div id="logen-courier-summary" style="display:none;margin:-2px 0 8px 14px;font-size:12px;color:var(--text2);"></div>
+    <div class="card"><div class="tw">
+      <table>
+        <thead><tr>
+          <th><input type="checkbox" id="chkCourier" onchange="toggleCourier(this)"></th>
+          <th>고객명</th><th>연락처</th><th>배송지</th>
+          <th>세트</th><th>유형</th><th>배송일정</th><th>현관번호</th><th>요청사항</th><th>수량</th><th>잔여</th><th>로젠</th><th>송장</th><th>배송</th><th>처리</th>
+        </tr></thead>
+        <tbody id="courierList"></tbody>
+      </table>
+    </div></div>
+  </div>
+
+</div>

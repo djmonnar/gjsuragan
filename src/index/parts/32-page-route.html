@@ -1,0 +1,43 @@
+
+<!-- ══════════ 배송지도 (직배송 기사 모바일) ══════════ -->
+<div class="page" id="page-route">
+  <div class="route-header">
+    <div class="route-title-wrap">
+      <div class="route-title">직배송 배송지도</div>
+      <div class="route-sub">돌담 출발·복귀 기준으로 오늘 직배송 대상만 확인합니다.</div>
+    </div>
+    <div class="date-nav route-date-nav">
+      <button class="date-nav-btn" onclick="moveRouteDate(-1)">&#8249;</button>
+      <input type="date" class="inp" id="routeDate" style="width:160px;text-align:center;font-weight:700;" onchange="renderRouteMap()">
+      <button class="date-nav-btn" onclick="moveRouteDate(1)">&#8250;</button>
+      <span class="date-disp" id="routeDateDisp"></span>
+      <button class="date-today-btn" onclick="resetRouteDate()">오늘</button>
+    </div>
+  </div>
+
+  <div class="route-summary" id="routeSummary">
+    <div class="route-stat"><span>직배송</span><b>0</b></div>
+    <div class="route-stat"><span>완료</span><b>0</b></div>
+    <div class="route-stat"><span>남음</span><b>0</b></div>
+  </div>
+
+  <div class="route-toolbar">
+    <label class="route-toggle"><input type="checkbox" id="routeHideDone" onchange="renderRouteMap()"> 미완료만 보기</label>
+    <button class="btn btn-s sm" onclick="optimizeRouteOrder()">왕복 추천 순서</button>
+    <button class="btn btn-g sm" onclick="copyRouteAddresses()">주소 전체 복사</button>
+    <button class="btn btn-g sm" onclick="renderRouteMap(true)">새로고침</button>
+  </div>
+
+  <div class="route-layout">
+    <section class="route-map-panel">
+      <div class="route-map-status" id="routeMapStatus">지도는 보조 기능입니다. 지도 로드가 안 되어도 아래 배송카드는 사용할 수 있습니다.</div>
+      <div class="route-map-shell" id="routeMapShell">
+        <div id="routeMap"></div>
+        <button class="route-map-touch-btn" id="routeMapTouchBtn" onclick="enableRouteMapTouch(event)">지도 조작</button>
+      </div>
+    </section>
+    <section class="route-list-panel" id="routeList">
+      <div class="empty"><div class="ei empty-mark">직</div><div>직배송 목록을 불러오는 중...</div></div>
+    </section>
+  </div>
+</div>

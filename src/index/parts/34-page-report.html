@@ -1,0 +1,35 @@
+
+<!-- ══════════ 주간·월간 리포트 ══════════ -->
+<div class="page" id="page-report">
+
+  <!-- 뷰 전환 + 날짜 네비 -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div class="view-tabs">
+      <div class="vt on" id="vt-week" onclick="setView('week')">주간</div>
+      <div class="vt" id="vt-month" onclick="setView('month')">월간</div>
+    </div>
+    <div class="date-nav" style="flex:1;max-width:400px;">
+      <button class="date-nav-btn" onclick="moveReport(-1)">&#8249;</button>
+      <span class="date-disp" id="reportDisp" style="font-size:13px;"></span>
+      <button class="date-nav-btn" onclick="moveReport(1)">&#8250;</button>
+      <button class="date-today-btn" onclick="resetReport()">이번 주/월</button>
+    </div>
+  </div>
+
+  <!-- 요약 수치 -->
+  <div class="g4" id="reportSummary"></div>
+
+  <!-- 주간 달력 / 월간 달력 -->
+  <div id="reportCalendar"></div>
+
+  <!-- 기간 배송 리스트 -->
+  <div>
+    <div class="sh"><div class="st"><div class="std"></div><span id="reportListTitle">기간 내 배송 완료</span></div></div>
+    <div class="card"><div class="tw">
+      <table>
+        <thead><tr><th>날짜</th><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>주소</th></tr></thead>
+        <tbody id="reportList"></tbody>
+      </table>
+    </div></div>
+  </div>
+</div>

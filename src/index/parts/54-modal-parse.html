@@ -1,0 +1,103 @@
+
+<!-- ══ 파싱 확인 모달 ══ -->
+<div class="mbg" id="parseM">
+  <div class="modal" style="width:720px;">
+    <div class="mh">
+      <div class="mt" id="parseMTitle">주문 확인 및 수정</div>
+      <div class="mx" onclick="closeM('parseM')">✕</div>
+    </div>
+    <div class="mb">
+      <!-- 공통: 기본 정보 -->
+      <div class="fg" style="margin-bottom:16px;">
+        <div class="fsec">배송지 정보</div>
+        <div class="fgrp"><div class="flab">주문자명 *</div><input type="text" class="inp" id="pm-name" placeholder="홍길동"></div>
+        <div class="fgrp"><div class="flab">연락처 *</div><input type="text" class="inp" id="pm-phone" placeholder="010-0000-0000"></div>
+        <div class="fgrp fgf"><div class="flab">배송지 주소 *</div><input type="text" class="inp" id="pm-addr" placeholder="도로명 주소"></div>
+        <div class="fgrp"><div class="flab">현관 비밀번호</div><input type="text" class="inp" id="pm-door" placeholder="#1234*"></div>
+        <div class="fgrp"><div class="flab">요청사항</div><input type="text" class="inp" id="pm-req" placeholder="문 앞에 놓아주세요"></div>
+      </div>
+
+      <!-- 단일 주문 섹션 -->
+      <div id="pm-single">
+        <div class="fg">
+          <div class="fsec">주문 정보</div>
+          <div class="fgrp" id="pm-prod-wrap"><div class="flab">상품 *</div>
+            <select class="inp" id="pm-prod">
+              <option value="">선택하세요</option>
+              <optgroup label="반찬 세트">
+                <option value="A">A세트</option>
+                <option value="B">B세트</option>
+                <option value="C">C세트</option>
+              </optgroup>
+              <optgroup label="단품 상품">
+                <option value="pork_rib">수제 돼지양념갈비</option>
+                <option value="beef_la">양념 LA갈비</option>
+              </optgroup>
+            </select>
+          </div>
+          <!-- 선택주문 전용 -->
+          <div class="fgrp" id="pm-date-wrap"><div class="flab">배송 예정일 *</div><input type="date" class="inp" id="pm-date"></div>
+          <div class="fgrp" id="pm-qty-wrap">
+            <div class="flab">수량</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button type="button" onclick="pmChangeQty(-1)" style="width:32px;height:36px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+              <input type="number" class="inp" id="pm-qty" value="1" min="1" max="99" style="text-align:center;font-weight:700;font-size:16px;width:64px;">
+              <button type="button" onclick="pmChangeQty(1)" style="width:32px;height:36px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">＋</button>
+              <span style="font-size:12px;color:var(--text3);">개</span>
+            </div>
+          </div>
+          <!-- 정기배송 전용 -->
+          <div class="fgrp" id="pm-set-wrap" style="display:none;"><div class="flab">세트 *</div>
+            <select class="inp" id="pm-set">
+              <option value="">선택</option>
+              <option value="A">A세트</option>
+              <option value="B">B세트</option>
+              <option value="C">C세트</option>
+            </select>
+          </div>
+          <div class="fgrp" id="pm-freq-wrap" style="display:none;"><div class="flab">배송 주기 *</div>
+            <select class="inp" id="pm-freq" onchange="pmUpdSch()">
+              <option value="">선택</option>
+              <option value="1">주 1회</option>
+              <option value="2">주 2회</option>
+              <option value="3">주 3회</option>
+            </select>
+          </div>
+          <div class="fgrp fgf" id="pm-sched-wrap" style="display:none;"><div class="flab">배송 일정 *</div>
+            <select class="inp" id="pm-sched"></select>
+          </div>
+          <div class="fgrp" id="pm-total-wrap" style="display:none;"><div class="flab">총 구독 횟수 *</div>
+            <input type="number" class="inp" id="pm-total" placeholder="12" min="1">
+          </div>
+          <div class="fgrp" id="pm-start-wrap"><div class="flab">시작일 *</div>
+            <input type="date" class="inp" id="pm-start">
+          </div>
+          <div class="fdiv"></div>
+          <div class="fsec">메모</div>
+          <div class="fgrp"><div class="flab">주문번호</div>
+            <input type="text" class="inp" id="pm-ordernum" placeholder="202603258223322">
+          </div>
+          <div class="fgrp"><div class="flab">배송 방식</div>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400;color:var(--text);margin-top:6px;">
+              <input type="checkbox" id="pm-direct" style="width:16px;height:16px;"> 직배송 (당일 배송)
+            </label>
+          </div>
+          <div class="fgrp fgf"><div class="flab">내부 메모</div>
+            <textarea class="inp" id="pm-memo" placeholder="알러지, 특이사항 등"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- 복수 주문 섹션 -->
+      <div id="pm-multi" style="display:none;">
+        <div class="fsec" style="margin-bottom:12px;">주문 목록 <span style="font-weight:400;color:var(--text3);font-size:11px;">각 주문을 수정할 수 있습니다</span></div>
+        <div id="pm-order-list"></div>
+        <button class="btn btn-g sm" onclick="pmAddOrder()" style="margin-top:8px;">＋ 주문 추가</button>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeM('parseM')">취소</button>
+      <button class="btn btn-p" onclick="saveParsed()">등록 완료</button>
+    </div>
+  </div>
+</div>
