@@ -1,0 +1,23 @@
+
+<!-- ══ 로딩 ══ -->
+<div id="loading"><div class="spin"></div><div style="font-size:13px;color:var(--text3);">로딩 중...</div></div>
+
+<!-- ══ 로그인 화면 ══ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <img class="login-logo-img" src="assets/img/suragan-mark.png" alt="">
+    <div class="login-title">궁중수라간</div>
+    <div class="login-sub">배송 관리 시스템 · 직원 전용</div>
+    <div class="login-form">
+  <input type="email" class="login-inp" id="emailInput" placeholder="이메일 입력" value="sun1562@naver.com">
+
+  <input type="password" class="login-inp" id="pwInput" placeholder="비밀번호 입력"
+    onkeydown="if(event.key==='Enter')doLogin()">
+
+  <button class="login-btn" onclick="doLogin()">로그인</button>
+
+  <div class="login-err" id="loginErr">이메일 또는 비밀번호가 올바르지 않습니다.</div>
+  <div class="login-attempts" id="loginAttempts"></div>
+</div>
+  </div>
+</div>

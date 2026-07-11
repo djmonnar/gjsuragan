@@ -1,0 +1,24 @@
+{
+  "output": "index.html",
+  "parts": [
+    "parts/00-document-head.html",
+    "parts/10-loading-login.html",
+    "parts/20-app-shell-open.html",
+    "parts/30-page-dashboard.html",
+    "parts/31-page-delivery.html",
+    "parts/32-page-route.html",
+    "parts/33-page-notice.html",
+    "parts/34-page-report.html",
+    "parts/35-page-customers.html",
+    "parts/36-page-export.html",
+    "parts/37-page-import.html",
+    "parts/38-page-manual.html",
+    "parts/49-modal-notice.html",
+    "parts/50-modal-add.html",
+    "parts/51-modal-address.html",
+    "parts/52-modal-edit.html",
+    "parts/53-modal-pause.html",
+    "parts/54-modal-parse.html",
+    "parts/90-scripts-document-end.html"
+  ]
+}

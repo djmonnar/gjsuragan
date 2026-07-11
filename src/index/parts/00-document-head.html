@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>궁중수라간 · 배송 관리</title>
+<link rel="icon" href="assets/img/suragan-mark.png">
+
+<!-- Firebase compat (v9 compat = 전통 방식, window 전역 사용 가능) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+  const _fbCfg = {
+    apiKey:"AIzaSyCWXHJfMLW2Cf7pjI2u6X5QVKeGW6oC_3A",
+    authDomain:"gjsuragan-60505.firebaseapp.com",
+    projectId:"gjsuragan-60505",
+    storageBucket:"gjsuragan-60505.firebasestorage.app",
+    messagingSenderId:"1009198450175",
+    appId:"1:1009198450175:web:4a55da7c2092dba42613ca"
+  };
+  firebase.initializeApp(_fbCfg);
+window.__AUTH = firebase.auth();
+window.__DB = firebase.firestore();
+
+const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<link rel="stylesheet" href="assets/css/index.css?v=20260710-cssmod1">
+
+
+</head>
+<body>

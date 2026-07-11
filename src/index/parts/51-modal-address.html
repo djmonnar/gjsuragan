@@ -1,0 +1,61 @@
+
+
+<!-- ══ 배송지 상세 모달 ══ -->
+<div class="mbg" id="addrM">
+  <div class="modal" style="width:480px;">
+    <div class="mh">
+      <div class="mt">배송지 상세</div>
+      <div class="mx" onclick="closeM('addrM')">✕</div>
+    </div>
+    <div class="mb" style="display:flex;flex-direction:column;gap:14px;">
+
+      <div>
+        <div class="flab" style="margin-bottom:6px;">고객명</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div id="am-name" style="flex:1;font-size:15px;font-weight:700;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);"></div>
+          <button class="btn btn-g sm" onclick="copyField('am-name')">복사</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="flab" style="margin-bottom:6px;">연락처</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div id="am-phone" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);"></div>
+          <button class="btn btn-g sm" onclick="copyField('am-phone')">복사</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="flab" style="margin-bottom:6px;">배송지 주소</div>
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <div id="am-addr" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);line-height:1.6;word-break:break-all;"></div>
+          <button class="btn btn-g sm" onclick="copyField('am-addr')">복사</button>
+        </div>
+      </div>
+
+      <div id="am-door-wrap">
+        <div class="flab" style="margin-bottom:6px;">현관 비밀번호</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div id="am-door" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);"></div>
+          <button class="btn btn-g sm" onclick="copyField('am-door')">복사</button>
+        </div>
+      </div>
+
+      <div id="am-req-wrap">
+        <div class="flab" style="margin-bottom:6px;">요청사항</div>
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <div id="am-req" style="flex:1;font-size:14px;color:var(--text);padding:8px 12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--border);line-height:1.6;word-break:break-all;"></div>
+          <button class="btn btn-g sm" onclick="copyField('am-req')">복사</button>
+        </div>
+      </div>
+
+      <!-- 전체 복사 버튼 -->
+      <button class="btn btn-p" style="width:100%;" onclick="copyAllAddr()">전체 복사 (이름·연락처·주소·현관번호)</button>
+      <button class="btn btn-s" style="width:100%;margin-top:6px;" id="lozenCopyBtn" onclick="">로젠택배 복사 (탭 구분)</button>
+
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeM('addrM')">닫기</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,52 @@
+
+<!-- ══════════ 일괄 등록 ══════════ -->
+<div class="page" id="page-import">
+  <div class="g2">
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="sh"><div class="st"><div class="std"></div>주문 텍스트 붙여넣기</div></div>
+      <div class="ibox"><b>사용법:</b> 스마트스토어 주문 내역을 그대로 붙여넣으면 이름·연락처·주소·세트·요청사항을 자동 인식합니다.</div>
+      <textarea class="pa" id="pasteArea" placeholder="주문 내역을 여기에 붙여넣기..."></textarea>
+      <button class="btn btn-p" onclick="parseText()">자동 분석</button>
+      <div class="pr" id="parseResult">
+        <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:10px;">인식된 정보</div>
+        <div id="parseRows"></div>
+        <div style="margin-top:14px;display:flex;gap:8px;">
+          <button class="btn btn-p sm" onclick="regParsed()">등록하기</button>
+          <button class="btn btn-g sm" onclick="clearParse()">초기화</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="sh"><div class="st"><div class="std"></div>엑셀 일괄 업로드</div></div>
+      <div class="ibox">
+        <b>스마트스토어 주문 엑셀을 그대로 업로드하세요.</b><br>
+        수령자명·연락처·주소·배송메모를 자동으로 읽어옵니다.<br>
+        세트(A·B·C)는 업로드 후 직접 선택하거나 상품명에 포함되면 자동 인식됩니다.
+      </div>
+      <div class="dz" id="dz" onclick="document.getElementById('xlf').click()" ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
+        <img class="drop-asset" src="assets/img/suragan-mark.png" alt="">
+        <div style="font-size:13px;font-weight:600;color:var(--text2);">스마트스토어 주문 엑셀을 드래그하거나 클릭</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">.xlsx .xls 지원 · 1행 헤더 자동 건너뜀</div>
+      </div>
+      <input type="file" id="xlf" accept=".xlsx,.xls" style="display:none" onchange="readXl(this)">
+      <div id="xlWrap" style="display:none;">
+        <div class="sh" style="margin-bottom:6px;">
+          <div style="font-size:13px;font-weight:600;">미리보기 <span id="xlCnt" style="color:var(--text3);font-weight:400;font-size:12px;"></span></div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-d sm" onclick="resetXl()">🗑 초기화</button>
+            <button class="btn btn-p sm" onclick="regXl()">전체 등록</button>
+          </div>
+        </div>
+        <div class="ibox" style="margin-bottom:8px;border-color:rgba(227,98,9,.3);background:rgba(227,98,9,.06);">
+          ⚠ <b>세트를 반드시 확인하세요.</b> 미선택 시 등록되지 않습니다. 개별 ✕ 버튼으로 제외 가능합니다.
+        </div>
+        <div class="card" style="overflow:auto;max-height:360px;"><div class="tw">
+          <table>
+            <thead><tr><th>#</th><th>수령자명</th><th>연락처</th><th>주소</th><th>세트 ⚠확인</th><th>유형</th><th>배송메모</th><th>제외</th></tr></thead>
+            <tbody id="xlPrev"></tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</div>

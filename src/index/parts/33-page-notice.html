@@ -1,0 +1,52 @@
+
+<!-- ══════════ 공지메모 ══════════ -->
+<div class="page" id="page-notice">
+  <div class="sh">
+    <div class="st"><div class="std"></div>공지메모 <span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:6px;">배송 전 꼭 기억해야 할 변경 요청을 남겨두세요</span></div>
+    <button class="btn btn-g sm" onclick="resetNoticeMemoForm()">새 메모</button>
+  </div>
+
+  <div class="notice-memo-grid">
+    <div class="card notice-memo-form">
+      <div class="notice-form-title" id="noticeMemoFormTitle">공지메모 등록</div>
+      <input type="hidden" id="noticeMemoId">
+      <div class="fg">
+        <div class="fgrp fgf">
+          <div class="flab">제목 *</div>
+          <input type="text" class="inp" id="noticeMemoTitle" placeholder="예) 박철민님 7/12 배송일 변경 확인">
+        </div>
+        <div class="fgrp">
+          <div class="flab">구분</div>
+          <select class="inp" id="noticeMemoCategory">
+            <option value="delivery_change">배송일 변경</option>
+            <option value="direct">직배송</option>
+            <option value="courier">택배</option>
+            <option value="customer">고객요청</option>
+            <option value="etc">기타</option>
+          </select>
+        </div>
+        <div class="fgrp">
+          <div class="flab">관련 날짜</div>
+          <input type="date" class="inp" id="noticeMemoDate">
+        </div>
+        <div class="fgrp fgf">
+          <div class="flab">내용 *</div>
+          <textarea class="inp" id="noticeMemoBody" placeholder="예) 이번 주 목요일 배송분은 금요일로 변경. 택배 말고 직배송 확인 필요."></textarea>
+        </div>
+        <label class="notice-active-toggle fgf">
+          <input type="checkbox" id="noticeMemoActive" checked>
+          <span>첫 화면 팝업에 띄우기</span>
+        </label>
+      </div>
+      <div class="notice-form-actions">
+        <button class="btn btn-g" onclick="resetNoticeMemoForm()">초기화</button>
+        <button class="btn btn-p" onclick="saveNoticeMemo()">저장</button>
+      </div>
+    </div>
+
+    <div class="notice-memo-list-wrap">
+      <div class="notice-summary" id="noticeMemoSummary">공지메모를 불러오는 중입니다.</div>
+      <div class="notice-memo-list" id="noticeMemoList"></div>
+    </div>
+  </div>
+</div>
