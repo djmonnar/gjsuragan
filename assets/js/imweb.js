@@ -796,6 +796,27 @@ function exportCSV(){
   toast(custs.length+'명 CSV 백업 완료','ok');
 }
 
+// 전체 고객 전화번호 엑셀 다운로드 (중복 번호 제거)
+function exportPhoneExcel(){
+  if(!custs.length){ toast('내보낼 고객 데이터가 없습니다','er'); return; }
+  const seen=new Set(), rows=[];
+  custs.forEach(c=>{
+    const phone=String(c.phone||'').trim();
+    if(!phone) return;
+    const key=phone.replace(/\D/g,'')||phone;
+    if(seen.has(key)) return;
+    seen.add(key);
+    rows.push([c.name||'', phone]);
+  });
+  if(!rows.length){ toast('전화번호가 등록된 고객이 없습니다','er'); return; }
+  const ws=XLSX.utils.aoa_to_sheet([['고객명','전화번호'],...rows]);
+  ws['!cols']=[{wch:14},{wch:18}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'고객 전화번호');
+  XLSX.writeFile(wb,'궁중수라간_고객전화번호_'+todayStr()+'.xlsx');
+  toast(rows.length+'명 전화번호 엑셀 저장 완료','ok');
+}
+
 // 고객 목록에서 바로 삭제
 async function quickDelete(id, name){
   if(!confirm(`[${name}] 고객을 삭제하시겠습니까?\n삭제된 데이터는 복구되지 않습니다.`)) return;
