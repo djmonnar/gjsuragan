@@ -76,7 +76,7 @@ function parseText(){
 
   const phoneReg=/01[016789]-?\d{3,4}-?\d{4}/;
   const addrReg=/\(?\d{5}\)?\s+.+/;
-  const keyLabels='이름|주문자|수령자|연락처|휴대폰|전화|주소|배송지|공동\\s*현관\\s*비밀번호|공동\\s*현관|현관번호|현관|비밀번호|요청사항|특이사항|메모|내부\\s*메모|상품|세트|배송\\s*주기|주기|배송\\s*일정|일정|총\\s*구독\\s*횟수|총\\s*횟수|횟수|시작일|배송방식|상태|주문번호';
+  const keyLabels='이름|주문자|수령자|연락처|휴대폰|전화|주소|배송지|공동\\s*현관\\s*비밀번호|공동\\s*현관|현관번호|현관|비밀번호|요청사항|특이사항|메모|내부\\s*메모|상품|세트|배송\\s*주기|주기|배송\\s*일정|일정|총\\s*구독\\s*횟수|총\\s*횟수|횟수|시작일|배송방식|상태|주문번호|총\\s*결제\\s*금액|최종\\s*주문\\s*금액|결제\\s*금액|총\\s*금액';
   function cleanParsedValue(v){
     return String(v||'')
       .replace(/\s+/g,' ')
@@ -108,6 +108,9 @@ function parseText(){
     if(!n||!p||!source.length) return null;
     return source.find(c=>String(c.name||'').trim()===n&&phoneDigits(c.phone)===p) || null;
   }
+  const explicitAmountText = explicitField('총\\s*결제\\s*금액|최종\\s*주문\\s*금액|결제\\s*금액|총\\s*금액')
+    || (raw.match(/(?:총\s*결제\s*금액|최종\s*주문\s*금액|결제\s*금액|총\s*금액)\s*[:：]?\s*([₩\d][\d,]*\s*원?)/i)?.[1] || '');
+  const parsedAmount = normalizeOrderAmount(explicitAmountText);
 
   // ── 전화번호: 마지막 등장 번호 (배송지 정보 기준) ──
   const allPhones=[];
@@ -329,6 +332,17 @@ function parseText(){
   if(/^-+$/.test(door)) door='';
   if(/^-+$/.test(request)) request='';
 
+  // ── 공통 주문번호 ──
+  let parsedOrderNum='';
+  for(const l of lines){
+    if(/^\d{15,20}$/.test(l)){ parsedOrderNum=l; break; }
+  }
+  if(!parsedOrderNum){
+    const om=raw.match(/주문\s*번호\s*[:：]?\s*(\d{12,20})/) || raw.match(/주문번호\s*[:：]?\s*(\d{12,20})/);
+    if(om) parsedOrderNum=om[1];
+  }
+  parsedOrderNum=stripFieldLabel(explicitField('주문번호'))||parsedOrderNum;
+
   // ── 복수 주문 감지: "-001", "-002" 등 섹션번호로 분리 ──
   // 섹션번호 패턴: 주문번호-001, 주문번호-002 ...
   const sectionPat=/^\d{10,}-\d{3}$/;
@@ -379,7 +393,7 @@ function parseText(){
       _multi: true,
       orders,
       name: mainName, phone: mainPhone,
-      addr: mainAddr, door, request,
+      addr: mainAddr, door, request, orderNum:parsedOrderNum, orderAmount:parsedAmount,
     };
     // 미리보기
     let rowsHtml=`
@@ -389,6 +403,8 @@ function parseText(){
       <div class="prr"><div class="prk">주소</div><div class="prv">${escHtml(mainAddr||'(미인식)')}</div></div>
       <div class="prr"><div class="prk">현관번호</div><div class="prv">${escHtml(door||'—')}</div></div>
       <div class="prr"><div class="prk">요청사항</div><div class="prv">${escHtml(request||'—')}</div></div>
+      <div class="prr"><div class="prk">주문번호</div><div class="prv">${escHtml(parsedOrderNum||'(미인식)')}</div></div>
+      <div class="prr"><div class="prk">총 주문금액</div><div class="prv">${parsedAmount === null ? '(미인식)' : orderSalesWon(parsedAmount)}</div></div>
       <div style="height:1px;background:var(--border);margin:8px 0;"></div>`;
     orders.forEach((o,i)=>{
       rowsHtml+=`
@@ -406,16 +422,7 @@ function parseText(){
   }
 
   // ── 단일 주문 파싱 ──
-  // 주문번호 파싱: 숫자 15자리 이상 단독 줄
-  let parsedOrderNum='';
-  for(const l of lines){
-    if(/^\d{15,20}$/.test(l)){ parsedOrderNum=l; break; }
-  }
-  if(!parsedOrderNum){
-    const om=raw.match(/주문\s*번호\s*[:：]?\s*(\d{12,20})/) || raw.match(/주문번호\s*[:：]?\s*(\d{12,20})/);
-    if(om) parsedOrderNum=om[1];
-  }
-  parsedOrderNum=stripFieldLabel(explicitField('주문번호'))||parsedOrderNum;
+  // 주문번호는 복수 주문보다 앞에서 공통 파싱함
   const explicitMemo=stripFieldLabel(explicitField('메모|내부\\s*메모'));
   if(!parsedOrderNum&&explicitMemo){
     const mm=explicitMemo.match(/주문\s*번호\s*[:：]?\s*(\d{12,20})/) || explicitMemo.match(/주문번호\s*[:：]?\s*(\d{12,20})/);
@@ -423,7 +430,7 @@ function parseText(){
   }
   const orderStatus=stripFieldLabel(explicitField('상태'))||(lines.find(l=>/배송\s*보류|배송\s*중|배송\s*완료|결제\s*완료|입금\s*완료|취소|환불/.test(l))||'').trim();
   const isDirectByText=lines.some(l=>/직접\s*배송|직배송/.test(l));
-  const p={name:mainName,phone:mainPhone,addr:mainAddr,door,request,set:'',productId:'',qty:1,orderType:'once',orderNum:parsedOrderNum};
+  const p={name:mainName,phone:mainPhone,addr:mainAddr,door,request,set:'',productId:'',qty:1,orderType:'once',orderNum:parsedOrderNum,orderAmount:parsedAmount};
 
   for(let i=0;i<lines.length;i++){
     const l=lines[i];
@@ -480,6 +487,7 @@ function parseText(){
     ['주소',p.addr||'(미인식)'],['현관번호',p.door||'—'],
     ['요청사항',p.request||'—'],['상품',prodDisplay],
     ['수량',p.qty+'개'],['유형',p.orderType==='sub'?'정기배송':'선택주문'],
+    ['총 주문금액',p.orderAmount === null ? '(미인식)' : orderSalesWon(p.orderAmount)],
   ];
   if(p.orderType==='sub'){
     previewRows.push(['주기',p.type?`주 ${p.type}회 / 총 ${p.total||''}회`:'(미인식)']);
@@ -505,6 +513,7 @@ function regParsed(){
   document.getElementById('pm-door').value  = p.door  || '';
   document.getElementById('pm-req').value   = p.request || '';
   document.getElementById('pm-memo').value  = p.memo || '';
+  document.getElementById('pm-amount').value = p.orderAmount === null || p.orderAmount === undefined ? '' : p.orderAmount;
 
   if(p._multi){
     // ── 복수 주문 모드 ──
@@ -661,10 +670,13 @@ async function saveParsed(){
   const door  = document.getElementById('pm-door').value.trim();
   const req   = document.getElementById('pm-req').value.trim();
   const memo  = document.getElementById('pm-memo').value.trim();
+  const orderAmountRaw = document.getElementById('pm-amount')?.value.trim() || '';
+  const orderAmount = normalizeOrderAmount(orderAmountRaw);
 
   if(!name) { toast('주문자명을 입력하세요','er'); return; }
   if(!phone){ toast('연락처를 입력하세요','er'); return; }
   if(!addr) { toast('주소를 입력하세요','er'); return; }
+  if(orderAmountRaw !== '' && orderAmount === null){ toast('총 주문금액을 숫자로 입력하세요','er'); return; }
 
   const isDirect = document.getElementById('pm-direct')?.checked||false;
   const orderNum = document.getElementById('pm-ordernum')?.value.trim()||'';
@@ -672,6 +684,8 @@ async function saveParsed(){
     name, phone, addr, door, request:req, memo:memo||'자동 등록 (텍스트 파싱)',
     status:'active', deliveredDates:[], createdAt:new Date().toISOString(),
     isDirect, orderNum,
+    orderDate:normalizeDateInputValue(orderNum) || todayStr(),
+    orderSource:'imweb_text',
   };
 
   const isMulti = document.getElementById('pm-multi').style.display !== 'none';
@@ -680,7 +694,7 @@ async function saveParsed(){
     // 복수 주문 수집
     const items = document.querySelectorAll('#pm-order-list .pm-order-item');
     if(!items.length){ toast('등록할 주문이 없습니다','er'); return; }
-    let ok=0, errs=[];
+    let ok=0, errs=[], amountAssigned=false;
     for(const item of items){
       const id = item.id.replace('pm-ord-','');
       const prod  = document.getElementById('pm-ord-prod-'+id)?.value||'';
@@ -695,8 +709,11 @@ async function saveParsed(){
         scheduleName:productLabel(prod)+(qty>1?' x'+qty+'개':''),
         arriveDays:[], cookDays:[],
       };
-      try{ await window.__DB.collection('customers').add(data); ok++; }
+      if(orderAmount !== null && !amountAssigned) data.orderAmount = orderAmount;
+      let stored = false;
+      try{ await window.__DB.collection('customers').add(data); ok++; stored = true; }
       catch(e){ errs.push('저장 오류: '+e.message); }
+      if(stored && data.orderAmount !== undefined) amountAssigned = true;
     }
     if(errs.length) toast(errs.join(' / '),'er');
     if(ok>0){ closeM('parseM'); clearParse(); toast(name+' '+ok+'건 등록 완료!','ok'); }
@@ -705,6 +722,7 @@ async function saveParsed(){
     // 단일 주문
     const isSub = document.getElementById('pm-set-wrap').style.display !== 'none';
     let data = {...base, orderType: isSub?'sub':'once'};
+    if(orderAmount !== null) data.orderAmount = orderAmount;
 
     if(isSub){
       const s   = document.getElementById('pm-set').value;
@@ -744,6 +762,8 @@ function clearParse(){
   document.getElementById('pasteArea').value='';
   document.getElementById('parseResult').classList.remove('on');
   parsedData=null;
+  const amount = document.getElementById('pm-amount');
+  if(amount) amount.value='';
 }
 
 // ════════════════════════════════════════
@@ -786,6 +806,8 @@ function parseXlRow(r){
 
   // 주문상태
   const status = String(r[2]||'').trim();
+  const orderAmount = normalizeOrderAmount(r[7]);
+  const orderDate = normalizeDateInputValue(r[36]) || normalizeDateInputValue(orderNum);
 
   // 현관비밀번호: 배송메모에서 추출 시도
   let door = '';
@@ -795,7 +817,7 @@ function parseXlRow(r){
     || request.match(/비밀번호\s*[:：]?\s*([^|｜\n]+)/i);
   if(doorMatch) door = String(doorMatch[1] || '').trim();
 
-  return { name, phone, addr, door, request, set, orderType: isRegular?'sub':'once', orderNum, orderStatus: status };
+  return { name, phone, addr, door, request, set, orderType: isRegular?'sub':'once', orderNum, orderStatus: status, orderAmount, orderDate };
 }
 
 function dzOver(e){e.preventDefault();document.getElementById('dz').classList.add('drag');}
@@ -848,6 +870,7 @@ function renderXlPreview(){
         </select>
       </td>
       <td><span class="badge ${c.orderType==='sub'?'b-sub':'b-once'}">${c.orderType==='sub'?'정기':'선택'}</span></td>
+      <td>${c.orderAmount === null ? '<span class="badge sales-amount-missing">미입력</span>' : `<strong>${orderSalesWon(c.orderAmount)}</strong>`}</td>
       <td style="font-size:11px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(c.request)}">${escHtml(c.request||'—')}</td>
       <td>
         <button class="btn btn-d sm" onclick="xlData.splice(${i},1);renderXlPreview();document.getElementById('xlCnt').textContent=xlData.length+'건';">✕</button>
@@ -869,10 +892,12 @@ async function regXl(){
         name:c.name, phone:c.phone, addr:c.addr, door:c.door||'',
         request:c.request||'', set:c.set, memo:`주문번호: ${c.orderNum||''}`,
         status:'active', deliveredDates:[], createdAt:new Date().toISOString(),
+        orderNum:c.orderNum||'', orderDate:c.orderDate||t, orderSource:'excel_import',
         orderType:c.orderType, total:1, remain:1,
         scheduleName:c.orderType==='sub'?'정기배송':'선택주문 (1회)',
         arriveDays:[], startDate:t, onceDate:c.orderType==='once'?t:''
       };
+      if(c.orderAmount !== null) data.orderAmount = c.orderAmount;
       await window.__DB.collection('customers').add(data); ok++;
     }
     toast(ok+'건 등록 완료!','ok');

@@ -12,6 +12,7 @@
     <a onclick="document.getElementById('mn-today').scrollIntoView({behavior:'smooth'})">배송 관리</a>
     <a onclick="document.getElementById('mn-route').scrollIntoView({behavior:'smooth'})">배송지도</a>
     <a onclick="document.getElementById('mn-report').scrollIntoView({behavior:'smooth'})">주간·월간</a>
+    <a onclick="document.getElementById('mn-settlement').scrollIntoView({behavior:'smooth'})">정산</a>
     <a onclick="document.getElementById('mn-cust').scrollIntoView({behavior:'smooth'})">고객 관리</a>
     <a onclick="document.getElementById('mn-export').scrollIntoView({behavior:'smooth'})">택배 전달</a>
     <a onclick="document.getElementById('mn-import').scrollIntoView({behavior:'smooth'})">일괄 등록</a>
@@ -36,7 +37,7 @@
     <h3><span class="mn-ico">화면</span>화면 구성</h3>
     <ul>
       <li><b>상단 헤더:</b> 오늘 날짜, 서버 연결 상태(초록 점 = 정상), 아임웹 <b>취소삭제 알림</b>, <span class="mn-btn">다크</span> 테마 전환, <span class="mn-btn">로그아웃</span>, <span class="mn-btn">＋ 신규 등록</span> 버튼이 있습니다.</li>
-      <li><b>탭 메뉴:</b> 대시보드 / 배송 관리 / 배송지도 / 주간·월간 / 고객 관리 / 택배 전달 / 일괄 등록 / 매뉴얼. 배송 관리 옆 숫자는 <b>오늘 배송 건수</b>입니다.</li>
+      <li><b>탭 메뉴:</b> 대시보드 / 배송 관리 / 배송지도 / 공지메모 / 주간·월간 / 정산 / 고객 관리 / 택배 전달 / 일괄 등록 / 매뉴얼. 배송 관리 옆 숫자는 <b>오늘 배송 건수</b>입니다.</li>
       <li><b>로그인:</b> 직원 전용 이메일·비밀번호로 로그인합니다. 5회 이상 틀리면 잠시 후 다시 시도하세요.</li>
     </ul>
   </div>
@@ -90,6 +91,18 @@
   <div class="mn-sec" id="mn-report">
     <h3><span class="mn-ico">RP</span>주간·월간 — 지난 기록과 앞으로의 일정</h3>
     <p>주간/월간 달력으로 날짜별 배송 예정·완료 건수를 봅니다. 식자재 준비량을 가늠하거나, 특정 날짜에 몇 집을 배송했는지 확인할 때 사용합니다. 아래 표에는 기간 내 배송 완료 내역이 정리됩니다.</p>
+  </div>
+
+  <!-- 정산 -->
+  <div class="mn-sec" id="mn-settlement">
+    <h3><span class="mn-ico">ST</span>정산 — 월별 주문 매출 확인</h3>
+    <p>선택한 달의 주문을 주문번호 기준으로 묶어 총매출을 확인합니다. 아임웹·전화/카톡·엑셀 주문 매출을 나누어 볼 수 있고, 금액이 없는 과거 주문은 <b>금액 확인 필요</b>로 표시됩니다.</p>
+    <ul>
+      <li>전화·카톡 주문은 <span class="mn-btn">＋ 신규 등록</span>에서 <b>총 주문금액</b>을 입력합니다.</li>
+      <li>기존 주문 금액은 고객 수정 창의 <b>총 주문금액</b>에서 입력·수정·삭제할 수 있습니다.</li>
+      <li>같은 주문번호에 상품 문서가 여러 개 있어도 매출은 한 번만 합산됩니다.</li>
+      <li>금액 미입력 또는 서로 다른 금액이 섞인 주문은 총매출에서 제외되므로 반드시 확인하세요.</li>
+    </ul>
   </div>
 
   <!-- 고객 관리 -->

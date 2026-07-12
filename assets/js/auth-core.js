@@ -415,6 +415,9 @@ async function saveNew(){
   const isDirect = document.getElementById('a-direct').checked;
   const orderNum = document.getElementById('a-ordernum').value.trim();
   const orderDate = normalizeDateInputValue(orderNum) || formatDateInputValue(new Date());
+  const orderAmountRaw = document.getElementById('a-amount')?.value.trim() || '';
+  const orderAmount = typeof normalizeOrderAmount === 'function' ? normalizeOrderAmount(orderAmountRaw) : null;
+  if(orderAmountRaw !== '' && orderAmount === null){ toast('총 주문금액을 숫자로 입력하세요','er'); return; }
 
   let data = {
     name:n,
@@ -429,8 +432,10 @@ async function saveNew(){
     orderDate,
     orderType,
     isDirect,
-    orderNum
+    orderNum,
+    orderSource:'manual'
   };
+  if(orderAmount !== null) data.orderAmount = orderAmount;
 
   if(orderType === 'sub'){
     // 정기배송
@@ -499,6 +504,9 @@ async function saveEdit(){
   const esVal = g('es');
   const isSub = current.orderType === 'sub';
   const orderDate = g('e-orderdate') || customerOrderDateInputValue(current);
+  const orderAmountRaw = document.getElementById('e-amount')?.value.trim() || '';
+  const orderAmount = typeof normalizeOrderAmount === 'function' ? normalizeOrderAmount(orderAmountRaw) : null;
+  if(orderAmountRaw !== '' && orderAmount === null){ toast('총 주문금액을 숫자로 입력하세요','er'); return; }
 
   const statusVal = g('est');
   const upd = {
@@ -515,7 +523,8 @@ async function saveEdit(){
     memo:g('em'),
     isDirect:document.getElementById('e-direct').checked,
     orderDate,
-    orderNum:document.getElementById('e-ordernum').value.trim()
+    orderNum:document.getElementById('e-ordernum').value.trim(),
+    orderAmount:orderAmountRaw === '' ? firebase.firestore.FieldValue.delete() : orderAmount
   };
 
   if(statusVal === 'pause'){
@@ -583,12 +592,26 @@ async function saveEdit(){
     if(typeof selectedLogenShipmentsForChange === 'function'){
       Object.assign(upd, selectedLogenShipmentsForChange(current, upd));
     }
-    await window.__DB.collection('customers').doc(editId).update(upd);
+    const currentOrderRoot = typeof orderSalesRootNumber === 'function' ? orderSalesRootNumber(current.orderNum) : current.orderNum;
+    const updatedOrderRoot = typeof orderSalesRootNumber === 'function' ? orderSalesRootNumber(upd.orderNum) : upd.orderNum;
+    const currentOrderKey = currentOrderRoot && typeof orderSalesGroupKey === 'function' ? `order:${currentOrderRoot}` : '';
+    const siblings = currentOrderRoot && updatedOrderRoot === currentOrderRoot && currentOrderKey
+      ? custs.filter(item => item.id !== editId && orderSalesGroupKey(item) === currentOrderKey)
+      : [];
+    if(siblings.length && typeof window.__DB.batch === 'function'){
+      const batch = window.__DB.batch();
+      batch.update(window.__DB.collection('customers').doc(editId), upd);
+      siblings.forEach(item => batch.update(window.__DB.collection('customers').doc(item.id), {orderAmount:upd.orderAmount}));
+      await batch.commit();
+    } else {
+      await window.__DB.collection('customers').doc(editId).update(upd);
+    }
     closeM('editM');
     const pend = upd.pendingSchedule && upd.pendingSchedule.effectiveDate
       ? ` · ${upd.pendingSchedule.effectiveDate}부터 ${upd.pendingSchedule.scheduleName} 적용 예약`
       : '';
-    toast(upd.name + ' 수정 완료' + pend, 'ok');
+    const amountSync = siblings.length ? ` · 같은 주문번호 ${siblings.length + 1}개 금액 동기화` : '';
+    toast(upd.name + ' 수정 완료' + pend + amountSync, 'ok');
   } catch(e){
     toast('오류: ' + e.message, 'er');
   }
