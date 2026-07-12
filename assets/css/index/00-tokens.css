@@ -1,21 +1,26 @@
 
 :root{
-  --accent:#16633a; --accent-l:#207748; --accent-xl:#eaf5ee;
-  --danger:#d73a49; --warn:#b85b11; --info:#185abc;
-  --r:8px; --rs:6px;
-  --sh0:0 1px 2px rgba(15,23,42,.06);
-  --sh:0 8px 24px rgba(15,23,42,.08),0 1px 2px rgba(15,23,42,.04);
-  --shl:0 24px 70px rgba(15,23,42,.16),0 4px 16px rgba(15,23,42,.08);
+  --brand-green-950:#0b3b2b; --brand-green-900:#104a35; --brand-green-800:#185a3d;
+  --brand-green-700:#246b47; --brand-green-100:#eaf4ed;
+  --brand-gold:#c5a15a; --brand-gold-light:#f3ead5;
+  --accent:#185a3d; --accent-l:#246b47; --accent-xl:#eaf4ed;
+  --danger:#d34a4a; --warn:#d99020; --info:#3f72cf;
+  --r:12px; --rs:9px;
+  --sidebar-w:232px; --header-h:72px;
+  --sh0:0 2px 8px rgba(43,52,45,.055);
+  --sh:0 12px 30px rgba(43,52,45,.09),0 2px 6px rgba(43,52,45,.04);
+  --shl:0 28px 80px rgba(15,46,34,.18),0 6px 20px rgba(15,46,34,.1);
   --tr:all .18s cubic-bezier(.4,0,.2,1);
 }
 [data-theme="light"]{
-  --bg:#f6f7f4; --bg2:#fff; --bg3:#eef1ec; --surface:#fff; --surface2:#f8faf7;
-  --border:#e0e5de; --borders:#cbd5c8; --text:#202725; --text2:#5d6661; --text3:#8a948f;
-  --hbg:#fff; --ibg:#fff; --rhov:rgba(0,0,0,.025); --bbg:#f0f1f4; --code:#f6f8fa;
+  --bg:#f7f5ef; --bg2:#fff; --bg3:#f1f0e9; --surface:#fff; --surface2:#fbfaf6;
+  --border:#e7e5dc; --borders:#d4d1c5; --text:#17231d; --text2:#566158; --text3:#7c877f;
+  --hbg:rgba(255,255,255,.94); --ibg:#fff; --rhov:rgba(16,74,53,.035); --bbg:#f0f1ed; --code:#f6f7f4;
 }
 [data-theme="dark"]{
-  --bg:#0d1117; --bg2:#161b22; --bg3:#1c2128; --surface:#161b22; --surface2:#1c2128;
-  --border:#30363d; --borders:#484f58; --text:#e6edf3; --text2:#8b949e; --text3:#6e7681;
-  --hbg:#161b22; --ibg:#0d1117; --rhov:rgba(255,255,255,.03); --bbg:#21262d; --code:#161b22;
-  --accent-xl:rgba(26,107,60,.15);
+  --bg:#101713; --bg2:#151e19; --bg3:#202a24; --surface:#17211b; --surface2:#1c2821;
+  --border:#334239; --borders:#4a5b50; --text:#eff5f0; --text2:#b7c2ba; --text3:#87968c;
+  --hbg:rgba(23,33,27,.94); --ibg:#101713; --rhov:rgba(255,255,255,.035); --bbg:#253129; --code:#151e19;
+  --accent:#75bd8b; --accent-l:#8dcc9f; --accent-xl:rgba(117,189,139,.13);
+  --brand-gold:#d4b66f; --brand-gold-light:rgba(212,182,111,.14);
 }

@@ -3,9 +3,10 @@
 ## Scope and constraints
 
 This audit describes the JavaScript loaded by the employee `index.html` from the
-formatter extraction baseline `b0bc70f2c14e6ad25cc805fce80404eb1faf1ea9`. It does not change business rules,
-business rules, Firebase configuration, Firestore rules, HTML, CSS, or script
-order. The machine-readable source of truth is
+dashboard renewal baseline `61aa026cdddbfc3855cf7967276578474a1b6fdb`. The
+dashboard renewal only adds a display-only notice count/link binding here; it
+does not change business rules, Firebase configuration, Firestore rules, or
+script order. The machine-readable source of truth is
 [`index-js-architecture.json`](./index-js-architecture.json).
 
 The files are classic deferred scripts rather than ES modules. Their top-level
@@ -26,10 +27,10 @@ The current order is part of the application contract.
 | 8 | `import-export.js` | 890 | 41,864 | 39 | Text/XLSX import, previews and export |
 | 9 | `logen.js` | 296 | 12,449 | 27 | Logen registration and slip lookup UI |
 | 10 | `ui.js` | 437 | 17,841 | 37 | Navigation, forms, modals and compatibility wrappers |
-| 11 | `notice-memos.js` | 300 | 11,046 | 22 | Delivery notice memo feature in a private IIFE |
-| **Total** |  | **6,415** | **274,636** | **372** | **55** | |
+| 11 | `notice-memos.js` | 315 | 11,509 | 23 | Delivery notice memo feature in a private IIFE |
+| **Total** |  | **6,430** | **275,099** | **373** | **55** | |
 
-The audit found 344 callable global names, 57 shared global state declarations,
+The audit found 345 callable function names, 57 shared global state declarations,
 3 IIFE-private state declarations, 22 explicit `window`/root exports, 118 static
 cross-file call relationships, and 150 inline event attributes referencing 73
 distinct call-like names.
@@ -52,8 +53,9 @@ distinct call-like names.
 7. `ui.js` deliberately wraps `listFor` and wraps `renderDash` twice: once for
    completed-row presentation and once for active-set statistics. These wrappers
    depend on both the schedule and rendering files already being loaded.
-8. `notice-memos.js` keeps feature state private and exposes only its eight HTML
-   handler functions.
+8. `notice-memos.js` keeps feature state private, binds the dashboard's existing
+   notice navigation to `goTab('notice')`, and exposes only its eight HTML handler
+   functions.
 
 Changing this sequence can silently change delivery behavior or remove wrapper
 features without producing a syntax error.

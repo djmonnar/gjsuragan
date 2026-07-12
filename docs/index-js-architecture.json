@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "auditedMainSha": "b0bc70f2c14e6ad25cc805fce80404eb1faf1ea9",
+  "auditedMainSha": "61aa026cdddbfc3855cf7967276578474a1b6fdb",
   "scriptLoadOrder": [
     "assets/js/auth-core.js",
     "assets/js/delivery-transaction.js",
@@ -16,10 +16,10 @@
   ],
   "summary": {
     "files": 11,
-    "normalizedBytes": 274636,
-    "lines": 6415,
-    "functionDeclarations": 372,
-    "uniqueCallableGlobals": 344,
+    "normalizedBytes": 275099,
+    "lines": 6430,
+    "functionDeclarations": 373,
+    "uniqueCallableGlobals": 345,
     "explicitWindowExports": 22,
     "globalStateDeclarations": 57,
     "privateStateDeclarations": 3,
@@ -204,9 +204,9 @@
     },
     {
       "path": "assets/js/notice-memos.js",
-      "metrics": { "bytes": 11046, "lines": 300, "functionDeclarations": 22, "asyncFunctions": 3 },
+      "metrics": { "bytes": 11509, "lines": 315, "functionDeclarations": 23, "asyncFunctions": 3 },
       "globalsDefined": ["renderNoticeMemos", "resetNoticeMemoForm", "saveNoticeMemo", "editNoticeMemo", "toggleNoticeMemoActive", "deleteNoticeMemo", "closeNoticeMemoPopup", "openNoticeMemoTabFromPopup"],
-      "internalFunctions": ["$", "esc", "tsMs", "formatDateTime", "sortedMemos", "activeMemos", "renderNoticeBadge", "renderNoticeCard", "renderNoticePopup", "maybeShowNoticePopup", "subscribeNoticeMemos", "stopNoticeMemos", "isAllowedUser", "bindAuth"],
+      "internalFunctions": ["$", "esc", "tsMs", "formatDateTime", "sortedMemos", "activeMemos", "renderNoticeBadge", "renderNoticeCard", "renderNoticePopup", "maybeShowNoticePopup", "subscribeNoticeMemos", "stopNoticeMemos", "isAllowedUser", "bindAuth", "bindDashboardLinks"],
       "requiredDefinitions": ["renderNoticeMemos", "saveNoticeMemo", "deleteNoticeMemo", "openNoticeMemoTabFromPopup"],
       "globalsConsumed": ["window.__AUTH", "window.__DB", "DELIVERY_ADMIN_EMAIL", "firebase", "goTab", "openM", "closeM", "toast"],
       "globalState": [],
@@ -216,8 +216,8 @@
       "firestoreCollections": ["deliveryNoticeMemos"],
       "externalApis": ["Firebase Auth", "Firestore"],
       "crossFileCalls": { "ui.js": ["goTab", "openM", "closeM", "toast"] },
-      "topLevelBehavior": ["IIFE registers auth binding and exports eight public handlers"],
-      "eventsAndListeners": ["DOMContentLoaded", "Firebase Auth onAuthStateChanged", "deliveryNoticeMemos onSnapshot", "popup delay timer"],
+      "topLevelBehavior": ["IIFE binds dashboard notice navigation, registers auth binding and exports eight public handlers"],
+      "eventsAndListeners": ["DOMContentLoaded", "dashboard notice link clicks", "Firebase Auth onAuthStateChanged", "deliveryNoticeMemos onSnapshot", "popup delay timer"],
       "recommendedOwnership": "delivery notice memo feature",
       "risk": "low"
     }

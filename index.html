@@ -62,8 +62,8 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 <!-- 헤더 -->
 <header class="header">
   <div class="header-left">
-    <div class="logo"><img class="logo-mark-img" src="assets/img/suragan-mark.png" alt="">궁중수라간</div>
-    <div class="divv"></div>
+    <button class="shell-menu-btn" type="button" title="메뉴" aria-label="메뉴">&#9776;</button>
+    <div class="mobile-brand"><img class="logo-mark-img" src="assets/img/suragan-mark.png" alt=""><span>궁중수라간</span></div>
     <span class="hdate" id="hDate"></span>
   </div>
   <div class="header-right">
@@ -79,117 +79,170 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
       </div>
     </div>
     <div class="tbtn" onclick="toggleTheme()" id="themeBtn" title="테마 전환">다크</div>
-    <button class="btn btn-g sm" onclick="doLogout()">로그아웃</button>
-    <button class="btn btn-p sm" onclick="openM('addM')">＋ 신규 등록</button>
+    <button class="btn btn-g sm header-logout" title="로그아웃" aria-label="로그아웃" onclick="doLogout()">로그아웃</button>
+    <button class="btn btn-p sm header-add" title="신규 등록" aria-label="신규 등록" onclick="openM('addM')">＋ 신규 등록</button>
   </div>
 </header>
 
 <!-- 탭 -->
-<nav class="nav">
-  <div class="ni on"  onclick="goTab('dash')"><span class="nav-ico">DB</span>대시보드</div>
-  <div class="ni"     onclick="goTab('today')"><span class="nav-ico">DV</span>배송 관리 <span class="nb" id="nBadge">0</span></div>
-  <div class="ni"     onclick="goTab('route')"><span class="nav-ico">MP</span>배송지도</div>
-  <div class="ni"     onclick="goTab('notice')"><span class="nav-ico">NT</span>공지메모 <span class="nb" id="noticeMemoBadge" style="display:none;">0</span></div>
-  <div class="ni"     onclick="goTab('report')"><span class="nav-ico">RP</span>주간 · 월간</div>
-  <div class="ni"     onclick="goTab('customers')"><span class="nav-ico">CS</span>고객 관리</div>
-  <div class="ni"     onclick="goTab('export')"><span class="nav-ico">TX</span>택배 전달</div>
-  <div class="ni"     onclick="goTab('import')"><span class="nav-ico">IN</span>일괄 등록</div>
-  <div class="ni"     onclick="goTab('manual')"><span class="nav-ico">MN</span>매뉴얼</div>
+<nav class="nav" aria-label="주요 메뉴">
+  <div class="sidebar-brand">
+    <img class="sidebar-logo" src="assets/img/suragan-mark.png" alt="">
+    <div class="sidebar-brand-copy">
+      <strong>궁중수라간</strong>
+      <span>배송 관리 시스템</span>
+    </div>
+  </div>
+  <div class="nav-items">
+    <div class="ni on"  onclick="goTab('dash')"><span class="nav-ico">DB</span><span class="nav-label">대시보드</span></div>
+    <div class="ni"     onclick="goTab('today')"><span class="nav-ico">DV</span><span class="nav-label">배송 관리</span> <span class="nb" id="nBadge">0</span></div>
+    <div class="ni"     onclick="goTab('route')"><span class="nav-ico">MP</span><span class="nav-label">배송지도</span></div>
+    <div class="ni"     onclick="goTab('notice')"><span class="nav-ico">NT</span><span class="nav-label">공지메모</span> <span class="nb" id="noticeMemoBadge" style="display:none;">0</span></div>
+    <div class="ni"     onclick="goTab('report')"><span class="nav-ico">RP</span><span class="nav-label">주간 · 월간</span></div>
+    <div class="ni"     onclick="goTab('customers')"><span class="nav-ico">CS</span><span class="nav-label">고객 관리</span></div>
+    <div class="ni"     onclick="goTab('export')"><span class="nav-ico">TX</span><span class="nav-label">택배 전달</span></div>
+    <div class="ni"     onclick="goTab('import')"><span class="nav-ico">IN</span><span class="nav-label">일괄 등록</span></div>
+    <div class="ni"     onclick="goTab('manual')"><span class="nav-ico">MN</span><span class="nav-label">매뉴얼</span></div>
+  </div>
+  <div class="sidebar-foot">
+    <div class="sidebar-user">
+      <img src="assets/img/suragan-mark.png" alt="">
+      <div><strong>관리자</strong><span>직원용 시스템</span></div>
+    </div>
+  </div>
 </nav>
 
 <!-- ══════════ 대시보드 ══════════ -->
-<div class="page on" id="page-dash">
+<div class="page on dashboard-page" id="page-dash">
 
   <!-- 날짜 네비게이터 -->
-  <div class="date-nav">
-    <button class="date-nav-btn" onclick="moveDashDate(-1)">&#8249;</button>
-    <input type="date" class="inp" id="dashDate" style="width:160px;text-align:center;font-weight:700;" onchange="renderDash()">
-    <button class="date-nav-btn" onclick="moveDashDate(1)">&#8250;</button>
-    <span class="date-disp" id="dashDateDisp"></span>
-    <button class="date-today-btn" onclick="resetDashDate()">오늘</button>
-  </div>
-
-  <!-- 통계 카드 -->
-  <div class="stat-grid">
-    <div class="sc"><div class="sl">전체 고객</div><div class="sv" id="s0">0</div><div class="ss">명 등록</div></div>
-    <div class="sc ca"><div class="sl">활성 구독</div><div class="sv" id="s1">0</div><div class="ss">명 정기배송</div></div>
-    <div class="sc cd"><div class="sl" id="dash-date-lbl">오늘 배송</div><div class="sv" id="s2">0</div><div class="ss">건 출고</div></div>
-    <div class="sc ci"><div class="sl">이번 주</div><div class="sv" id="s3">0</div><div class="ss">건 예정</div></div>
-    <div class="sc cw"><div class="sl">내일 배송</div><div class="sv" id="s4">0</div><div class="ss">건 예정</div></div>
-    <div class="sc" style="cursor:pointer;" onclick="goPausedCustomers()" title="클릭하면 일시정지 고객만 필터됩니다"><div class="sl">일시정지</div><div class="sv" id="s5" style="color:#b58900;">0</div><div class="ss" id="s5sub">명 정지 중</div></div>
-  </div>
-
-  <div class="cancel-notice" id="cancelNotice" style="display:none;">
-    <div class="cancel-head">
-      <div>
-        <div class="cancel-title">아임웹 취소삭제 <span id="cancelNoticeCount">0</span>건</div>
-        <div class="cancel-sub">확인 전까지 대시보드에 표시됩니다.</div>
-        <div class="cancel-summary" id="cancelNoticeSummary"></div>
-      </div>
-      <button class="btn btn-g sm" onclick="ackCancelLogs()">확인 완료</button>
+  <div class="date-nav dashboard-date-nav">
+    <div class="dashboard-date-title"><span class="date-disp" id="dashDateDisp"></span></div>
+    <div class="dashboard-date-controls">
+      <button class="date-nav-btn" title="이전 날짜" aria-label="이전 날짜" onclick="moveDashDate(-1)">&#8249;</button>
+      <input type="date" class="inp" id="dashDate" aria-label="대시보드 날짜" onchange="renderDash()">
+      <button class="date-nav-btn" title="다음 날짜" aria-label="다음 날짜" onclick="moveDashDate(1)">&#8250;</button>
+      <button class="date-today-btn" onclick="resetDashDate()">오늘</button>
     </div>
-    <div class="tw">
-      <table>
-        <thead><tr><th>시간</th><th>주문번호</th><th>고객</th><th>상태</th><th>사유</th><th>삭제</th></tr></thead>
-        <tbody id="cancelLogBody"></tbody>
-      </table>
-    </div>
-    <div class="cancel-log-cards" id="cancelLogCards"></div>
   </div>
 
-  <div class="g2">
+  <section class="dashboard-section" aria-label="배송 현황">
+    <div class="dashboard-section-head">
+      <h2>배송 현황</h2>
+      <span>선택한 날짜 기준</span>
+    </div>
+    <!-- 통계 카드 -->
+    <div class="stat-grid">
+      <div class="sc"><div class="stat-icon stat-icon-customers">CS</div><div class="sl">전체 고객</div><div class="sv"><span id="s0">0</span><small>명</small></div><div class="ss">등록 고객</div></div>
+      <div class="sc ca"><div class="stat-icon stat-icon-active">ON</div><div class="sl">활성 구독</div><div class="sv"><span id="s1">0</span><small>명</small></div><div class="ss">정기배송 고객</div></div>
+      <div class="sc cd"><div class="stat-icon stat-icon-today">DV</div><div class="sl" id="dash-date-lbl">오늘 배송</div><div class="sv"><span id="s2">0</span><small>건</small></div><div class="ss">선택일 출고</div></div>
+      <div class="sc ci"><div class="stat-icon stat-icon-week">WK</div><div class="sl">이번 주</div><div class="sv"><span id="s3">0</span><small>건</small></div><div class="ss">7일 배송 예정</div></div>
+      <div class="sc cw"><div class="stat-icon stat-icon-tomorrow">TM</div><div class="sl">내일 배송</div><div class="sv"><span id="s4">0</span><small>건</small></div><div class="ss">다음 날 예정</div></div>
+      <div class="sc stat-paused" style="cursor:pointer;" onclick="goPausedCustomers()" title="클릭하면 일시정지 고객만 필터됩니다"><div class="stat-icon stat-icon-pause">II</div><div class="sl">일시정지</div><div class="sv"><span id="s5">0</span><small>명</small></div><div class="ss" id="s5sub">명 정지 중</div></div>
+    </div>
+  </section>
+
+  <!-- 세트 현황 -->
+  <section class="dashboard-section dashboard-sets" aria-label="세트 발송 수량">
+    <div class="dashboard-section-head">
+      <h2>세트 발송 수량</h2>
+      <span>선택일 기준</span>
+    </div>
+    <div class="g3 set-grid">
+      <div class="card set-card set-a"><div class="sl">A세트</div><div class="sv"><span id="sA">0</span><small>건</small></div><div class="set-card-mark">A</div></div>
+      <div class="card set-card set-b"><div class="sl">B세트</div><div class="sv"><span id="sB">0</span><small>건</small></div><div class="set-card-mark">B</div></div>
+      <div class="card set-card set-c"><div class="sl">C세트</div><div class="sv"><span id="sC">0</span><small>건</small></div><div class="set-card-mark">C</div></div>
+    </div>
+  </section>
+
+  <div class="dashboard-workspace">
     <!-- 선택 날짜 배송 목록 -->
-    <div>
+    <section class="dashboard-panel dashboard-today-panel">
       <div class="sh">
         <div class="st"><div class="std"></div><span id="dash-list-title">오늘 배송</span></div>
         <button class="btn btn-g sm" onclick="goTab('today')">전체 보기 →</button>
       </div>
-      <!-- 직배송 섹션 -->
-      <div id="dash-direct-wrap" style="display:none;margin-bottom:10px;">
-        <div style="font-size:11px;font-weight:700;color:var(--danger);padding:6px 12px;background:rgba(215,58,73,.06);border-radius:6px;margin-bottom:6px;">
-          🚗 직배송
+      <div class="dashboard-list-shell">
+        <!-- 직배송 섹션 -->
+        <div id="dash-direct-wrap" class="dash-delivery-group dash-direct-group" style="display:none;">
+          <div class="dash-delivery-label"><span>직배송</span></div>
+          <div class="card dash-table-card">
+            <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
+              <tbody id="dTodayDirect"></tbody>
+            </table>
+          </div>
         </div>
-        <div class="card">
-          <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
-          <tbody id="dTodayDirect"></tbody>
-        </table></div>
-      </div>
-      <!-- 택배 섹션 -->
-      <div class="card">
-        <div style="font-size:11px;font-weight:700;color:var(--info);padding:6px 12px;border-bottom:1px solid var(--border-l);" id="dash-courier-label" style="display:none;">
-          택배
-        </div>
-        <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
-        <tbody id="dToday"></tbody></table>
-      </div>
-    </div>
-    <!-- 내일 배송 예정 -->
-    <div>
-      <div class="sh"><div class="st"><div class="std" style="background:var(--info)"></div>내일 배송 예정</div></div>
-      <div id="dash-tomorrow-direct-wrap" style="display:none;margin-bottom:10px;">
-        <div style="font-size:11px;font-weight:700;color:var(--danger);padding:6px 12px;background:rgba(215,58,73,.06);border-radius:6px;margin-bottom:6px;">
-          🚗 직배송
-        </div>
-        <div class="card">
-          <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
-          <tbody id="dTomorrowDirect"></tbody></table>
+        <!-- 택배 섹션 -->
+        <div class="dash-delivery-group dash-courier-group">
+          <div class="dash-delivery-label" id="dash-courier-label" style="display:none;"><span>택배</span></div>
+          <div class="card dash-table-card">
+            <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
+              <tbody id="dToday"></tbody>
+            </table>
+          </div>
         </div>
       </div>
-      <div class="card">
-        <div style="font-size:11px;font-weight:700;color:var(--info);padding:6px 12px;border-bottom:1px solid var(--border-l);" id="dash-tomorrow-courier-label">
-          택배
-        </div>
-        <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
-        <tbody id="dLow"></tbody></table>
-      </div>
-    </div>
-  </div>
+    </section>
 
-  <!-- 세트 현황 -->
-  <div class="g3">
-    <div class="card" style="padding:18px 20px;"><div class="sl">A세트 활성</div><div class="sv ca" id="sA" style="font-size:24px;margin-top:6px;">0</div><div class="ss">명</div></div>
-    <div class="card" style="padding:18px 20px;"><div class="sl">B세트 활성</div><div class="sv" id="sB" style="font-size:24px;margin-top:6px;color:var(--info);">0</div><div class="ss">명</div></div>
-    <div class="card" style="padding:18px 20px;"><div class="sl">C세트 활성</div><div class="sv" id="sC" style="font-size:24px;margin-top:6px;color:#6f42c1;">0</div><div class="ss">명</div></div>
+    <aside class="dashboard-side">
+      <section class="dashboard-panel dashboard-alert-panel">
+        <div class="sh">
+          <div class="st"><div class="std alert-dot"></div>알림 및 변경 요청</div>
+          <button class="dashboard-text-link" type="button" data-dashboard-notice-link>전체 보기 →</button>
+        </div>
+        <button class="dashboard-alert-card notice-alert-card" type="button" data-dashboard-notice-link>
+          <span class="dashboard-alert-icon">NT</span>
+          <span class="dashboard-alert-copy"><strong>공지메모</strong><small>배송 전 확인할 메모를 확인하세요.</small></span>
+          <span class="dashboard-alert-count dashboard-notice-memo-count">0건</span>
+          <span class="dashboard-alert-arrow">›</span>
+        </button>
+        <div class="dashboard-cancel-empty">
+          <span class="dashboard-alert-icon cancel-icon">CL</span>
+          <span class="dashboard-alert-copy"><strong>취소·변경 요청</strong><small>새로운 취소·변경 요청이 없습니다.</small></span>
+          <span class="dashboard-alert-count">0건</span>
+        </div>
+        <div class="cancel-notice" id="cancelNotice" style="display:none;">
+          <div class="cancel-head">
+            <div>
+              <div class="cancel-title">아임웹 취소삭제 <span id="cancelNoticeCount">0</span>건</div>
+              <div class="cancel-sub">확인 전까지 대시보드에 표시됩니다.</div>
+              <div class="cancel-summary" id="cancelNoticeSummary"></div>
+            </div>
+            <button class="btn btn-g sm" onclick="ackCancelLogs()">확인 완료</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead><tr><th>시간</th><th>주문번호</th><th>고객</th><th>상태</th><th>사유</th><th>삭제</th></tr></thead>
+              <tbody id="cancelLogBody"></tbody>
+            </table>
+          </div>
+          <div class="cancel-log-cards" id="cancelLogCards"></div>
+        </div>
+      </section>
+
+      <!-- 내일 배송 예정 -->
+      <section class="dashboard-panel dashboard-tomorrow-panel">
+        <div class="sh"><div class="st"><div class="std tomorrow-dot"></div>내일 배송 미리보기</div></div>
+        <div class="dashboard-list-shell compact-list">
+          <div id="dash-tomorrow-direct-wrap" class="dash-delivery-group dash-direct-group" style="display:none;">
+            <div class="dash-delivery-label"><span>직배송</span></div>
+            <div class="card dash-table-card">
+              <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
+                <tbody id="dTomorrowDirect"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="dash-delivery-group dash-courier-group">
+            <div class="dash-delivery-label" id="dash-tomorrow-courier-label"><span>택배</span></div>
+            <div class="card dash-table-card">
+              <table><thead><tr><th>고객명</th><th>세트</th><th>유형</th><th>연락처</th><th>잔여</th></tr></thead>
+                <tbody id="dLow"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </aside>
   </div>
 </div>
 

@@ -56,10 +56,13 @@
 
   function renderNoticeBadge(){
     const badge = $('noticeMemoBadge');
-    if(!badge) return;
+    const dashboardBadge = document.querySelector('.dashboard-notice-memo-count');
     const count = activeMemos().length;
-    badge.textContent = String(count);
-    badge.style.display = count ? '' : 'none';
+    if(badge){
+      badge.textContent = String(count);
+      badge.style.display = count ? '' : 'none';
+    }
+    if(dashboardBadge) dashboardBadge.textContent = `${count}건`;
   }
 
   function renderNoticeCard(m){
@@ -283,9 +286,21 @@
     });
   }
 
+  function bindDashboardLinks(){
+    document.querySelectorAll('[data-dashboard-notice-link]').forEach(el => {
+      el.addEventListener('click', () => {
+        if(typeof goTab === 'function') goTab('notice');
+      });
+    });
+  }
+
   if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', bindAuth, { once:true });
+    document.addEventListener('DOMContentLoaded', () => {
+      bindDashboardLinks();
+      bindAuth();
+    }, { once:true });
   } else {
+    bindDashboardLinks();
     bindAuth();
   }
 
