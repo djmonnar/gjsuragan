@@ -1043,7 +1043,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="section-title"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>회원관리</span></div>
         <div class="member-hint">업체 카드를 누르면 배송지, 식사 받는 시간, 요일별 기본 수량을 수정할 수 있습니다.</div>
       </div>
-      <button class="refresh-btn" onclick="loadAllUsers().then(() => { renderMembers(); loadRecentOrderLogs(); })"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>회원 새로고침</span></button>
+      <div class="inline-actions">
+        <button class="refresh-btn" onclick="loadAllUsers().then(() => { renderMembers(); loadRecentOrderLogs(); })"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>회원 새로고침</span></button>
+        <button class="secondary-btn" onclick="exportMemberPhoneExcel()" title="전체 회원 전화번호 엑셀 다운로드">📞 전화번호 엑셀</button>
+      </div>
     </div>
     <div class="member-search-bar">
       <input class="form-input member-search-input" type="search" id="member-search-input" placeholder="업체명, 연락처, 주소, 이메일 검색" oninput="renderMembers()" onkeydown="if(event.key==='Escape') clearMemberSearch()">
@@ -6087,6 +6090,33 @@ function renderMembers() {
     </div>`;
   }
   grid.innerHTML = html;
+}
+
+// 전체 회원 전화번호 엑셀 다운로드 (중복 번호 제거)
+function exportMemberPhoneExcel() {
+  if (!window.XLSX) { showToast('엑셀 파서를 불러오는 중입니다. 잠시 후 다시 눌러주세요.'); return; }
+  const users = Object.values(allUsers || {});
+  if (!users.length) { showToast('내보낼 회원 데이터가 없습니다.'); return; }
+  const seen = new Set();
+  const rows = [];
+  users
+    .slice()
+    .sort((a, b) => String(a.businessName || a.name || '').localeCompare(String(b.businessName || b.name || ''), 'ko'))
+    .forEach(u => {
+      const phone = String(u.phone || '').trim();
+      if (!phone) return;
+      const key = phone.replace(/\D/g, '') || phone;
+      if (seen.has(key)) return;
+      seen.add(key);
+      rows.push([u.businessName || u.name || '', phone]);
+    });
+  if (!rows.length) { showToast('전화번호가 등록된 회원이 없습니다.'); return; }
+  const ws = XLSX.utils.aoa_to_sheet([['업체명', '전화번호'], ...rows]);
+  ws['!cols'] = [{ wch: 22 }, { wch: 18 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '회원 전화번호');
+  XLSX.writeFile(wb, `궁중수라간_회원전화번호_${dateStr(getKST())}.xlsx`);
+  showToast(`${rows.length}곳 전화번호 엑셀 저장 완료`);
 }
 
 async function restoreMember(uid) {
