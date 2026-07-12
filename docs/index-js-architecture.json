@@ -17,18 +17,18 @@
   ],
   "summary": {
     "files": 12,
-    "normalizedBytes": 290287,
-    "lines": 6724,
-    "functionDeclarations": 388,
-    "uniqueCallableGlobals": 360,
+    "normalizedBytes": 291185,
+    "lines": 6745,
+    "functionDeclarations": 389,
+    "uniqueCallableGlobals": 361,
     "explicitWindowExports": 22,
     "globalStateDeclarations": 58,
     "privateStateDeclarations": 3,
     "asyncFunctions": 55,
     "crossFileCallRelationships": 134,
     "firestoreAccessPoints": 31,
-    "inlineHandlerAttributes": 144,
-    "inlineHandlerFunctionNames": 74
+    "inlineHandlerAttributes": 145,
+    "inlineHandlerFunctionNames": 75
   },
   "files": [
     {
@@ -68,8 +68,8 @@
     },
     {
       "path": "assets/js/imweb.js",
-      "metrics": { "bytes": 34398, "lines": 846, "functionDeclarations": 47, "asyncFunctions": 11 },
-      "globalsDefined": ["imwebNormalizeStatus", "imwebIsCancelStatus", "imwebOrderStatuses", "imwebCancelStatusForOrder", "imwebAddCancelInfoText", "imwebAddCancelInfoTime", "imwebCollectCancelInfo", "imwebCancelInfoForOrder", "imwebCreateCancelLog", "imwebDeleteLocalOrder", "imwebSaveKeys", "imwebLoadKeys", "imwebClearKeys", "imwebToggleShow", "imwebTestConn", "setConnStatus", "imwebGetToken", "imwebFetch", "parseImwebProduct", "renderImwebOrders", "iwRemoveRow", "imwebToggleAll", "imwebRegAll", "imwebReset", "initImwebTab", "iwExtractDoor", "iwDzOver", "iwDzLeave", "iwDzDrop", "iwReadXl", "iwProcXl", "iwParseDateKo", "iwMatchSch", "iwParseRow", "iwRenderXl", "iwXlUpdSch", "iwXlRemove", "iwResetXl", "iwRegXl", "showAddrModal", "copyField", "copyAllAddr", "exportCSV", "quickDelete", "markDone", "undoMarkDone", "markAll"],
+      "metrics": { "bytes": 35296, "lines": 867, "functionDeclarations": 48, "asyncFunctions": 11 },
+      "globalsDefined": ["imwebNormalizeStatus", "imwebIsCancelStatus", "imwebOrderStatuses", "imwebCancelStatusForOrder", "imwebAddCancelInfoText", "imwebAddCancelInfoTime", "imwebCollectCancelInfo", "imwebCancelInfoForOrder", "imwebCreateCancelLog", "imwebDeleteLocalOrder", "imwebSaveKeys", "imwebLoadKeys", "imwebClearKeys", "imwebToggleShow", "imwebTestConn", "setConnStatus", "imwebGetToken", "imwebFetch", "parseImwebProduct", "renderImwebOrders", "iwRemoveRow", "imwebToggleAll", "imwebRegAll", "imwebReset", "initImwebTab", "iwExtractDoor", "iwDzOver", "iwDzLeave", "iwDzDrop", "iwReadXl", "iwProcXl", "iwParseDateKo", "iwMatchSch", "iwParseRow", "iwRenderXl", "iwXlUpdSch", "iwXlRemove", "iwResetXl", "iwRegXl", "showAddrModal", "copyField", "copyAllAddr", "exportCSV", "exportPhoneExcel", "quickDelete", "markDone", "undoMarkDone", "markAll"],
       "requiredDefinitions": ["imwebFetch", "imwebRegAll", "iwRegXl", "markDone", "undoMarkDone", "markAll"],
       "globalsConsumed": ["window.__DB", "productLabel", "runDeliveryTransaction", "todayStr", "listFor", "addDays", "escHtml", "imwebOrderAmount", "normalizeOrderAmount", "copyLozen", "goTab", "openM", "toast", "XLSX"],
       "globalState": ["IW_KEY_STORE", "iwOrders", "IW_CANCEL_STATUSES", "iwXlData", "IW_PROD_OPTIONS"],
