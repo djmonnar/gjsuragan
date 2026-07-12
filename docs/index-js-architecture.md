@@ -3,10 +3,10 @@
 ## Scope and constraints
 
 This audit describes the JavaScript loaded by the employee `index.html` from the
-dashboard renewal baseline `61aa026cdddbfc3855cf7967276578474a1b6fdb`. The
-dashboard renewal only adds a display-only notice count/link binding here; it
-does not change business rules, Firebase configuration, Firestore rules, or
-script order. The machine-readable source of truth is
+order-settlement baseline `28a86e789e2f421b3ca8d71ecaaffff602fbc38c`. The
+settlement addition stores an optional order-level amount on customer order
+documents and renders a read-only monthly sales summary; it does not add a new
+collection or migrate existing documents. The machine-readable source of truth is
 [`index-js-architecture.json`](./index-js-architecture.json).
 
 The files are classic deferred scripts rather than ES modules. Their top-level
@@ -17,22 +17,23 @@ The current order is part of the application contract.
 
 | Order | File | Lines | Bytes (LF) | Functions | Async | Primary responsibility |
 | ---: | --- | ---: | ---: | ---: | ---: | --- |
-| 1 | `auth-core.js` | 772 | 24,696 | 25 | 13 | Authentication, shared customer state, customer CRUD |
+| 1 | `auth-core.js` | 795 | 26,589 | 25 | 13 | Authentication, shared customer state, customer CRUD |
 | 2 | `delivery-transaction.js` | 78 | 2,962 | 3 | Atomic delivery state transitions |
-| 3 | `imweb.js` | 838 | 33,970 | 47 | Imweb integration, spreadsheet import, legacy completion handlers |
+| 3 | `imweb.js` | 846 | 34,398 | 47 | Imweb integration, spreadsheet import, legacy completion handlers |
 | 4 | `schedule-report.js` | 371 | 17,010 | 37 | Date/schedule/report calculation and final delivery policy |
 | 5 | `rendering-formatters.js` | 55 | 1,736 | 10 | Pure text, badge and order-label formatters |
-| 6 | `rendering.js` | 1,616 | 82,741 | 82 | Dashboard, delivery, customer and modal rendering |
-| 7 | `route-map.js` | 762 | 28,321 | 43 | Route page, geocoding cache, map and route proxy |
-| 8 | `import-export.js` | 890 | 41,864 | 39 | Text/XLSX import, previews and export |
-| 9 | `logen.js` | 296 | 12,449 | 27 | Logen registration and slip lookup UI |
-| 10 | `ui.js` | 437 | 17,841 | 37 | Navigation, forms, modals and compatibility wrappers |
-| 11 | `notice-memos.js` | 315 | 11,509 | 23 | Delivery notice memo feature in a private IIFE |
-| **Total** |  | **6,430** | **275,099** | **373** | **55** | |
+| 6 | `rendering.js` | 1,616 | 82,812 | 82 | Dashboard, delivery, customer and modal rendering |
+| 7 | `order-settlement.js` | 235 | 10,279 | 15 | Order amount normalization, grouping and monthly sales rendering |
+| 8 | `route-map.js` | 762 | 28,321 | 43 | Route page, geocoding cache, map and route proxy |
+| 9 | `import-export.js` | 915 | 44,121 | 39 | Text/XLSX import, previews and export |
+| 10 | `logen.js` | 296 | 12,449 | 27 | Logen registration and slip lookup UI |
+| 11 | `ui.js` | 440 | 18,101 | 37 | Navigation, forms, modals and compatibility wrappers |
+| 12 | `notice-memos.js` | 315 | 11,509 | 23 | Delivery notice memo feature in a private IIFE |
+| **Total** |  | **6,724** | **290,287** | **388** | **55** | |
 
-The audit found 345 callable function names, 57 shared global state declarations,
-3 IIFE-private state declarations, 22 explicit `window`/root exports, 118 static
-cross-file call relationships, and 150 inline event attributes referencing 73
+The audit found 360 callable function names, 58 shared global state declarations,
+3 IIFE-private state declarations, 22 explicit `window`/root exports, 134 static
+cross-file call relationships, and 144 inline event attributes referencing 74
 distinct call-like names.
 
 ## Load-order contract
@@ -50,10 +51,12 @@ distinct call-like names.
 5. `rendering-formatters.js` declares ten side-effect-free classic-script globals
    immediately before their rendering consumers.
 6. `rendering.js` provides the base `listFor` consumer and `renderDash` renderer.
-7. `ui.js` deliberately wraps `listFor` and wraps `renderDash` twice: once for
+7. `order-settlement.js` loads after its rendering and formatter dependencies and
+   before import paths that normalize incoming order amounts.
+8. `ui.js` deliberately wraps `listFor` and wraps `renderDash` twice: once for
    completed-row presentation and once for active-set statistics. These wrappers
    depend on both the schedule and rendering files already being loaded.
-8. `notice-memos.js` keeps feature state private, binds the dashboard's existing
+9. `notice-memos.js` keeps feature state private, binds the dashboard's existing
    notice navigation to `goTab('notice')`, and exposes only its eight HTML handler
    functions.
 
@@ -134,6 +137,7 @@ unused.
 | Selected dates and report mode | `schedule-report.js` | rendering, UI | Medium: date-dependent render coupling |
 | Route/map caches and selection | `route-map.js` | route UI | Medium: map SDK lifecycle |
 | Import preview state | `import-export.js` | import modals | Medium: parser and write workflow share state |
+| Settlement source labels | `order-settlement.js` | settlement rendering and import amount helpers | Low: immutable display mapping |
 | Notice memo state | `notice-memos.js` IIFE | exported memo handlers only | Low: already encapsulated |
 
 ## Firestore access map
@@ -154,7 +158,7 @@ The employee index scripts do not directly access `users`, `userPrivate`,
 
 ## DOM and inline-handler coupling
 
-The HTML uses 150 inline event attributes. This makes their referenced globals a
+The HTML uses 144 inline event attributes. This makes their referenced globals a
 public API even if no JavaScript file imports them. The checker verifies the
 documented required handlers still exist and are exported where necessary.
 Rendering functions also address page, table, form, modal, toolbar, date, map,
@@ -178,6 +182,7 @@ DOM availability can break a button while all static JavaScript still parses.
 ### A. Cohesive enough to retain
 
 - `delivery-transaction.js`: small policy boundary with explicit exports.
+- `order-settlement.js`: order-level amount policy and display grouping without direct writes.
 - `logen.js`: cohesive external integration.
 - `notice-memos.js`: private state and narrow exports.
 - `route-map.js`: large but feature-contained; split only with map lifecycle tests.

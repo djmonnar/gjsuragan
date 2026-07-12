@@ -92,6 +92,7 @@ function openEdit(id){
   g2('e-startdate',c.startDate||'');
   g2('e-orderdate',typeof customerOrderDateInputValue === 'function' ? customerOrderDateInputValue(c) : (c.orderDate || ''));
   g2('e-ordernum',c.orderNum||'');
+  g2('e-amount',typeof orderAmountValue === 'function' && orderAmountValue(c) !== null ? orderAmountValue(c) : '');
   document.getElementById('e-direct').checked=!!(c.isDirect);
 
   // 정기/선택 구분에 따라 일정 필드 표시
@@ -219,6 +220,7 @@ function copyOrder(id){
   g2('ar', c.request || '');
   g2('am', c.memo || '');
   g2('a-ordernum', '');
+  g2('a-amount', '');
   document.getElementById('a-direct').checked = !!c.isDirect;
 
   if(c.orderType === 'once'){
@@ -261,7 +263,7 @@ function changeQty(d){
 }
 
 function clearAdd(){
-  ['an','ap','aa','ad','ar','am','ato','a-ordernum'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['an','ap','aa','ad','ar','am','ato','a-ordernum','a-amount'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('as').value='';
   document.getElementById('aprod').value='';
   document.getElementById('aqty').value='1';
@@ -273,7 +275,7 @@ function clearAdd(){
 }
 
 function goTab(name){
-  const tabs=['dash','today','route','notice','report','customers','export','import','manual'];
+  const tabs=['dash','today','route','notice','report','settlement','customers','export','import','manual'];
   document.querySelectorAll('.ni').forEach((t,i)=>t.classList.toggle('on',tabs[i]===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.getElementById('page-'+name).classList.add('on');
@@ -285,6 +287,7 @@ function goTab(name){
   if(name==='notice' && typeof renderNoticeMemos === 'function') renderNoticeMemos();
   if(name==='customers') renderCust();
   if(name==='report') renderReport();
+  if(name==='settlement' && typeof renderOrderSettlement === 'function') renderOrderSettlement();
 }
 
 function openM(id){document.getElementById(id).classList.add('on');}

@@ -1,7 +1,7 @@
 // ════════════════════════════════════════
 // 렌더링 통합
 // ════════════════════════════════════════
-function refreshAll(){ renderDash(); renderToday(); renderCust(); renderReport(); renderCancelLogs(); if(typeof renderRouteMap==='function') renderRouteMap(false, true); checkRiskOrderAlert(); }
+function refreshAll(){ renderDash(); renderToday(); renderCust(); renderReport(); if(typeof renderOrderSettlement==='function') renderOrderSettlement(); renderCancelLogs(); if(typeof renderRouteMap==='function') renderRouteMap(false, true); checkRiskOrderAlert(); }
 
 // 화면 크기 변경 시 재렌더링 (모바일↔PC 전환)
 let _resizeTimer;

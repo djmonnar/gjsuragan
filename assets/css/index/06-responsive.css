@@ -217,6 +217,18 @@
   .cancel-notice .tw{display:none!important;}
   .cancel-log-cards{display:none!important;}
 
+  /* ── 주문 매출 정산 ── */
+  .sales-toolbar{align-items:stretch;flex-direction:column;}
+  .sales-toolbar-controls{display:grid;grid-template-columns:1fr 1fr;width:100%;}
+  .sales-toolbar-controls #salesMonth,.sales-toolbar-controls #salesSource,.sales-toolbar-controls #salesAmountState,.sales-toolbar-controls #salesSort,.sales-toolbar-controls #salesQuery{width:100%;min-width:0;}
+  .sales-toolbar-controls #salesQuery{grid-column:1/-1;}
+  .sales-summary-grid{grid-template-columns:1fr 1fr;gap:8px;}
+  .sales-summary-grid .sum-card:first-child{grid-column:1/-1;}
+  .sales-summary-grid .sum-val{font-size:20px;}
+  .sales-policy-note{font-size:11px;}
+  .sales-table-card{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .sales-table-card table{min-width:760px;}
+
   /* ── 고객관리 필터 줄 ── */
   #page-customers .sh > div:last-child {
     flex-wrap: wrap; gap: 6px;

@@ -398,21 +398,74 @@ function buildSyncKey(orderNo, itemIdx) {
   return itemIdx <= 1 ? String(orderNo || '') : String(orderNo || '') + '-' + itemIdx;
 }
 
+function normalizeOrderAmount_(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number') return isFinite(value) && value >= 0 ? Math.round(value) : null;
+  const cleaned = String(value).replace(/[₩원,\s]/g, '').trim();
+  if (!/^\d+(?:\.\d+)?$/.test(cleaned)) return null;
+  const amount = Number(cleaned);
+  return isFinite(amount) && amount >= 0 ? Math.round(amount) : null;
+}
+
+function nestedValue_(obj, path) {
+  let value = obj;
+  for (var i = 0; i < path.length; i++) {
+    if (value === null || value === undefined) return undefined;
+    value = value[path[i]];
+  }
+  return value;
+}
+
+function getImwebOrderAmount(order) {
+  const paths = [
+    ['payment','payment_amount'], ['payment','pay_price'], ['payment','total_price'],
+    ['payment','total_amount'], ['payment','amount'], ['payment','price'],
+    ['order_info','payment','payment_amount'], ['order_info','payment','pay_price'],
+    ['order_info','payment','total_price'], ['payment_amount'], ['pay_price'],
+    ['total_price'], ['total_amount'], ['order_price']
+  ];
+  for (var i = 0; i < paths.length; i++) {
+    const amount = normalizeOrderAmount_(nestedValue_(order, paths[i]));
+    if (amount !== null) return amount;
+  }
+  return null;
+}
+
+function getImwebOrderDate(order) {
+  const raw = String((order && order.order_date) || '').trim();
+  let match = raw.match(/^(\d{4})(\d{2})(\d{2})/);
+  if (match) return match[1] + '-' + match[2] + '-' + match[3];
+  match = raw.match(/^(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  if (match) return match[1] + '-' + String(match[2]).padStart(2,'0') + '-' + String(match[3]).padStart(2,'0');
+  const timestamp = Number(order && order.order_time);
+  if (timestamp) {
+    const millis = timestamp > 1000000000000 ? timestamp : timestamp * 1000;
+    const dt = new Date(millis + 9 * 3600000);
+    return dt.getUTCFullYear() + '-' + String(dt.getUTCMonth() + 1).padStart(2,'0') + '-' + String(dt.getUTCDate()).padStart(2,'0');
+  }
+  return '';
+}
+
 function buildBase(order, isDirect, prod, memo, door, actualOrderNum, syncKey) {
   const addr = (order.delivery && order.delivery.address) || {};
   const name  = addr.name  || (order.orderer && order.orderer.name) || '';
   const phone = addr.phone || (order.orderer && order.orderer.call) || '';
   const address = [addr.address, addr.address_detail].filter(Boolean).join(' ');
-  return {
+  const base = {
     name:name, phone:phone, addr:address, door:door, request:memo,
     memo:'아임웹 자동등록 / 주문번호: ' + actualOrderNum,
     set:prod, productId:prod,
     orderNum:String(actualOrderNum || ''),
+    orderDate:getImwebOrderDate(order),
+    orderSource:'imweb_auto',
     syncKey:String(syncKey || actualOrderNum || ''),
     status:'active', deliveredDates:[],
     createdAt:new Date().toISOString(),
     isDirect:isDirect, autoRegistered:true,
   };
+  const orderAmount = getImwebOrderAmount(order);
+  if (orderAmount !== null) base.orderAmount = orderAmount;
+  return base;
 }
 
 function parseProd(text) {

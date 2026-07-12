@@ -360,6 +360,7 @@ async function imwebRegAll(){
     const addr     = (recv.addr||'')+(recv.addr_detail?' '+recv.addr_detail:'');
     const date     = String(o.order_date||'').slice(0,8);
     const dateStr  = date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : t;
+    const orderAmount = imwebOrderAmount(o);
 
     const data = {
       name:     recv.name||'',
@@ -371,6 +372,8 @@ async function imwebRegAll(){
       set:      prod,
       productId:prod,
       orderNum: String(o.order_no||''),
+      orderDate:dateStr,
+      orderSource:'imweb_api',
       orderType:'once',
       status:   'active',
       deliveredDates:[],
@@ -382,6 +385,7 @@ async function imwebRegAll(){
       arriveDays:[], cookDays:[],
       isDirect: false,
     };
+    if(orderAmount !== null) data.orderAmount = orderAmount;
     try{
       await window.__DB.collection('customers').add(data);
       row.style.opacity='0.4';
@@ -506,6 +510,7 @@ function iwParseRow(r){
   const addr     = (String(r[28]||'')+' '+String(r[29]||'')).trim();
   const memo     = String(r[30] || '').trim();
   const orderDate= String(r[36] || '');
+  const orderAmount = normalizeOrderAmount(r[7]);
   const door     = iwExtractDoor(memo);
 
   // 상품 파싱
@@ -537,7 +542,7 @@ function iwParseRow(r){
   const tm = optName.match(/총\s*(\d+)회/);
   const total = tm ? parseInt(tm[1]) : 12;
 
-  return { orderNo, status, recv, phone, addr, door, memo, orderDate,
+  return { orderNo, status, recv, phone, addr, door, memo, orderDate, orderAmount,
            prod, qty, orderType, onceDate, total, schInfo, optName, prodName,
            _excluded: false };
 }
@@ -675,11 +680,14 @@ async function iwRegXl(){
       set:      prod,
       productId:prod,
       orderNum: orderNum,
+      orderDate:normalizeDateInputValue(d.orderDate) || normalizeDateInputValue(orderNum) || todayStr(),
+      orderSource:'imweb_excel',
       status:   'active',
       deliveredDates:[],
       createdAt:new Date().toISOString(),
       isDirect: false,
     };
+    if(d.orderAmount !== null) data.orderAmount = d.orderAmount;
 
     if(d.orderType === 'sub'){
       const freq  = document.getElementById('iw-xl-freq-'+i)?.value;
