@@ -3,10 +3,10 @@
 ## Scope and constraints
 
 This audit describes the JavaScript loaded by the employee `index.html` from the
-order-settlement baseline `28a86e789e2f421b3ca8d71ecaaffff602fbc38c`. The
-settlement addition stores an optional order-level amount on customer order
-documents and renders a read-only monthly sales summary; it does not add a new
-collection or migrate existing documents. The machine-readable source of truth is
+customer-management redesign baseline `82193e02732282aa6c5cf09686bf20cbc5882240`.
+The redesign changes customer list presentation, filtering, pagination, and detail
+navigation without changing customer documents or introducing a migration. The
+machine-readable source of truth is
 [`index-js-architecture.json`](./index-js-architecture.json).
 
 The files are classic deferred scripts rather than ES modules. Their top-level
@@ -22,18 +22,18 @@ The current order is part of the application contract.
 | 3 | `imweb.js` | 846 | 34,398 | 47 | Imweb integration, spreadsheet import, legacy completion handlers |
 | 4 | `schedule-report.js` | 371 | 17,010 | 37 | Date/schedule/report calculation and final delivery policy |
 | 5 | `rendering-formatters.js` | 55 | 1,736 | 10 | Pure text, badge and order-label formatters |
-| 6 | `rendering.js` | 1,616 | 82,812 | 82 | Dashboard, delivery, customer and modal rendering |
+| 6 | `rendering.js` | 1,755 | 87,876 | 90 | Dashboard, delivery, customer and modal rendering |
 | 7 | `order-settlement.js` | 235 | 10,279 | 15 | Order amount normalization, grouping and monthly sales rendering |
 | 8 | `route-map.js` | 762 | 28,321 | 43 | Route page, geocoding cache, map and route proxy |
 | 9 | `import-export.js` | 915 | 44,121 | 39 | Text/XLSX import, previews and export |
 | 10 | `logen.js` | 296 | 12,449 | 27 | Logen registration and slip lookup UI |
 | 11 | `ui.js` | 440 | 18,101 | 37 | Navigation, forms, modals and compatibility wrappers |
 | 12 | `notice-memos.js` | 315 | 11,509 | 23 | Delivery notice memo feature in a private IIFE |
-| **Total** |  | **6,724** | **290,287** | **388** | **55** | |
+| **Total** |  | **6,884** | **296,249** | **397** | **56** | |
 
-The audit found 360 callable function names, 58 shared global state declarations,
+The audit found 369 callable function names, 62 shared global state declarations,
 3 IIFE-private state declarations, 22 explicit `window`/root exports, 134 static
-cross-file call relationships, and 144 inline event attributes referencing 74
+cross-file call relationships, and 154 inline event attributes referencing 80
 distinct call-like names.
 
 ## Load-order contract

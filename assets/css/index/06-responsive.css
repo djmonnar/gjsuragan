@@ -285,3 +285,79 @@
   .g4 { grid-template-columns: 1fr 1fr; }
   #page-export .exptxt { font-size: 10px; }
 }
+
+@media (max-width: 1180px) {
+  #page-customers .cust-grid{grid-template-columns:minmax(0,1fr) 340px;}
+  #page-customers .customer-filter-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+  #page-customers .customer-table{min-width:680px;}
+  #page-customers .customer-table th:nth-child(2),
+  #page-customers .customer-table td:nth-child(2){display:none;}
+}
+
+@media (max-width: 768px) {
+  #page-customers .customer-page-head{align-items:stretch;flex-direction:column;margin-bottom:12px;}
+  #page-customers .customer-page-head h2{font-size:20px;}
+  #page-customers .customer-page-head p{font-size:11px;line-height:1.55;}
+  #page-customers .customer-page-actions{display:grid;grid-template-columns:1fr 1fr;width:100%;}
+  #page-customers .customer-page-actions .btn{justify-content:center;min-height:40px;}
+  #page-customers .customer-summary{grid-template-columns:1fr 1fr;gap:7px;}
+  #page-customers .customer-summary-item{padding:10px 12px;}
+  #page-customers .customer-summary-item strong{font-size:21px;}
+  #page-customers .customer-filter-panel{padding:10px;border-radius:8px;}
+  #page-customers .customer-search-row{align-items:stretch;}
+  #page-customers .customer-search-row > .btn{min-width:64px;}
+  #page-customers .customer-quick-filters{overflow-x:auto;flex-wrap:nowrap;margin-left:-10px;margin-right:-10px;padding:0 10px 3px;scrollbar-width:none;}
+  #page-customers .customer-quick-filters::-webkit-scrollbar{display:none;}
+  #page-customers .customer-filter-grid{grid-template-columns:1fr 1fr;}
+  #page-customers .customer-data-actions{display:grid;grid-template-columns:1fr 1fr;}
+  #page-customers .customer-data-actions .btn{justify-content:center;}
+  #page-customers .customer-result-meta{align-items:flex-start;flex-direction:column;gap:3px;margin-bottom:7px;}
+  #page-customers .cust-grid{grid-template-columns:1fr!important;gap:0;}
+  #page-customers .customer-list-card{border:0;background:transparent;box-shadow:none;overflow:visible;}
+  #page-customers .customer-list-scroll{overflow:visible;max-height:none;min-height:0;}
+  #page-customers .customer-table{display:block;min-width:0;}
+  #page-customers .customer-table thead{display:none;}
+  #page-customers .customer-table tbody{display:flex;flex-direction:column;gap:7px;}
+  #page-customers .customer-table tr,
+  #page-customers .customer-table td{display:block;width:100%;}
+  #page-customers .customer-table td{padding:0;border:0;}
+  #page-customers .customer-table .trc{border:0;background:transparent;box-shadow:none;}
+  #page-customers .customer-table .trc.sel{background:transparent;box-shadow:none;}
+  #page-customers .customer-mobile-card{display:block;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;box-shadow:var(--sh0);}
+  #page-customers .customer-mobile-card:active{border-color:var(--accent);}
+  #page-customers .customer-mobile-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+  #page-customers .customer-mobile-name{font-size:15px;font-weight:900;color:var(--text);line-height:1.35;display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+  #page-customers .customer-mobile-sub{font-size:11px;color:var(--text3);margin-top:4px;}
+  #page-customers .customer-mobile-address{font-size:12px;color:var(--text2);line-height:1.45;margin-top:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #page-customers .customer-mobile-facts{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px;}
+  #page-customers .customer-mobile-fact{background:var(--surface2);border-radius:7px;padding:8px 9px;min-width:0;}
+  #page-customers .customer-mobile-fact span{display:block;font-size:9px;color:var(--text3);font-weight:800;margin-bottom:4px;}
+  #page-customers .customer-mobile-fact strong{display:block;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #page-customers .customer-mobile-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;}
+  #page-customers .customer-mobile-tags{display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0;}
+  #page-customers .customer-mobile-actions{display:flex;gap:5px;flex-shrink:0;}
+  #page-customers .customer-mobile-actions .btn{min-height:34px;padding:6px 9px;}
+  #page-customers .customer-list-more{border:0;background:transparent;padding:12px 0 0;}
+
+  body.customer-detail-open{overflow:hidden;}
+  #page-customers #custDetail.customer-detail-shell{display:block;position:fixed;left:0;right:0;bottom:0;top:auto;z-index:1220;width:100%;max-height:92dvh;border-radius:8px 8px 0 0;transform:translateY(105%);transition:transform .22s ease;box-shadow:0 -18px 44px rgba(15,23,42,.24);overflow:auto;}
+  #page-customers #custDetail.customer-detail-shell.is-open{transform:translateY(0);}
+  #page-customers .customer-detail-backdrop{position:fixed;inset:0;z-index:1210;background:rgba(15,23,42,.45);opacity:0;pointer-events:none;transition:opacity .2s ease;}
+  #page-customers .customer-detail-backdrop.is-open{display:block;opacity:1;pointer-events:auto;}
+  #page-customers .customer-detail-close{display:flex;}
+  #page-customers .customer-detail-head{padding:14px 16px 12px;}
+  #page-customers .customer-detail-title{font-size:17px;}
+  #page-customers .customer-detail-body{padding:12px 14px calc(18px + env(safe-area-inset-bottom));}
+  #page-customers .customer-contact-actions{position:sticky;top:75px;z-index:1;background:var(--surface);padding:0 0 10px;margin-bottom:8px;}
+  #page-customers .customer-order-actions .btn{min-height:39px;}
+}
+
+@media (max-width: 480px) {
+  #page-customers .customer-filter-grid{grid-template-columns:1fr;}
+  #page-customers .customer-search-box .inp{font-size:13px;}
+  #page-customers .customer-summary-item span{font-size:10px;}
+  #page-customers .customer-info-grid{grid-template-columns:1fr;}
+  #page-customers .customer-info-item.is-wide{grid-column:auto;}
+  #page-customers .customer-contact-actions{grid-template-columns:1fr 1fr;}
+  #page-customers .customer-contact-actions .btn:last-child{grid-column:1/-1;}
+}

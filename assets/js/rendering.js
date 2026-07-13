@@ -859,6 +859,10 @@ function showDet(id){
 let __customerGroups = [];
 let __selectedCustomerGroupKey = '';
 let __expandedCustomerOrderId = '';
+const CUSTOMER_PAGE_SIZE = 30;
+let __customerQuickFilter = 'all';
+let __customerVisibleLimit = CUSTOMER_PAGE_SIZE;
+let __customerFilterSignature = '';
 
 function customerGroupKey(c){
   const name = String(c?.name || '').trim();
@@ -1101,6 +1105,44 @@ function clearCustomerFilters(){
   });
   const sort = document.getElementById('srchSort');
   if(sort) sort.value = 'recent';
+  __customerQuickFilter = 'all';
+  __customerVisibleLimit = CUSTOMER_PAGE_SIZE;
+}
+
+function resetCustomerFilters(){
+  clearCustomerFilters();
+  renderCust();
+}
+
+function setCustomerQuickFilter(mode){
+  __customerQuickFilter = mode || 'all';
+  __customerVisibleLimit = CUSTOMER_PAGE_SIZE;
+  renderCust();
+}
+
+function showMoreCustomers(){
+  __customerVisibleLimit += CUSTOMER_PAGE_SIZE;
+  renderCust();
+}
+
+async function customerCopyText(value, label){
+  const text = String(value || '').trim();
+  if(!text || text === '-'){
+    toast(`${label || '정보'}가 없습니다`, 'info');
+    return;
+  }
+  try{
+    await navigator.clipboard.writeText(text);
+    toast(`${label || '정보'} 복사 완료`, 'ok');
+  }catch(e){
+    toast('복사하지 못했습니다', 'er');
+  }
+}
+
+function closeCustomerDetail(){
+  document.getElementById('custDetail')?.classList.remove('is-open');
+  document.getElementById('custDetailBackdrop')?.classList.remove('is-open');
+  document.body.classList.remove('customer-detail-open');
 }
 
 function focusRiskOrder(orderId){
@@ -1254,6 +1296,65 @@ function customerMatchesFilters(c, filters){
 
 function customerGroupMatches(g, filters){
   return g.orders.some(c => customerMatchesFilters(c, filters));
+}
+
+function customerGroupQuickMatches(g, mode){
+  if(!mode || mode === 'all') return true;
+  const status = customerGroupStatus(g);
+  const activeOrders = (g.orders || []).filter(customerIsActiveOrder);
+  const currentOrders = activeOrders.length ? activeOrders : (g.orders || []);
+  if(mode === 'active') return status.cls === 'active';
+  if(mode === 'pause') return status.cls === 'pause';
+  if(mode === 'risk') return (g.orders || []).some(customerIsRiskOrder);
+  if(mode === 'new') return (g.orders || []).some(customerIsNewOrder);
+  if(mode === 'direct') return currentOrders.some(c => c.isDirect);
+  if(mode === 'courier') return currentOrders.some(c => !c.isDirect);
+  return true;
+}
+
+function customerGroupCounts(groups){
+  const counts = {all:groups.length, active:0, pause:0, risk:0, new:0, direct:0, courier:0};
+  groups.forEach(g => {
+    const status = customerGroupStatus(g);
+    if(status.cls === 'active') counts.active++;
+    if(status.cls === 'pause') counts.pause++;
+    if((g.orders || []).some(customerIsRiskOrder)) counts.risk++;
+    if((g.orders || []).some(customerIsNewOrder)) counts.new++;
+    const activeOrders = (g.orders || []).filter(customerIsActiveOrder);
+    const currentOrders = activeOrders.length ? activeOrders : (g.orders || []);
+    if(currentOrders.some(c => c.isDirect)) counts.direct++;
+    if(currentOrders.some(c => !c.isDirect)) counts.courier++;
+  });
+  return counts;
+}
+
+function updateCustomerOverview(allGroups, filteredCount, visibleCount){
+  const counts = customerGroupCounts(allGroups);
+  const summaryMap = {
+    custSummaryTotal:counts.all,
+    custSummaryActive:counts.active,
+    custSummaryPause:counts.pause,
+    custSummaryRisk:counts.risk
+  };
+  Object.entries(summaryMap).forEach(([id, value]) => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = String(value);
+  });
+  document.querySelectorAll('[data-customer-count]').forEach(el => {
+    const key = el.dataset.customerCount;
+    el.textContent = String(counts[key] || 0);
+  });
+  document.querySelectorAll('[data-customer-filter]').forEach(el => {
+    const active = el.dataset.customerFilter === __customerQuickFilter;
+    el.classList.toggle('active', active);
+    el.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  const result = document.getElementById('custResultText');
+  if(result){
+    result.textContent = filteredCount > visibleCount
+      ? `고객 ${filteredCount}명 중 ${visibleCount}명 표시`
+      : `고객 ${filteredCount}명`;
+  }
 }
 
 function customerGroupOrderSummary(c){
@@ -1443,47 +1544,43 @@ function customerGroupOrderSummary(c, idx){
   const status = statusLabel(c);
   const isOpen = __expandedCustomerOrderId === c.id;
   const dateHtml = dates.length
-    ? dates.map(d => `<div class="dhi" style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><span>${customerText(d)}</span><button onclick="undoMarkDone('${customerJsArg(c.id)}','${customerJsArg(d)}')" style="border:none;background:none;color:var(--danger);cursor:pointer;font-size:11px;padding:0 2px;">취소</button></div>`).join('')
-    : '<div style="font-size:12px;color:var(--text3);">이력 없음</div>';
+    ? `<div class="customer-history-list">${dates.map(d => `<div class="dhi"><span>${customerText(d)}</span><button onclick="undoMarkDone('${customerJsArg(c.id)}','${customerJsArg(d)}')">취소</button></div>`).join('')}</div>`
+    : '<span style="color:var(--text3);">이력 없음</span>';
 
   return `
-    <div style="margin-top:8px;">
-      <button class="btn btn-g sm" style="width:100%;justify-content:space-between;text-align:left;display:flex;align-items:center;gap:8px;padding:8px 10px;" onclick="customerToggleOrder(${idx},'${customerJsArg(c.id)}')">
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${customerText(customerOrderButtonLabel(c))}</span>
-        ${customerOrderNewBadge(c)}
-        ${customerOrderFirstBadge(c)}
-        <span>${isOpen ? '접기' : '보기'}</span>
-      </button>
-      ${!isOpen ? '' : `<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:6px;background:var(--surface);">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+    <div class="customer-order-accordion">
+      <button class="customer-order-toggle" onclick="customerToggleOrder(${idx},'${customerJsArg(c.id)}')">
+        <span class="customer-order-toggle-main">
+          <span class="customer-order-toggle-title">${customerText(customerOrderButtonLabel(c))}</span>
+          <span class="customer-order-toggle-badges">
             <span class="badge ${productBadgeClass(prod)}">${customerText(productLabel(prod))}</span>
             <span class="badge ${customerOrderTypeBadge(c)}">${customerText(customerOrderTypeLabel(c))}</span>
-            <span class="badge b-${c.status}">${customerText(status)}</span>
-            ${customerRiskBadge(c)}
-            ${customerOrderNewBadge(c)}
-            ${customerOrderFirstBadge(c)}
-          </div>
-          <div style="font-size:11px;color:var(--text3);">${orderNo ? '#' + customerText(orderNo) : ''}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:72px 1fr;gap:6px 8px;font-size:12px;">
-          <div style="color:var(--text3);">주문일자</div><div>${customerText(customerOrderDate(c))}</div>
-          <div style="color:var(--text3);">배송일정</div><div>${customerText(scheduleDisp(c) || c.scheduleName || c.onceDate || '-')}</div>
-          ${c.pendingSchedule ? `<div style="color:#b58900;">변경예약</div><div style="color:#b58900;font-weight:700;">${customerText(c.pendingSchedule.effectiveDate)}부터 ${customerText(c.pendingSchedule.scheduleName)} <button class="btn btn-g sm" style="font-size:10px;padding:2px 8px;margin-left:6px;" onclick="event.stopPropagation();cancelPendingSchedule('${customerJsArg(c.id)}')">예약취소</button></div>` : ''}
-          <div style="color:var(--text3);">배송방식</div><div>${c.isDirect ? '<span class="badge b-direct">직배송</span>' : '<span style="font-size:12px;color:var(--text3);">택배</span>'}</div>
-          <div style="color:var(--text3);">${c.orderType === 'sub' ? '잔여' : '수량'}</div><div>${gauge(c)}</div>
-          <div style="color:var(--text3);">완료이력</div><div>${dateHtml}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;">
+            ${customerRiskBadge(c)} ${customerOrderNewBadge(c)} ${customerOrderFirstBadge(c)}
+          </span>
+        </span>
+        <span class="customer-order-toggle-state">${isOpen ? '접기' : '보기'} ${isOpen ? '⌃' : '⌄'}</span>
+      </button>
+      ${!isOpen ? '' : `<div class="customer-order-detail">
+        <dl class="customer-order-info">
+          <dt>상태</dt><dd><span class="badge b-${c.status}">${customerText(status)}</span></dd>
+          <dt>주문번호</dt><dd>${orderNo ? '#' + customerText(orderNo) : '-'}</dd>
+          <dt>주문일자</dt><dd>${customerText(customerOrderDate(c))}</dd>
+          <dt>배송일정</dt><dd>${customerText(scheduleDisp(c) || c.scheduleName || c.onceDate || '-')}</dd>
+          ${c.pendingSchedule ? `<dt>변경예약</dt><dd style="color:#b58900;font-weight:700;">${customerText(c.pendingSchedule.effectiveDate)}부터 ${customerText(c.pendingSchedule.scheduleName)} <button class="btn btn-g sm" onclick="event.stopPropagation();cancelPendingSchedule('${customerJsArg(c.id)}')">예약취소</button></dd>` : ''}
+          <dt>배송방식</dt><dd>${c.isDirect ? '<span class="badge b-direct">직배송</span>' : '택배'}</dd>
+          <dt>${c.orderType === 'sub' ? '잔여' : '수량'}</dt><dd>${gauge(c)}</dd>
+          <dt>완료이력</dt><dd>${dateHtml}</dd>
+        </dl>
+        <div class="customer-order-actions">
           <button class="btn btn-p sm" onclick="openEdit('${customerJsArg(c.id)}')">수정</button>
           <button class="btn btn-g sm" onclick="copyOrder('${customerJsArg(c.id)}')">주문 복사</button>
           <button class="btn btn-s sm" onclick="markDone('${customerJsArg(c.id)}')">배송완료</button>
-          <button class="btn btn-g sm" style="grid-column:1/-1;" onclick="copyLozen('${customerJsArg(c.id)}')">택배 복사</button>
+          <button class="btn btn-g sm" onclick="copyLozen('${customerJsArg(c.id)}')">택배 복사</button>
           ${c.orderType === 'sub'
-            ? `<button class="btn btn-g sm" onclick="togglePause('${customerJsArg(c.id)}')">${c.status === 'pause' ? '재개' : '일시정지'}</button><button class="btn sm" style="background:rgba(3,102,214,.1);color:#0366d6;border-color:rgba(3,102,214,.3);" onclick="chargeRemain('${customerJsArg(c.id)}')">충전</button>`
+            ? `<button class="btn btn-g sm" onclick="togglePause('${customerJsArg(c.id)}')">${c.status === 'pause' ? '재개' : '일시정지'}</button><button class="btn btn-g sm" onclick="chargeRemain('${customerJsArg(c.id)}')">횟수 충전</button>`
             : `<button class="btn btn-g sm" style="grid-column:1/-1;" onclick="editOnceDate('${customerJsArg(c.id)}','${customerJsArg(c.onceDate || '')}')">배송일 변경</button>`
           }
-          <button class="btn btn-d sm" style="grid-column:1/-1;" onclick="quickDelete('${customerJsArg(c.id)}','${customerJsArg(c.name)}')">삭제</button>
+          <button class="btn btn-d sm" style="grid-column:1/-1;" onclick="quickDelete('${customerJsArg(c.id)}','${customerJsArg(c.name)}')">주문 삭제</button>
         </div>
       </div>`}
     </div>`;
@@ -1493,10 +1590,7 @@ function showCustomerGroup(idx, keepExpanded = false){
   const g = __customerGroups[idx];
   if(!g) return;
   document.querySelectorAll('.trc').forEach(r=>r.classList.remove('sel'));
-  const row = (typeof event !== 'undefined' && event?.currentTarget?.classList?.contains('trc'))
-    ? event.currentTarget
-    : document.querySelector(`.trc[data-group-idx="${idx}"]`);
-  row?.classList.add('sel');
+  document.querySelector(`.trc[data-group-idx="${idx}"]`)?.classList.add('sel');
 
   if(!keepExpanded || __selectedCustomerGroupKey !== g.key){
     __selectedCustomerGroupKey = g.key;
@@ -1505,31 +1599,51 @@ function showCustomerGroup(idx, keepExpanded = false){
 
   const latest = g.latest || {};
   const status = customerGroupStatus(g);
-  document.getElementById('custDetail').innerHTML = `
-    <div class="dp">
-      <div class="dph">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;">
+  const phone = g.phone || latest.phone || '-';
+  const phoneDigits = customerPhoneDigits(phone);
+  const address = latest.addr || '-';
+  const detail = document.getElementById('custDetail');
+  if(!detail) return;
+  detail.innerHTML = `
+    <div class="customer-detail-panel">
+      <div class="customer-detail-head">
+        <div class="customer-detail-title-row">
           <div>
-            <div style="font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${customerText(g.name || latest.name || '-')} ${customerGroupRiskBadge(g)} ${customerGroupNewBadge(g)} ${customerGroupFirstBadge(g)}</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px;">${g.orders.length > 1 ? '재주문 ' + g.orders.length + '건' : '주문 1건'}</div>
+            <div class="customer-detail-title">${customerText(g.name || latest.name || '-')} ${customerGroupRiskBadge(g)} ${customerGroupNewBadge(g)} ${customerGroupFirstBadge(g)}</div>
+            <div class="customer-detail-sub">${g.orders.length > 1 ? '재주문 ' + g.orders.length + '건' : '주문 1건'} · 최근 주문 ${customerText(customerOrderDate(latest))}</div>
           </div>
-          <span class="badge b-${status.cls}">${customerText(status.label)}</span>
+          <div style="display:flex;align-items:center;gap:7px;">
+            <span class="badge b-${status.cls}">${customerText(status.label)}</span>
+            <button type="button" class="customer-detail-close" onclick="closeCustomerDetail()" aria-label="고객 상세 닫기">×</button>
+          </div>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">${customerProductChips(g)} ${customerTypeChips(g)}</div>
+        <div class="customer-detail-tags">${customerProductChips(g)} ${customerTypeChips(g)} ${customerDeliveryChips(g)}</div>
       </div>
-      <div class="dpb">
-        <div class="dpr"><div class="dpl">연락처</div><div class="dpv">${customerText(g.phone || latest.phone || '-')}</div></div>
-        <div class="dpr"><div class="dpl">최근 주문일자</div><div class="dpv">${customerText(customerOrderDate(latest))}</div></div>
-        <div class="dpr"><div class="dpl">배송지</div><div class="dpv" style="font-size:12px;">${customerText(latest.addr || '-')}</div></div>
-        <div class="dpr"><div class="dpl">현관번호</div><div class="dpv">${customerText(latest.door || '-')}</div></div>
-        <div class="dpr"><div class="dpl">요청사항</div><div class="dpv" style="font-size:12px;">${customerText(latest.request || '-')}</div></div>
-        <div class="dpr"><div class="dpl">최근메모</div><div class="dpv" style="font-size:12px;">${customerText(latest.memo || '-')}</div></div>
-        <div class="dpr">
-          <div class="dpl">주문내역</div>
-          <div style="margin-top:2px;">${g.orders.map(c => customerGroupOrderSummary(c, idx)).join('')}</div>
+      <div class="customer-detail-body">
+        <div class="customer-contact-actions">
+          <a class="btn btn-g sm" href="tel:${customerText(phoneDigits)}">전화</a>
+          <button class="btn btn-g sm" onclick="customerCopyText('${customerJsArg(address)}','주소')">주소 복사</button>
+          <button class="btn btn-p sm" onclick="openEdit('${customerJsArg(latest.id)}')">최근 주문 수정</button>
         </div>
+        <div class="customer-info-grid">
+          <div class="customer-info-item"><span>연락처</span><strong>${customerText(phone)}</strong></div>
+          <div class="customer-info-item"><span>최근 주문일</span><strong>${customerText(customerOrderDate(latest))}</strong></div>
+          <div class="customer-info-item is-wide"><span>배송지</span><strong>${customerText(address)}</strong></div>
+          <div class="customer-info-item"><span>현관번호</span><strong>${customerText(latest.door || '-')}</strong></div>
+          <div class="customer-info-item"><span>다음 배송</span><strong>${customerText(customerGroupSchedule(g))}</strong></div>
+          <div class="customer-info-item is-wide"><span>요청사항</span><strong>${customerText(latest.request || '-')}</strong></div>
+          <div class="customer-info-item is-wide"><span>최근 메모</span><strong>${customerText(latest.memo || '-')}</strong></div>
+        </div>
+        <div class="customer-detail-section-head"><strong>주문내역</strong><span>총 ${g.orders.length}건</span></div>
+        <div>${g.orders.map(c => customerGroupOrderSummary(c, idx)).join('')}</div>
       </div>
     </div>`;
+
+  if(window.innerWidth <= 768){
+    detail.classList.add('is-open');
+    document.getElementById('custDetailBackdrop')?.classList.add('is-open');
+    document.body.classList.add('customer-detail-open');
+  }
 }
 
 function renderCust(){
@@ -1541,9 +1655,17 @@ function renderCust(){
     fd:document.getElementById('srchDirect')?.value || '',
     fr:document.getElementById('srchRemain')?.value || ''
   };
-
-  const groups = customerBuildGroups(custs).filter(g => customerGroupMatches(g, filters));
   const sortBy = document.getElementById('srchSort')?.value || 'recent';
+  const signature = JSON.stringify({...filters, sortBy, quick:__customerQuickFilter});
+  if(signature !== __customerFilterSignature){
+    __customerFilterSignature = signature;
+    __customerVisibleLimit = CUSTOMER_PAGE_SIZE;
+  }
+
+  const allGroups = customerBuildGroups(custs);
+  const groups = allGroups
+    .filter(g => customerGroupMatches(g, filters))
+    .filter(g => customerGroupQuickMatches(g, __customerQuickFilter));
   groups.sort((a,b)=>{
     if(sortBy === 'name') return (a.name || '').localeCompare(b.name || '', 'ko');
     if(sortBy === 'remain') return (b.activeRemain || 0) - (a.activeRemain || 0);
@@ -1551,66 +1673,83 @@ function renderCust(){
   });
   __customerGroups = groups;
 
+  const visibleGroups = groups.slice(0, __customerVisibleLimit);
+  updateCustomerOverview(allGroups, groups.length, visibleGroups.length);
   const tb = document.getElementById('custList');
+  const more = document.getElementById('custListMore');
+  const detail = document.getElementById('custDetail');
   if(!tb) return;
+
   if(!groups.length){
-    tb.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="ei">-</div><div>검색 결과 없음</div></div></td></tr>`;
-    document.getElementById('custDetail').innerHTML = `<div class="dp"><div style="text-align:center;padding:36px 16px;color:var(--text3);"><div style="font-size:28px;margin-bottom:8px;">-</div><div style="font-size:12px;">고객을 클릭하면<br>상세정보가 표시됩니다</div></div></div>`;
+    tb.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-mark">CS</div><div>조건에 맞는 고객이 없습니다</div></div></td></tr>`;
+    if(more) more.innerHTML = '';
+    if(detail) detail.innerHTML = `<div class="customer-detail-empty"><div class="customer-detail-empty-icon">CS</div><strong>검색 결과가 없습니다</strong><span>검색어나 필터를 바꿔주세요.</span></div>`;
+    closeCustomerDetail();
     return;
   }
 
   if(window.innerWidth <= 768){
     tb.closest('table').style.minWidth = '0';
-    tb.innerHTML = groups.map((g, idx) => {
+    tb.innerHTML = visibleGroups.map((g, idx) => {
       const status = customerGroupStatus(g);
-      return `<tr class="trc" data-group-idx="${idx}">
-        <td colspan="9" style="padding:0;border:none;">
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;margin:4px 0;padding:12px 14px;cursor:pointer;"
-               onclick="showCustomerGroup(${idx})">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;">
-              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                <strong style="font-size:14px;">${customerText(g.name || '-')}</strong>
-                ${customerGroupRiskBadge(g)}
-                ${customerGroupNewBadge(g)}
-                ${customerGroupFirstBadge(g)}
-                ${customerProductChips(g)}
-                ${customerTypeChips(g)}
-              </div>
-              <span class="badge b-${status.cls}">${customerText(status.label)}</span>
+      const latest = g.latest || {};
+      const phone = g.phone || latest.phone || '-';
+      const phoneDigits = customerPhoneDigits(phone);
+      const address = latest.addr || '-';
+      return `<tr class="trc" data-group-idx="${idx}"><td colspan="6">
+        <article class="customer-mobile-card" onclick="showCustomerGroup(${idx})">
+          <div class="customer-mobile-head">
+            <div>
+              <div class="customer-mobile-name">${customerText(g.name || '-')} ${customerGroupRiskBadge(g)} ${customerGroupNewBadge(g)} ${customerGroupFirstBadge(g)}</div>
+              <div class="customer-mobile-sub">${customerText(phone)} · ${g.orders.length > 1 ? '재주문 ' + g.orders.length + '건' : '주문 1건'}</div>
             </div>
-            <div style="font-size:12px;color:var(--text2);margin-bottom:3px;">${customerText(g.phone || '-')} / ${g.orders.length > 1 ? '재주문 ' + g.orders.length + '건' : '주문 1건'}</div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">${customerText(customerGroupSchedule(g))}</div>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <div>${customerGroupRemain(g)}</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;">${customerDeliveryChips(g)}</div>
+            <span class="badge b-${status.cls}">${customerText(status.label)}</span>
+          </div>
+          <div class="customer-mobile-address">${customerText(address)}</div>
+          <div class="customer-mobile-facts">
+            <div class="customer-mobile-fact"><span>다음 배송</span><strong>${customerText(customerGroupSchedule(g))}</strong></div>
+            <div class="customer-mobile-fact"><span>잔여</span><strong>${customerGroupRemain(g)}</strong></div>
+          </div>
+          <div class="customer-mobile-foot">
+            <div class="customer-mobile-tags">${customerProductChips(g)} ${customerTypeChips(g)} ${customerDeliveryChips(g)}</div>
+            <div class="customer-mobile-actions">
+              <a class="btn btn-g sm" href="tel:${customerText(phoneDigits)}" onclick="event.stopPropagation()">전화</a>
+              <button class="btn btn-g sm" onclick="event.stopPropagation();customerCopyText('${customerJsArg(address)}','주소')">주소</button>
             </div>
           </div>
-        </td>
-      </tr>`;
+        </article>
+      </td></tr>`;
     }).join('');
   } else {
     tb.closest('table').style.minWidth = '';
-    tb.innerHTML = groups.map((g, idx) => {
+    tb.innerHTML = visibleGroups.map((g, idx) => {
       const status = customerGroupStatus(g);
+      const nextDate = customerGroupSchedule(g);
       return `<tr class="trc" data-group-idx="${idx}" onclick="showCustomerGroup(${idx})">
-        <td>
-          <strong>${customerText(g.name || '-')}</strong>
-          ${customerGroupRiskBadge(g)}
-          ${customerGroupNewBadge(g)}
-          ${customerGroupFirstBadge(g)}
-          ${customerOrderCountHtml(g)}
+        <td class="customer-name-cell">
+          <div class="customer-name-line"><strong>${customerText(g.name || '-')}</strong>${customerGroupRiskBadge(g)}${customerGroupNewBadge(g)}${customerGroupFirstBadge(g)}</div>
+          <div class="customer-order-count">${g.orders.length > 1 ? '재주문 ' + g.orders.length + '건' : '주문 1건'}</div>
         </td>
         <td style="white-space:nowrap;">${customerText(g.phone || '-')}</td>
-        <td>${customerProductChips(g)}</td>
-        <td>${customerTypeChips(g)}</td>
-        <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${customerText(customerGroupSchedule(g))}${g.orders.some(c=>c.pendingSchedule) ? ' <span class="badge" style="background:#fef3c7;color:#92400e;border-color:#f59e0b;font-size:9px;">변경예약</span>' : ''}</td>
-        <td>${customerDeliveryChips(g)}</td>
+        <td><div class="customer-product-stack">${customerProductChips(g)} ${customerTypeChips(g)}</div></td>
+        <td class="customer-schedule-cell"><div class="customer-next-date">${customerText(nextDate)}</div><div class="customer-delivery-line">${customerDeliveryChips(g)}${g.orders.some(c=>c.pendingSchedule) ? '<span class="badge" style="background:#fef3c7;color:#92400e;border-color:#f59e0b;font-size:9px;">변경예약</span>' : ''}</div></td>
         <td>${customerGroupRemain(g)}</td>
-        <td><span class="badge b-${status.cls}">${customerText(status.label)}</span></td>
-        <td style="display:flex;gap:4px;flex-wrap:wrap;">
-          <button class="btn btn-g sm" onclick="event.stopPropagation();showCustomerGroup(${idx})">상세</button>
-        </td>
+        <td class="customer-status-cell"><div class="customer-status-line"><span class="badge b-${status.cls}">${customerText(status.label)}</span><span class="customer-detail-arrow">›</span></div></td>
       </tr>`;
     }).join('');
+  }
+
+  if(more){
+    const remaining = groups.length - visibleGroups.length;
+    more.innerHTML = remaining > 0
+      ? `<button class="btn btn-g sm" onclick="showMoreCustomers()">고객 더 보기 (${remaining}명)</button>`
+      : '';
+  }
+
+  const selectedIdx = groups.findIndex(g => g.key === __selectedCustomerGroupKey);
+  if(window.innerWidth > 768){
+    showCustomerGroup(selectedIdx >= 0 ? selectedIdx : 0, true);
+  }else if(selectedIdx < 0){
+    closeCustomerDetail();
   }
 }
