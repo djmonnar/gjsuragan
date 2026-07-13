@@ -24,7 +24,7 @@ const expectedScriptSources = [
   'assets/js/imweb.js?v=20260712-phone1',
   'assets/js/schedule-report.js?v=20260507-3',
   'assets/js/rendering-formatters.js?v=20260711-helper1',
-  'assets/js/rendering.js?v=20260706-pause2',
+  'assets/js/rendering.js?v=20260713-customers1',
   'assets/js/order-settlement.js?v=20260712-sales1',
   'assets/js/route-map.js?v=20260626-roundtrip1',
   'assets/js/import-export.js?v=20260625-door-x1',
@@ -32,7 +32,7 @@ const expectedScriptSources = [
   'assets/js/ui.js?v=20260706-manual1',
   'assets/js/notice-memos.js?v=20260709-notice1'
 ];
-const expectedStylesheets = ['assets/css/index.css?v=20260710-cssmod1'];
+const expectedStylesheets = ['assets/css/index.css?v=20260713-customers1'];
 
 function fail(message) {
   console.error(`index build: ${message}`);
@@ -143,7 +143,7 @@ function validateGenerated(buffer) {
   }
 
   const ids = [...source.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
-  if (ids.length !== 235) fail(`DOM id count is ${ids.length}; expected 235`);
+  if (ids.length !== 243) fail(`DOM id count is ${ids.length}; expected 243`);
   const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
   if (duplicates.length) fail(`duplicate DOM ids: ${[...new Set(duplicates)].join(', ')}`);
 
@@ -154,7 +154,7 @@ function validateGenerated(buffer) {
   if (!sameValues(modalIds, expectedModalIds)) fail('modal id list or order changed');
 
   const inlineEventCount = countMatches(source, /\son[a-z]+\s*=/gi);
-  if (inlineEventCount !== 145) fail(`inline event count is ${inlineEventCount}; expected 145`);
+  if (inlineEventCount !== 154) fail(`inline event count is ${inlineEventCount}; expected 154`);
 
   const scriptSources = [...source.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/gi)]
     .map(match => match[1]);

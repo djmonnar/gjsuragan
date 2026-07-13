@@ -27,7 +27,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<link rel="stylesheet" href="assets/css/index.css?v=20260710-cssmod1">
+<link rel="stylesheet" href="assets/css/index.css?v=20260713-customers1">
 
 
 </head>
@@ -517,49 +517,96 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 
 <!-- ══════════ 고객 관리 ══════════ -->
 <div class="page" id="page-customers">
-  <div class="sh">
-    <div class="st"><div class="std"></div>고객 목록</div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <input type="text" class="inp inp-sm" placeholder="이름 · 연락처 · 주소 · 주문번호" id="srchQ" oninput="renderCust()" style="width:220px;">
-      <select class="inp inp-sm" id="srchSet" onchange="renderCust()" style="width:110px;">
-        <option value="">전체 세트</option>
-        <option value="A">A세트</option>
-        <option value="B">B세트</option>
-        <option value="C">C세트</option>
-        <option value="pork_rib">돼지양념갈비</option>
-        <option value="beef_la">LA갈비</option>
-        <option value="beef_soup">소고기무국</option>
-      </select>
-      <select class="inp inp-sm" id="srchType" onchange="renderCust()" style="width:110px;"><option value="">전체 유형</option><option value="sub">정기배송</option><option value="once">선택주문</option></select>
-      <select class="inp inp-sm" id="srchSt" onchange="renderCust()" style="width:110px;"><option value="">전체 상태</option><option value="active">진행 중</option><option value="pause">일시정지</option><option value="end">종료</option></select>
-      <select class="inp inp-sm" id="srchDirect" onchange="renderCust()" style="width:110px;"><option value="">전체 배송</option><option value="1">직배송</option><option value="0">택배배송</option></select>
-      <select class="inp inp-sm" id="srchRemain" onchange="renderCust()" style="width:110px;">
-        <option value="">전체 잔여</option>
-        <option value="remain">잔여 있음</option>
-        <option value="done">잔여 없음</option>
-      </select>
-      <select class="inp inp-sm" id="srchSort" onchange="renderCust()" style="width:100px;">
-        <option value="recent">최신순</option>
-        <option value="name">가나다순</option>
-        <option value="remain">잔여순</option>
-      </select>
-      <button class="btn btn-p sm" onclick="openM('addM')">＋ 신규 등록</button>
-      <button class="btn btn-g sm" onclick="openImwebPasteTool()">아임웹 붙여넣기</button>
-      <button class="btn btn-g sm" onclick="exportCSV()" title="전체 고객 CSV 백업">⬇ CSV 백업</button>
-      <button class="btn btn-g sm" onclick="exportPhoneExcel()" title="전체 고객 전화번호 엑셀 다운로드">📞 전화번호 엑셀</button>
+  <header class="customer-page-head">
+    <div>
+      <div class="customer-page-eyebrow">CUSTOMERS</div>
+      <h2>고객 관리</h2>
+      <p>고객별 주문을 한곳에서 확인하고 배송 일정과 잔여 횟수를 관리합니다.</p>
     </div>
+    <div class="customer-page-actions">
+      <button class="btn btn-p" onclick="openM('addM')">＋ 신규 등록</button>
+      <button class="btn btn-g" onclick="openImwebPasteTool()">아임웹 붙여넣기</button>
+    </div>
+  </header>
+
+  <section class="customer-summary" aria-label="고객 현황">
+    <div class="customer-summary-item"><span>전체 고객</span><strong id="custSummaryTotal">0</strong><small>명</small></div>
+    <div class="customer-summary-item is-active"><span>진행 중</span><strong id="custSummaryActive">0</strong><small>명</small></div>
+    <div class="customer-summary-item is-pause"><span>보류</span><strong id="custSummaryPause">0</strong><small>명</small></div>
+    <div class="customer-summary-item is-risk"><span>확인 필요</span><strong id="custSummaryRisk">0</strong><small>명</small></div>
+  </section>
+
+  <section class="customer-filter-panel">
+    <div class="customer-search-row">
+      <label class="customer-search-box" for="srchQ">
+        <span aria-hidden="true">⌕</span>
+        <input type="search" class="inp" placeholder="이름, 연락처, 주소, 주문번호 검색" id="srchQ" oninput="renderCust()">
+      </label>
+      <button class="btn btn-g" onclick="resetCustomerFilters()">초기화</button>
+    </div>
+
+    <div class="customer-quick-filters" id="custQuickFilters" role="group" aria-label="빠른 고객 필터">
+      <button type="button" class="customer-filter-chip active" data-customer-filter="all" onclick="setCustomerQuickFilter('all')">전체 <span data-customer-count="all">0</span></button>
+      <button type="button" class="customer-filter-chip" data-customer-filter="active" onclick="setCustomerQuickFilter('active')">진행 중 <span data-customer-count="active">0</span></button>
+      <button type="button" class="customer-filter-chip" data-customer-filter="pause" onclick="setCustomerQuickFilter('pause')">보류 <span data-customer-count="pause">0</span></button>
+      <button type="button" class="customer-filter-chip is-risk" data-customer-filter="risk" onclick="setCustomerQuickFilter('risk')">확인 필요 <span data-customer-count="risk">0</span></button>
+      <button type="button" class="customer-filter-chip" data-customer-filter="new" onclick="setCustomerQuickFilter('new')">신규 <span data-customer-count="new">0</span></button>
+      <button type="button" class="customer-filter-chip" data-customer-filter="direct" onclick="setCustomerQuickFilter('direct')">직배송 <span data-customer-count="direct">0</span></button>
+      <button type="button" class="customer-filter-chip" data-customer-filter="courier" onclick="setCustomerQuickFilter('courier')">택배 <span data-customer-count="courier">0</span></button>
+    </div>
+
+    <details class="customer-advanced-filters">
+      <summary>상세 필터</summary>
+      <div class="customer-filter-grid">
+        <label><span>상품</span><select class="inp inp-sm" id="srchSet" onchange="renderCust()">
+          <option value="">전체 세트</option>
+          <option value="A">A세트</option>
+          <option value="B">B세트</option>
+          <option value="C">C세트</option>
+          <option value="pork_rib">돼지양념갈비</option>
+          <option value="beef_la">LA갈비</option>
+          <option value="beef_soup">소고기무국</option>
+        </select></label>
+        <label><span>주문 유형</span><select class="inp inp-sm" id="srchType" onchange="renderCust()"><option value="">전체 유형</option><option value="sub">정기배송</option><option value="once">선택주문</option></select></label>
+        <label><span>상태</span><select class="inp inp-sm" id="srchSt" onchange="renderCust()"><option value="">전체 상태</option><option value="active">진행 중</option><option value="pause">일시정지</option><option value="end">종료</option></select></label>
+        <label><span>배송 방식</span><select class="inp inp-sm" id="srchDirect" onchange="renderCust()"><option value="">전체 배송</option><option value="1">직배송</option><option value="0">택배배송</option></select></label>
+        <label><span>잔여</span><select class="inp inp-sm" id="srchRemain" onchange="renderCust()"><option value="">전체 잔여</option><option value="remain">잔여 있음</option><option value="done">잔여 없음</option></select></label>
+        <label><span>정렬</span><select class="inp inp-sm" id="srchSort" onchange="renderCust()"><option value="recent">최신 주문순</option><option value="name">가나다순</option><option value="remain">잔여 많은순</option></select></label>
+      </div>
+    </details>
+
+    <div class="customer-data-actions">
+      <button class="btn btn-g sm" onclick="exportCSV()" title="전체 고객 CSV 백업">CSV 백업</button>
+      <button class="btn btn-g sm" onclick="exportPhoneExcel()" title="전체 고객 전화번호 엑셀 다운로드">전화번호 엑셀</button>
+    </div>
+  </section>
+
+  <div class="customer-result-meta">
+    <strong id="custResultText">고객 0명</strong>
+    <span>고객을 누르면 연락처와 주문내역을 확인할 수 있습니다.</span>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;" class="cust-grid">
-    <div class="card" style="overflow:auto;max-height:calc(100vh - 220px);">
-      <table>
-        <thead><tr><th>고객명</th><th>연락처</th><th>세트</th><th>유형</th><th>배송일정</th><th>배송</th><th>잔여</th><th>상태</th><th></th></tr></thead>
-        <tbody id="custList"></tbody>
-      </table>
-    </div>
-    <div id="custDetail">
-      <div class="dp"><div style="text-align:center;padding:36px 16px;color:var(--text3);"><div style="font-size:28px;margin-bottom:8px;">👤</div><div style="font-size:12px;">고객을 클릭하면<br>상세정보가 표시됩니다</div></div></div>
-    </div>
+
+  <div class="cust-grid">
+    <section class="customer-list-card" aria-label="고객 목록">
+      <div class="customer-list-scroll">
+        <table class="customer-table">
+          <thead><tr><th>고객</th><th>연락처</th><th>상품 · 유형</th><th>다음 배송</th><th>잔여</th><th>상태</th></tr></thead>
+          <tbody id="custList"></tbody>
+        </table>
+      </div>
+      <div class="customer-list-more" id="custListMore"></div>
+    </section>
+
+    <aside id="custDetail" class="customer-detail-shell" aria-label="고객 상세정보">
+      <div class="customer-detail-empty">
+        <div class="customer-detail-empty-icon">CS</div>
+        <strong>고객을 선택해주세요</strong>
+        <span>연락처, 배송지와 주문내역이 이곳에 표시됩니다.</span>
+      </div>
+    </aside>
   </div>
+
+  <div class="customer-detail-backdrop" id="custDetailBackdrop" onclick="closeCustomerDetail()"></div>
 </div>
 
 <!-- ══════════ 택배 전달 ══════════ -->
@@ -1233,7 +1280,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 <script src="assets/js/imweb.js?v=20260712-phone1" defer></script>
 <script src="assets/js/schedule-report.js?v=20260507-3" defer></script>
 <script src="assets/js/rendering-formatters.js?v=20260711-helper1" defer></script>
-<script src="assets/js/rendering.js?v=20260706-pause2" defer></script>
+<script src="assets/js/rendering.js?v=20260713-customers1" defer></script>
 <script src="assets/js/order-settlement.js?v=20260712-sales1" defer></script>
 <script src="assets/js/route-map.js?v=20260626-roundtrip1" defer></script>
 <script src="assets/js/import-export.js?v=20260625-door-x1" defer></script>

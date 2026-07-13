@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "auditedMainSha": "28a86e789e2f421b3ca8d71ecaaffff602fbc38c",
+  "auditedMainSha": "82193e02732282aa6c5cf09686bf20cbc5882240",
   "scriptLoadOrder": [
     "assets/js/auth-core.js",
     "assets/js/delivery-transaction.js",
@@ -17,18 +17,18 @@
   ],
   "summary": {
     "files": 12,
-    "normalizedBytes": 291185,
-    "lines": 6745,
-    "functionDeclarations": 389,
-    "uniqueCallableGlobals": 361,
+    "normalizedBytes": 296249,
+    "lines": 6884,
+    "functionDeclarations": 397,
+    "uniqueCallableGlobals": 369,
     "explicitWindowExports": 22,
-    "globalStateDeclarations": 58,
+    "globalStateDeclarations": 62,
     "privateStateDeclarations": 3,
-    "asyncFunctions": 55,
+    "asyncFunctions": 56,
     "crossFileCallRelationships": 134,
     "firestoreAccessPoints": 31,
-    "inlineHandlerAttributes": 145,
-    "inlineHandlerFunctionNames": 75
+    "inlineHandlerAttributes": 154,
+    "inlineHandlerFunctionNames": 80
   },
   "files": [
     {
@@ -120,13 +120,13 @@
     },
     {
       "path": "assets/js/rendering.js",
-      "metrics": { "bytes": 82812, "lines": 1616, "functionDeclarations": 82, "asyncFunctions": 4 },
-      "globalsDefined": ["refreshAll", "renderDash", "renderToday", "renderCust", "renderCancelLogs", "toggleCancelPopover", "closeCancelPopover", "printCourierList", "printDirectList", "printAllDeliveryList", "markAllDirect", "markAllCourier", "showDet", "showCustomerGroup", "customerGroupOrderSummary", "editOnceDate"],
+      "metrics": { "bytes": 87876, "lines": 1755, "functionDeclarations": 90, "asyncFunctions": 5 },
+      "globalsDefined": ["refreshAll", "renderDash", "renderToday", "renderCust", "renderCancelLogs", "toggleCancelPopover", "closeCancelPopover", "printCourierList", "printDirectList", "printAllDeliveryList", "markAllDirect", "markAllCourier", "showDet", "showCustomerGroup", "customerGroupOrderSummary", "editOnceDate", "resetCustomerFilters", "setCustomerQuickFilter", "showMoreCustomers", "customerCopyText", "closeCustomerDetail", "customerGroupQuickMatches", "customerGroupCounts", "updateCustomerOverview"],
       "requiredDefinitions": ["refreshAll", "renderDash", "renderToday", "renderCust", "renderCancelLogs", "printAllDeliveryList", "markAllDirect", "markAllCourier", "showCustomerGroup"],
       "globalsConsumed": ["custs", "cancelLogs", "escHtml", "firstOrderBadgeHtml", "customerText", "customerJsArg", "customerPhoneDigits", "customerTimestampMs", "customerNewBadgeHtml", "customerProductKey", "customerOrderTypeLabel", "customerOrderTypeBadge", "productLabel", "productBadgeClass", "customerOrderDateInputValue", "chargeRemain", "togglePause", "cancelPendingSchedule", "runDeliveryTransaction", "showAddrModal", "quickDelete", "markDone", "undoMarkDone", "todayStr", "isDeliv", "listFor", "addDays", "updateDashDisp", "updateTodayDisp", "renderRouteMap", "renderOrderSettlement", "logenStatusBadgeHtml", "logenSlipNoHtml", "logenActionHtml", "logenCourierSummaryHtml", "gauge", "scheduleDisp", "copyLozen", "statusLabel", "shortDate", "s", "openEdit", "copyOrder", "goTab", "toast"],
-      "globalState": ["_resizeTimer", "SINGLE_PRODUCT_IDS", "__customerGroups", "__selectedCustomerGroupKey", "__expandedCustomerOrderId", "CUSTOMER_NEW_BADGE_MS", "RISK_ORDER_DISMISS_KEY", "__riskOrderAlertOpen", "__riskOrderSessionHidden"],
+      "globalState": ["_resizeTimer", "SINGLE_PRODUCT_IDS", "__customerGroups", "__selectedCustomerGroupKey", "__expandedCustomerOrderId", "CUSTOMER_NEW_BADGE_MS", "CUSTOMER_PAGE_SIZE", "__customerQuickFilter", "__customerVisibleLimit", "__customerFilterSignature", "RISK_ORDER_DISMISS_KEY", "__riskOrderAlertOpen", "__riskOrderSessionHidden"],
       "windowExports": ["renderCancelLogs", "toggleCancelPopover", "closeCancelPopover"],
-      "domIds": ["dashDate", "todayDate", "page-dash", "directList", "courierList", "today-direct-section", "custList", "custDetail", "cancelNotice", "cancelPopover", "cancelLogBody", "cancelLogCards", "riskOrderAlert", "riskOrderList", "srchQ", "srchSt", "srchSet", "srchType", "srchRemain", "srchSort", "logen-courier-summary"],
+      "domIds": ["dashDate", "todayDate", "page-dash", "directList", "courierList", "today-direct-section", "custList", "custDetail", "custDetailBackdrop", "custSummaryTotal", "custSummaryActive", "custSummaryPause", "custSummaryRisk", "custQuickFilters", "custResultText", "custListMore", "cancelNotice", "cancelPopover", "cancelLogBody", "cancelLogCards", "riskOrderAlert", "riskOrderList", "srchQ", "srchSt", "srchSet", "srchType", "srchDirect", "srchRemain", "srchSort", "logen-courier-summary"],
       "firestoreCollections": ["customers", "imwebCancelLogs"],
       "externalApis": ["Firestore"],
       "crossFileCalls": { "rendering-formatters.js": ["escHtml", "firstOrderBadgeHtml", "customerText", "customerJsArg", "customerPhoneDigits", "customerTimestampMs", "customerNewBadgeHtml", "customerProductKey", "customerOrderTypeLabel", "customerOrderTypeBadge"], "auth-core.js": ["productLabel", "productBadgeClass", "customerOrderDateInputValue", "chargeRemain", "togglePause", "cancelPendingSchedule"], "delivery-transaction.js": ["runDeliveryTransaction"], "imweb.js": ["showAddrModal", "quickDelete", "markDone", "undoMarkDone"], "schedule-report.js": ["todayStr", "isDeliv", "listFor", "addDays", "updateDashDisp", "updateTodayDisp"], "route-map.js": ["renderRouteMap"], "order-settlement.js": ["renderOrderSettlement"], "logen.js": ["logenStatusBadgeHtml", "logenSlipNoHtml", "logenActionHtml", "logenCourierSummaryHtml"], "ui.js": ["gauge", "scheduleDisp", "copyLozen", "statusLabel", "shortDate", "s", "openEdit", "copyOrder", "goTab", "toast"] },
