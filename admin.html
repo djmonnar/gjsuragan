@@ -797,6 +797,148 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   .manual-grid,.manual-checklist{grid-template-columns:1fr}
   .manual-hero h2{font-size:21px}
 }
+
+/* Customer management workspace */
+.member-section{padding-bottom:88px}
+.member-toolbar{align-items:center;margin-bottom:14px}
+.member-title-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.member-title-count{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:24px;padding:0 8px;border-radius:999px;background:#eaf5ee;color:#166534;font-size:12px;font-weight:900}
+.member-toolbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.member-view-switch{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.member-view-tab{border:0;border-bottom:3px solid transparent;background:transparent;color:var(--sub);padding:10px 14px;font:inherit;font-size:14px;font-weight:900;cursor:pointer}
+.member-view-tab.active{border-bottom-color:var(--primary);color:var(--primary)}
+.member-view-tab .count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;margin-left:5px;padding:0 6px;border-radius:999px;background:#eef2f6;color:#475467;font-size:11px}
+.member-view-tab.active .count{background:#eaf5ee;color:#166534}
+.member-view-panel[hidden]{display:none!important}
+.member-search-bar{display:block;padding:12px;margin-bottom:10px}
+.member-search-row{display:flex;align-items:center;gap:8px}
+.member-search-wrap{position:relative;flex:1;min-width:220px}
+.member-search-wrap .member-search-input{width:100%;padding-left:38px}
+.member-search-icon{position:absolute;left:13px;top:50%;width:16px;height:16px;transform:translateY(-50%);color:#667085;pointer-events:none}
+.member-filter-row{display:flex;align-items:center;gap:6px;margin-top:10px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
+.member-filter-chip{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;min-height:34px;border:1px solid #d8dee8;background:#fff;color:#475467;border-radius:999px;padding:6px 10px;font:inherit;font-size:12px;font-weight:900;cursor:pointer}
+.member-filter-chip:hover{border-color:#98a2b3;color:var(--text)}
+.member-filter-chip.active{background:#eaf5ee;border-color:#9fd1b2;color:#166534}
+.member-filter-chip.warning.active{background:#fff7ed;border-color:#fdba74;color:#9a3412}
+.member-filter-chip.danger.active{background:#fef2f2;border-color:#fca5a5;color:#b42318}
+.member-filter-chip .count{font-variant-numeric:tabular-nums;color:inherit;opacity:.8}
+.member-result-line{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 2px 8px}
+.member-result-note{font-size:12px;color:var(--sub);font-weight:700}
+.member-list-shell{border:1px solid var(--border);border-radius:var(--radius);background:#fff;box-shadow:var(--shadow);overflow:hidden}
+.member-list-head,.member-row-main{display:grid;grid-template-columns:minmax(190px,1.1fr) minmax(170px,.9fr) minmax(260px,1.45fr) minmax(155px,.8fr) minmax(145px,.72fr) 72px;gap:12px;align-items:center}
+.member-list-head{padding:10px 14px;background:#f7f9f8;border-bottom:1px solid var(--border);color:#667085;font-size:11px;font-weight:900}
+.member-grid{display:block}
+.member-row{background:#fff;border-bottom:1px solid #edf0ee}
+.member-row:last-child{border-bottom:0}
+.member-row:hover{background:#fbfdfb}
+.member-row.has-warning{box-shadow:inset 3px 0 0 #f59e0b}
+.member-row.is-deleted{background:#fffafa}
+.member-row-main{width:100%;min-height:82px;padding:12px 14px;border:0;background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer}
+.member-row-main:focus-visible{outline:3px solid rgba(31,111,74,.28);outline-offset:-3px}
+.member-cell{min-width:0;display:flex;flex-direction:column;gap:3px}
+.member-name-line{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0}
+.member-name-line .biz-name-line{min-width:0;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.member-name-line .biz-title{font-size:14px;font-weight:900;color:var(--text)}
+.member-meta,.member-email,.member-cell small{font-size:11px;color:#7b8493;font-weight:700;line-height:1.35}
+.member-contact strong,.member-order strong,.member-price strong{font-size:13px;color:#344054;font-weight:900}
+.member-address{font-size:12px;color:#344054;font-weight:800;line-height:1.45;word-break:keep-all}
+.member-address.missing,.member-contact .missing{color:#b42318}
+.member-order strong{color:#166534}
+.member-price strong{font-variant-numeric:tabular-nums}
+.member-chevron{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;color:#667085;font-size:22px}
+.member-row:hover .member-chevron{background:#eaf5ee;color:var(--primary)}
+.member-row-badge{display:inline-flex;align-items:center;border-radius:999px;padding:2px 7px;font-size:10px;font-weight:900;line-height:1.35;white-space:nowrap}
+.member-row-badge.missing{background:#fff7ed;border:1px solid #fed7aa;color:#c2410c}
+.member-row-badge.zero{background:#fef2f2;border:1px solid #fecaca;color:#b42318}
+.member-row-badge.duplicate{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8}
+.member-row-badge.deleted{background:#fef2f2;border:1px solid #fecaca;color:#b42318}
+.member-mobile-actions{display:none}
+.member-load-more-wrap{display:flex;align-items:center;justify-content:center;padding:12px;border-top:1px solid var(--border);background:#fbfcfb}
+.member-load-more{border:1px solid #bad8c5;background:#fff;color:var(--primary);border-radius:8px;padding:9px 18px;font:inherit;font-size:13px;font-weight:900;cursor:pointer}
+.member-empty-state{padding:44px 20px;text-align:center;color:var(--sub)}
+.member-empty-state strong{display:block;margin-bottom:6px;color:var(--text);font-size:15px}
+.member-deleted-restore{border:1px solid #fecaca;background:#fff;color:#b42318;border-radius:8px;padding:8px 11px;font:inherit;font-size:12px;font-weight:900;cursor:pointer}
+.member-log-view .order-log-panel{margin:0;padding:0;border:0;box-shadow:none;background:transparent}
+.member-log-view .order-log-head{padding:12px 0;margin:0}
+
+#member-modal .member-edit-box{max-width:720px;padding:0;overflow:hidden;display:flex;flex-direction:column}
+#member-modal .member-edit-header{flex:0 0 auto;margin:0;padding:17px 20px;border-bottom:1px solid var(--border);background:#fff}
+.member-edit-heading{display:flex;flex-direction:column;gap:2px;min-width:0}
+.member-edit-heading .modal-title{font-size:18px}
+.member-edit-subtitle{font-size:12px;color:var(--sub);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.member-edit-scroll{overflow-y:auto;padding:0 20px 16px;overscroll-behavior:contain}
+.member-form-section{padding:18px 0;border-bottom:1px solid #edf0ee}
+.member-form-section:last-of-type{border-bottom:0}
+.member-form-section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;color:var(--text);font-size:14px;font-weight:900}
+.member-form-section-title small{color:var(--sub);font-size:11px;font-weight:700}
+.member-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+.member-form-field.full{grid-column:1/-1}
+.member-form-field .form-label{margin-top:0}
+.member-readonly-email{display:flex;align-items:center;min-height:42px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:#f7f9f8;color:#475467;font-size:13px;font-weight:700;word-break:break-all}
+.member-address-input-row{display:flex;gap:8px;align-items:center}
+.member-address-input-row .form-input{flex:1;margin-bottom:0}
+.member-address-search{white-space:nowrap;min-height:42px;padding:9px 12px}
+.member-qty-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.member-toggle-panel{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:#f7f9f8}
+.member-toggle-panel .same-daily-toggle{margin:0}
+.member-toggle-help{font-size:11px;color:var(--sub);font-weight:700;line-height:1.45;text-align:right}
+.member-weekday-head{display:grid;grid-template-columns:40px 1fr 1fr;gap:8px;margin:12px 0 5px;color:#667085;font-size:11px;font-weight:900;text-align:center}
+.member-weekday-head span:first-child{text-align:left}
+#member-modal .weekday-meals{margin:0;padding:10px;border:1px solid var(--border);border-radius:9px;background:#fbfcfb}
+#member-modal .weekday-meal-row .form-input{margin:0;text-align:center}
+.member-option-stack{display:grid;gap:10px}
+.member-option-row{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:#fff}
+.member-option-row input{margin-top:2px}
+.member-option-copy{display:flex;flex-direction:column;gap:2px;font-size:13px;font-weight:900;color:var(--text)}
+.member-option-copy small{font-size:11px;color:var(--sub);font-weight:700;line-height:1.45}
+.member-modal-actions{flex:0 0 auto;margin:0;padding:12px 20px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:rgba(255,255,255,.97);box-shadow:0 -8px 22px rgba(15,23,42,.07)}
+.member-modal-actions .secondary-btn{min-height:42px}
+
+@media(max-width:900px){
+  .member-list-head,.member-row-main{grid-template-columns:minmax(170px,1fr) minmax(150px,.85fr) minmax(220px,1.2fr) minmax(145px,.75fr) 58px}
+  .member-list-head span:nth-child(5),.member-row-main .member-price{display:none}
+}
+@media(max-width:600px){
+  .member-section{padding-left:12px!important;padding-right:12px!important;padding-bottom:96px}
+  .member-toolbar{align-items:stretch;gap:10px}
+  .member-toolbar-actions{display:grid;grid-template-columns:1fr auto}
+  .member-toolbar-actions button{min-height:42px}
+  .member-view-switch{position:sticky;top:105px;z-index:20;background:var(--bg);margin-left:-12px;margin-right:-12px;padding:0 12px}
+  .member-view-tab{flex:1;padding:11px 8px}
+  .member-search-bar{padding:10px;margin-bottom:8px}
+  .member-search-row{display:grid;grid-template-columns:1fr auto}
+  .member-search-wrap{grid-column:1/-1;min-width:0}
+  .member-sort-select{min-width:0;width:100%}
+  .member-search-clear{width:44px;padding:9px 0;font-size:0}
+  .member-search-clear::before{content:'↺';font-size:18px}
+  .member-filter-row{margin-left:-2px;margin-right:-2px}
+  .member-result-line{align-items:flex-start;flex-direction:column;gap:2px}
+  .member-list-head{display:none}
+  .member-row-main{min-height:0;padding:13px 12px 10px;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px}
+  .member-row-main .member-identity{grid-column:1;grid-row:1}
+  .member-row-main .member-chevron{grid-column:2;grid-row:1}
+  .member-row-main .member-contact{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 10px;align-items:center}
+  .member-row-main .member-contact .member-email{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .member-row-main .member-location{grid-column:1/-1;grid-row:3;padding-top:7px;border-top:1px solid #f0f2f1}
+  .member-row-main .member-order{grid-column:1;grid-row:4;padding-top:4px}
+  .member-row-main .member-price{display:flex;grid-column:2;grid-row:4;padding-top:4px;text-align:right;align-items:flex-end}
+  .member-row-main .member-deleted-restore{grid-column:2;grid-row:1;align-self:start}
+  .member-name-line .biz-title{font-size:15px}
+  .member-address{font-size:13px}
+  .member-mobile-actions{display:flex;align-items:center;gap:6px;padding:0 12px 11px}
+  .member-mobile-actions a,.member-mobile-actions button{flex:1;min-height:36px;border:1px solid #d8dee8;background:#fff;color:#344054;border-radius:8px;padding:7px 9px;text-align:center;text-decoration:none;font:inherit;font-size:12px;font-weight:900;cursor:pointer}
+  .member-mobile-actions .primary{border-color:#bad8c5;color:var(--primary)}
+  #member-modal{padding:0;align-items:flex-end}
+  #member-modal .member-edit-box{max-width:none;max-height:96dvh;border-radius:14px 14px 0 0}
+  #member-modal .member-edit-header{padding:15px 16px}
+  .member-edit-scroll{padding:0 16px 10px}
+  .member-form-grid{grid-template-columns:1fr}
+  .member-form-field.full{grid-column:auto}
+  .member-toggle-panel{align-items:flex-start;flex-direction:column}
+  .member-toggle-help{text-align:left}
+  .member-modal-actions{padding-left:16px;padding-right:16px}
+  .member-modal-actions .danger-btn{order:-1;flex:0 0 auto}
+}
 </style>
 </head>
 <body>
@@ -905,7 +1047,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 
   <div class="admin-tabs">
     <button class="tab-btn active" id="tab-orders" onclick="switchAdminTab('orders')"><svg class="admin-icon"><use href="#admin-i-orders"></use></svg><span>주문</span></button>
-    <button class="tab-btn" id="tab-members" onclick="switchAdminTab('members')"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>회원관리</span></button>
+    <button class="tab-btn" id="tab-members" onclick="switchAdminTab('members')"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>고객관리</span></button>
     <button class="tab-btn" id="tab-events" onclick="switchAdminTab('events')"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>행사도시락</span></button>
     <button class="tab-btn" id="tab-menus" onclick="switchAdminTab('menus')"><svg class="admin-icon"><use href="#admin-i-menu"></use></svg><span>식단관리</span></button>
     <button class="tab-btn" id="tab-changeRequests" onclick="switchAdminTab('changeRequests')"><svg class="admin-icon"><use href="#admin-i-chat"></use></svg><span>문의사항</span><span class="tab-count-badge" id="change-request-tab-count">0</span></button>
@@ -1036,44 +1178,82 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     </div>
   </div>
 
-  <!-- 회원 관리 -->
+  <!-- 고객 관리 -->
   <div class="member-section admin-tab-panel" data-tab="members" id="member-section" style="display:none">
     <div class="member-toolbar">
       <div class="member-title-wrap">
-        <div class="section-title"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>회원관리</span></div>
-        <div class="member-hint">업체 카드를 누르면 배송지, 식사 받는 시간, 요일별 기본 수량을 수정할 수 있습니다.</div>
+        <div class="member-title-row">
+          <div class="section-title"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>고객관리</span></div>
+          <span class="member-title-count" id="member-total-count">0</span>
+        </div>
+        <div class="member-hint">연락처·배송지·기본 주문을 한눈에 확인하고, 고객을 눌러 상세정보를 수정합니다.</div>
       </div>
-      <div class="inline-actions">
-        <button class="refresh-btn" onclick="loadAllUsers().then(() => { renderMembers(); loadRecentOrderLogs(); })"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>회원 새로고침</span></button>
+      <div class="member-toolbar-actions">
+        <button class="refresh-btn" onclick="loadAllUsers().then(() => { renderMembers(); loadRecentOrderLogs(); })"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>새로고침</span></button>
         <button class="secondary-btn" onclick="exportMemberPhoneExcel()" title="전체 회원 전화번호 엑셀 다운로드">📞 전화번호 엑셀</button>
       </div>
     </div>
-    <div class="member-search-bar">
-      <input class="form-input member-search-input" type="search" id="member-search-input" placeholder="업체명, 연락처, 주소, 이메일 검색" oninput="renderMembers()" onkeydown="if(event.key==='Escape') clearMemberSearch()">
-      <select class="form-input member-sort-select" id="member-sort-select" onchange="renderMembers()" aria-label="회원 정렬">
-        <option value="name">업체명순</option>
-        <option value="latest">최신순</option>
-        <option value="orders">주문 많은순</option>
-      </select>
-      <div class="member-search-count" id="member-search-count">전체 0곳</div>
-      <button class="member-search-clear" type="button" onclick="clearMemberSearch()">초기화</button>
+    <div class="member-view-switch" role="tablist" aria-label="고객관리 보기">
+      <button class="member-view-tab active" id="member-view-list-tab" type="button" role="tab" aria-selected="true" onclick="setMemberView('list')">고객 목록<span class="count" id="member-view-list-count">0</span></button>
+      <button class="member-view-tab" id="member-view-log-tab" type="button" role="tab" aria-selected="false" onclick="setMemberView('logs')">최근 변경<span class="count" id="member-view-log-count">0</span></button>
     </div>
-    <div class="order-log-panel collapsed" id="order-log-panel">
-      <div class="order-log-head">
-        <div>
-          <div class="section-title">최근 24시간 주문 로그</div>
-          <div class="member-hint">고객 또는 관리자가 주문 수량, 자체휴무, 메모를 바꾸면 여기에 남습니다.</div>
+
+    <div class="member-view-panel" id="member-list-view" role="tabpanel" aria-labelledby="member-view-list-tab">
+      <div class="member-search-bar">
+        <div class="member-search-row">
+          <div class="member-search-wrap">
+            <svg class="member-search-icon admin-icon" aria-hidden="true"><use href="#admin-i-members"></use></svg>
+            <input class="form-input member-search-input" type="search" id="member-search-input" placeholder="업체명, 연락처, 주소, 이메일 검색" aria-label="고객 검색" oninput="handleMemberSearchInput()" onkeydown="if(event.key==='Escape') clearMemberSearch()">
+          </div>
+          <select class="form-input member-sort-select" id="member-sort-select" onchange="handleMemberSortChange()" aria-label="고객 정렬">
+            <option value="name">업체명순</option>
+            <option value="latest">최신 가입순</option>
+            <option value="orders">주간 기본수량순</option>
+          </select>
+          <button class="member-search-clear" type="button" onclick="resetMemberManagement()">초기화</button>
         </div>
-        <div class="order-log-actions">
-          <button class="refresh-btn" onclick="loadRecentOrderLogs()"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>로그 새로고침</span></button>
-          <button class="secondary-btn" onclick="toggleOrderLogPanel()"><span id="order-log-toggle-label">로그 펼치기</span></button>
+        <div class="member-filter-row" role="group" aria-label="고객 상태 필터">
+          <button class="member-filter-chip active" type="button" data-member-filter="all" aria-pressed="true" onclick="setMemberFilter('all')">전체 <span class="count" id="member-filter-count-all">0</span></button>
+          <button class="member-filter-chip" type="button" data-member-filter="new" aria-pressed="false" onclick="setMemberFilter('new')">신규 <span class="count" id="member-filter-count-new">0</span></button>
+          <button class="member-filter-chip warning" type="button" data-member-filter="missing" aria-pressed="false" onclick="setMemberFilter('missing')">정보 미입력 <span class="count" id="member-filter-count-missing">0</span></button>
+          <button class="member-filter-chip danger" type="button" data-member-filter="zero" aria-pressed="false" onclick="setMemberFilter('zero')">0개·휴무 <span class="count" id="member-filter-count-zero">0</span></button>
+          <button class="member-filter-chip" type="button" data-member-filter="tax" aria-pressed="false" onclick="setMemberFilter('tax')">세금자료 <span class="count" id="member-filter-count-tax">0</span></button>
+          <button class="member-filter-chip" type="button" data-member-filter="disposable" aria-pressed="false" onclick="setMemberFilter('disposable')">일회용 <span class="count" id="member-filter-count-disposable">0</span></button>
+          <button class="member-filter-chip warning" type="button" data-member-filter="duplicate" aria-pressed="false" onclick="setMemberFilter('duplicate')">중복 의심 <span class="count" id="member-filter-count-duplicate">0</span></button>
+          <button class="member-filter-chip danger" type="button" data-member-filter="deleted" aria-pressed="false" onclick="setMemberFilter('deleted')">삭제회원 <span class="count" id="member-filter-count-deleted">0</span></button>
         </div>
       </div>
-      <div class="order-log-list" id="order-log-list">
-        <div class="order-log-empty">아직 불러오지 않았습니다.</div>
+      <div class="member-result-line">
+        <div class="member-search-count" id="member-search-count">전체 0곳</div>
+        <div class="member-result-note">주소나 연락처가 비어 있는 고객은 주황색으로 표시됩니다.</div>
+      </div>
+      <div class="member-list-shell">
+        <div class="member-list-head" aria-hidden="true">
+          <span>고객</span><span>연락처</span><span>배송지·시간</span><span>기본 주문</span><span>단가</span><span></span>
+        </div>
+        <div class="member-grid" id="member-grid">불러오는 중...</div>
+        <div class="member-load-more-wrap" id="member-load-more-wrap" style="display:none">
+          <button class="member-load-more" type="button" onclick="loadMoreMembers()">고객 더 보기</button>
+        </div>
       </div>
     </div>
-    <div class="member-grid" id="member-grid">불러오는 중...</div>
+
+    <div class="member-view-panel member-log-view" id="member-log-view" role="tabpanel" aria-labelledby="member-view-log-tab" hidden>
+      <div class="order-log-panel" id="order-log-panel">
+        <div class="order-log-head">
+          <div>
+            <div class="section-title">최근 24시간 주문 변경</div>
+            <div class="member-hint">고객 또는 관리자가 주문 수량, 자체휴무, 메모를 바꾼 기록입니다.</div>
+          </div>
+          <div class="order-log-actions">
+            <button class="refresh-btn" onclick="loadRecentOrderLogs()"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>로그 새로고침</span></button>
+          </div>
+        </div>
+        <div class="order-log-list" id="order-log-list">
+          <div class="order-log-empty">아직 불러오지 않았습니다.</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="event-section admin-tab-panel" data-tab="events" style="display:none">
@@ -1486,7 +1666,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="manual-card">
         <div class="manual-card-title">2. 회원 관리</div>
         <ol>
-          <li>상단의 <b>회원관리</b> 탭에서 업체 목록을 엽니다.</li>
+          <li>상단의 <b>고객관리</b> 탭에서 업체 목록을 엽니다.</li>
           <li>업체 카드를 클릭하면 업체명, 배송지, 식사시간, 요일별 기본 수량을 수정할 수 있습니다.</li>
           <li>매일 수량이 같으면 <b>매일 같은 수량 사용</b>을 체크합니다.</li>
           <li>요일마다 다르면 월~금 수량을 각각 입력합니다.</li>
@@ -1866,93 +2046,131 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   </div>
 </div>
 
-<!-- 회원 수정 모달 -->
+<!-- 고객 수정 모달 -->
 <div class="modal-overlay" id="member-modal">
-  <div class="modal-box">
-    <div class="modal-header">
-      <div class="modal-title">회원정보 수정</div>
-      <button class="modal-close" onclick="closeMemberModal()">✕</button>
+  <div class="modal-box member-edit-box">
+    <div class="modal-header member-edit-header">
+      <div class="member-edit-heading">
+        <div class="modal-title">고객정보 수정</div>
+        <div class="member-edit-subtitle" id="edit-member-subtitle">연락처와 기본 주문을 확인합니다.</div>
+      </div>
+      <button class="modal-close" type="button" onclick="closeMemberModal()" aria-label="고객정보 수정 닫기">✕</button>
     </div>
     <input type="hidden" id="edit-uid">
-    <label class="form-label">업체명</label>
-    <input class="form-input" type="text" id="edit-bizname" placeholder="업체명">
-    <label class="form-label">휴대폰 번호</label>
-    <input class="form-input" type="tel" id="edit-phone" placeholder="010-0000-0000">
-    <label class="form-label">배송지</label>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-      <input class="form-input" type="text" id="edit-place" placeholder="주소 찾기 버튼으로 입력하세요" readonly style="flex:1;background:#f9f9f9;cursor:default;margin-bottom:0">
-      <button type="button" class="secondary-btn" style="white-space:nowrap;padding:10px 14px;font-size:13px" onclick="openAddressSearch('edit-place','edit-place-detail')">🔍 주소 찾기</button>
+    <div class="member-edit-scroll">
+      <section class="member-form-section">
+        <div class="member-form-section-title"><span>기본정보</span><small>연락처와 배송지</small></div>
+        <div class="member-form-grid">
+          <div class="member-form-field">
+            <label class="form-label" for="edit-bizname">업체명</label>
+            <input class="form-input" type="text" id="edit-bizname" placeholder="업체명">
+          </div>
+          <div class="member-form-field">
+            <label class="form-label" for="edit-phone">휴대폰 번호</label>
+            <input class="form-input" type="tel" id="edit-phone" placeholder="010-0000-0000">
+          </div>
+          <div class="member-form-field full">
+            <label class="form-label">로그인 이메일</label>
+            <div class="member-readonly-email" id="edit-member-email">-</div>
+          </div>
+          <div class="member-form-field full">
+            <label class="form-label" for="edit-place">배송지</label>
+            <div class="member-address-input-row">
+              <input class="form-input" type="text" id="edit-place" placeholder="주소 찾기 버튼으로 입력하세요" readonly>
+              <button type="button" class="secondary-btn member-address-search" onclick="openAddressSearch('edit-place','edit-place-detail')">주소 찾기</button>
+            </div>
+            <input class="form-input" type="text" id="edit-place-detail" placeholder="상세주소 (동/호수/층 등)">
+          </div>
+          <div class="member-form-field full">
+            <label class="form-label" for="edit-mealtime-hour">식사 받는 시간</label>
+            <input class="meal-time-hidden" type="hidden" id="edit-mealtime">
+            <div class="meal-time-picker">
+              <select class="form-input" id="edit-mealtime-hour" onchange="syncMealTime('edit')"></select>
+              <select class="form-input" id="edit-mealtime-minute" onchange="syncMealTime('edit')"></select>
+            </div>
+            <div class="default-hint">오전 10시 30분부터 오후 12시 30분 사이에서 선택합니다.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="member-form-section">
+        <div class="member-form-section-title"><span>기본 주문</span><small>월요일부터 금요일까지 적용</small></div>
+        <div class="member-qty-grid">
+          <div>
+            <label class="form-label" for="edit-lunch">도시락 수</label>
+            <input class="form-input" type="number" id="edit-lunch" min="0" max="50">
+          </div>
+          <div>
+            <label class="form-label" for="edit-salad">샐러드 수</label>
+            <input class="form-input" type="number" id="edit-salad" min="0" max="50">
+          </div>
+        </div>
+        <div class="member-toggle-panel">
+          <label class="same-daily-toggle">
+            <input type="checkbox" id="edit-same-daily" checked onchange="toggleWeekdayFields('edit')">
+            매일 같은 수량 사용
+          </label>
+          <div class="member-toggle-help">체크를 끄면 요일마다 다른 수량을 정할 수 있습니다.</div>
+        </div>
+        <div class="weekday-meals" id="edit-weekday-fields" style="display:none">
+          <div class="member-weekday-head"><span>요일</span><span>도시락</span><span>샐러드</span></div>
+          <div class="weekday-meal-row">
+            <div class="weekday-label">월</div>
+            <input class="form-input" type="number" id="edit-mon-lunch" min="0" max="50" aria-label="월요일 도시락">
+            <input class="form-input" type="number" id="edit-mon-salad" min="0" max="50" aria-label="월요일 샐러드">
+          </div>
+          <div class="weekday-meal-row">
+            <div class="weekday-label">화</div>
+            <input class="form-input" type="number" id="edit-tue-lunch" min="0" max="50" aria-label="화요일 도시락">
+            <input class="form-input" type="number" id="edit-tue-salad" min="0" max="50" aria-label="화요일 샐러드">
+          </div>
+          <div class="weekday-meal-row">
+            <div class="weekday-label">수</div>
+            <input class="form-input" type="number" id="edit-wed-lunch" min="0" max="50" aria-label="수요일 도시락">
+            <input class="form-input" type="number" id="edit-wed-salad" min="0" max="50" aria-label="수요일 샐러드">
+          </div>
+          <div class="weekday-meal-row">
+            <div class="weekday-label">목</div>
+            <input class="form-input" type="number" id="edit-thu-lunch" min="0" max="50" aria-label="목요일 도시락">
+            <input class="form-input" type="number" id="edit-thu-salad" min="0" max="50" aria-label="목요일 샐러드">
+          </div>
+          <div class="weekday-meal-row">
+            <div class="weekday-label">금</div>
+            <input class="form-input" type="number" id="edit-fri-lunch" min="0" max="50" aria-label="금요일 도시락">
+            <input class="form-input" type="number" id="edit-fri-salad" min="0" max="50" aria-label="금요일 샐러드">
+          </div>
+        </div>
+      </section>
+
+      <section class="member-form-section">
+        <div class="member-form-section-title"><span>단가·운영</span><small>정산과 주문표에 반영</small></div>
+        <div class="member-form-grid">
+          <div class="member-form-field">
+            <label class="form-label" for="edit-lunch-price">도시락 단가</label>
+            <input class="form-input" type="number" id="edit-lunch-price" min="0" placeholder="8000">
+          </div>
+          <div class="member-form-field">
+            <label class="form-label" for="edit-salad-price">샐러드 단가</label>
+            <input class="form-input" type="number" id="edit-salad-price" min="0" placeholder="8000">
+          </div>
+          <div class="member-form-field full">
+            <label class="form-label" for="edit-admin-memo">관리자 메모</label>
+            <input class="form-input" type="text" id="edit-admin-memo" maxlength="40" placeholder="주문 탭 업체명 옆에 표시됩니다. 예: 비닐X, 첫배송 주의">
+          </div>
+        </div>
+        <div class="member-option-stack">
+          <label class="member-option-row">
+            <input type="checkbox" id="edit-disposable-lunch">
+            <span class="member-option-copy">일회용도시락 업체<small>일반도시락과 분리해 일회용도시락 수량으로 집계합니다.</small></span>
+          </label>
+        </div>
+      </section>
+      <div class="error-msg" id="edit-error"></div>
     </div>
-    <input class="form-input" type="text" id="edit-place-detail" placeholder="상세주소 (동/호수/층 등)">
-    <label class="form-label">식사 받는 시간</label>
-    <input class="meal-time-hidden" type="hidden" id="edit-mealtime">
-    <div class="meal-time-picker">
-      <select class="form-input" id="edit-mealtime-hour" onchange="syncMealTime('edit')"></select>
-      <select class="form-input" id="edit-mealtime-minute" onchange="syncMealTime('edit')"></select>
-    </div>
-    <div class="default-hint">오전 10시 30분부터 오후 12시 30분까지 선택할 수 있습니다. 식사받는시간은 업체 사정에 따라 조율이 될 수 있습니다.</div>
-    <div style="display:flex;gap:10px">
-      <div style="flex:1">
-        <label class="form-label">매일 도시락 수</label>
-        <input class="form-input" type="number" id="edit-lunch" min="0" max="50">
-      </div>
-      <div style="flex:1">
-        <label class="form-label">매일 샐러드 수</label>
-        <input class="form-input" type="number" id="edit-salad" min="0" max="50">
-      </div>
-    </div>
-    <label class="same-daily-toggle">
-      <input type="checkbox" id="edit-same-daily" checked onchange="toggleWeekdayFields('edit')">
-      매일 같은 수량 사용
-    </label>
-    <div class="weekday-meals" id="edit-weekday-fields" style="display:none">
-      <div class="weekday-meal-row">
-        <div class="weekday-label">월</div>
-        <input class="form-input" type="number" id="edit-mon-lunch" min="0" max="50" placeholder="도시락">
-        <input class="form-input" type="number" id="edit-mon-salad" min="0" max="50" placeholder="샐러드">
-      </div>
-      <div class="weekday-meal-row">
-        <div class="weekday-label">화</div>
-        <input class="form-input" type="number" id="edit-tue-lunch" min="0" max="50" placeholder="도시락">
-        <input class="form-input" type="number" id="edit-tue-salad" min="0" max="50" placeholder="샐러드">
-      </div>
-      <div class="weekday-meal-row">
-        <div class="weekday-label">수</div>
-        <input class="form-input" type="number" id="edit-wed-lunch" min="0" max="50" placeholder="도시락">
-        <input class="form-input" type="number" id="edit-wed-salad" min="0" max="50" placeholder="샐러드">
-      </div>
-      <div class="weekday-meal-row">
-        <div class="weekday-label">목</div>
-        <input class="form-input" type="number" id="edit-thu-lunch" min="0" max="50" placeholder="도시락">
-        <input class="form-input" type="number" id="edit-thu-salad" min="0" max="50" placeholder="샐러드">
-      </div>
-      <div class="weekday-meal-row">
-        <div class="weekday-label">금</div>
-        <input class="form-input" type="number" id="edit-fri-lunch" min="0" max="50" placeholder="도시락">
-        <input class="form-input" type="number" id="edit-fri-salad" min="0" max="50" placeholder="샐러드">
-      </div>
-    </div>
-    <div style="display:flex;gap:10px">
-      <div style="flex:1">
-        <label class="form-label">도시락 단가</label>
-        <input class="form-input" type="number" id="edit-lunch-price" min="0" placeholder="0">
-      </div>
-      <div style="flex:1">
-        <label class="form-label">샐러드 단가</label>
-        <input class="form-input" type="number" id="edit-salad-price" min="0" placeholder="0">
-      </div>
-    </div>
-    <label class="form-label">관리자 메모</label>
-    <input class="form-input" type="text" id="edit-admin-memo" maxlength="40" placeholder="주문 탭 업체명 옆에 표시됩니다. 예: 비닐X, 첫배송 주의">
-    <label class="same-daily-toggle">
-      <input type="checkbox" id="edit-disposable-lunch">
-      일회용도시락 업체
-    </label>
-    <div class="default-hint">체크하면 주문 탭에서 일반도시락 대신 일회용도시락 수량으로 따로 집계됩니다.</div>
-    <div class="error-msg" id="edit-error"></div>
-    <div class="modal-actions">
-      <button class="save-btn" onclick="saveMember()">저장하기</button>
-      <button class="danger-btn" onclick="deleteMember()">업체삭제</button>
+    <div class="modal-actions member-modal-actions">
+      <button class="danger-btn" type="button" onclick="deleteMember()">고객 삭제</button>
+      <button class="secondary-btn" type="button" onclick="closeMemberModal()">취소</button>
+      <button class="save-btn" type="button" onclick="saveMember()">변경사항 저장</button>
     </div>
   </div>
 </div>
@@ -2220,6 +2438,10 @@ let currentSettleFilter = 'all';
 let settlementChartMode = 'billing';
 let changeRequests = [];
 let recentOrderLogs = [];
+const MEMBER_PAGE_SIZE = 24;
+let memberVisibleLimit = MEMBER_PAGE_SIZE;
+let memberFilterMode = 'all';
+let memberViewMode = 'list';
 let changeRequestFilter = 'all';
 let changeRequestsUnsub = null;
 let changeRequestsInitialized = false;
@@ -5316,6 +5538,124 @@ function memberWeeklyOrderQty(user = {}) {
   }, 0);
 }
 
+function memberDuplicateKey(user = {}) {
+  return `${normalizeMemberSearchText(user.businessName || user.name || '')}|${normalizeMemberSearchText(user.phone || '')}`;
+}
+
+function memberAddressValue(user = {}) {
+  const place = String(user.deliveryPlace || user.deliveryAddress || user.address || '').trim();
+  const detail = String(user.deliveryPlaceDetail || user.addressDetail || '').trim();
+  if (!detail || place.includes(detail)) return place;
+  return `${place} ${detail}`.trim();
+}
+
+function memberHasMissingInfo(user = {}) {
+  return !String(user.phone || '').trim() || !memberAddressValue(user);
+}
+
+function memberMatchesFilter(user = {}, filter = memberFilterMode, duplicateCounts = new Map()) {
+  if (filter === 'new') return isNewMember(user);
+  if (filter === 'missing') return memberHasMissingInfo(user);
+  if (filter === 'zero') return memberWeeklyOrderQty(user) <= 0;
+  if (filter === 'tax') return taxInvoiceEnabled(user);
+  if (filter === 'disposable') return isDisposableLunchUser(user);
+  if (filter === 'duplicate') return (duplicateCounts.get(memberDuplicateKey(user)) || 0) > 1;
+  return true;
+}
+
+function memberStatusCounts(activeEntries, deletedEntries, duplicateCounts) {
+  const counts = {
+    all: activeEntries.length,
+    new: 0,
+    missing: 0,
+    zero: 0,
+    tax: 0,
+    disposable: 0,
+    duplicate: 0,
+    deleted: deletedEntries.length
+  };
+  activeEntries.forEach(([, user]) => {
+    if (isNewMember(user)) counts.new += 1;
+    if (memberHasMissingInfo(user)) counts.missing += 1;
+    if (memberWeeklyOrderQty(user) <= 0) counts.zero += 1;
+    if (taxInvoiceEnabled(user)) counts.tax += 1;
+    if (isDisposableLunchUser(user)) counts.disposable += 1;
+    if ((duplicateCounts.get(memberDuplicateKey(user)) || 0) > 1) counts.duplicate += 1;
+  });
+  return counts;
+}
+
+function updateMemberFilterCounts(counts = {}) {
+  Object.entries(counts).forEach(([key, value]) => {
+    const el = document.getElementById(`member-filter-count-${key}`);
+    if (el) el.textContent = value;
+  });
+  const totalEl = document.getElementById('member-total-count');
+  const listCountEl = document.getElementById('member-view-list-count');
+  if (totalEl) totalEl.textContent = counts.all || 0;
+  if (listCountEl) listCountEl.textContent = counts.all || 0;
+  document.querySelectorAll('[data-member-filter]').forEach(button => {
+    const active = button.dataset.memberFilter === memberFilterMode;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
+function setMemberFilter(filter = 'all') {
+  memberFilterMode = filter;
+  memberVisibleLimit = MEMBER_PAGE_SIZE;
+  if (memberViewMode !== 'list') setMemberView('list');
+  renderMembers();
+}
+
+function setMemberView(view = 'list') {
+  memberViewMode = view === 'logs' ? 'logs' : 'list';
+  const listView = document.getElementById('member-list-view');
+  const logView = document.getElementById('member-log-view');
+  const listTab = document.getElementById('member-view-list-tab');
+  const logTab = document.getElementById('member-view-log-tab');
+  const showingLogs = memberViewMode === 'logs';
+  if (listView) listView.hidden = showingLogs;
+  if (logView) logView.hidden = !showingLogs;
+  if (listTab) {
+    listTab.classList.toggle('active', !showingLogs);
+    listTab.setAttribute('aria-selected', showingLogs ? 'false' : 'true');
+  }
+  if (logTab) {
+    logTab.classList.toggle('active', showingLogs);
+    logTab.setAttribute('aria-selected', showingLogs ? 'true' : 'false');
+  }
+  if (showingLogs) {
+    toggleOrderLogPanel(true);
+    if (!recentOrderLogs.length) loadRecentOrderLogs();
+  }
+}
+
+function handleMemberSearchInput() {
+  memberVisibleLimit = MEMBER_PAGE_SIZE;
+  renderMembers();
+}
+
+function handleMemberSortChange() {
+  memberVisibleLimit = MEMBER_PAGE_SIZE;
+  renderMembers();
+}
+
+function loadMoreMembers() {
+  memberVisibleLimit += MEMBER_PAGE_SIZE;
+  renderMembers();
+}
+
+async function copyMemberAddress(uid) {
+  const user = allUsers[uid] || deletedUsers[uid] || {};
+  const address = memberAddressValue(user);
+  if (!address) {
+    showToast('복사할 배송지가 없습니다.');
+    return;
+  }
+  await copyTextToClipboard(address, '배송지를 복사했습니다.');
+}
+
 function compareMemberEntries(a, b) {
   const mode = memberSortMode();
   const nameCompare = (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko');
@@ -5477,14 +5817,16 @@ function focusOrderMobileSearchResult(uid, type = 'order') {
   const user = allUsers[uid];
   if (user) {
     switchAdminTab('members');
+    memberFilterMode = 'all';
+    memberVisibleLimit = MEMBER_PAGE_SIZE;
     const input = document.getElementById('member-search-input');
     if (input) input.value = user.businessName || user.phone || '';
     renderMembers();
     setTimeout(() => openMemberEdit(uid), 120);
-    showToast('오늘 주문표에는 없어 회원정보를 열었습니다.');
+    showToast('오늘 주문표에는 없어 고객정보를 열었습니다.');
     return;
   }
-  showToast(type === 'member' ? '회원 정보를 찾지 못했습니다.' : '주문 행을 찾지 못했습니다.');
+  showToast(type === 'member' ? '고객 정보를 찾지 못했습니다.' : '주문 행을 찾지 못했습니다.');
 }
 
 function goToOrderMapTab() {
@@ -5526,8 +5868,20 @@ function clearMemberSearch() {
   const input = document.getElementById('member-search-input');
   if (!input) return;
   input.value = '';
+  memberVisibleLimit = MEMBER_PAGE_SIZE;
   renderMembers();
   input.focus();
+}
+
+function resetMemberManagement() {
+  const input = document.getElementById('member-search-input');
+  const sort = document.getElementById('member-sort-select');
+  if (input) input.value = '';
+  if (sort) sort.value = 'name';
+  memberFilterMode = 'all';
+  memberVisibleLimit = MEMBER_PAGE_SIZE;
+  renderMembers();
+  input?.focus();
 }
 
 function taxInvoiceSearchQuery() {
@@ -5963,6 +6317,8 @@ function orderLogChangeText(log = {}) {
 
 function renderRecentOrderLogs() {
   const list = document.getElementById('order-log-list');
+  const countEl = document.getElementById('member-view-log-count');
+  if (countEl) countEl.textContent = recentOrderLogs.length;
   if (!list) return;
   if (!recentOrderLogs.length) {
     list.innerHTML = '<div class="order-log-empty">최근 24시간 주문 수정 로그가 없습니다.</div>';
@@ -6028,68 +6384,122 @@ async function loadRecentOrderLogs() {
   }
 }
 
+function memberRowBadgesHtml(user = {}, duplicateCount = 0) {
+  const badges = [newMemberBadgeHtml(user), disposableLunchBadgeHtml(user), taxInvoiceBadgeHtml(user)];
+  if (memberHasMissingInfo(user)) badges.push('<span class="member-row-badge missing">정보 확인</span>');
+  if (memberWeeklyOrderQty(user) <= 0) badges.push('<span class="member-row-badge zero">0개·휴무</span>');
+  if (duplicateCount > 1) badges.push(`<span class="member-row-badge duplicate">중복 ${duplicateCount}</span>`);
+  return badges.filter(Boolean).join('');
+}
+
+function memberOrderSummary(user = {}) {
+  const lunch = parseCount(user.defaultLunch, 2);
+  const salad = parseCount(user.defaultSalad, 0);
+  const weekly = memberWeeklyOrderQty(user);
+  const lunchLabel = isDisposableLunchUser(user) ? '일회용' : '도시락';
+  if (user.sameDailyMeal === false) {
+    return { main: '요일별 수량', sub: `주 ${weekly}개 · ${lunchLabel}/샐러드` };
+  }
+  return { main: `${lunchLabel} ${lunch} · 샐러드 ${salad}`, sub: `매일 동일 · 주 ${weekly}개` };
+}
+
+function memberActiveRowHtml(uid, user = {}, duplicateCounts = new Map()) {
+  const address = memberAddressValue(user);
+  const phone = String(user.phone || '').trim();
+  const phoneHref = phone.replace(/[^0-9+]/g, '');
+  const duplicateCount = duplicateCounts.get(memberDuplicateKey(user)) || 0;
+  const order = memberOrderSummary(user);
+  const warningClass = memberHasMissingInfo(user) ? ' has-warning' : '';
+  return `
+    <article class="member-row${warningClass}" data-member-uid="${escapeHtml(uid)}">
+      <button class="member-row-main" type="button" onclick="openMemberEdit('${jsString(uid)}')" aria-label="${escapeHtml(user.businessName || user.name || '고객')} 상세정보 열기">
+        <span class="member-cell member-identity">
+          <span class="member-name-line">${bizNameWithAdminMemoHtml(user.businessName || user.name || '-', adminMemoValue(user))}${memberRowBadgesHtml(user, duplicateCount)}</span>
+          <span class="member-meta">${isNewMember(user) ? `가입 ${escapeHtml(userCreatedDateStr(user) || '-')}` : '고객 상세정보 보기'}</span>
+        </span>
+        <span class="member-cell member-contact">
+          <strong class="${phone ? '' : 'missing'}">${escapeHtml(phone || '연락처 미입력')}</strong>
+          <span class="member-email">${escapeHtml(user.email || '이메일 미입력')}</span>
+        </span>
+        <span class="member-cell member-location">
+          <span class="member-address${address ? '' : ' missing'}">${escapeHtml(address || '배송지 미입력')}</span>
+          <small>${user.mealTime ? `식사 ${escapeHtml(user.mealTime)}` : '식사 시간 미설정'}</small>
+        </span>
+        <span class="member-cell member-order"><strong>${escapeHtml(order.main)}</strong><small>${escapeHtml(order.sub)}</small></span>
+        <span class="member-cell member-price"><strong>${formatMoney(userLunchPrice(user))} / ${formatMoney(userSaladPrice(user))}</strong><small>도시락 / 샐러드</small></span>
+        <span class="member-chevron" aria-hidden="true">›</span>
+      </button>
+      <div class="member-mobile-actions">
+        ${phoneHref ? `<a class="primary" href="tel:${escapeHtml(phoneHref)}">전화하기</a>` : '<button type="button" disabled>연락처 없음</button>'}
+        <button type="button" onclick="copyMemberAddress('${jsString(uid)}')"${address ? '' : ' disabled'}>주소 복사</button>
+      </div>
+    </article>
+  `;
+}
+
+function memberDeletedRowHtml(uid, user = {}) {
+  const address = memberAddressValue(user);
+  return `
+    <article class="member-row is-deleted" data-member-uid="${escapeHtml(uid)}">
+      <div class="member-row-main">
+        <span class="member-cell member-identity">
+          <span class="member-name-line"><strong>${escapeHtml(user.businessName || user.name || user.email || '-')}</strong><span class="member-row-badge deleted">삭제됨</span></span>
+          <span class="member-meta">로그인이 차단된 고객입니다.</span>
+        </span>
+        <span class="member-cell member-contact"><strong>${escapeHtml(user.phone || '연락처 미입력')}</strong><span class="member-email">${escapeHtml(user.email || '이메일 미입력')}</span></span>
+        <span class="member-cell member-location"><span class="member-address">${escapeHtml(address || '배송지 미입력')}</span><small>${user.mealTime ? `식사 ${escapeHtml(user.mealTime)}` : '식사 시간 미설정'}</small></span>
+        <span class="member-cell member-order"><strong>삭제회원</strong><small>복구 후 수정 가능</small></span>
+        <span class="member-cell member-price"><strong>-</strong><small>정산 제외</small></span>
+        <button class="member-deleted-restore" type="button" onclick="restoreMember('${jsString(uid)}')">복구</button>
+      </div>
+    </article>
+  `;
+}
+
 function renderMembers() {
   const grid = document.getElementById('member-grid');
+  if (!grid) return;
   const query = memberSearchQuery();
   const allActiveUsers = Object.entries(allUsers);
-  const users = allActiveUsers.filter(([uid, u]) => memberMatchesSearch(uid, u, query));
-  const duplicateCounts = allActiveUsers.reduce((acc, [, u]) => {
-    const key = `${normalizeMemberSearchText(u.businessName || u.name || '')}|${normalizeMemberSearchText(u.phone || '')}`;
+  const allDeletedUsers = Object.entries(deletedUsers);
+  const duplicateCounts = allActiveUsers.reduce((acc, [, user]) => {
+    const key = memberDuplicateKey(user);
     if (key !== '|') acc.set(key, (acc.get(key) || 0) + 1);
     return acc;
   }, new Map());
-  const allDeletedUsers = Object.entries(deletedUsers);
-  const deleted = allDeletedUsers.filter(([uid, u]) => memberMatchesSearch(uid, u, query));
+  const counts = memberStatusCounts(allActiveUsers, allDeletedUsers, duplicateCounts);
+  updateMemberFilterCounts(counts);
+
+  const sourceEntries = memberFilterMode === 'deleted'
+    ? allDeletedUsers
+    : allActiveUsers.filter(([, user]) => memberMatchesFilter(user, memberFilterMode, duplicateCounts));
+  const matchingEntries = sourceEntries
+    .filter(([uid, user]) => memberMatchesSearch(uid, user, query))
+    .sort(compareMemberEntries);
+  const visibleEntries = matchingEntries.slice(0, memberVisibleLimit);
+  const filterLabels = {
+    all: '전체 고객', new: '신규 고객', missing: '정보 미입력', zero: '0개·휴무',
+    tax: '세금자료 고객', disposable: '일회용 고객', duplicate: '중복 의심', deleted: '삭제회원'
+  };
+  const filterLabel = filterLabels[memberFilterMode] || '고객';
   const countEl = document.getElementById('member-search-count');
   if (countEl) {
     countEl.textContent = query
-      ? `검색 ${users.length}곳 / 전체 ${allActiveUsers.length}곳`
-      : `전체 ${allActiveUsers.length}곳`;
+      ? `${filterLabel} 검색 ${matchingEntries.length}곳 · ${visibleEntries.length}곳 표시`
+      : `${filterLabel} ${matchingEntries.length}곳 · ${visibleEntries.length}곳 표시`;
   }
-  let html = '';
-  if (allActiveUsers.length === 0) {
-    html += '<div style="color:var(--sub);font-size:14px;grid-column:1/-1">등록된 회원이 없습니다.</div>';
-  } else if (users.length === 0) {
-    html += '<div style="color:var(--sub);font-size:14px;grid-column:1/-1">검색 결과가 없습니다. 업체명, 연락처, 주소를 다시 확인해주세요.</div>';
+
+  if (!visibleEntries.length) {
+    const title = query ? '검색 결과가 없습니다.' : `${filterLabel}에 해당하는 고객이 없습니다.`;
+    grid.innerHTML = `<div class="member-empty-state"><strong>${escapeHtml(title)}</strong><span>검색어 또는 상태 필터를 바꿔 확인해주세요.</span></div>`;
+  } else if (memberFilterMode === 'deleted') {
+    grid.innerHTML = visibleEntries.map(([uid, user]) => memberDeletedRowHtml(uid, user)).join('');
   } else {
-    html += users
-      .sort(compareMemberEntries)
-      .map(([uid, u]) => {
-        const duplicateKey = `${normalizeMemberSearchText(u.businessName || u.name || '')}|${normalizeMemberSearchText(u.phone || '')}`;
-        const duplicateCount = duplicateCounts.get(duplicateKey) || 0;
-        const duplicateBadge = duplicateCount > 1
-          ? `<span style="display:inline-flex;align-items:center;margin-left:6px;padding:2px 7px;border-radius:999px;background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;font-size:11px;font-weight:800">중복 ${duplicateCount}</span>`
-          : '';
-        return `
-        <div class="member-card" onclick="openMemberEdit('${uid}')">
-          <div class="m-name">${bizNameWithAdminMemoHtml(u.businessName || '-', adminMemoValue(u))}${newMemberBadgeHtml(u)}${disposableLunchBadgeHtml(u)}${taxInvoiceBadgeHtml(u)}${duplicateBadge}</div>
-          <div class="m-info">연락처 ${escapeHtml(u.phone || '-')}</div>
-          <div class="m-info">이메일 ${escapeHtml(u.email || '-')}</div>
-          <div class="m-info">${escapeHtml(u.deliveryPlace || '배송지 미입력')}${u.mealTime ? ` · ${u.mealTime}` : ''}</div>
-          <div class="m-info">${u.sameDailyMeal === false ? '요일별 식수 설정됨' : `매일 도시락 ${u.defaultLunch ?? 2}개 · 샐러드 ${u.defaultSalad ?? 0}개`}${isDisposableLunchUser(u) ? ' · 일회용도시락' : ''}</div>
-          <div class="m-info">단가 ${formatMoney(userLunchPrice(u))} / ${formatMoney(userSaladPrice(u))}</div>
-          <div class="m-edit-hint">✏️ 수정하기</div>
-        </div>
-      `;
-      }).join('');
+    grid.innerHTML = visibleEntries.map(([uid, user]) => memberActiveRowHtml(uid, user, duplicateCounts)).join('');
   }
-  if (deleted.length > 0) {
-    html += `<div style="grid-column:1/-1;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;font-weight:700;color:var(--sub);margin-bottom:10px">삭제/탈퇴 회원 (${deleted.length}${query ? ` / 전체 ${allDeletedUsers.length}` : ''})</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">
-        ${deleted.map(([uid, u]) => `
-          <div style="background:#fdecea;border:1px solid #f5c6cb;border-radius:10px;padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:10px">
-            <div>
-              <div style="font-weight:600;color:var(--text)">${escapeHtml(u.businessName || u.email || '-')}</div>
-              <div style="color:var(--sub);font-size:12px">${escapeHtml(u.email || '')}</div>
-            </div>
-            <button onclick="restoreMember('${uid}')" style="background:var(--success);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">복구</button>
-          </div>
-        `).join('')}
-      </div>
-    </div>`;
-  }
-  grid.innerHTML = html;
+
+  const moreWrap = document.getElementById('member-load-more-wrap');
+  if (moreWrap) moreWrap.style.display = visibleEntries.length < matchingEntries.length ? 'flex' : 'none';
 }
 
 // 전체 회원 전화번호 엑셀 다운로드 (중복 번호 제거)
@@ -6150,6 +6560,8 @@ function openMemberEdit(uid) {
   document.getElementById('edit-uid').value = uid;
   document.getElementById('edit-bizname').value = u.businessName || '';
   document.getElementById('edit-phone').value = u.phone || '';
+  document.getElementById('edit-member-email').textContent = u.email || '-';
+  document.getElementById('edit-member-subtitle').textContent = [u.businessName || u.name || '고객', u.phone || '연락처 미입력'].join(' · ');
   document.getElementById('edit-place').value = u.deliveryPlace || u.address || '';
   document.getElementById('edit-place-detail').value = u.deliveryPlaceDetail || '';
   setMealTimeControls('edit', u.mealTime || '');
@@ -6166,6 +6578,8 @@ function openMemberEdit(uid) {
   document.getElementById('edit-disposable-lunch').checked = isDisposableLunchUser(u);
   document.getElementById('edit-error').classList.remove('show');
   document.getElementById('member-modal').classList.add('open');
+  const scroll = document.querySelector('#member-modal .member-edit-scroll');
+  if (scroll) scroll.scrollTop = 0;
 }
 
 function openOrderMemberInfo(uid) {
@@ -6180,10 +6594,10 @@ function openOrderMemberInfo(uid) {
     return;
   }
   if (deletedUsers[uid]) {
-    showToast('삭제/탈퇴 회원입니다. 회원관리 검색에서 복구 후 수정할 수 있습니다.');
+    showToast('삭제/탈퇴 고객입니다. 고객관리의 삭제회원 필터에서 복구 후 수정할 수 있습니다.');
     return;
   }
-  showToast('회원 정보가 없는 주문입니다.');
+  showToast('고객 정보가 없는 주문입니다.');
 }
 
 // ── 일괄 배송 입력 ──
@@ -6573,7 +6987,7 @@ async function saveMember() {
     closeMemberModal();
     renderMembers();
     loadOrders();
-    showToast('✅ 회원정보가 저장되었습니다.');
+    showToast('✅ 고객정보가 저장되었습니다.');
   } catch(e) {
     const errEl = document.getElementById('edit-error');
     errEl.textContent = '저장 실패: ' + e.message;
