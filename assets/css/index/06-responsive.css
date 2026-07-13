@@ -220,6 +220,9 @@
   /* ── 주문 매출 정산 ── */
   .sales-toolbar{align-items:stretch;flex-direction:column;}
   .sales-toolbar-controls{display:grid;grid-template-columns:1fr 1fr;width:100%;}
+  .sales-month-nav{grid-column:1/-1;display:grid;grid-template-columns:36px minmax(0,1fr) 36px auto;width:100%;}
+  .sales-month-nav .date-nav-btn{width:36px;height:36px;}
+  .sales-month-nav .date-today-btn{min-height:36px;padding:5px 10px;}
   .sales-toolbar-controls #salesMonth,.sales-toolbar-controls #salesSource,.sales-toolbar-controls #salesAmountState,.sales-toolbar-controls #salesSort,.sales-toolbar-controls #salesQuery{width:100%;min-width:0;}
   .sales-toolbar-controls #salesQuery{grid-column:1/-1;}
   .sales-summary-grid{grid-template-columns:1fr 1fr;gap:8px;}

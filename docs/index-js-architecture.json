@@ -17,18 +17,18 @@
   ],
   "summary": {
     "files": 12,
-    "normalizedBytes": 296364,
-    "lines": 6887,
-    "functionDeclarations": 397,
-    "uniqueCallableGlobals": 369,
+    "normalizedBytes": 296818,
+    "lines": 6897,
+    "functionDeclarations": 398,
+    "uniqueCallableGlobals": 370,
     "explicitWindowExports": 22,
     "globalStateDeclarations": 62,
     "privateStateDeclarations": 3,
     "asyncFunctions": 56,
     "crossFileCallRelationships": 134,
     "firestoreAccessPoints": 31,
-    "inlineHandlerAttributes": 154,
-    "inlineHandlerFunctionNames": 80
+    "inlineHandlerAttributes": 156,
+    "inlineHandlerFunctionNames": 81
   },
   "files": [
     {
@@ -137,8 +137,8 @@
     },
     {
       "path": "assets/js/order-settlement.js",
-      "metrics": { "bytes": 10279, "lines": 235, "functionDeclarations": 15, "asyncFunctions": 0 },
-      "globalsDefined": ["normalizeOrderAmount", "imwebOrderAmount", "orderAmountValue", "orderSalesDateValue", "orderSalesRootNumber", "orderSalesGroupKey", "orderSalesSource", "orderSalesSourceGroup", "buildOrderSalesRows", "summarizeOrderSales", "orderSalesWon", "orderSalesSourceLabel", "resetOrderSettlementMonth", "resetOrderSettlementFilters", "renderOrderSettlement"],
+      "metrics": { "bytes": 10733, "lines": 245, "functionDeclarations": 16, "asyncFunctions": 0 },
+      "globalsDefined": ["normalizeOrderAmount", "imwebOrderAmount", "orderAmountValue", "orderSalesDateValue", "orderSalesRootNumber", "orderSalesGroupKey", "orderSalesSource", "orderSalesSourceGroup", "buildOrderSalesRows", "summarizeOrderSales", "orderSalesWon", "orderSalesSourceLabel", "moveOrderSettlementMonth", "resetOrderSettlementMonth", "resetOrderSettlementFilters", "renderOrderSettlement"],
       "requiredDefinitions": ["normalizeOrderAmount", "imwebOrderAmount", "buildOrderSalesRows", "summarizeOrderSales", "renderOrderSettlement"],
       "globalsConsumed": ["custs", "productLabel", "customerOrderDateInputValue", "todayStr", "escHtml", "customerJsArg", "statusLabel", "openEdit"],
       "globalState": ["ORDER_SOURCE_LABELS"],
@@ -253,7 +253,7 @@
     { "name": "customerOrderTypeLabel", "normalizedBodySha256": "09e170f12c211aae70652b5e5e9ae9d76cd8cd6faf151061b0af1041af1a7eeb" },
     { "name": "customerOrderTypeBadge", "normalizedBodySha256": "5720ae22153390cba7b08fa107d53df1e6268155fa4fb3ed79ef4addeabaaba9" }
   ],
-  "requiredInlineGlobals": ["doLogin", "doLogout", "goTab", "toggleTheme", "openM", "closeM", "saveNew", "saveEdit", "delCust", "confirmPause", "moveDashDate", "resetDashDate", "moveTodayDate", "resetTodayDate", "setView", "moveReport", "resetReport", "renderDash", "renderToday", "renderCust", "renderRouteMap", "renderOrderSettlement", "resetOrderSettlementMonth", "resetOrderSettlementFilters", "genExport", "parseText", "saveParsed", "regXl", "sendSelectedLogenOrders", "sendUnsentLogenOrders", "inquireLogenSlipNos", "saveNoticeMemo"],
+  "requiredInlineGlobals": ["doLogin", "doLogout", "goTab", "toggleTheme", "openM", "closeM", "saveNew", "saveEdit", "delCust", "confirmPause", "moveDashDate", "resetDashDate", "moveTodayDate", "resetTodayDate", "setView", "moveReport", "resetReport", "renderDash", "renderToday", "renderCust", "renderRouteMap", "moveOrderSettlementMonth", "renderOrderSettlement", "resetOrderSettlementMonth", "resetOrderSettlementFilters", "genExport", "parseText", "saveParsed", "regXl", "sendSelectedLogenOrders", "sendUnsentLogenOrders", "inquireLogenSlipNos", "saveNoticeMemo"],
   "duplicateDefinitions": [
     { "name": "renderCust", "file": "assets/js/rendering.js", "declarations": 3, "effective": "last declaration" },
     { "name": "showCustomerGroup", "file": "assets/js/rendering.js", "declarations": 2, "effective": "last declaration" },

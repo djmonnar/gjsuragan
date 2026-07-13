@@ -203,6 +203,9 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 .sales-toolbar{align-items:flex-start;gap:14px;}
 .sales-toolbar-note{font-size:11px;color:var(--text3);margin-top:5px;}
 .sales-toolbar-controls{display:flex;gap:7px;align-items:center;justify-content:flex-end;flex-wrap:wrap;}
+.sales-month-nav{display:flex;align-items:center;gap:6px;}
+.sales-month-nav .date-nav-btn{width:36px;height:36px;font-size:18px;}
+.sales-month-nav .date-today-btn{height:36px;white-space:nowrap;cursor:pointer;}
 .sales-toolbar-controls #salesMonth{width:145px;}
 .sales-toolbar-controls #salesSource,.sales-toolbar-controls #salesAmountState,.sales-toolbar-controls #salesSort{width:125px;}
 .sales-toolbar-controls #salesQuery{width:210px;}

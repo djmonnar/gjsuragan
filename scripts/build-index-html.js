@@ -154,7 +154,7 @@ function validateGenerated(buffer) {
   if (!sameValues(modalIds, expectedModalIds)) fail('modal id list or order changed');
 
   const inlineEventCount = countMatches(source, /\son[a-z]+\s*=/gi);
-  if (inlineEventCount !== 154) fail(`inline event count is ${inlineEventCount}; expected 154`);
+  if (inlineEventCount !== 156) fail(`inline event count is ${inlineEventCount}; expected 156`);
 
   const scriptSources = [...source.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/gi)]
     .map(match => match[1]);

@@ -23,7 +23,7 @@ The current order is part of the application contract.
 | 4 | `schedule-report.js` | 371 | 17,010 | 37 | Date/schedule/report calculation and final delivery policy |
 | 5 | `rendering-formatters.js` | 55 | 1,736 | 10 | Pure text, badge and order-label formatters |
 | 6 | `rendering.js` | 1,758 | 87,991 | 90 | Dashboard, delivery, customer and modal rendering |
-| 7 | `order-settlement.js` | 235 | 10,279 | 15 | Order amount normalization, grouping and monthly sales rendering |
+| 7 | `order-settlement.js` | 245 | 10,733 | 16 | Order amount normalization, grouping and monthly sales rendering |
 | 8 | `route-map.js` | 762 | 28,321 | 43 | Route page, geocoding cache, map and route proxy |
 | 9 | `import-export.js` | 915 | 44,121 | 39 | Text/XLSX import, previews and export |
 | 10 | `logen.js` | 296 | 12,449 | 27 | Logen registration and slip lookup UI |

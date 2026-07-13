@@ -159,6 +159,16 @@ function orderSalesSourceLabel(source){
   return ORDER_SOURCE_LABELS[source] || ORDER_SOURCE_LABELS.unknown;
 }
 
+function moveOrderSettlementMonth(delta){
+  const input = document.getElementById('salesMonth');
+  if(!input) return;
+  const current = /^\d{4}-\d{2}$/.test(input.value) ? input.value : todayStr().slice(0,7);
+  const [year,month] = current.split('-').map(Number);
+  const target = new Date(year, month - 1 + Number(delta || 0), 1);
+  input.value = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2,'0')}`;
+  renderOrderSettlement();
+}
+
 function resetOrderSettlementMonth(){
   const input = document.getElementById('salesMonth');
   if(input) input.value = todayStr().slice(0,7);

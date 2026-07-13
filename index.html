@@ -474,8 +474,12 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
       <div class="sales-toolbar-note">배송 횟수가 아닌 주문일·주문번호 기준 매출입니다.</div>
     </div>
     <div class="sales-toolbar-controls">
-      <input type="month" class="inp inp-sm" id="salesMonth" onchange="renderOrderSettlement()">
-      <button class="btn btn-g sm" onclick="resetOrderSettlementMonth()">이번 달</button>
+      <div class="sales-month-nav" aria-label="정산월 이동">
+        <button class="date-nav-btn" type="button" onclick="moveOrderSettlementMonth(-1)" aria-label="이전 달" title="이전 달">‹</button>
+        <input type="month" class="inp inp-sm" id="salesMonth" aria-label="정산월" onchange="renderOrderSettlement()">
+        <button class="date-nav-btn" type="button" onclick="moveOrderSettlementMonth(1)" aria-label="다음 달" title="다음 달">›</button>
+        <button class="date-today-btn" type="button" onclick="resetOrderSettlementMonth()">이번 달</button>
+      </div>
       <select class="inp inp-sm" id="salesSource" onchange="renderOrderSettlement()">
         <option value="">전체 유입</option>
         <option value="imweb">아임웹</option>
