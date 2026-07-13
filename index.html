@@ -135,6 +135,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
     <!-- 통계 카드 -->
     <div class="stat-grid">
       <div class="sc"><div class="stat-icon stat-icon-customers">CS</div><div class="sl">전체 고객</div><div class="sv"><span id="s0">0</span><small>명</small></div><div class="ss">등록 고객</div></div>
+      <div class="sc"><div class="stat-icon stat-icon-orders">OR</div><div class="sl">누적 주문</div><div class="sv"><span id="s6">0</span><small>건</small></div><div class="ss">전체 주문 내역</div></div>
       <div class="sc ca"><div class="stat-icon stat-icon-active">ON</div><div class="sl">활성 구독</div><div class="sv"><span id="s1">0</span><small>명</small></div><div class="ss">정기배송 고객</div></div>
       <div class="sc cd"><div class="stat-icon stat-icon-today">DV</div><div class="sl" id="dash-date-lbl">오늘 배송</div><div class="sv"><span id="s2">0</span><small>건</small></div><div class="ss">선택일 출고</div></div>
       <div class="sc ci"><div class="stat-icon stat-icon-week">WK</div><div class="sl">이번 주</div><div class="sv"><span id="s3">0</span><small>건</small></div><div class="ss">7일 배송 예정</div></div>
@@ -473,8 +474,12 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
       <div class="sales-toolbar-note">배송 횟수가 아닌 주문일·주문번호 기준 매출입니다.</div>
     </div>
     <div class="sales-toolbar-controls">
-      <input type="month" class="inp inp-sm" id="salesMonth" onchange="renderOrderSettlement()">
-      <button class="btn btn-g sm" onclick="resetOrderSettlementMonth()">이번 달</button>
+      <div class="sales-month-nav" aria-label="정산월 이동">
+        <button class="date-nav-btn" type="button" onclick="moveOrderSettlementMonth(-1)" aria-label="이전 달" title="이전 달">‹</button>
+        <input type="month" class="inp inp-sm" id="salesMonth" aria-label="정산월" onchange="renderOrderSettlement()">
+        <button class="date-nav-btn" type="button" onclick="moveOrderSettlementMonth(1)" aria-label="다음 달" title="다음 달">›</button>
+        <button class="date-today-btn" type="button" onclick="resetOrderSettlementMonth()">이번 달</button>
+      </div>
       <select class="inp inp-sm" id="salesSource" onchange="renderOrderSettlement()">
         <option value="">전체 유입</option>
         <option value="imweb">아임웹</option>

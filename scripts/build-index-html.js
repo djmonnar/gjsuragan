@@ -143,7 +143,7 @@ function validateGenerated(buffer) {
   }
 
   const ids = [...source.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
-  if (ids.length !== 243) fail(`DOM id count is ${ids.length}; expected 243`);
+  if (ids.length !== 244) fail(`DOM id count is ${ids.length}; expected 244`);
   const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
   if (duplicates.length) fail(`duplicate DOM ids: ${[...new Set(duplicates)].join(', ')}`);
 
@@ -154,7 +154,7 @@ function validateGenerated(buffer) {
   if (!sameValues(modalIds, expectedModalIds)) fail('modal id list or order changed');
 
   const inlineEventCount = countMatches(source, /\son[a-z]+\s*=/gi);
-  if (inlineEventCount !== 154) fail(`inline event count is ${inlineEventCount}; expected 154`);
+  if (inlineEventCount !== 156) fail(`inline event count is ${inlineEventCount}; expected 156`);
 
   const scriptSources = [...source.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/gi)]
     .map(match => match[1]);

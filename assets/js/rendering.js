@@ -294,7 +294,10 @@ function renderDash(){
   const tmrList = listFor(tmrStr);
   const tmrDirectList = tmrList.filter(c=>c.isDirect);
   const tmrCourierList = tmrList.filter(c=>!c.isDirect);
-  s('s0',custs.length); s('s1',custs.filter(c=>c.orderType==='sub'&&c.status==='active').length);
+  const customerGroups = customerBuildGroups(custs);
+  s('s0',customerGroups.length);
+  s('s6',custs.length);
+  s('s1',customerGroups.filter(g=>g.orders.some(c=>c.orderType==='sub'&&c.status==='active')).length);
   s('s2',tl.length); s('s3',wk); s('s4',tmrList.length);
   const pausedList = custs.filter(c=>c.status==='pause');
   s('s5', pausedList.length);

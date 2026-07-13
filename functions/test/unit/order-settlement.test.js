@@ -70,3 +70,17 @@ test('conflicting amounts for one order are excluded from sales until reviewed',
   assert.equal(rows[0].amount, null);
   assert.equal(sandbox.summarizeOrderSales(rows).missingOrders, 1);
 });
+
+test('settlement month navigation crosses year boundaries and rerenders', () => {
+  const monthInput = {value:'2026-01'};
+  let renderCount = 0;
+  sandbox.document = {getElementById:id => id === 'salesMonth' ? monthInput : null};
+  sandbox.todayStr = () => '2026-07-13';
+  sandbox.renderOrderSettlement = () => { renderCount++; };
+
+  sandbox.moveOrderSettlementMonth(-1);
+  assert.equal(monthInput.value, '2025-12');
+  sandbox.moveOrderSettlementMonth(1);
+  assert.equal(monthInput.value, '2026-01');
+  assert.equal(renderCount, 2);
+});
