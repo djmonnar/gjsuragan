@@ -17,8 +17,8 @@
   ],
   "summary": {
     "files": 12,
-    "normalizedBytes": 296249,
-    "lines": 6884,
+    "normalizedBytes": 296364,
+    "lines": 6887,
     "functionDeclarations": 397,
     "uniqueCallableGlobals": 369,
     "explicitWindowExports": 22,
@@ -120,7 +120,7 @@
     },
     {
       "path": "assets/js/rendering.js",
-      "metrics": { "bytes": 87876, "lines": 1755, "functionDeclarations": 90, "asyncFunctions": 5 },
+      "metrics": { "bytes": 87991, "lines": 1758, "functionDeclarations": 90, "asyncFunctions": 5 },
       "globalsDefined": ["refreshAll", "renderDash", "renderToday", "renderCust", "renderCancelLogs", "toggleCancelPopover", "closeCancelPopover", "printCourierList", "printDirectList", "printAllDeliveryList", "markAllDirect", "markAllCourier", "showDet", "showCustomerGroup", "customerGroupOrderSummary", "editOnceDate", "resetCustomerFilters", "setCustomerQuickFilter", "showMoreCustomers", "customerCopyText", "closeCustomerDetail", "customerGroupQuickMatches", "customerGroupCounts", "updateCustomerOverview"],
       "requiredDefinitions": ["refreshAll", "renderDash", "renderToday", "renderCust", "renderCancelLogs", "printAllDeliveryList", "markAllDirect", "markAllCourier", "showCustomerGroup"],
       "globalsConsumed": ["custs", "cancelLogs", "escHtml", "firstOrderBadgeHtml", "customerText", "customerJsArg", "customerPhoneDigits", "customerTimestampMs", "customerNewBadgeHtml", "customerProductKey", "customerOrderTypeLabel", "customerOrderTypeBadge", "productLabel", "productBadgeClass", "customerOrderDateInputValue", "chargeRemain", "togglePause", "cancelPendingSchedule", "runDeliveryTransaction", "showAddrModal", "quickDelete", "markDone", "undoMarkDone", "todayStr", "isDeliv", "listFor", "addDays", "updateDashDisp", "updateTodayDisp", "renderRouteMap", "renderOrderSettlement", "logenStatusBadgeHtml", "logenSlipNoHtml", "logenActionHtml", "logenCourierSummaryHtml", "gauge", "scheduleDisp", "copyLozen", "statusLabel", "shortDate", "s", "openEdit", "copyOrder", "goTab", "toast"],
