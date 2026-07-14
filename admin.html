@@ -894,6 +894,26 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .member-modal-actions{flex:0 0 auto;margin:0;padding:12px 20px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:rgba(255,255,255,.97);box-shadow:0 -8px 22px rgba(15,23,42,.07)}
 .member-modal-actions .secondary-btn{min-height:42px}
 
+/* 고객 앱 팝업 공지 */
+.customer-popup-admin{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr);gap:16px;align-items:start}
+.customer-popup-form{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}
+.customer-popup-form .form-label{display:block;margin-bottom:6px}
+.customer-popup-form .form-input,.customer-popup-form .form-textarea{width:100%;margin-bottom:12px}
+.customer-popup-form .form-textarea{min-height:132px;white-space:pre-wrap}
+.customer-popup-form-status{display:flex;align-items:flex-start;gap:9px;margin:2px 0 14px;font-size:13px;font-weight:800;color:var(--text);cursor:pointer}
+.customer-popup-form-status input{width:18px;height:18px;margin:0;accent-color:var(--primary)}
+.customer-popup-notice-list{display:grid;gap:10px}
+.customer-popup-notice-card{border:1px solid var(--border);border-radius:12px;background:#fff;padding:15px;box-shadow:var(--shadow)}
+.customer-popup-notice-card.is-disabled{background:#f8fafc;opacity:.78}
+.customer-popup-notice-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:9px}
+.customer-popup-notice-title{font-size:15px;font-weight:900;color:var(--text);line-height:1.4}
+.customer-popup-notice-state{display:inline-flex;align-items:center;white-space:nowrap;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:900;background:#ecfdf3;color:#157347;border:1px solid #bbf7d0}
+.customer-popup-notice-state.off{background:#f1f5f9;color:#64748b;border-color:#dbe2ea}
+.customer-popup-notice-content{font-size:13px;color:var(--sub);line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:11px}
+.customer-popup-notice-meta{font-size:11px;color:#94a3b8;margin-bottom:10px}
+.customer-popup-notice-actions{display:flex;gap:7px;flex-wrap:wrap}
+.customer-popup-empty{border:1px dashed var(--border);border-radius:12px;padding:24px 16px;text-align:center;color:var(--sub);background:#fafafa;font-size:13px;line-height:1.6}
+
 @media(max-width:900px){
   .member-list-head,.member-row-main{grid-template-columns:minmax(170px,1fr) minmax(150px,.85fr) minmax(220px,1.2fr) minmax(145px,.75fr) 58px}
   .member-list-head span:nth-child(5),.member-row-main .member-price{display:none}
@@ -938,6 +958,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   .member-toggle-help{text-align:left}
   .member-modal-actions{padding-left:16px;padding-right:16px}
   .member-modal-actions .danger-btn{order:-1;flex:0 0 auto}
+  .customer-popup-admin{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -1581,6 +1602,34 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     </div>
     <div class="panel" style="margin-bottom:14px">
       <div style="font-weight:700;color:var(--primary);margin-bottom:16px">⚙️ 설정</div>
+
+      <!-- 고객 앱 팝업 공지 -->
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px">고객 팝업 공지</div>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px">
+        월식 고객이 로그인할 때 보여줄 행사·휴무 안내입니다. 여러 공지를 켜두면 한 팝업에 함께 표시됩니다.
+      </div>
+      <div class="customer-popup-admin">
+        <div class="customer-popup-form">
+          <input type="hidden" id="customer-popup-edit-id">
+          <label class="form-label" for="customer-popup-title">제목</label>
+          <input class="form-input" type="text" id="customer-popup-title" maxlength="60" placeholder="예: 여름휴가 배송 안내">
+          <label class="form-label" for="customer-popup-content">내용</label>
+          <textarea class="form-textarea" id="customer-popup-content" maxlength="1000" placeholder="고객에게 안내할 내용을 입력해주세요."></textarea>
+          <label class="customer-popup-form-status">
+            <input type="checkbox" id="customer-popup-enabled" checked>
+            <span>등록 즉시 고객 팝업에 노출</span>
+          </label>
+          <div class="inline-actions">
+            <button class="save-btn" id="customer-popup-save-btn" type="button" style="width:auto;margin:0" onclick="saveCustomerPopupNotice()">공지 등록</button>
+            <button class="secondary-btn" id="customer-popup-cancel-btn" type="button" style="display:none" onclick="resetCustomerPopupNoticeForm()">수정 취소</button>
+          </div>
+        </div>
+        <div id="customer-popup-notice-list" class="customer-popup-notice-list">
+          <div class="customer-popup-empty">공지 목록을 불러오는 중입니다.</div>
+        </div>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:24px 0 20px">
 
       <!-- 주문 마감 시간 -->
       <div style="font-size:14px;font-weight:700;margin-bottom:10px">주문 마감 시간</div>
@@ -2499,6 +2548,8 @@ const MEAL_TIME_OPTIONS = [
   '12:00','12:10','12:20','12:30'
 ];
 let customHolidays = {};
+let customerPopupNotices = [];
+let customerPopupNoticesLoaded = false;
 const KOREA_HOLIDAYS = {
   '2026-01-01': '신정',
   '2026-02-16': '설 연휴',
@@ -10546,6 +10597,185 @@ function renderSettingsTab() {
   renderSettlementSheetNoteSettings();
   renderCustomHolidayList();
   renderLegalHolidayList();
+  renderCustomerPopupNotices();
+  if (!customerPopupNoticesLoaded) loadCustomerPopupNotices();
+}
+
+function normalizeCustomerPopupNotice(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const id = String(raw.id || '').trim();
+  const title = String(raw.title || '').trim();
+  const content = String(raw.content || '').trim();
+  if (!id || !title || !content) return null;
+  return {
+    id,
+    title: title.slice(0, 60),
+    content: content.slice(0, 1000),
+    enabled: raw.enabled === true,
+    createdAt: String(raw.createdAt || ''),
+    updatedAt: String(raw.updatedAt || raw.createdAt || '')
+  };
+}
+
+function newCustomerPopupNoticeId() {
+  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') return globalThis.crypto.randomUUID();
+  return `notice-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+async function loadCustomerPopupNotices() {
+  const listEl = document.getElementById('customer-popup-notice-list');
+  if (listEl) listEl.innerHTML = '<div class="customer-popup-empty">공지 목록을 불러오는 중입니다.</div>';
+  try {
+    const snap = await db.collection('config').doc('customerPopupNotices').get();
+    customerPopupNotices = snap.exists
+      ? (Array.isArray(snap.data().notices) ? snap.data().notices : []).map(normalizeCustomerPopupNotice).filter(Boolean)
+      : [];
+    customerPopupNoticesLoaded = true;
+    renderCustomerPopupNotices();
+  } catch(e) {
+    console.error('고객 팝업 공지 로드 실패:', e);
+    if (listEl) listEl.innerHTML = '<div class="customer-popup-empty">공지 목록을 불러오지 못했습니다.<br>잠시 후 설정 탭을 다시 열어주세요.</div>';
+  }
+}
+
+function customerPopupNoticeDateLabel(value) {
+  if (!value) return '저장 시각 없음';
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return '저장 시각 없음';
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  }).format(dt);
+}
+
+function renderCustomerPopupNotices() {
+  const el = document.getElementById('customer-popup-notice-list');
+  if (!el) return;
+  if (!customerPopupNoticesLoaded) {
+    el.innerHTML = '<div class="customer-popup-empty">공지 목록을 불러오는 중입니다.</div>';
+    return;
+  }
+  const notices = [...customerPopupNotices].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  if (!notices.length) {
+    el.innerHTML = '<div class="customer-popup-empty">등록된 고객 공지가 없습니다.<br>왼쪽에서 첫 공지를 작성해주세요.</div>';
+    return;
+  }
+  el.innerHTML = notices.map(notice => `
+    <article class="customer-popup-notice-card${notice.enabled ? '' : ' is-disabled'}">
+      <div class="customer-popup-notice-head">
+        <div class="customer-popup-notice-title">${escapeHtml(notice.title)}</div>
+        <span class="customer-popup-notice-state${notice.enabled ? '' : ' off'}">${notice.enabled ? '노출 중' : '노출 안 함'}</span>
+      </div>
+      <div class="customer-popup-notice-content">${escapeHtml(notice.content)}</div>
+      <div class="customer-popup-notice-meta">최근 저장 ${escapeHtml(customerPopupNoticeDateLabel(notice.updatedAt))}</div>
+      <div class="customer-popup-notice-actions">
+        <button class="secondary-btn" type="button" onclick="toggleCustomerPopupNotice('${jsString(notice.id)}')">${notice.enabled ? '노출 끄기' : '노출 켜기'}</button>
+        <button class="secondary-btn" type="button" onclick="editCustomerPopupNotice('${jsString(notice.id)}')">수정</button>
+        <button class="danger-btn" type="button" onclick="deleteCustomerPopupNotice('${jsString(notice.id)}')">삭제</button>
+      </div>
+    </article>`).join('');
+}
+
+async function persistCustomerPopupNotices(successMessage) {
+  await db.collection('config').doc('customerPopupNotices').set({
+    notices: customerPopupNotices,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: auth.currentUser?.email || ''
+  }, { merge: true });
+  renderCustomerPopupNotices();
+  if (successMessage) showToast(successMessage);
+}
+
+async function saveCustomerPopupNotice() {
+  const idEl = document.getElementById('customer-popup-edit-id');
+  const titleEl = document.getElementById('customer-popup-title');
+  const contentEl = document.getElementById('customer-popup-content');
+  const enabledEl = document.getElementById('customer-popup-enabled');
+  const title = titleEl?.value.trim() || '';
+  const content = contentEl?.value.trim() || '';
+  const editId = idEl?.value || '';
+  if (!title) return showToast('공지 제목을 입력해주세요.');
+  if (!content) return showToast('공지 내용을 입력해주세요.');
+  const now = new Date().toISOString();
+  const existingIndex = customerPopupNotices.findIndex(item => item.id === editId);
+  if (editId && existingIndex < 0) return showToast('수정할 공지를 찾지 못했습니다. 목록을 새로 불러와주세요.');
+  const next = {
+    id: editId || newCustomerPopupNoticeId(),
+    title: title.slice(0, 60),
+    content: content.slice(0, 1000),
+    enabled: enabledEl?.checked === true,
+    createdAt: existingIndex >= 0 ? customerPopupNotices[existingIndex].createdAt : now,
+    updatedAt: now
+  };
+  const previous = [...customerPopupNotices];
+  if (existingIndex >= 0) customerPopupNotices.splice(existingIndex, 1, next);
+  else customerPopupNotices.push(next);
+  try {
+    await persistCustomerPopupNotices(existingIndex >= 0 ? '고객 팝업 공지를 수정했습니다.' : '고객 팝업 공지를 등록했습니다.');
+    resetCustomerPopupNoticeForm();
+  } catch(e) {
+    customerPopupNotices = previous;
+    renderCustomerPopupNotices();
+    console.error('고객 팝업 공지 저장 실패:', e);
+    showToast('공지 저장 실패: ' + e.message);
+  }
+}
+
+function editCustomerPopupNotice(id) {
+  const notice = customerPopupNotices.find(item => item.id === id);
+  if (!notice) return showToast('수정할 공지를 찾지 못했습니다.');
+  document.getElementById('customer-popup-edit-id').value = notice.id;
+  document.getElementById('customer-popup-title').value = notice.title;
+  document.getElementById('customer-popup-content').value = notice.content;
+  document.getElementById('customer-popup-enabled').checked = notice.enabled;
+  document.getElementById('customer-popup-save-btn').textContent = '수정 저장';
+  document.getElementById('customer-popup-cancel-btn').style.display = 'inline-flex';
+  document.getElementById('customer-popup-title').focus();
+  document.getElementById('customer-popup-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetCustomerPopupNoticeForm() {
+  document.getElementById('customer-popup-edit-id').value = '';
+  document.getElementById('customer-popup-title').value = '';
+  document.getElementById('customer-popup-content').value = '';
+  document.getElementById('customer-popup-enabled').checked = true;
+  document.getElementById('customer-popup-save-btn').textContent = '공지 등록';
+  document.getElementById('customer-popup-cancel-btn').style.display = 'none';
+}
+
+async function toggleCustomerPopupNotice(id) {
+  const index = customerPopupNotices.findIndex(item => item.id === id);
+  if (index < 0) return showToast('공지를 찾지 못했습니다.');
+  const previous = [...customerPopupNotices];
+  customerPopupNotices[index] = {
+    ...customerPopupNotices[index],
+    enabled: !customerPopupNotices[index].enabled,
+    updatedAt: new Date().toISOString()
+  };
+  renderCustomerPopupNotices();
+  try {
+    await persistCustomerPopupNotices(customerPopupNotices[index].enabled ? '고객 팝업 노출을 켰습니다.' : '고객 팝업 노출을 껐습니다.');
+  } catch(e) {
+    customerPopupNotices = previous;
+    renderCustomerPopupNotices();
+    showToast('노출 상태 변경 실패: ' + e.message);
+  }
+}
+
+async function deleteCustomerPopupNotice(id) {
+  const notice = customerPopupNotices.find(item => item.id === id);
+  if (!notice) return showToast('삭제할 공지를 찾지 못했습니다.');
+  if (!confirm(`“${notice.title}” 공지를 삭제할까요?`)) return;
+  const previous = [...customerPopupNotices];
+  customerPopupNotices = customerPopupNotices.filter(item => item.id !== id);
+  renderCustomerPopupNotices();
+  try {
+    await persistCustomerPopupNotices('고객 팝업 공지를 삭제했습니다.');
+    if (document.getElementById('customer-popup-edit-id').value === id) resetCustomerPopupNoticeForm();
+  } catch(e) {
+    customerPopupNotices = previous;
+    renderCustomerPopupNotices();
+    showToast('공지 삭제 실패: ' + e.message);
+  }
 }
 
 function renderCustomHolidayList() {
