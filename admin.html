@@ -191,6 +191,43 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .settle-sheet-note{margin-top:14px;border:1px solid #d1d5db;border-radius:8px;padding:12px;background:#fffdf8;font-size:13px}
 .settle-sheet-note-title{font-weight:900;margin-bottom:5px;color:#7B3F1A}
 .settle-check{width:16px;height:16px;cursor:pointer}
+.settlement-desktop-table{overflow-x:auto}
+.settlement-mobile-list{display:none}
+.settlement-mobile-card{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+.settlement-mobile-card-head{display:flex;align-items:flex-start;gap:10px;padding:14px 14px 12px;border-bottom:1px solid var(--border)}
+.settlement-mobile-card-head .settle-check{flex:0 0 auto;margin-top:3px;width:19px;height:19px}
+.settlement-mobile-card-title{min-width:0;flex:1}
+.settlement-mobile-card-name{font-size:16px;font-weight:900;color:var(--text);line-height:1.35;word-break:keep-all}
+.settlement-mobile-card-sub{margin-top:3px;font-size:12px;font-weight:700;color:var(--sub);line-height:1.4}
+.settlement-mobile-card-body{padding:13px 14px 14px}
+.settlement-mobile-money{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px}
+.settlement-mobile-money-box{min-width:0;border-radius:10px;background:#f8fafc;border:1px solid #e5e7eb;padding:10px}
+.settlement-mobile-money-box.balance{background:#fff8f6;border-color:#fed7cc}
+.settlement-mobile-money-label{display:block;font-size:11px;font-weight:800;color:var(--sub);margin-bottom:4px}
+.settlement-mobile-money-value{display:block;font-size:18px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.settlement-mobile-money-box.balance .settlement-mobile-money-value{color:#c0392b}
+.settlement-mobile-money-box.balance.settled{background:#f0fdf4;border-color:#bbf7d0}
+.settlement-mobile-money-box.balance.settled .settlement-mobile-money-value{color:#1e6e40}
+.settlement-mobile-items{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px}
+.settlement-mobile-item{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:5px 9px;background:#f8fafc;border:1px solid var(--border);font-size:12px;font-weight:800;color:#475467;white-space:nowrap}
+.settlement-mobile-item strong{color:var(--primary);font-size:13px}
+.settlement-mobile-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.settlement-mobile-meta-item{min-width:0}
+.settlement-mobile-meta-label{display:block;font-size:11px;font-weight:800;color:var(--sub);margin-bottom:3px}
+.settlement-mobile-meta-value{display:block;font-size:13px;font-weight:800;color:var(--text);line-height:1.45;overflow-wrap:anywhere}
+.settlement-mobile-note{border-radius:9px;background:#fffbeb;border:1px solid #fde68a;padding:9px 10px;margin-bottom:10px;font-size:12px;font-weight:700;color:#92400e;line-height:1.5;overflow-wrap:anywhere}
+.settlement-mobile-note.empty{background:#f8fafc;border-color:var(--border);color:var(--sub)}
+.settlement-mobile-breakdown{margin:0 0 10px;border:1px solid var(--border);border-radius:9px;background:#f8fafc;overflow:hidden}
+.settlement-mobile-breakdown summary{padding:9px 10px;cursor:pointer;font-size:12px;font-weight:900;color:var(--primary);list-style:none}
+.settlement-mobile-breakdown summary::-webkit-details-marker{display:none}
+.settlement-mobile-breakdown summary::after{content:' +';float:right}
+.settlement-mobile-breakdown[open] summary::after{content:' -'}
+.settlement-mobile-breakdown .breakdown-wrap{padding:8px;overflow-x:auto}
+.settlement-mobile-breakdown .breakdown-table{min-width:420px}
+.settlement-mobile-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.settlement-mobile-actions button{min-height:42px;border-radius:9px;font-size:13px;padding:9px 8px}
+.settlement-mobile-actions .danger-btn{grid-column:1/-1;background:#fff;border:1px solid #fecaca;color:#b91c1c}
+.settlement-mobile-empty{border:1px dashed #cbd5e1;border-radius:12px;background:#f8fafc;padding:28px 18px;text-align:center;color:var(--sub);font-size:13px;font-weight:700;line-height:1.55}
 .receipt-item-row{display:grid;grid-template-columns:1.5fr .7fr .85fr .95fr 42px;gap:8px;align-items:end;margin-bottom:8px}
 .receipt-item-row .form-input{margin-bottom:0}
 .copy-box{width:100%;min-height:180px;padding:12px;border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:13px;line-height:1.6;resize:vertical;background:#fafafa}
@@ -426,6 +463,29 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .settle-chart-card.donut-card{flex:none}
   .settle-header-bar{flex-direction:column;align-items:flex-start}
   .settle-filter-tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;width:100%}
+  .settlement-section>.panel{padding:12px}
+  .settle-month-picker{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+  .settle-month-picker>div{min-width:0}
+  .settle-month-picker .form-input{width:100%;min-height:44px}
+  .settle-month-picker .save-btn{min-height:44px;margin:0;padding-left:16px;padding-right:16px}
+  .settle-filter-tabs{margin-left:-2px;margin-right:-2px;scrollbar-width:none}
+  .settle-filter-tabs::-webkit-scrollbar{display:none}
+  .settle-tab-btn{flex:0 0 auto;min-height:39px;padding:8px 13px}
+  .settle-kpi-grid{gap:8px}
+  .settle-kpi-grid .summary-card{min-width:0;padding:12px}
+  .settle-kpi-grid .summary-label{font-size:11px;line-height:1.35}
+  .settle-kpi-grid .summary-value{font-size:20px;overflow-wrap:anywhere}
+  .settle-kpi-grid .summary-detail{white-space:normal;font-size:11px}
+  .settle-chart-card{padding:12px}
+  .settle-chart-heading{align-items:flex-start}
+  .settle-chart-modes{width:100%;flex-wrap:nowrap;overflow-x:auto}
+  .batch-toolbar{position:sticky;top:106px;z-index:20;align-items:stretch;padding:10px}
+  .batch-toolbar label{width:100%}
+  .batch-status-select{flex:1;min-width:0;min-height:42px}
+  .batch-apply-btn,.export-btn,.kakao-btn{min-height:42px;flex:1 1 calc(50% - 5px)}
+  .settlement-desktop-table{display:none}
+  .settlement-mobile-list{display:flex;flex-direction:column;gap:10px}
+  .settlement-section>.section-title{font-size:16px;margin-top:20px;margin-bottom:10px}
   .payment-row{grid-template-columns:1fr 1fr}
   .menu-import-row,.menu-import-list-head{grid-template-columns:1fr}
   .change-request-section{padding-left:16px;padding-right:16px}
@@ -1913,7 +1973,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 
     <!-- 업체별 정산 테이블 -->
     <div class="section-title">업체별 정산 내역</div>
-    <div style="overflow-x:auto">
+    <div class="settlement-desktop-table">
       <table class="order-table">
         <thead>
           <tr>
@@ -1937,20 +1997,28 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         </tbody>
       </table>
     </div>
+    <div class="settlement-mobile-list" id="settlement-mobile-list">
+      <div class="settlement-mobile-empty">정산월을 선택하고 불러오기를 눌러주세요.</div>
+    </div>
 
     <!-- 행사도시락 정산 테이블 -->
     <div class="section-title" style="margin-top:18px">🎉 행사도시락 정산 내역</div>
-    <table class="order-table">
-      <thead>
-        <tr>
-          <th style="width:36px;text-align:center">선택</th>
-          <th>날짜</th><th>시간</th><th>행사도시락</th><th style="text-align:center">갯수</th><th>단가</th><th>청구액</th><th>청구서번호</th><th>납부기한</th><th>잔액</th><th>상태</th><th>메모</th><th>관리</th>
-        </tr>
-      </thead>
-      <tbody id="settlement-event-tbody">
-        <tr class="no-order-row"><td colspan="13">행사도시락 내역이 없습니다.</td></tr>
-      </tbody>
-    </table>
+    <div class="settlement-desktop-table">
+      <table class="order-table">
+        <thead>
+          <tr>
+            <th style="width:36px;text-align:center">선택</th>
+            <th>날짜</th><th>시간</th><th>행사도시락</th><th style="text-align:center">갯수</th><th>단가</th><th>청구액</th><th>청구서번호</th><th>납부기한</th><th>잔액</th><th>상태</th><th>메모</th><th>관리</th>
+          </tr>
+        </thead>
+        <tbody id="settlement-event-tbody">
+          <tr class="no-order-row"><td colspan="13">행사도시락 내역이 없습니다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="settlement-mobile-list" id="settlement-event-mobile-list">
+      <div class="settlement-mobile-empty">행사도시락 내역이 없습니다.</div>
+    </div>
 
     <!-- 행사도시락 개수 (숨김 요소, 기존 호환) -->
     <span id="settle-event-total" style="display:none">0</span>
@@ -9241,12 +9309,148 @@ async function loadSettlements() {
   } catch(e) {
     tbody.innerHTML = `<tr class="no-order-row"><td colspan="13">정산 계산 실패: ${escapeHtml(e.message)}</td></tr>`;
     eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">행사도시락 내역을 불러오지 못했습니다.</td></tr>';
+    const mobileList = document.getElementById('settlement-mobile-list');
+    const eventMobileList = document.getElementById('settlement-event-mobile-list');
+    if (mobileList) mobileList.innerHTML = `<div class="settlement-mobile-empty">정산 계산 실패: ${escapeHtml(e.message)}</div>`;
+    if (eventMobileList) eventMobileList.innerHTML = '<div class="settlement-mobile-empty">행사도시락 내역을 불러오지 못했습니다.</div>';
   }
+}
+
+function syncSettlementChecks(value, checked) {
+  document.querySelectorAll('.settle-check').forEach(el => {
+    if (el.value === value) el.checked = checked;
+  });
+}
+
+function settlementMobileActionsHtml(uid) {
+  const safeUid = escapeHtml(uid);
+  return `<div class="settlement-mobile-actions">
+    <button class="mini-btn" onclick="openSheetModal('${safeUid}')">정산표 보기</button>
+    <button class="mini-btn" onclick="openSettlementEdit('${safeUid}')">정산 수정</button>
+    <button class="kakao-mini-btn" onclick="copySettlementKakao('${safeUid}')">카톡 복사</button>
+    <button class="mini-btn" onclick="makeSettlementReceipt('${safeUid}')">영수증</button>
+    <button class="danger-btn" onclick="deleteSettlementRow('${safeUid}')">삭제</button>
+  </div>`;
+}
+
+function settlementMobileCardHtml(row) {
+  const billed = settlementBilledTotal(row);
+  const paidTotal = settlementPaidTotal(row);
+  const balance = billed - paidTotal;
+  const balanceSettled = balance <= 0;
+  const uid = row.uid;
+  const eventQty = settlementEventQty(row);
+  const adjustText = row.adjust ? ` · 조정 ${row.adjust > 0 ? '+' : ''}${formatMoney(row.adjust)}` : '';
+  const note = row.note
+    ? `<div class="settlement-mobile-note">메모 · ${escapeHtml(row.note)}</div>`
+    : '<div class="settlement-mobile-note empty">등록된 메모가 없습니다.</div>';
+  return `<article class="settlement-mobile-card">
+    <div class="settlement-mobile-card-head">
+      <input class="settle-check" type="checkbox" value="${escapeHtml(uid)}" aria-label="${escapeHtml(row.user.businessName || '업체')} 선택" onchange="syncSettlementChecks(this.value,this.checked)">
+      <div class="settlement-mobile-card-title">
+        <div class="settlement-mobile-card-name">${escapeHtml(row.user.businessName || '-')}</div>
+        <div class="settlement-mobile-card-sub">${escapeHtml(row.invoiceNo ? `청구서 ${row.invoiceNo}` : '청구서번호 미등록')}${escapeHtml(adjustText)}</div>
+      </div>
+      <span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span>
+    </div>
+    <div class="settlement-mobile-card-body">
+      <div class="settlement-mobile-money">
+        <div class="settlement-mobile-money-box">
+          <span class="settlement-mobile-money-label">청구액</span>
+          <strong class="settlement-mobile-money-value">${formatMoney(billed)}</strong>
+        </div>
+        <div class="settlement-mobile-money-box balance${balanceSettled ? ' settled' : ''}">
+          <span class="settlement-mobile-money-label">남은 잔액</span>
+          <strong class="settlement-mobile-money-value">${formatMoney(balance)}</strong>
+        </div>
+      </div>
+      <div class="settlement-mobile-items">
+        <span class="settlement-mobile-item">일반도시락 <strong>${row.lunch}</strong>개</span>
+        <span class="settlement-mobile-item">샐러드 <strong>${row.salad}</strong>개</span>
+        <span class="settlement-mobile-item">일회용 <strong>${eventQty}</strong>개</span>
+      </div>
+      <div class="settlement-mobile-meta">
+        <div class="settlement-mobile-meta-item">
+          <span class="settlement-mobile-meta-label">입금액</span>
+          <span class="settlement-mobile-meta-value">${formatMoney(paidTotal)}</span>
+        </div>
+        <div class="settlement-mobile-meta-item">
+          <span class="settlement-mobile-meta-label">납부기한</span>
+          <span class="settlement-mobile-meta-value">${dueDateBadgeHtml(row)}</span>
+        </div>
+      </div>
+      ${note}
+      <details class="settlement-mobile-breakdown">
+        <summary>일별 주문 내역</summary>
+        ${renderBreakdownHTML(row)}
+      </details>
+      ${settlementMobileActionsHtml(uid)}
+    </div>
+  </article>`;
+}
+
+function settlementEventMobileCardHtml(item, row) {
+  const uid = `event:${item.id}`;
+  const billed = settlementBilledTotal(row);
+  const paidTotal = settlementPaidTotal(row);
+  const balance = billed - paidTotal;
+  const balanceSettled = balance <= 0;
+  const note = row.note
+    ? `<div class="settlement-mobile-note">메모 · ${escapeHtml(row.note)}</div>`
+    : '<div class="settlement-mobile-note empty">등록된 메모가 없습니다.</div>';
+  return `<article class="settlement-mobile-card">
+    <div class="settlement-mobile-card-head">
+      <input class="settle-check" type="checkbox" value="${escapeHtml(uid)}" aria-label="${escapeHtml(eventCustomerName(item) || '행사도시락')} 선택" onchange="syncSettlementChecks(this.value,this.checked)">
+      <div class="settlement-mobile-card-title">
+        <div class="settlement-mobile-card-name">${escapeHtml(eventCustomerName(item) || '-')}</div>
+        <div class="settlement-mobile-card-sub">${escapeHtml(item.name || '행사도시락')}</div>
+      </div>
+      <span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span>
+    </div>
+    <div class="settlement-mobile-card-body">
+      <div class="settlement-mobile-money">
+        <div class="settlement-mobile-money-box">
+          <span class="settlement-mobile-money-label">청구액</span>
+          <strong class="settlement-mobile-money-value">${formatMoney(billed)}</strong>
+        </div>
+        <div class="settlement-mobile-money-box balance${balanceSettled ? ' settled' : ''}">
+          <span class="settlement-mobile-money-label">남은 잔액</span>
+          <strong class="settlement-mobile-money-value">${formatMoney(balance)}</strong>
+        </div>
+      </div>
+      <div class="settlement-mobile-items">
+        <span class="settlement-mobile-item">수량 <strong>${settlementEventQty(row)}</strong>개</span>
+        <span class="settlement-mobile-item">단가 <strong>${formatMoney(settlementEventUnitPrice(row))}</strong></span>
+      </div>
+      <div class="settlement-mobile-meta">
+        <div class="settlement-mobile-meta-item">
+          <span class="settlement-mobile-meta-label">행사 일시</span>
+          <span class="settlement-mobile-meta-value">${escapeHtml(item.eventDate || '-')} · ${escapeHtml(item.eventTime || '-')}</span>
+        </div>
+        <div class="settlement-mobile-meta-item">
+          <span class="settlement-mobile-meta-label">납부기한</span>
+          <span class="settlement-mobile-meta-value">${dueDateBadgeHtml(row)}</span>
+        </div>
+        <div class="settlement-mobile-meta-item">
+          <span class="settlement-mobile-meta-label">입금액</span>
+          <span class="settlement-mobile-meta-value">${formatMoney(paidTotal)}</span>
+        </div>
+        <div class="settlement-mobile-meta-item">
+          <span class="settlement-mobile-meta-label">청구서번호</span>
+          <span class="settlement-mobile-meta-value">${escapeHtml(row.invoiceNo || '-')}</span>
+        </div>
+      </div>
+      ${note}
+      ${settlementMobileActionsHtml(uid)}
+    </div>
+  </article>`;
 }
 
 function renderSettlements() {
   const tbody = document.getElementById('settlement-tbody');
   const eventTbody = document.getElementById('settlement-event-tbody');
+  const mobileList = document.getElementById('settlement-mobile-list');
+  const eventMobileList = document.getElementById('settlement-event-mobile-list');
   const totalLunch = settlementRows.reduce((sum, row) => sum + row.lunch, 0);
   const totalSalad = settlementRows.reduce((sum, row) => sum + row.salad, 0);
   const eventRows = settlementEvents.map(eventSettlementRow);
@@ -9275,11 +9479,14 @@ function renderSettlements() {
 
   if (settlementRows.length === 0) {
     tbody.innerHTML = '<tr class="no-order-row"><td colspan="13">선택한 월의 업체 주문이 없습니다.</td></tr>';
+    mobileList.innerHTML = '<div class="settlement-mobile-empty">선택한 월의 업체 주문이 없습니다.</div>';
   } else {
     const filtered = settlementRows.filter(row => filterMatchesRow(row));
     if (filtered.length === 0) {
       tbody.innerHTML = `<tr class="no-order-row"><td colspan="13">해당 조건의 업체가 없습니다.</td></tr>`;
+      mobileList.innerHTML = '<div class="settlement-mobile-empty">해당 조건의 업체가 없습니다.</div>';
     } else {
+      mobileList.innerHTML = filtered.map(settlementMobileCardHtml).join('');
       tbody.innerHTML = filtered.map(row => {
         const billed = settlementBilledTotal(row);
         const adjustLabel = row.adjust ? `<span style="font-size:11px;color:var(--sub);display:block">${row.adjust > 0 ? '+' : ''}${row.adjust.toLocaleString()}</span>` : '';
@@ -9289,7 +9496,7 @@ function renderSettlements() {
         const balanceClass = balance <= 0 ? 'balance-zero' : 'balance-positive';
         return `
         <tr>
-          <td style="text-align:center"><input class="settle-check" type="checkbox" value="${escapeHtml(row.uid)}"></td>
+          <td style="text-align:center"><input class="settle-check" type="checkbox" value="${escapeHtml(row.uid)}" onchange="syncSettlementChecks(this.value,this.checked)"></td>
           <td class="biz-name">${escapeHtml(row.user.businessName || '-')}</td>
           <td class="qty-cell">${row.lunch}<button class="breakdown-btn" onclick="toggleBreakdown('${escapeHtml(row.uid)}')">📋 일별▼</button></td>
           <td class="qty-cell">${row.salad}</td>
@@ -9320,14 +9527,17 @@ function renderSettlements() {
 
   if (settlementEvents.length === 0) {
     eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">선택한 월의 행사도시락이 없습니다.</td></tr>';
+    eventMobileList.innerHTML = '<div class="settlement-mobile-empty">선택한 월의 행사도시락이 없습니다.</div>';
   } else {
     const eventItems = settlementEvents
       .map(item => ({ item, row: eventSettlementRow(item) }))
       .filter(({ row }) => filterMatchesRow(row));
     if (eventItems.length === 0) {
       eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">해당 조건의 행사도시락이 없습니다.</td></tr>';
+      eventMobileList.innerHTML = '<div class="settlement-mobile-empty">해당 조건의 행사도시락이 없습니다.</div>';
       return;
     }
+    eventMobileList.innerHTML = eventItems.map(({ item, row }) => settlementEventMobileCardHtml(item, row)).join('');
     eventTbody.innerHTML = eventItems.map(({ item, row }) => {
       const billed = settlementBilledTotal(row);
       const adjustLabel = row.adjust ? `<span style="font-size:11px;color:var(--sub);display:block">${row.adjust > 0 ? '+' : ''}${row.adjust.toLocaleString()}</span>` : '';
@@ -9336,7 +9546,7 @@ function renderSettlements() {
       const balanceClass = balance <= 0 ? 'balance-zero' : 'balance-positive';
       return `
       <tr>
-        <td style="text-align:center"><input class="settle-check" type="checkbox" value="event:${escapeHtml(item.id)}"></td>
+        <td style="text-align:center"><input class="settle-check" type="checkbox" value="event:${escapeHtml(item.id)}" onchange="syncSettlementChecks(this.value,this.checked)"></td>
         <td>${escapeHtml(item.eventDate || '-')}</td>
         <td>${escapeHtml(item.eventTime || '-')}</td>
         <td class="biz-name">${escapeHtml(`${eventCustomerName(item)} - ${item.name || '-'}`)}</td>
@@ -9839,9 +10049,8 @@ async function bulkUpdateSettlement() {
   const month = document.getElementById('settle-month').value || currentMonthStr();
   const newStatus = document.getElementById('batch-status-select').value;
   if (!newStatus) { showToast('변경할 상태를 선택해주세요.'); return; }
-  const checked = Array.from(document.querySelectorAll('.settle-check:checked'));
-  if (checked.length === 0) { showToast('정산 항목을 선택해주세요.'); return; }
-  const uids = checked.map(el => el.value);
+  const uids = [...new Set(Array.from(document.querySelectorAll('.settle-check:checked'), el => el.value))];
+  if (uids.length === 0) { showToast('정산 항목을 선택해주세요.'); return; }
   try {
     const batch = db.batch();
     const eventAdminUpdates = {};
