@@ -927,6 +927,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .member-row-badge.zero{background:#fef2f2;border:1px solid #fecaca;color:#b42318}
 .member-row-badge.duplicate{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8}
 .member-row-badge.deleted{background:#fef2f2;border:1px solid #fecaca;color:#b42318}
+.member-row-badge.paused{background:#fff7ed;border:1px solid #fdba74;color:#9a3412}
 .member-mobile-actions{display:none}
 .member-load-more-wrap{display:flex;align-items:center;justify-content:center;padding:12px;border-top:1px solid var(--border);background:#fbfcfb}
 .member-load-more{border:1px solid #bad8c5;background:#fff;color:var(--primary);border-radius:8px;padding:9px 18px;font:inherit;font-size:13px;font-weight:900;cursor:pointer}
@@ -966,6 +967,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .member-option-row input{margin-top:2px}
 .member-option-copy{display:flex;flex-direction:column;gap:2px;font-size:13px;font-weight:900;color:var(--text)}
 .member-option-copy small{font-size:11px;color:var(--sub);font-weight:700;line-height:1.45}
+.member-pause-settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px;border:1px solid #fed7aa;border-radius:9px;background:#fffaf3}
+.member-pause-settings[hidden]{display:none}
+.member-pause-settings .form-label{margin-top:0}
+.member-pause-help{grid-column:1/-1;color:#9a3412;font-size:11px;font-weight:700;line-height:1.45}
 .member-modal-actions{flex:0 0 auto;margin:0;padding:12px 20px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:rgba(255,255,255,.97);box-shadow:0 -8px 22px rgba(15,23,42,.07)}
 .member-modal-actions .secondary-btn{min-height:42px}
 
@@ -1028,6 +1033,8 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   #member-modal .member-edit-header{padding:15px 16px}
   .member-edit-scroll{padding:0 16px 10px}
   .member-form-grid{grid-template-columns:1fr}
+  .member-pause-settings{grid-template-columns:1fr}
+  .member-pause-help{grid-column:1}
   .member-form-field.full{grid-column:auto}
   .member-toggle-panel{align-items:flex-start;flex-direction:column}
   .member-toggle-help{text-align:left}
@@ -1313,6 +1320,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <button class="member-filter-chip" type="button" data-member-filter="new" aria-pressed="false" onclick="setMemberFilter('new')">신규 <span class="count" id="member-filter-count-new">0</span></button>
           <button class="member-filter-chip warning" type="button" data-member-filter="missing" aria-pressed="false" onclick="setMemberFilter('missing')">정보 미입력 <span class="count" id="member-filter-count-missing">0</span></button>
           <button class="member-filter-chip danger" type="button" data-member-filter="zero" aria-pressed="false" onclick="setMemberFilter('zero')">0개·휴무 <span class="count" id="member-filter-count-zero">0</span></button>
+          <button class="member-filter-chip warning" type="button" data-member-filter="paused" aria-pressed="false" onclick="setMemberFilter('paused')">일시정지 <span class="count" id="member-filter-count-paused">0</span></button>
           <button class="member-filter-chip" type="button" data-member-filter="tax" aria-pressed="false" onclick="setMemberFilter('tax')">세금자료 <span class="count" id="member-filter-count-tax">0</span></button>
           <button class="member-filter-chip" type="button" data-member-filter="disposable" aria-pressed="false" onclick="setMemberFilter('disposable')">일회용 <span class="count" id="member-filter-count-disposable">0</span></button>
           <button class="member-filter-chip warning" type="button" data-member-filter="duplicate" aria-pressed="false" onclick="setMemberFilter('duplicate')">중복 의심 <span class="count" id="member-filter-count-duplicate">0</span></button>
@@ -2297,6 +2305,21 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         </div>
         <div class="member-option-stack">
           <label class="member-option-row">
+            <input type="checkbox" id="edit-meal-paused" onchange="toggleMemberPauseFields()">
+            <span class="member-option-copy">월식 일시정지<small>정지 기간에는 주문표에서 제외되며 기존 배송·정산 기록은 유지됩니다.</small></span>
+          </label>
+          <div class="member-pause-settings" id="edit-meal-pause-settings" hidden>
+            <div>
+              <label class="form-label" for="edit-meal-pause-start">정지 시작일</label>
+              <input class="form-input" type="date" id="edit-meal-pause-start">
+            </div>
+            <div>
+              <label class="form-label" for="edit-meal-resume-date">재개일 (선택)</label>
+              <input class="form-input" type="date" id="edit-meal-resume-date">
+            </div>
+            <div class="member-pause-help">재개일 당일부터 주문표와 고객 주문이 자동으로 다시 활성화됩니다.</div>
+          </div>
+          <label class="member-option-row">
             <input type="checkbox" id="edit-disposable-lunch">
             <span class="member-option-copy">일회용도시락 업체<small>일반도시락과 분리해 일회용도시락 수량으로 집계합니다.</small></span>
           </label>
@@ -2707,9 +2730,16 @@ function kstDateStrFromTimestamp(value) {
 function userCreatedDateStr(user = {}) {
   return kstDateStrFromTimestamp(user.createdAt || user.registeredAt || user.joinedAt);
 }
+function isMealPausedOnDate(user = {}, dStr = currentDateStr) {
+  if (user.mealPaused !== true) return false;
+  const startDate = String(user.mealPauseStartDate || '').trim();
+  const resumeDate = String(user.mealResumeDate || '').trim();
+  if (startDate && dStr < startDate) return false;
+  return !resumeDate || dStr < resumeDate;
+}
 function isUserActiveOnDate(user = {}, dStr = currentDateStr) {
   const createdDate = userCreatedDateStr(user);
-  return !createdDate || createdDate <= dStr;
+  return (!createdDate || createdDate <= dStr) && !isMealPausedOnDate(user, dStr);
 }
 const NEW_MEMBER_BADGE_DAYS = 3;
 function isNewMember(user = {}) {
@@ -4494,6 +4524,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
     const user = allUsers[order.uid] || deletedUsers[order.uid] || {};
     const delivered = deliveredRecords[order.uid];
     const deliveredOverride = delivered && !delivered.orderDeleted && (delivered.delivered || delivered.adminAdjusted || delivered.adminManual);
+    if (allUsers[order.uid] && isMealPausedOnDate(user, dStr) && !deliveredOverride) return;
     const lunch = orderLunchQty(order);
     const salad = orderSaladQty(order);
     const eventLunch = orderEventLunchQty(order);
@@ -5696,6 +5727,7 @@ function memberMatchesFilter(user = {}, filter = memberFilterMode, duplicateCoun
   if (filter === 'new') return isNewMember(user);
   if (filter === 'missing') return memberHasMissingInfo(user);
   if (filter === 'zero') return memberWeeklyOrderQty(user) <= 0;
+  if (filter === 'paused') return isMealPausedOnDate(user, dateStr(getKST()));
   if (filter === 'tax') return taxInvoiceEnabled(user);
   if (filter === 'disposable') return isDisposableLunchUser(user);
   if (filter === 'duplicate') return (duplicateCounts.get(memberDuplicateKey(user)) || 0) > 1;
@@ -5708,6 +5740,7 @@ function memberStatusCounts(activeEntries, deletedEntries, duplicateCounts) {
     new: 0,
     missing: 0,
     zero: 0,
+    paused: 0,
     tax: 0,
     disposable: 0,
     duplicate: 0,
@@ -5717,6 +5750,7 @@ function memberStatusCounts(activeEntries, deletedEntries, duplicateCounts) {
     if (isNewMember(user)) counts.new += 1;
     if (memberHasMissingInfo(user)) counts.missing += 1;
     if (memberWeeklyOrderQty(user) <= 0) counts.zero += 1;
+    if (isMealPausedOnDate(user, dateStr(getKST()))) counts.paused += 1;
     if (taxInvoiceEnabled(user)) counts.tax += 1;
     if (isDisposableLunchUser(user)) counts.disposable += 1;
     if ((duplicateCounts.get(memberDuplicateKey(user)) || 0) > 1) counts.duplicate += 1;
@@ -6525,6 +6559,7 @@ async function loadRecentOrderLogs() {
 
 function memberRowBadgesHtml(user = {}, duplicateCount = 0) {
   const badges = [newMemberBadgeHtml(user), disposableLunchBadgeHtml(user), taxInvoiceBadgeHtml(user)];
+  if (isMealPausedOnDate(user, dateStr(getKST()))) badges.push('<span class="member-row-badge paused">일시정지</span>');
   if (memberHasMissingInfo(user)) badges.push('<span class="member-row-badge missing">정보 확인</span>');
   if (memberWeeklyOrderQty(user) <= 0) badges.push('<span class="member-row-badge zero">0개·휴무</span>');
   if (duplicateCount > 1) badges.push(`<span class="member-row-badge duplicate">중복 ${duplicateCount}</span>`);
@@ -6532,6 +6567,10 @@ function memberRowBadgesHtml(user = {}, duplicateCount = 0) {
 }
 
 function memberOrderSummary(user = {}) {
+  if (isMealPausedOnDate(user, dateStr(getKST()))) {
+    const resumeDate = String(user.mealResumeDate || '').trim();
+    return { main: '월식 일시정지', sub: resumeDate ? `${resumeDate} 재개 예정` : '재개일 미정' };
+  }
   const lunch = parseCount(user.defaultLunch, 2);
   const salad = parseCount(user.defaultSalad, 0);
   const weekly = memberWeeklyOrderQty(user);
@@ -6618,7 +6657,7 @@ function renderMembers() {
   const visibleEntries = matchingEntries.slice(0, memberVisibleLimit);
   const filterLabels = {
     all: '전체 고객', new: '신규 고객', missing: '정보 미입력', zero: '0개·휴무',
-    tax: '세금자료 고객', disposable: '일회용 고객', duplicate: '중복 의심', deleted: '삭제회원'
+    paused: '일시정지 고객', tax: '세금자료 고객', disposable: '일회용 고객', duplicate: '중복 의심', deleted: '삭제회원'
   };
   const filterLabel = filterLabels[memberFilterMode] || '고객';
   const countEl = document.getElementById('member-search-count');
@@ -6714,11 +6753,23 @@ function openMemberEdit(uid) {
   document.getElementById('edit-lunch-price').value = userLunchPrice(u) || '';
   document.getElementById('edit-salad-price').value = userSaladPrice(u) || '';
   document.getElementById('edit-admin-memo').value = adminMemoValue(u);
+  document.getElementById('edit-meal-paused').checked = u.mealPaused === true;
+  document.getElementById('edit-meal-pause-start').value = u.mealPauseStartDate || '';
+  document.getElementById('edit-meal-resume-date').value = u.mealResumeDate || '';
+  toggleMemberPauseFields();
   document.getElementById('edit-disposable-lunch').checked = isDisposableLunchUser(u);
   document.getElementById('edit-error').classList.remove('show');
   document.getElementById('member-modal').classList.add('open');
   const scroll = document.querySelector('#member-modal .member-edit-scroll');
   if (scroll) scroll.scrollTop = 0;
+}
+
+function toggleMemberPauseFields() {
+  const checked = document.getElementById('edit-meal-paused')?.checked === true;
+  const settings = document.getElementById('edit-meal-pause-settings');
+  const startInput = document.getElementById('edit-meal-pause-start');
+  if (settings) settings.hidden = !checked;
+  if (checked && startInput && !startInput.value) startInput.value = dateStr(getKST());
 }
 
 function openOrderMemberInfo(uid) {
@@ -7096,6 +7147,9 @@ async function saveMember() {
   const lunchPrice = parseInt(document.getElementById('edit-lunch-price').value, 10) || 0;
   const saladPrice = parseInt(document.getElementById('edit-salad-price').value, 10) || 0;
   const adminMemo = document.getElementById('edit-admin-memo').value.trim();
+  const mealPaused = document.getElementById('edit-meal-paused').checked;
+  const mealPauseStartDate = document.getElementById('edit-meal-pause-start').value;
+  const mealResumeDate = document.getElementById('edit-meal-resume-date').value;
   const disposableLunch = document.getElementById('edit-disposable-lunch').checked;
   if (!bizname) {
     const errEl = document.getElementById('edit-error');
@@ -7109,7 +7163,32 @@ async function saveMember() {
     errEl.classList.add('show');
     return;
   }
+  if (mealPaused && !mealPauseStartDate) {
+    const errEl = document.getElementById('edit-error');
+    errEl.textContent = '일시정지 시작일을 선택해주세요.';
+    errEl.classList.add('show');
+    return;
+  }
+  if (mealPaused && mealResumeDate && mealResumeDate <= mealPauseStartDate) {
+    const errEl = document.getElementById('edit-error');
+    errEl.textContent = '재개일은 일시정지 시작일 이후여야 합니다.';
+    errEl.classList.add('show');
+    return;
+  }
   try {
+    const pauseFields = mealPaused ? {
+      mealPaused: true,
+      mealPauseStartDate,
+      mealResumeDate: mealResumeDate || firebase.firestore.FieldValue.delete(),
+      mealPausedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      mealPausedBy: adminUid || ''
+    } : {
+      mealPaused: false,
+      mealPauseStartDate: firebase.firestore.FieldValue.delete(),
+      mealResumeDate: firebase.firestore.FieldValue.delete(),
+      mealPausedAt: firebase.firestore.FieldValue.delete(),
+      mealPausedBy: firebase.firestore.FieldValue.delete()
+    };
     await db.collection('users').doc(uid).update({
       businessName: bizname,
       phone,
@@ -7118,15 +7197,25 @@ async function saveMember() {
       defaultSalad: salad,
       sameDailyMeal,
       weekdayMeals,
+      ...pauseFields,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       ...userPrivateDeletePayload()
     });
     await userPrivateRef(uid).set(privateUserPayload({ deliveryPlace, deliveryPlaceDetail, lunchPrice, saladPrice, adminMemo, disposableLunch }), { merge: true });
-    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, deliveryPlaceDetail, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice, adminMemo, disposableLunch };
+    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, deliveryPlaceDetail, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice, adminMemo, disposableLunch, mealPaused };
+    if (mealPaused) {
+      allUsers[uid].mealPauseStartDate = mealPauseStartDate;
+      allUsers[uid].mealResumeDate = mealResumeDate;
+    } else {
+      delete allUsers[uid].mealPauseStartDate;
+      delete allUsers[uid].mealResumeDate;
+      delete allUsers[uid].mealPausedAt;
+      delete allUsers[uid].mealPausedBy;
+    }
     closeMemberModal();
     renderMembers();
     loadOrders();
-    showToast('✅ 고객정보가 저장되었습니다.');
+    showToast(mealPaused ? '✅ 고객정보와 월식 일시정지가 저장되었습니다.' : '✅ 고객정보가 저장되었습니다.');
   } catch(e) {
     const errEl = document.getElementById('edit-error');
     errEl.textContent = '저장 실패: ' + e.message;
