@@ -2762,6 +2762,13 @@ function getKST() {
 function dateStr(d) {
   return d.toISOString().split('T')[0]; // YYYY-MM-DD
 }
+function isMealPausedOnDate(profile = {}, dStr = dateStr(getKST())) {
+  if (profile.mealPaused !== true) return false;
+  const startDate = String(profile.mealPauseStartDate || '').trim();
+  const resumeDate = String(profile.mealResumeDate || '').trim();
+  if (startDate && dStr < startDate) return false;
+  return !resumeDate || dStr < resumeDate;
+}
 function isClosed() {
   const kst = getKST();
   const h = kst.getUTCHours();
@@ -4306,6 +4313,7 @@ async function renderToday() {
   const targetDate = ctx.targetDate;
   currentOrderTargetDate = targetDate;
   const targetNoDelivery = isNoDeliveryDate(targetDate);
+  const subscriptionPaused = isMealPausedOnDate(userProfile, targetDate);
 
   document.getElementById('today-badge').innerHTML = `${iconSvg('calendar')}<span>${orderTargetBadgeText(ctx)}</span>`;
   renderOrderSlotTabs(slots);
@@ -4314,7 +4322,17 @@ async function renderToday() {
   if (mealText) mealText.textContent = `${formatDateKR(targetDate)} 식단표 보기`;
 
   const closedBanner = document.getElementById('closed-banner');
-  if (ctx.noDelivery) {
+  if (subscriptionPaused) {
+    const resumeDate = String(userProfile?.mealResumeDate || '').trim();
+    closedBanner.style.display = 'flex';
+    closedBanner.innerHTML = `
+      <span class="icon">${iconSvg('clock')}</span>
+      <div>
+        <strong>월식이 일시정지되어 있습니다</strong><br>
+        <span style="font-size:12px">${resumeDate ? `${formatDateKR(resumeDate)}부터 다시 주문할 수 있습니다.` : '재개가 필요하면 궁중수라간에 연락해주세요.'}</span>
+      </div>
+    `;
+  } else if (ctx.noDelivery) {
     closedBanner.style.display = 'flex';
     closedBanner.innerHTML = `
       <span class="icon">${iconSvg('delivery')}</span>
@@ -4341,7 +4359,7 @@ async function renderToday() {
     db.collection('orderLocks').doc(targetDate).get().catch(() => null)
   ]);
   const targetLocked = !!lockSnap?.exists;
-  const orderClosed = targetNoDelivery || targetLocked || (ctx.isToday && ctx.closed);
+  const orderClosed = subscriptionPaused || targetNoDelivery || targetLocked || (ctx.isToday && ctx.closed);
   document.getElementById('today-card')?.classList.toggle('closed-card', orderClosed);
 
   const submitBtn = document.getElementById('submit-btn');
@@ -4374,7 +4392,7 @@ async function renderToday() {
 
   if (orderClosed) {
     submitBtn.disabled = true;
-    submitBtn.textContent = targetLocked ? '주문 마감됨' : targetNoDelivery ? '배송 없음' : '오늘 주문 마감됨';
+    submitBtn.textContent = subscriptionPaused ? '월식 일시정지' : targetLocked ? '주문 마감됨' : targetNoDelivery ? '배송 없음' : '오늘 주문 마감됨';
     document.getElementById('default-apply-notice').style.display = 'none';
     setQtyDisabled(true);
   }
@@ -4460,6 +4478,12 @@ async function submitOrder(source) {
   const note = source === 'today'
     ? (document.getElementById('today-note')?.value?.trim() || '')
     : (document.getElementById('modal-note')?.value?.trim() || '');
+
+  if (isMealPausedOnDate(userProfile, targetDate)) {
+    const resumeDate = String(userProfile?.mealResumeDate || '').trim();
+    showToast(resumeDate ? `${formatDateKR(resumeDate)}부터 월식 주문이 다시 열립니다.` : '월식이 일시정지되어 있습니다. 재개가 필요하면 궁중수라간에 연락해주세요.', 'error');
+    return;
+  }
 
   if (isNoDeliveryDate(targetDate)) {
     showToast(holidayName(targetDate) ? `${holidayName(targetDate)}은 배송이 없습니다.` : '토·일은 월식 배송이 없습니다.', 'error');
@@ -4604,13 +4628,15 @@ async function renderWeek() {
     const isPast = isPastDate(ds);
     const submitted = snap.exists;
     const todayClosed = isToday && isClosed();
+    const subscriptionPaused = isMealPausedOnDate(userProfile, ds);
     const holiday = holidayName(ds);
     const noDelivery = isNoDeliveryDate(ds);
     const defaults = defaultMealsForDate(ds);
 
     let statusClass = 'status-pending';
     let statusText = '미입력';
-    if (submitted && snap.data().selfHoliday) { statusClass = 'status-closed'; statusText = '자체 휴무'; }
+    if (subscriptionPaused) { statusClass = 'status-closed'; statusText = '월식 일시정지'; }
+    else if (submitted && snap.data().selfHoliday) { statusClass = 'status-closed'; statusText = '자체 휴무'; }
     else if (submitted) { statusClass = 'status-submitted'; statusText = `도시락 ${snap.data().lunchCount} / 샐러드 ${snap.data().saladCount}`; }
     else if (noDelivery) { statusClass = 'status-closed'; statusText = holiday ? `${holiday} 배송없음` : '배송없음'; }
     else if (locked || todayClosed) { statusClass = 'status-closed'; statusText = '마감'; }
@@ -4618,7 +4644,7 @@ async function renderWeek() {
     else if ((defaults.lunch + defaults.salad) > 0) { statusClass = 'status-default'; statusText = `기본 도시락 ${defaults.lunch}개 · 샐러드 ${defaults.salad}개`; }
 
     const isSelfHoliday = submitted && snap.data().selfHoliday;
-    const clickable = (!noDelivery || isSelfHoliday) && !isPast && !locked && !todayClosed;
+    const clickable = !subscriptionPaused && (!noDelivery || isSelfHoliday) && !isPast && !locked && !todayClosed;
 
     const el = document.createElement('div');
     el.className = `week-item fade-in-up${isToday ? ' is-today' : ''}${isPast ? ' is-past' : ''}${submitted ? ' is-submitted' : ''}`;
@@ -4638,6 +4664,11 @@ async function renderWeek() {
 
 // ───────── 날짜 모달 ─────────
 async function openDayModal(ds, existing) {
+  if (isMealPausedOnDate(userProfile, ds)) {
+    const resumeDate = String(userProfile?.mealResumeDate || '').trim();
+    showToast(resumeDate ? `${formatDateKR(resumeDate)}부터 월식 주문이 다시 열립니다.` : '월식이 일시정지되어 있습니다. 재개가 필요하면 궁중수라간에 연락해주세요.', 'error');
+    return;
+  }
   if (isNoDeliveryDate(ds)) {
     showToast(holidayName(ds) ? `${holidayName(ds)}은 배송이 없습니다.` : '토·일은 월식 배송이 없습니다.', 'error');
     return;
