@@ -8614,6 +8614,9 @@ function renderEventMobileList(items = []) {
       ? `completePublicEventOrder('${item.id}')`
       : `toggleEventDelivered('${item.id}')`;
     const completeLabel = item.source === 'publicEventOrder' || !item.delivered ? '배송완료' : '완료취소';
+    const deleteAction = item.source === 'publicEventOrder'
+      ? `deletePublicEventOrder('${item.id}')`
+      : `deleteEventLunch('${item.id}')`;
     return `
       <article class="event-mobile-card">
         <button type="button" class="event-mobile-card-main" onclick="openEventLunchMobileEdit('${item.id}')">
@@ -8636,6 +8639,7 @@ function renderEventMobileList(items = []) {
         <div class="event-mobile-card-actions">
           <button type="button" class="secondary-btn" onclick="openEventLunchMobileEdit('${item.id}')">수정</button>
           <button type="button" class="save-btn" onclick="${completeAction}">${completeLabel}</button>
+          <button type="button" class="danger-btn" onclick="${deleteAction}">삭제</button>
         </div>
       </article>
     `;
