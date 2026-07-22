@@ -458,7 +458,10 @@ function renderToday(){
                         <span class="badge ${c.orderType==='once'?'b-once':'b-sub'}">${c.orderType==='once'?'선택':'정기'}</span>
                       </div>
                       ${done
-                        ? '<span class="badge b-ok">완료</span>'
+                        ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+                            <span class="badge b-ok">완료</span>
+                            <button class="btn btn-d sm" style="padding:6px 10px;" onclick="undoMarkDone('${customerJsArg(c.id)}','${customerJsArg(ds)}')">완료취소</button>
+                          </div>`
                         : `<button class="btn btn-s sm" style="padding:6px 16px;" onclick="markDone('${customerJsArg(c.id)}','${customerJsArg(ds)}')">완료</button>`
                       }
                     </div>
@@ -501,7 +504,9 @@ function renderToday(){
                 <td>${done?'<span class="badge b-ok">완료</span>':'<span class="badge b-wait">대기</span>'}</td>
                 <td>
                   <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;">
-                    ${done?'':`<button class="btn btn-s sm" onclick="markDone('${customerJsArg(c.id)}','${customerJsArg(ds)}')">완료</button>`}
+                    ${done
+                      ? `<button class="btn btn-d sm" onclick="undoMarkDone('${customerJsArg(c.id)}','${customerJsArg(ds)}')">완료취소</button>`
+                      : `<button class="btn btn-s sm" onclick="markDone('${customerJsArg(c.id)}','${customerJsArg(ds)}')">완료</button>`}
                     ${typeof logenActionHtml==='function'?logenActionHtml(c, ds):''}
                   </div>
                 </td>

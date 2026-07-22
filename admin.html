@@ -2348,6 +2348,20 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <option value="">회원 선택 안함 (직접 입력)</option>
     </select>
     <input class="form-input" type="text" id="manual-bizname" placeholder="예: ○○어린이집">
+    <div id="manual-period-fields">
+      <label class="form-label">배송 기간 *</label>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px">
+        <div>
+          <label class="form-label" style="font-size:12px;color:#64748b">시작일</label>
+          <input class="form-input" type="date" id="manual-start-date" onchange="updateManualPeriodSummary()">
+        </div>
+        <div>
+          <label class="form-label" style="font-size:12px;color:#64748b">종료일</label>
+          <input class="form-input" type="date" id="manual-end-date" onchange="updateManualPeriodSummary()">
+        </div>
+      </div>
+      <div id="manual-period-summary" style="margin:-2px 0 14px;padding:10px 12px;border-radius:8px;background:#f0fdf4;color:#166534;font-size:12px;line-height:1.5"></div>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div>
         <label class="form-label">도시락 수량</label>
@@ -6955,6 +6969,12 @@ function openManualOrderModal(editUid = '') {
   const record = editUid ? currentOrderRows.find(row => row.uid === editUid) : null;
   document.getElementById('manual-edit-id').value = record?.uid || '';
   document.getElementById('manual-modal-title').textContent = record ? '수동 배송 수정' : '수동 배송 입력';
+  const startDateEl = document.getElementById('manual-start-date');
+  const endDateEl = document.getElementById('manual-end-date');
+  startDateEl.value = currentDateStr;
+  endDateEl.value = currentDateStr;
+  startDateEl.disabled = Boolean(record);
+  endDateEl.disabled = Boolean(record);
   userSel.value = record && allUsers[record.uid] ? record.uid : '';
   userSel.disabled = Boolean(record);
   document.getElementById('manual-bizname').value = record?.businessName || '';
@@ -6969,6 +6989,7 @@ function openManualOrderModal(editUid = '') {
   document.getElementById('manual-note').value = record?.note || '';
   document.getElementById('manual-delete-btn').style.display = record ? '' : 'none';
   document.getElementById('manual-error').classList.remove('show');
+  updateManualPeriodSummary();
   document.getElementById('manual-order-modal').classList.add('open');
 }
 
@@ -6999,6 +7020,39 @@ function closeManualOrderModal(e) {
   document.getElementById('manual-order-modal').classList.remove('open');
 }
 
+function manualOrderDatesBetween(startDate, endDate) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate || '') || !/^\d{4}-\d{2}-\d{2}$/.test(endDate || '') || startDate > endDate) return [];
+  const dates = [];
+  let cursor = startDate;
+  for (let dayCount = 0; cursor <= endDate && dayCount < 63; dayCount += 1) {
+    if (!isNoDeliveryDate(cursor)) dates.push(cursor);
+    cursor = addDays(cursor, 1);
+  }
+  return dates;
+}
+
+function updateManualPeriodSummary() {
+  const editUid = document.getElementById('manual-edit-id')?.value || '';
+  const summaryEl = document.getElementById('manual-period-summary');
+  if (!summaryEl) return;
+  if (editUid) {
+    summaryEl.textContent = `${formatDateKR(currentDateStr)} 주문 한 건만 수정합니다.`;
+    return;
+  }
+  const startDate = document.getElementById('manual-start-date')?.value || '';
+  const endDate = document.getElementById('manual-end-date')?.value || '';
+  if (!startDate || !endDate) {
+    summaryEl.textContent = '기간을 선택해주세요. 토·일요일과 등록된 공휴일은 제외됩니다.';
+    return;
+  }
+  if (startDate > endDate) {
+    summaryEl.textContent = '종료일은 시작일보다 빠를 수 없습니다.';
+    return;
+  }
+  const dates = manualOrderDatesBetween(startDate, endDate);
+  summaryEl.textContent = `${dates.length}일에 같은 수량을 입력합니다. 토·일요일과 등록된 공휴일은 제외하며, 이미 저장된 주문은 덮어쓰지 않습니다.`;
+}
+
 async function saveManualOrder() {
   const editUid = document.getElementById('manual-edit-id').value;
   const selectedUid = document.getElementById('manual-user').value;
@@ -7012,6 +7066,8 @@ async function saveManualOrder() {
   const deliveryTime = document.getElementById('manual-delivery-time').value.trim();
   const place = document.getElementById('manual-place').value.trim();
   const note = document.getElementById('manual-note').value.trim();
+  const startDate = editUid ? currentDateStr : document.getElementById('manual-start-date').value;
+  const endDate = editUid ? currentDateStr : document.getElementById('manual-end-date').value;
   const errEl = document.getElementById('manual-error');
   if (!bizname) {
     errEl.textContent = '업체명을 입력해주세요.';
@@ -7023,6 +7079,23 @@ async function saveManualOrder() {
     errEl.classList.add('show');
     return;
   }
+  if (!startDate || !endDate || startDate > endDate) {
+    errEl.textContent = '올바른 배송 시작일과 종료일을 선택해주세요.';
+    errEl.classList.add('show');
+    return;
+  }
+  const calendarDays = Math.floor((new Date(`${endDate}T00:00:00+09:00`) - new Date(`${startDate}T00:00:00+09:00`)) / 86400000) + 1;
+  if (calendarDays > 62) {
+    errEl.textContent = '배송 기간은 한 번에 최대 62일까지 입력할 수 있습니다.';
+    errEl.classList.add('show');
+    return;
+  }
+  const targetDates = manualOrderDatesBetween(startDate, endDate);
+  if (!targetDates.length) {
+    errEl.textContent = '선택한 기간에 등록 가능한 배송일이 없습니다.';
+    errEl.classList.add('show');
+    return;
+  }
   errEl.classList.remove('show');
   const manualUid = editUid || selectedUid || `manual_${Date.now()}`;
   const user = allUsers[selectedUid] || allUsers[editUid] || {};
@@ -7031,9 +7104,8 @@ async function saveManualOrder() {
   const items = buildOrderItems({ lunchQty: values.lunch, lunchPrice, saladQty: values.salad, saladPrice, eventLunchQty: values.event, eventLunchPrice: effectiveEventLunchPrice });
   const totalQty = values.lunch + values.salad + values.event;
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
-  const payload = {
+  const basePayload = {
     uid: manualUid,
-    targetDate: currentDateStr,
     businessName: bizname || (user.businessName || '수동입력'),
     lunchQty: values.lunch,
     lunchPrice,
@@ -7055,14 +7127,52 @@ async function saveManualOrder() {
     adminManual: !selectedUid || !allUsers[manualUid],
     adminInput: true,
     source: selectedUid ? 'adminMemberInput' : 'adminManual',
-    submittedBy: adminUid,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    submittedBy: adminUid
   };
-  if (!editUid) payload.submittedAt = firebase.firestore.FieldValue.serverTimestamp();
   try {
-    await db.collection('orders').doc(currentDateStr).collection('items').doc(manualUid).set(payload, { merge: true });
+    if (editUid) {
+      await db.collection('orders').doc(currentDateStr).collection('items').doc(manualUid).set({
+        ...basePayload,
+        targetDate: currentDateStr,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    } else {
+      if (targetDates.length > 1 && !confirm(`${formatDateKR(startDate)}부터 ${formatDateKR(endDate)}까지\n배송일 ${targetDates.length}일에 같은 수량을 등록할까요?\n\n이미 주문이 저장된 날짜는 덮어쓰지 않고 건너뜁니다.`)) return;
+      const refs = targetDates.map(targetDate => db.collection('orders').doc(targetDate).collection('items').doc(manualUid));
+      const existingSnaps = await Promise.all(refs.map(ref => ref.get()));
+      const batch = db.batch();
+      let savedCount = 0;
+      let skippedCount = 0;
+      refs.forEach((ref, index) => {
+        if (existingSnaps[index].exists) {
+          skippedCount += 1;
+          return;
+        }
+        batch.set(ref, {
+          ...basePayload,
+          periodStartDate: startDate,
+          periodEndDate: endDate,
+          targetDate: targetDates[index],
+          submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        savedCount += 1;
+      });
+      if (!savedCount) {
+        errEl.textContent = '선택한 기간의 주문이 이미 모두 저장되어 있습니다.';
+        errEl.classList.add('show');
+        return;
+      }
+      await batch.commit();
+      closeManualOrderModal();
+      showToast(skippedCount
+        ? `✅ ${savedCount}일 등록 · 기존 주문 ${skippedCount}일 건너뜀`
+        : `✅ 배송일 ${savedCount}일에 수동 주문을 등록했습니다.`);
+      loadOrders();
+      return;
+    }
     closeManualOrderModal();
-    showToast(editUid ? '✅ 주문 항목이 수정되었습니다.' : '✅ 수동 주문 항목이 추가되었습니다.');
+    showToast('✅ 주문 항목이 수정되었습니다.');
     loadOrders();
   } catch (e) {
     errEl.textContent = '저장 실패: ' + e.message;
