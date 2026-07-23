@@ -15,5 +15,16 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "users",
+      "fieldPath": "adminEvents",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "users",
+      "fieldPath": "deliveryRecords",
+      "indexes": []
+    }
+  ]
 }
