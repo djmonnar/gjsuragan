@@ -251,7 +251,34 @@ service cloud.firestore {
     }
 
     function orderKeys() {
-      return ['uid', 'targetDate', 'lunchCount', 'saladCount', 'note', 'selfHoliday', 'submittedAt', 'updatedAt'];
+      return ['uid', 'targetDate', 'lunchCount', 'saladCount', 'cateringItems', 'note', 'selfHoliday', 'submittedAt', 'updatedAt'];
+    }
+
+    function validCateringItem(item) {
+      return item is map
+        && item.keys().hasOnly(['menuId', 'qty'])
+        && item.menuId is string
+        && item.menuId.matches('^(pork-set-9000|chicken-set-9500|chicken-tteokgalbi-13900|kimchi-pork-tteokgalbi-14900|soy-pork-chicken-15900|grilled-pork-soy-pork-17900|bulgogi-set-18900|bulgogi-fish-19900|eel-abalone-27900|la-galbi-salmon-29900|premium-vip-33900)$')
+        && item.qty is int
+        && item.qty >= 1
+        && item.qty <= 50;
+    }
+
+    function validCateringItems(data) {
+      return !('cateringItems' in data.keys())
+        || (data.cateringItems is list
+          && data.cateringItems.size() <= 11
+          && (data.cateringItems.size() < 1 || validCateringItem(data.cateringItems[0]))
+          && (data.cateringItems.size() < 2 || validCateringItem(data.cateringItems[1]))
+          && (data.cateringItems.size() < 3 || validCateringItem(data.cateringItems[2]))
+          && (data.cateringItems.size() < 4 || validCateringItem(data.cateringItems[3]))
+          && (data.cateringItems.size() < 5 || validCateringItem(data.cateringItems[4]))
+          && (data.cateringItems.size() < 6 || validCateringItem(data.cateringItems[5]))
+          && (data.cateringItems.size() < 7 || validCateringItem(data.cateringItems[6]))
+          && (data.cateringItems.size() < 8 || validCateringItem(data.cateringItems[7]))
+          && (data.cateringItems.size() < 9 || validCateringItem(data.cateringItems[8]))
+          && (data.cateringItems.size() < 10 || validCateringItem(data.cateringItems[9]))
+          && (data.cateringItems.size() < 11 || validCateringItem(data.cateringItems[10])));
     }
 
     function orderDateUnlocked(date) {
@@ -266,11 +293,15 @@ service cloud.firestore {
         && request.resource.data.targetDate == date
         && safeCount(request.resource.data.lunchCount)
         && safeCount(request.resource.data.saladCount)
+        && validCateringItems(request.resource.data)
         && optionalString(request.resource.data, 'note', 500)
         && optionalBool(request.resource.data, 'selfHoliday')
         && (!('selfHoliday' in request.resource.data.keys())
           || request.resource.data.selfHoliday == false
-          || (request.resource.data.lunchCount == 0 && request.resource.data.saladCount == 0))
+          || (request.resource.data.lunchCount == 0
+            && request.resource.data.saladCount == 0
+            && (!('cateringItems' in request.resource.data.keys())
+              || request.resource.data.cateringItems.size() == 0)))
         && request.resource.data.submittedAt == request.time
         && optionalTimestamp(request.resource.data, 'updatedAt');
     }

@@ -2672,9 +2672,24 @@ async function sendGroupedNotification(items) {
   await batch.commit();
 }
 
+function orderLogCateringItems(order = {}) {
+  return (Array.isArray(order.cateringItems) ? order.cateringItems : [])
+    .map(item => ({
+      menuId: String(item?.menuId || '').trim(),
+      qty: Math.max(0, Math.trunc(Number(item?.qty) || 0))
+    }))
+    .filter(item => item.menuId && item.qty > 0)
+    .sort((a, b) => a.menuId.localeCompare(b.menuId));
+}
+
+function orderLogCateringSignature(order = {}) {
+  return JSON.stringify(orderLogCateringItems(order));
+}
+
 function sameOrderForNotification(before, after) {
   return Number(before.lunchCount || 0) === Number(after.lunchCount || 0)
     && Number(before.saladCount || 0) === Number(after.saladCount || 0)
+    && orderLogCateringSignature(before) === orderLogCateringSignature(after)
     && Boolean(before.selfHoliday) === Boolean(after.selfHoliday)
     && String(before.note || '') === String(after.note || '');
 }
@@ -2690,6 +2705,7 @@ function orderLogSnapshot(order = null) {
     lunchCount: orderLogCount(order.lunchCount ?? order.lunchQty),
     saladCount: orderLogCount(order.saladCount ?? order.saladQty),
     eventLunchCount: orderLogCount(order.eventLunchCount ?? order.eventLunchQty),
+    cateringItems: orderLogCateringItems(order),
     selfHoliday: Boolean(order.selfHoliday),
     note: String(order.note || ''),
     adminInput: Boolean(order.adminInput),
@@ -2701,10 +2717,13 @@ function orderLogSnapshot(order = null) {
 }
 
 function orderLogChanges(beforeSnap, afterSnap) {
-  const fields = ['lunchCount', 'saladCount', 'eventLunchCount', 'selfHoliday', 'note'];
+  const fields = ['lunchCount', 'saladCount', 'eventLunchCount', 'cateringItems', 'selfHoliday', 'note'];
   return fields.filter(field => {
     const beforeValue = beforeSnap ? beforeSnap[field] : undefined;
     const afterValue = afterSnap ? afterSnap[field] : undefined;
+    if (field === 'cateringItems') {
+      return JSON.stringify(beforeValue || []) !== JSON.stringify(afterValue || []);
+    }
     return String(beforeValue ?? '') !== String(afterValue ?? '');
   });
 }

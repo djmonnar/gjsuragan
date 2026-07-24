@@ -14,6 +14,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
+<script src="./assets/js/catering-catalog.js?v=20260724-catering1"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
@@ -262,6 +263,18 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .order-qty-edit-row{display:grid;grid-template-columns:90px 1fr;align-items:center;gap:10px;background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px}
 .order-qty-edit-label{font-size:14px;font-weight:900;color:var(--text)}
 .order-qty-edit-row .qty-stepper{justify-content:flex-end}
+.catering-order-trigger{width:100%;min-width:96px;border:1px solid #d7b46a;background:#fff9e8;color:#7a4b00;border-radius:9px;padding:7px 9px;font-family:inherit;font-size:12px;font-weight:900;cursor:pointer}
+.catering-order-trigger:disabled{opacity:.52;cursor:not-allowed}
+.catering-order-summary{font-size:12px;line-height:1.45;color:var(--sub);text-align:right}
+.catering-order-summary strong{display:block;color:#7a4b00;font-size:13px}
+.admin-catering-list{display:grid;gap:9px;max-height:min(58vh,520px);overflow-y:auto;padding-right:3px}
+.admin-catering-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;border:1px solid var(--border);background:#fff;border-radius:12px;padding:12px}
+.admin-catering-name{font-size:14px;font-weight:900;color:var(--text);line-height:1.35}
+.admin-catering-price{font-size:12px;font-weight:700;color:var(--sub);margin-top:3px}
+.admin-catering-total{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;border-radius:12px;background:#fff8df;border:1px solid #ead095;padding:13px 14px;font-weight:900;color:#6b4300}
+.admin-catering-trigger{width:100%;min-width:92px;border:1px solid var(--border);background:var(--card);color:var(--sub);border-radius:9px;padding:8px 9px;font-size:12px;font-weight:800;line-height:1.3;cursor:pointer}
+.admin-catering-trigger.has-items{border-color:#d59a32;background:#fff8e7;color:#7b4b00}
+.admin-catering-trigger:disabled{cursor:not-allowed;opacity:.55}
 .order-qty-total-box{margin-top:12px;background:var(--primary);color:#fff;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;font-weight:900}
 .order-qty-total-box span:first-child{font-size:13px;color:var(--gold)}
 .order-qty-total-box span:last-child{font-size:22px}
@@ -445,13 +458,14 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .daily-order-table th:nth-child(6),.daily-order-table td:nth-child(6),
   .daily-order-table th:nth-child(7),.daily-order-table td:nth-child(7),
   .daily-order-table th:nth-child(8),.daily-order-table td:nth-child(8),
-  .daily-order-table th:nth-child(10),.daily-order-table td:nth-child(10),
+  .daily-order-table th:nth-child(9),.daily-order-table td:nth-child(9),
   .daily-order-table th:nth-child(11),.daily-order-table td:nth-child(11),
-  .daily-order-table th:nth-child(12),.daily-order-table td:nth-child(12){display:none}
+  .daily-order-table th:nth-child(12),.daily-order-table td:nth-child(12),
+  .daily-order-table th:nth-child(13),.daily-order-table td:nth-child(13){display:none}
   .daily-order-table th:nth-child(1),.daily-order-table td:nth-child(1){width:42px;text-align:center;padding-left:8px;padding-right:6px}
   .daily-order-table th:nth-child(3),.daily-order-table td:nth-child(3){width:auto;min-width:116px}
   .daily-order-table th:nth-child(4),.daily-order-table td:nth-child(4){width:98px;text-align:center;padding-left:6px;padding-right:6px}
-  .daily-order-table th:nth-child(9),.daily-order-table td:nth-child(9){width:58px;text-align:center;padding-left:4px;padding-right:8px}
+  .daily-order-table th:nth-child(10),.daily-order-table td:nth-child(10){width:58px;text-align:center;padding-left:4px;padding-right:8px}
   .daily-order-table .biz-name{font-size:14px;line-height:1.25}
   .daily-order-table .desktop-qty-heading,.daily-order-table .qty-stepper{display:none}
   .daily-order-table .mobile-qty-heading{display:inline}
@@ -1223,6 +1237,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>총 일회용도시락</span></div>
       <div class="summary-value" id="sum-event-lunch">0<span class="summary-unit">개</span></div>
     </div>
+    <div class="summary-card">
+      <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>총 행사도시락</span></div>
+      <div class="summary-value" id="sum-catering">0<span class="summary-unit">개</span></div>
+    </div>
   </div>
 
   <div class="table-section admin-tab-panel" data-tab="orders" id="order-event-summary-section" style="display:none">
@@ -1244,6 +1262,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           </th>
           <th style="text-align:center"><span class="th-icon-label"><svg class="admin-icon"><use href="#admin-i-salad"></use></svg><span>샐러드</span></span></th>
           <th style="text-align:center"><span class="th-icon-label"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>일회용</span></span></th>
+          <th style="text-align:center"><span class="th-icon-label"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>행사도시락</span></span></th>
           <th style="text-align:center">총수량</th>
           <th style="text-align:right">총금액</th>
           <th>배송</th>
@@ -1253,7 +1272,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         </tr>
       </thead>
       <tbody id="order-tbody">
-        <tr class="no-order-row"><td colspan="12">불러오는 중...</td></tr>
+        <tr class="no-order-row"><td colspan="13">불러오는 중...</td></tr>
       </tbody>
     </table>
   </div>
@@ -1965,6 +1984,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <div class="summary-value" id="settle-event-lunch-total">0<span class="summary-unit">개</span></div>
           <div class="summary-detail" id="settle-event-amount-total">0원</div>
         </div>
+        <div class="summary-card">
+          <div class="summary-label">🎁 월식 행사도시락</div>
+          <div class="summary-value" id="settle-catering-total">0<span class="summary-unit">개</span></div>
+          <div class="summary-detail" id="settle-catering-amount-total">0원</div>
+        </div>
       </div>
       <div class="settle-charts-area">
         <div class="settle-chart-card">
@@ -2007,6 +2031,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
             <th style="text-align:center">일반도시락</th>
             <th style="text-align:center">샐러드</th>
             <th style="text-align:center">일회용도시락</th>
+            <th style="text-align:center">월식 행사도시락</th>
             <th>품목별 금액</th>
             <th>청구액</th>
             <th>청구서번호</th>
@@ -2018,7 +2043,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           </tr>
         </thead>
         <tbody id="settlement-tbody">
-          <tr class="no-order-row"><td colspan="13">정산월을 선택하고 불러오기를 눌러주세요.</td></tr>
+          <tr class="no-order-row"><td colspan="14">정산월을 선택하고 불러오기를 눌러주세요.</td></tr>
         </tbody>
       </table>
     </div>
@@ -2179,6 +2204,13 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <button type="button" class="qty-step-btn" onclick="adjustOrderQtyModal('event',1)">+</button>
         </div>
       </div>
+      <div class="order-qty-edit-row">
+        <div class="order-qty-edit-label">행사도시락</div>
+        <div>
+          <div class="catering-order-summary" id="order-qty-catering-summary">추가 주문 없음</div>
+          <button type="button" class="catering-order-trigger" onclick="openAdminCateringOrderModal(document.getElementById('order-qty-uid').value)">메뉴 선택</button>
+        </div>
+      </div>
     </div>
     <div class="order-qty-total-box">
       <span>총 수량</span>
@@ -2187,6 +2219,29 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <div class="modal-actions">
       <button class="save-btn" onclick="saveOrderQtyModal()">적용하기</button>
       <button class="danger-btn" id="order-qty-delete-btn" onclick="deleteOrderItemFromQtyModal()">삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- 행사도시락 주문 수정 모달 -->
+<div class="modal-overlay" id="admin-catering-order-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">행사도시락 주문 수정</div>
+      <button class="modal-close" onclick="closeAdminCateringOrderModal()">✕</button>
+    </div>
+    <div class="order-qty-modal-head">
+      <div class="order-qty-modal-name" id="admin-catering-order-name">업체명</div>
+      <div class="order-qty-modal-date" id="admin-catering-order-date">-</div>
+    </div>
+    <div class="admin-catering-list" id="admin-catering-order-list"></div>
+    <div class="admin-catering-total">
+      <span>선택 합계</span>
+      <span id="admin-catering-order-total">0개 · 0원</span>
+    </div>
+    <div class="modal-actions">
+      <button class="save-btn" onclick="saveAdminCateringOrderSelection()">적용하기</button>
+      <button class="secondary-btn" onclick="closeAdminCateringOrderModal()">취소</button>
     </div>
   </div>
 </div>
@@ -2594,6 +2649,8 @@ let adminEventDraftItems = [];
 let settlementRows = [];
 let settlementEvents = [];
 let currentOrderRows = [];
+let currentAdminCateringUid = '';
+let adminCateringDraft = [];
 let currentOrderEventRows = [];
 let currentOrderReferenceItems = [];
 let currentOrderLocked = false;
@@ -3093,11 +3150,34 @@ function settlementSaladAmount(row = {}) {
 function settlementEventAmount(row = {}) {
   return settlementEventQty(row) * settlementEventUnitPrice(row);
 }
+function settlementCateringSummary(row = {}) {
+  const sourceItems = Array.isArray(row.cateringItems) ? row.cateringItems : [];
+  const summary = orderCateringSummary({ cateringItems: sourceItems }, { preserveSnapshot: true });
+  const fallbackQty = Number(row.catering ?? row.cateringTotal ?? 0) || 0;
+  const fallbackAmount = Number(row.cateringAmount ?? 0) || 0;
+  return {
+    ...summary,
+    totalQty: summary.totalQty || fallbackQty,
+    totalAmount: summary.items.length ? summary.totalAmount : fallbackAmount
+  };
+}
+function settlementCateringQty(row = {}) {
+  return settlementCateringSummary(row).totalQty;
+}
+function settlementCateringAmount(row = {}) {
+  return settlementCateringSummary(row).totalAmount;
+}
+function settlementCateringLabel(row = {}) {
+  const summary = settlementCateringSummary(row);
+  if (!summary.items.length) return summary.totalQty > 0 ? `행사도시락 ${summary.totalQty}개` : '-';
+  return summary.items.map(item => `${item.name} ${item.qty}개`).join(' · ');
+}
 function settlementProductAmounts(row = {}) {
   return {
     lunch: settlementLunchAmount(row),
     salad: settlementSaladAmount(row),
-    event: settlementEventAmount(row)
+    event: settlementEventAmount(row),
+    catering: settlementCateringAmount(row)
   };
 }
 function addSettlementProductAmounts(totals, row = {}) {
@@ -3105,6 +3185,7 @@ function addSettlementProductAmounts(totals, row = {}) {
   totals.lunch += amounts.lunch;
   totals.salad += amounts.salad;
   totals.event += amounts.event;
+  totals.catering += amounts.catering;
   return totals;
 }
 function settlementProductBreakdownHtml(row = {}) {
@@ -3112,9 +3193,11 @@ function settlementProductBreakdownHtml(row = {}) {
   const lunchAmount = settlementLunchAmount(row);
   const saladAmount = settlementSaladAmount(row);
   const eventAmount = settlementEventAmount(row);
+  const cateringAmount = settlementCateringAmount(row);
   if ((Number(row.lunch || 0) || 0) > 0) parts.push(`<div><b>일반</b> ${formatMoney(lunchAmount)}</div>`);
   if ((Number(row.salad || 0) || 0) > 0) parts.push(`<div><b>샐러드</b> ${formatMoney(saladAmount)}</div>`);
   if (settlementEventQty(row) > 0) parts.push(`<div><b>일회용</b> ${formatMoney(eventAmount)}</div>`);
+  if (settlementCateringQty(row) > 0) parts.push(`<div><b>월식 행사</b> ${formatMoney(cateringAmount)}</div>`);
   return parts.length ? parts.join('') : '<span style="color:var(--sub)">-</span>';
 }
 
@@ -3207,17 +3290,49 @@ function orderEventLunchPrice(order = {}) {
 function orderDisposableLunchPrice(order = {}, user = {}) {
   return orderEventLunchPrice(order) || orderLunchPrice(order, user);
 }
-function buildOrderItems({ lunchQty = 0, lunchPrice = 0, saladQty = 0, saladPrice = 0, eventLunchQty = 0, eventLunchPrice = 0 } = {}) {
-  return [
+function orderCateringSummary(order = {}, options = {}) {
+  return window.GJS_CATERING.summarize(order.cateringItems || [], {
+    preserveSnapshot: Boolean(options.preserveSnapshot)
+  });
+}
+function orderCateringQty(order = {}) {
+  return orderCateringSummary(order, { preserveSnapshot: true }).totalQty;
+}
+function orderCateringAmount(order = {}, options = {}) {
+  return orderCateringSummary(order, {
+    preserveSnapshot: options.preserveSnapshot !== false
+  }).totalAmount;
+}
+function buildOrderItems({ lunchQty = 0, lunchPrice = 0, saladQty = 0, saladPrice = 0, eventLunchQty = 0, eventLunchPrice = 0, cateringItems = [] } = {}) {
+  const monthlyItems = [
     { id: 'lunch', label: '도시락', qty: lunchQty, unitPrice: lunchPrice, amount: lunchQty * lunchPrice },
     { id: 'salad', label: '샐러드', qty: saladQty, unitPrice: saladPrice, amount: saladQty * saladPrice },
     { id: 'eventLunch', label: '일회용도시락', qty: eventLunchQty, unitPrice: eventLunchPrice, amount: eventLunchQty * eventLunchPrice }
   ].filter(item => item.qty > 0);
+  const catering = window.GJS_CATERING.summarize(cateringItems, { preserveSnapshot: true }).items.map(item => ({
+    id: `catering:${item.menuId}`,
+    menuId: item.menuId,
+    kind: 'catering',
+    label: `행사도시락 · ${item.name}`,
+    name: item.name,
+    qty: item.qty,
+    unitPrice: item.unitPrice,
+    amount: item.amount
+  }));
+  return [...monthlyItems, ...catering];
 }
 function orderTotalQty(order = {}) {
-  return Number(order.totalQty ?? (orderLunchQty(order) + orderSaladQty(order) + orderEventLunchQty(order))) || 0;
+  const monthlyQty = orderLunchQty(order) + orderSaladQty(order) + orderEventLunchQty(order);
+  if (Array.isArray(order.cateringItems)) return monthlyQty + orderCateringQty(order);
+  return Number(order.totalQty ?? monthlyQty) || 0;
 }
 function orderTotalAmount(order = {}, user = {}) {
+  if (Array.isArray(order.cateringItems)) {
+    return (orderLunchQty(order) * orderLunchPrice(order, user))
+      + (orderSaladQty(order) * orderSaladPrice(order, user))
+      + (orderEventLunchQty(order) * orderDisposableLunchPrice(order, user))
+      + orderCateringAmount(order);
+  }
   if (order.totalAmount != null) return Number(order.totalAmount || 0) || 0;
   if (Array.isArray(order.items)) {
     return order.items.reduce((sum, item) => sum + (Number(item.amount ?? ((item.qty || 0) * (item.unitPrice || 0))) || 0), 0);
@@ -3415,9 +3530,15 @@ function settlementDocData(row, data = {}) {
     lunchTotal: Number(data.lunchTotal ?? row.lunch ?? 0) || 0,
     saladTotal: Number(data.saladTotal ?? row.salad ?? 0) || 0,
     eventLunchTotal: Number(data.eventLunchTotal ?? row.eventLunch ?? 0) || 0,
+    cateringTotal: Number(data.cateringTotal ?? row.cateringTotal ?? row.catering ?? 0) || 0,
     lunch: Number(data.lunch ?? row.lunch ?? 0) || 0,
     salad: Number(data.salad ?? row.salad ?? 0) || 0,
     eventLunch: Number(data.eventLunch ?? row.eventLunch ?? 0) || 0,
+    catering: Number(data.catering ?? row.catering ?? row.cateringTotal ?? 0) || 0,
+    cateringAmount: Number(data.cateringAmount ?? row.cateringAmount ?? 0) || 0,
+    cateringItems: Array.isArray(data.cateringItems ?? row.cateringItems)
+      ? (data.cateringItems ?? row.cateringItems)
+      : [],
     lunchPrice: Number(data.lunchPrice ?? row.lunchPrice ?? 0) || 0,
     saladPrice: Number(data.saladPrice ?? row.saladPrice ?? 0) || 0,
     eventPrice: Number(data.eventPrice ?? row.eventPrice ?? row.lunchPrice ?? 0) || 0,
@@ -3478,6 +3599,9 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
     let lunch = 0;
     let salad = 0;
     let eventLunch = 0;
+    let catering = 0;
+    let cateringAmount = 0;
+    let cateringItems = [];
     let eventPrice = userLunchPrice(user) || 0;
     const daily = {};
 
@@ -3487,21 +3611,35 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
       const dl = orderLunchQty(record);
       const dsalad = orderSaladQty(record);
       const de = orderEventLunchQty(record);
+      const cateringSummary = orderCateringSummary(record, { preserveSnapshot: true });
       const recordEventPrice = orderEventLunchPrice(record);
       lunch += dl;
       salad += dsalad;
       eventLunch += de;
+      catering += cateringSummary.totalQty;
+      cateringAmount += cateringSummary.totalAmount;
+      cateringItems = cateringItems.concat(cateringSummary.items);
       if (recordEventPrice) eventPrice = recordEventPrice;
-      if (dl || dsalad || de) daily[ds] = { lunch: dl, salad: dsalad, eventLunch: de };
+      if (dl || dsalad || de || cateringSummary.totalQty) {
+        daily[ds] = {
+          lunch: dl,
+          salad: dsalad,
+          eventLunch: de,
+          catering: cateringSummary.totalQty,
+          cateringAmount: cateringSummary.totalAmount,
+          cateringItems: cateringSummary.items
+        };
+      }
     });
 
-    if ((lunch + salad + eventLunch) <= 0) continue;
+    if ((lunch + salad + eventLunch + catering) <= 0) continue;
 
     const lunchPrice = userLunchPrice(user) || 0;
     const saladPrice = userSaladPrice(user) || 0;
     const amount = settlementLunchAmount({ lunch, lunchPrice })
       + settlementSaladAmount({ salad, saladPrice })
-      + settlementEventAmount({ eventLunch, eventPrice });
+      + settlementEventAmount({ eventLunch, eventPrice })
+      + cateringAmount;
     const adjust = parseInt(saved.adjust, 10) || 0;
     const payments = saved.payments || [];
     const paidTotal = settlementPaidTotal(saved);
@@ -3514,6 +3652,9 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
       lunch,
       salad,
       eventLunch,
+      catering,
+      cateringAmount,
+      cateringItems,
       lunchPrice,
       saladPrice,
       eventPrice,
@@ -3534,9 +3675,13 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
       lunchTotal: lunch,
       saladTotal: salad,
       eventLunchTotal: eventLunch,
+      cateringTotal: catering,
       lunch,
       salad,
       eventLunch,
+      catering,
+      cateringAmount,
+      cateringItems,
       lunchPrice,
       saladPrice,
       eventPrice,
@@ -3700,7 +3845,7 @@ function parseSettlementExcelWorkbook(workbook, month) {
 }
 
 function manualMonthlyRowAmount(row) {
-  return settlementLunchAmount(row) + settlementSaladAmount(row) + settlementEventAmount(row);
+  return settlementLunchAmount(row) + settlementSaladAmount(row) + settlementEventAmount(row) + settlementCateringAmount(row);
 }
 
 function summarizeManualMonthlyRows(rows) {
@@ -3708,9 +3853,11 @@ function summarizeManualMonthlyRows(rows) {
     acc.lunch += row.lunch || 0;
     acc.salad += row.salad || 0;
     acc.eventLunch += row.eventLunch || 0;
+    acc.catering += settlementCateringQty(row);
+    acc.cateringAmount += settlementCateringAmount(row);
     acc.amount += manualMonthlyRowAmount(row);
     return acc;
-  }, { lunch: 0, salad: 0, eventLunch: 0, amount: 0 });
+  }, { lunch: 0, salad: 0, eventLunch: 0, catering: 0, cateringAmount: 0, amount: 0 });
 }
 
 function renderSettlementExcelPreview(rows, month) {
@@ -4478,10 +4625,11 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       : { lunch: user.defaultLunchForDate, salad: user.defaultSaladForDate, event: 0 };
     const delivered = deliveredRecords[uid];
     if (delivered?.orderDeleted) return;
+    const cateringSummary = orderCateringSummary(delivered || {}, { preserveSnapshot: true });
     const lunchPrice = userLunchPrice(user);
     const saladPrice = userSaladPrice(user);
     const eventLunchPrice = orderEventLunchPrice(delivered || {}) || lunchPrice;
-    if ((defaults.lunch + defaults.salad + defaults.event) <= 0) {
+    if ((defaults.lunch + defaults.salad + defaults.event + cateringSummary.totalQty) <= 0) {
       rowsByUid[uid] = {
         uid,
         businessName: user.businessName || '-',
@@ -4493,6 +4641,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
         lunchPrice,
         saladPrice,
         eventLunchPrice,
+        cateringItems: [],
         totalQty: 0,
         totalAmount: 0,
         note: defaultSnapshots ? '잠금 시점 0개 휴무' : '요일 기본 0개 휴무',
@@ -4524,6 +4673,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       lunchPrice,
       saladPrice,
       eventLunchPrice,
+      cateringItems: cateringSummary.items,
       note: defaultSnapshots ? '잠금 시점 기본값' : '요일 기본값',
       submittedAt: null,
       delivered: Boolean(delivered?.delivered),
@@ -4542,6 +4692,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
     const lunch = orderLunchQty(order);
     const salad = orderSaladQty(order);
     const eventLunch = orderEventLunchQty(order);
+    const orderCatering = orderCateringSummary(deliveredOverride ? delivered : order, { preserveSnapshot: deliveredOverride });
     const lunchPrice = orderLunchPrice(order, user);
     const saladPrice = orderSaladPrice(order, user);
     const eventLunchPrice = orderEventLunchPrice(order) || lunchPrice;
@@ -4554,6 +4705,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
         lunchQty: 0,
         saladQty: 0,
         eventLunchQty: 0,
+        cateringItems: [],
         lunchPrice,
         saladPrice,
         eventLunchPrice,
@@ -4569,7 +4721,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       };
       return;
     }
-    if ((lunch + salad + eventLunch) <= 0) {
+    if ((lunch + salad + eventLunch + orderCatering.totalQty) <= 0) {
       rowsByUid[order.uid] = {
         ...order,
         businessName: user.businessName || order.businessName || '-',
@@ -4578,6 +4730,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
         lunchQty: 0,
         saladQty: 0,
         eventLunchQty: 0,
+        cateringItems: [],
         lunchPrice,
         saladPrice,
         eventLunchPrice,
@@ -4603,8 +4756,9 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
     const displayLunch = displayCounts.lunch;
     const displaySalad = displayCounts.salad;
     const displayEventLunch = displayCounts.event;
-    const displayTotalQty = displayLunch + displaySalad + displayEventLunch;
-    const displayTotalAmount = (displayLunch * lunchPrice) + (displaySalad * saladPrice) + (displayEventLunch * eventLunchPrice);
+    const displayCateringItems = orderCatering.items;
+    const displayTotalQty = displayLunch + displaySalad + displayEventLunch + orderCatering.totalQty;
+    const displayTotalAmount = (displayLunch * lunchPrice) + (displaySalad * saladPrice) + (displayEventLunch * eventLunchPrice) + orderCatering.totalAmount;
     const displayOrder = {
       ...order,
       lunchQty: displayLunch,
@@ -4612,12 +4766,13 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       saladQty: displaySalad,
       saladCount: displaySalad,
       eventLunchQty: displayEventLunch,
+      cateringItems: displayCateringItems,
       lunchPrice,
       saladPrice,
       eventLunchPrice,
       totalQty: displayTotalQty,
       totalAmount: displayTotalAmount,
-      items: buildOrderItems({ lunchQty: displayLunch, lunchPrice, saladQty: displaySalad, saladPrice, eventLunchQty: displayEventLunch, eventLunchPrice })
+      items: buildOrderItems({ lunchQty: displayLunch, lunchPrice, saladQty: displaySalad, saladPrice, eventLunchQty: displayEventLunch, eventLunchPrice, cateringItems: displayCateringItems })
     };
     rowsByUid[order.uid] = {
       ...displayOrder,
@@ -4644,6 +4799,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
     const lunchPrice = orderLunchPrice(data, {});
     const saladPrice = orderSaladPrice(data, {});
     const eventLunchPrice = orderEventLunchPrice(data) || lunchPrice;
+    const cateringSummary = orderCateringSummary(data, { preserveSnapshot: true });
     const user = allUsers[uid] || {};
     const displayCounts = normalizeQtyValuesForUser(user, { lunch, salad, event: eventLunch, disposableLunch: data.disposableLunch });
     rowsByUid[uid] = {
@@ -4657,9 +4813,10 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       lunchPrice,
       saladPrice,
       eventLunchPrice,
-      items: data.items || buildOrderItems({ lunchQty: displayCounts.lunch, lunchPrice, saladQty: displayCounts.salad, saladPrice, eventLunchQty: displayCounts.event, eventLunchPrice }),
-      totalQty: data.totalQty ?? (displayCounts.lunch + displayCounts.salad + displayCounts.event),
-      totalAmount: data.totalAmount ?? ((displayCounts.lunch * lunchPrice) + (displayCounts.salad * saladPrice) + (displayCounts.event * eventLunchPrice)),
+      cateringItems: cateringSummary.items,
+      items: data.items || buildOrderItems({ lunchQty: displayCounts.lunch, lunchPrice, saladQty: displayCounts.salad, saladPrice, eventLunchQty: displayCounts.event, eventLunchPrice, cateringItems: cateringSummary.items }),
+      totalQty: data.totalQty ?? (displayCounts.lunch + displayCounts.salad + displayCounts.event + cateringSummary.totalQty),
+      totalAmount: data.totalAmount ?? ((displayCounts.lunch * lunchPrice) + (displayCounts.salad * saladPrice) + (displayCounts.event * eventLunchPrice) + cateringSummary.totalAmount),
       note: data.note || '수동 입력',
       submittedAt: data.updatedAt || data.deliveredAt || null,
       delivered: Boolean(data.delivered),
@@ -4797,12 +4954,14 @@ function orderNoteHtml(order = {}) {
   return `${badge}${notePart || defaultPart || ''}`;
 }
 
-function setOrderSummaryValues(count, lunch, salad, eventLunch) {
+function setOrderSummaryValues(count, lunch, salad, eventLunch, catering = 0) {
   document.getElementById('sum-count').innerHTML = `${count}<span class="summary-unit">곳</span>`;
   document.getElementById('sum-lunch').innerHTML = `${lunch}<span class="summary-unit">개</span>`;
   document.getElementById('sum-salad').innerHTML = `${salad}<span class="summary-unit">개</span>`;
   const eventEl = document.getElementById('sum-event-lunch');
   if (eventEl) eventEl.innerHTML = `${eventLunch}<span class="summary-unit">개</span>`;
+  const cateringEl = document.getElementById('sum-catering');
+  if (cateringEl) cateringEl.innerHTML = `${catering}<span class="summary-unit">개</span>`;
 }
 
 function renderOrderEventLunches(rows = currentOrderEventRows) {
@@ -4955,7 +5114,7 @@ async function loadOrderTabEventLunches(date = currentDateStr) {
 
 // ── 주문 로드 ──
 async function loadOrders() {
-  document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="12">불러오는 중...</td></tr>';
+  document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="13">불러오는 중...</td></tr>';
   document.getElementById('not-submitted-list').innerHTML = '';
   currentOrderRows = [];
   currentOrderEventRows = [];
@@ -4970,8 +5129,8 @@ async function loadOrders() {
     currentOrderLocked = false;
     updateOrderLockButton();
     const message = holidayName(currentDateStr) ? `${holidayName(currentDateStr)}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다';
-    document.getElementById('order-tbody').innerHTML = `<tr class="no-order-row"><td colspan="12">${escapeHtml(message)}</td></tr>`;
-    setOrderSummaryValues(0, 0, 0, 0);
+    document.getElementById('order-tbody').innerHTML = `<tr class="no-order-row"><td colspan="13">${escapeHtml(message)}</td></tr>`;
+    setOrderSummaryValues(0, 0, 0, 0, 0);
     document.getElementById('not-sub-title').textContent = '🚚 배송 없음';
     document.getElementById('not-submitted-list').innerHTML = '<div class="no-not">공휴일과 주말은 주문 확인 대상에서 제외됩니다.</div>';
     renderOrderMobileSearchResults();
@@ -5001,18 +5160,20 @@ async function loadOrders() {
     currentOrderReferenceItems = orderReferenceItemsForDate(currentDateStr, snap, orders);
     renderOrderReferencePanel();
 
-    let totalLunch = 0, totalSalad = 0, totalEventLunch = 0;
+    let totalLunch = 0, totalSalad = 0, totalEventLunch = 0, totalCatering = 0;
     const tbody = document.getElementById('order-tbody');
 
     if (orders.length === 0) {
-      tbody.innerHTML = '<tr class="no-order-row"><td colspan="12">아직 주문이 없습니다</td></tr>';
+      tbody.innerHTML = '<tr class="no-order-row"><td colspan="13">아직 주문이 없습니다</td></tr>';
     } else {
       tbody.innerHTML = '';
       orders.forEach((o, i) => {
         totalLunch += o.lunchCount || 0;
         totalSalad += o.saladCount || 0;
         const eventLunch = orderEventLunchQty(o);
+        const cateringSummary = orderCateringSummary(o, { preserveSnapshot: true });
         totalEventLunch += eventLunch;
+        totalCatering += cateringSummary.totalQty;
         const totalQty = orderTotalQty(o);
         const totalAmount = orderTotalAmount(o, allUsers[o.uid] || {});
         const tr = document.createElement('tr');
@@ -5040,7 +5201,10 @@ async function loadOrders() {
         const manageHtml = canDeleteOrder
           ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="mini-btn order-save-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${cancelDeliveryHtml}${deleteOrderHtml}</div>`
           : `<div class="inline-actions"><button class="mini-btn order-save-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${cancelDeliveryHtml}</div>`;
-        const mobileQtyDetail = `도 ${o.lunchCount ?? 0} · 샐 ${o.saladCount ?? 0}${eventLunch ? ` · 일 ${eventLunch}` : ''}`;
+        const mobileQtyDetail = `도 ${o.lunchCount ?? 0} · 샐 ${o.saladCount ?? 0}${eventLunch ? ` · 일 ${eventLunch}` : ''}${cateringSummary.totalQty ? ` · 행 ${cateringSummary.totalQty}` : ''}`;
+        const cateringLabel = cateringSummary.totalQty
+          ? `${cateringSummary.items.length > 1 ? `${escapeHtml(cateringSummary.items[0].name)} 외 ${cateringSummary.items.length - 1}종` : escapeHtml(cateringSummary.items[0].name)}<br>${cateringSummary.totalQty}개`
+          : '추가';
         tr.innerHTML = `
           <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${(!o.delivered && !isSelfHoliday) ? 'checked' : ''} ${disabledAttr}></td>
           <td style="color:var(--sub);font-size:13px">${i + 1}</td>
@@ -5070,6 +5234,11 @@ async function loadOrders() {
               <button type="button" class="qty-step-btn" onclick="adjustQty(this,1)" ${disabledAttr}>+</button>
             </div>
           </td>
+          <td class="qty-cell">
+            <button type="button" class="admin-catering-trigger${cateringSummary.totalQty ? ' has-items' : ''}" onclick="openAdminCateringOrderModal('${jsString(o.uid)}')" ${disabledAttr}>
+              ${cateringLabel}
+            </button>
+          </td>
           <td class="qty-cell">${totalQty}</td>
           <td style="text-align:right;font-weight:800;color:var(--primary)">${totalAmount ? formatMoney(totalAmount) : '-'}</td>
           <td>${statusHtml}</td>
@@ -5083,12 +5252,12 @@ async function loadOrders() {
       if (checkAll) checkAll.checked = orders.some(o => !o.delivered && !o.selfHoliday);
     }
 
-    setOrderSummaryValues(orders.length, totalLunch, totalSalad, totalEventLunch);
+    setOrderSummaryValues(orders.length, totalLunch, totalSalad, totalEventLunch, totalCatering);
     renderNotSubmitted(orders);
     renderOrderMobileSearchResults();
     checkPreviousIncompleteDeliveries();
   } catch(e) {
-    document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="12">불러오기 실패: ' + e.message + '</td></tr>';
+    document.getElementById('order-tbody').innerHTML = '<tr class="no-order-row"><td colspan="13">불러오기 실패: ' + e.message + '</td></tr>';
     renderOrderReferencePanel([]);
     renderPreviousIncompleteAlert(null);
   }
@@ -5245,8 +5414,11 @@ function orderQtyValuesFromRow(rowEl) {
 function updateMobileOrderQtyButton(rowEl, values) {
   const btn = rowEl?.querySelector('.mobile-qty-btn');
   if (!btn) return;
-  const total = values.lunch + values.salad + values.event;
-  const detail = `도 ${values.lunch} · 샐 ${values.salad}${values.event ? ` · 일 ${values.event}` : ''}`;
+  const uid = rowEl?.dataset.orderUid || '';
+  const row = currentOrderRows.find(item => item.uid === uid) || {};
+  const cateringQty = orderCateringQty(row);
+  const total = values.lunch + values.salad + values.event + cateringQty;
+  const detail = `도 ${values.lunch} · 샐 ${values.salad}${values.event ? ` · 일 ${values.event}` : ''}${cateringQty ? ` · 행 ${cateringQty}` : ''}`;
   const totalEl = btn.querySelector('.mobile-qty-total');
   const detailEl = btn.querySelector('.mobile-qty-detail');
   if (totalEl) totalEl.textContent = `${total}개`;
@@ -5271,12 +5443,13 @@ function refreshOrderRowCalculatedCells(uid) {
     saladQty: values.salad,
     saladPrice: orderSaladPrice(row, user),
     eventLunchQty: values.event,
-    eventLunchPrice: orderDisposableLunchPrice(row, user)
+    eventLunchPrice: orderDisposableLunchPrice(row, user),
+    cateringItems: row.cateringItems || []
   });
-  const totalQty = values.lunch + values.salad + values.event;
+  const totalQty = values.lunch + values.salad + values.event + orderCateringQty(row);
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
-  if (rowEl.children[6]) rowEl.children[6].textContent = totalQty;
-  if (rowEl.children[7]) rowEl.children[7].textContent = totalAmount ? formatMoney(totalAmount) : '-';
+  if (rowEl.children[7]) rowEl.children[7].textContent = totalQty;
+  if (rowEl.children[8]) rowEl.children[8].textContent = totalAmount ? formatMoney(totalAmount) : '-';
   updateMobileOrderQtyButton(rowEl, values);
   refreshOrderSummaryFromInputs();
 }
@@ -5301,23 +5474,28 @@ function refreshOrderSummaryFromInputs() {
   let totalLunch = 0;
   let totalSalad = 0;
   let totalEventLunch = 0;
+  let totalCatering = 0;
   let count = 0;
   document.querySelectorAll('#order-tbody tr').forEach(rowEl => {
     if (!rowEl.querySelector('.order-check')) return;
     const values = orderQtyValuesFromRow(rowEl);
+    const row = currentOrderRows.find(item => item.uid === rowEl.dataset.orderUid) || {};
     totalLunch += values.lunch;
     totalSalad += values.salad;
     totalEventLunch += values.event;
+    totalCatering += orderCateringQty(row);
     count += 1;
   });
   const countEl = document.getElementById('sum-count');
   const lunchEl = document.getElementById('sum-lunch');
   const saladEl = document.getElementById('sum-salad');
   const eventEl = document.getElementById('sum-event-lunch');
+  const cateringEl = document.getElementById('sum-catering');
   if (countEl) countEl.innerHTML = `${count}<span class="summary-unit">곳</span>`;
   if (lunchEl) lunchEl.innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
   if (saladEl) saladEl.innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
   if (eventEl) eventEl.innerHTML = `${totalEventLunch}<span class="summary-unit">개</span>`;
+  if (cateringEl) cateringEl.innerHTML = `${totalCatering}<span class="summary-unit">개</span>`;
 }
 
 function openOrderQtyModal(uid) {
@@ -5331,6 +5509,13 @@ function openOrderQtyModal(uid) {
   document.getElementById('order-qty-lunch').value = values.lunch;
   document.getElementById('order-qty-salad').value = values.salad;
   document.getElementById('order-qty-event').value = values.event;
+  const cateringSummary = orderCateringSummary(row, { preserveSnapshot: true });
+  const cateringEl = document.getElementById('order-qty-catering-summary');
+  if (cateringEl) {
+    cateringEl.textContent = cateringSummary.totalQty
+      ? cateringSummary.items.map(item => `${item.name} ${item.qty}개`).join(' · ')
+      : '추가 주문 없음';
+  }
   const canDeleteOrder = row.orderDocExists || row.adminManual || row.source === 'manual' || row.source === 'default' || row.selfHoliday;
   const deleteBtn = document.getElementById('order-qty-delete-btn');
   if (deleteBtn) deleteBtn.style.display = canDeleteOrder ? '' : 'none';
@@ -5357,8 +5542,118 @@ function updateOrderQtyModalTotal() {
   const lunch = parseDeliveryCount(document.getElementById('order-qty-lunch')?.value, 0);
   const salad = parseDeliveryCount(document.getElementById('order-qty-salad')?.value, 0);
   const eventLunch = parseDeliveryCount(document.getElementById('order-qty-event')?.value, 0);
+  const uid = document.getElementById('order-qty-uid')?.value || '';
+  const row = currentOrderRows.find(item => item.uid === uid) || {};
+  const cateringQty = orderCateringQty(row);
   const totalEl = document.getElementById('order-qty-total');
-  if (totalEl) totalEl.textContent = `${lunch + salad + eventLunch}개`;
+  if (totalEl) totalEl.textContent = `${lunch + salad + eventLunch + cateringQty}개`;
+}
+
+function adminCateringDraftQty(menuId) {
+  return Number(adminCateringDraft.find(item => item.menuId === menuId)?.qty || 0);
+}
+
+function openAdminCateringOrderModal(uid) {
+  const row = currentOrderRows.find(item => item.uid === uid) || {};
+  if (!uid || row.selfHoliday) return;
+  currentAdminCateringUid = uid;
+  adminCateringDraft = window.GJS_CATERING.summarize(row.cateringItems || [], {
+    preserveSnapshot: true
+  }).items.map(item => ({
+    menuId: item.menuId,
+    qty: item.qty,
+    name: item.name,
+    unitPrice: item.unitPrice
+  }));
+  const user = allUsers[uid] || deletedUsers[uid] || {};
+  document.getElementById('admin-catering-order-name').textContent = row.businessName || user.businessName || '업체명';
+  document.getElementById('admin-catering-order-date').textContent = formatDateKR(currentDateStr);
+  renderAdminCateringOrderModal();
+  document.getElementById('admin-catering-order-modal').classList.add('open');
+}
+
+function closeAdminCateringOrderModal() {
+  document.getElementById('admin-catering-order-modal').classList.remove('open');
+  currentAdminCateringUid = '';
+  adminCateringDraft = [];
+}
+
+function changeAdminCateringQty(menuId, delta) {
+  const current = adminCateringDraftQty(menuId);
+  const next = Math.max(0, Math.min(50, current + delta));
+  const existing = adminCateringDraft.find(item => item.menuId === menuId);
+  if (next <= 0) {
+    adminCateringDraft = adminCateringDraft.filter(item => item.menuId !== menuId);
+  } else if (existing) {
+    existing.qty = next;
+  } else {
+    const menu = window.GJS_CATERING.getItem(menuId);
+    if (menu) adminCateringDraft.push({
+      menuId: menu.id,
+      qty: next,
+      name: menu.name,
+      unitPrice: menu.unitPrice
+    });
+  }
+  renderAdminCateringOrderModal();
+}
+
+function renderAdminCateringOrderModal() {
+  const listEl = document.getElementById('admin-catering-order-list');
+  if (!listEl) return;
+  listEl.innerHTML = window.GJS_CATERING.catalog.map(menu => {
+    const qty = adminCateringDraftQty(menu.id);
+    return `
+      <div class="admin-catering-row">
+        <div class="admin-catering-name">
+          <strong>${escapeHtml(menu.name)}</strong>
+          <span>${escapeHtml(menu.category)} · ${formatMoney(menu.unitPrice)}</span>
+        </div>
+        <div class="qty-stepper">
+          <button type="button" class="qty-step-btn" onclick="changeAdminCateringQty('${jsString(menu.id)}', -1)">−</button>
+          <span class="admin-catering-count">${qty}</span>
+          <button type="button" class="qty-step-btn" onclick="changeAdminCateringQty('${jsString(menu.id)}', 1)">+</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  const summary = window.GJS_CATERING.summarize(adminCateringDraft, { preserveSnapshot: true });
+  const totalEl = document.getElementById('admin-catering-order-total');
+  if (totalEl) totalEl.textContent = `${summary.totalQty}개 · ${formatMoney(summary.totalAmount)}`;
+}
+
+function saveAdminCateringOrderSelection() {
+  const uid = currentAdminCateringUid;
+  const row = currentOrderRows.find(item => item.uid === uid);
+  if (!uid || !row) return;
+  row.cateringItems = window.GJS_CATERING.summarize(adminCateringDraft, {
+    preserveSnapshot: true
+  }).items.map(item => ({
+    menuId: item.menuId,
+    qty: item.qty,
+    name: item.name,
+    unitPrice: item.unitPrice
+  }));
+  const summary = orderCateringSummary(row, { preserveSnapshot: true });
+  const rowEl = orderRowElementByUid(uid);
+  const trigger = rowEl?.querySelector('.admin-catering-trigger');
+  if (trigger) {
+    trigger.classList.toggle('has-items', summary.totalQty > 0);
+    trigger.innerHTML = summary.totalQty
+      ? `${summary.items.length > 1 ? `${escapeHtml(summary.items[0].name)} 외 ${summary.items.length - 1}종` : escapeHtml(summary.items[0].name)}<br>${summary.totalQty}개`
+      : '추가';
+  }
+  const outerSummary = document.getElementById('order-qty-catering-summary');
+  if (outerSummary && document.getElementById('order-qty-uid')?.value === uid) {
+    outerSummary.textContent = summary.totalQty
+      ? summary.items.map(item => `${item.name} ${item.qty}개`).join(' · ')
+      : '추가 주문 없음';
+  }
+  refreshOrderRowCalculatedCells(uid);
+  markOrderRowDirty(uid);
+  updateOrderQtyModalTotal();
+  closeAdminCateringOrderModal();
+  showToast('행사도시락을 표에 반영했습니다. 저장 버튼으로 확정해주세요.');
 }
 
 function saveOrderQtyModal() {
@@ -5398,13 +5693,21 @@ async function saveInlineQty(uid) {
   const lunchPrice = orderLunchPrice(row, user);
   const saladPrice = orderSaladPrice(row, user);
   const eventLunchPrice = orderDisposableLunchPrice(row, user);
+  const cateringSummary = orderCateringSummary(row, { preserveSnapshot: true });
+  const cateringItems = cateringSummary.items.map(item => ({
+    menuId: item.menuId,
+    qty: item.qty,
+    name: item.name,
+    unitPrice: item.unitPrice
+  }));
   const items = buildOrderItems({
     lunchQty: values.lunch,
     lunchPrice,
     saladQty: values.salad,
     saladPrice,
     eventLunchQty: values.event,
-    eventLunchPrice
+    eventLunchPrice,
+    cateringItems
   });
   try {
     await db.collection('orders').doc(currentDateStr).collection('items').doc(uid).set({
@@ -5413,6 +5716,7 @@ async function saveInlineQty(uid) {
       lunchCount: values.lunch,
       saladCount: values.salad,
       eventLunchCount: values.event,
+      cateringItems: window.GJS_CATERING.normalizeItems(cateringItems),
       disposableLunch: isDisposableLunchUser(user),
       adminInput: true,
       adminAdjusted: true,
@@ -5438,8 +5742,11 @@ async function saveInlineQty(uid) {
               eventLunchQty: values.event,
               eventLunchPrice,
               eventPrice: eventLunchPrice,
+              cateringTotal: cateringSummary.totalQty,
+              cateringAmount: cateringSummary.totalAmount,
+              cateringItems,
               disposableLunch: isDisposableLunchUser(user),
-              totalQty: values.lunch + values.salad + values.event,
+              totalQty: values.lunch + values.salad + values.event + cateringSummary.totalQty,
               totalAmount: items.reduce((sum, item) => sum + item.amount, 0),
               items,
               orderDeleted: false,
@@ -5514,7 +5821,22 @@ async function completeSelectedDeliveries() {
     const lunchPrice = orderLunchPrice(row, user);
     const saladPrice = orderSaladPrice(row, user);
     const eventLunchPrice = orderDisposableLunchPrice(row, user);
-    const items = buildOrderItems({ lunchQty: lunch, lunchPrice, saladQty: salad, saladPrice, eventLunchQty: eventLunch, eventLunchPrice });
+    const cateringSummary = orderCateringSummary(row, { preserveSnapshot: true });
+    const cateringItems = cateringSummary.items.map(item => ({
+      menuId: item.menuId,
+      qty: item.qty,
+      name: item.name,
+      unitPrice: item.unitPrice
+    }));
+    const items = buildOrderItems({
+      lunchQty: lunch,
+      lunchPrice,
+      saladQty: salad,
+      saladPrice,
+      eventLunchQty: eventLunch,
+      eventLunchPrice,
+      cateringItems
+    });
     updates.deliveryRecords[currentDateStr][uid] = {
       uid,
       businessName: user.businessName || row.businessName || '-',
@@ -5527,8 +5849,11 @@ async function completeSelectedDeliveries() {
       eventLunchQty: eventLunch,
       eventLunchPrice,
       eventPrice: eventLunchPrice,
+      cateringTotal: cateringSummary.totalQty,
+      cateringAmount: cateringSummary.totalAmount,
+      cateringItems,
       disposableLunch: isDisposableLunchUser(user),
-      totalQty: lunch + salad + eventLunch,
+      totalQty: lunch + salad + eventLunch + cateringSummary.totalQty,
       totalAmount: items.reduce((sum, item) => sum + item.amount, 0),
       items,
       orderDeleted: false,
@@ -5578,6 +5903,9 @@ async function rebuildSettlementsForUids(month, uids) {
     let lunch = 0;
     let salad = 0;
     let eventLunch = 0;
+    let catering = 0;
+    let cateringAmount = 0;
+    const cateringById = new Map();
     let eventPrice = userLunchPrice(user) || 0;
     const daily = {};
     monthDates(month).forEach(ds => {
@@ -5586,16 +5914,37 @@ async function rebuildSettlementsForUids(month, uids) {
       const dl = orderLunchQty(record);
       const dsalad = orderSaladQty(record);
       const de = orderEventLunchQty(record);
+      const cateringSummary = orderCateringSummary(record, { preserveSnapshot: true });
       const recordEventPrice = orderEventLunchPrice(record);
       lunch += dl;
       salad += dsalad;
       eventLunch += de;
+      catering += cateringSummary.totalQty;
+      cateringAmount += cateringSummary.totalAmount;
+      cateringSummary.items.forEach(item => {
+        const existing = cateringById.get(item.menuId);
+        if (existing) {
+          existing.qty += item.qty;
+          existing.amount += item.amount;
+        } else {
+          cateringById.set(item.menuId, { ...item });
+        }
+      });
       if (recordEventPrice) eventPrice = recordEventPrice;
-      if (dl || dsalad || de) daily[ds] = { lunch: dl, salad: dsalad, eventLunch: de };
+      if (dl || dsalad || de || cateringSummary.totalQty) {
+        daily[ds] = {
+          lunch: dl,
+          salad: dsalad,
+          eventLunch: de,
+          catering: cateringSummary.totalQty,
+          cateringAmount: cateringSummary.totalAmount,
+          cateringItems: cateringSummary.items
+        };
+      }
     });
 
     const paidTotal = settlementPaidTotal(saved);
-    if ((lunch + salad + eventLunch) <= 0) {
+    if ((lunch + salad + eventLunch + catering) <= 0) {
       if (settlementItems[uid] && paidTotal <= 0) {
         await settlementItemRef(month, uid).delete();
         applySettlementToUserCache(uid, month, null);
@@ -5607,14 +5956,17 @@ async function rebuildSettlementsForUids(month, uids) {
     const saladPrice = userSaladPrice(user) || 0;
     const amount = settlementLunchAmount({ lunch, lunchPrice })
       + settlementSaladAmount({ salad, saladPrice })
-      + settlementEventAmount({ eventLunch, eventPrice });
+      + settlementEventAmount({ eventLunch, eventPrice })
+      + cateringAmount;
+    const cateringItems = Array.from(cateringById.values());
     const adjust = parseInt(saved.adjust, 10) || 0;
     const payments = saved.payments || [];
     const status = paidTotal > 0 && paidTotal >= (amount + adjust) ? '입금완료' : '청구완료';
     const invoiceNo = saved.invoiceNo || await generateInvoiceNo(month);
     const dueDate = saved.dueDate || defaultDueDate(month);
     await saveSettlementItem(month, uid, {
-      uid, user, lunch, salad, eventLunch, lunchPrice, saladPrice, eventPrice, amount, dateBreakdown: daily
+      uid, user, lunch, salad, eventLunch, catering, cateringAmount, cateringItems,
+      lunchPrice, saladPrice, eventPrice, amount, dateBreakdown: daily
     }, {
       status,
       note: saved.note || '',
@@ -5628,6 +5980,10 @@ async function rebuildSettlementsForUids(month, uids) {
       lunchTotal: lunch,
       saladTotal: salad,
       eventLunchTotal: eventLunch,
+      cateringTotal: catering,
+      catering,
+      cateringAmount,
+      cateringItems,
       lunch,
       salad,
       eventLunch,
@@ -6467,10 +6823,12 @@ function orderLogValue(snapshot = null) {
   const lunch = Number(snapshot.lunchCount || 0) || 0;
   const salad = Number(snapshot.saladCount || 0) || 0;
   const eventLunchCount = Number(snapshot.eventLunchCount || 0) || 0;
-  if (lunch + salad + eventLunchCount <= 0) return '0개 휴무';
+  const catering = orderCateringSummary(snapshot, { preserveSnapshot: true });
+  if (lunch + salad + eventLunchCount + catering.totalQty <= 0) return '0개 휴무';
   const eventText = Number(snapshot.eventLunchCount || 0) > 0 ? ` / 일회용 ${snapshot.eventLunchCount}` : '';
+  const cateringText = catering.totalQty > 0 ? ` / 행사 ${catering.label}` : '';
   const noteText = snapshot.note ? ` / 메모: ${snapshot.note}` : '';
-  return `도시락 ${snapshot.lunchCount || 0} / 샐러드 ${snapshot.saladCount || 0}${eventText}${noteText}`;
+  return `도시락 ${snapshot.lunchCount || 0} / 샐러드 ${snapshot.saladCount || 0}${eventText}${cateringText}${noteText}`;
 }
 
 function orderLogFieldLabel(field) {
@@ -6478,6 +6836,7 @@ function orderLogFieldLabel(field) {
     lunchCount: '도시락',
     saladCount: '샐러드',
     eventLunchCount: '일회용',
+    cateringItems: '행사도시락',
     selfHoliday: '자체휴무',
     note: '메모'
   }[field] || field;
@@ -6487,6 +6846,10 @@ function orderLogFieldValue(snapshot = null, field = '') {
   if (!snapshot) return '-';
   if (field === 'selfHoliday') return snapshot.selfHoliday ? '예' : '아니오';
   if (field === 'note') return snapshot.note || '-';
+  if (field === 'cateringItems') {
+    const catering = orderCateringSummary(snapshot, { preserveSnapshot: true });
+    return catering.totalQty > 0 ? catering.label : '없음';
+  }
   return String(snapshot[field] ?? 0);
 }
 
@@ -9427,7 +9790,7 @@ async function loadSettlements() {
   const month = document.getElementById('settle-month').value || currentMonthStr();
   const tbody = document.getElementById('settlement-tbody');
   const eventTbody = document.getElementById('settlement-event-tbody');
-  tbody.innerHTML = '<tr class="no-order-row"><td colspan="13">정산 내역을 계산하는 중...</td></tr>';
+  tbody.innerHTML = '<tr class="no-order-row"><td colspan="14">정산 내역을 계산하는 중...</td></tr>';
   eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">행사도시락을 불러오는 중...</td></tr>';
 
   try {
@@ -9442,7 +9805,7 @@ async function loadSettlements() {
       if (payments.length === 0 && saved.paidAmount > 0) {
         payments = [{ amount: saved.paidAmount, date: saved.paidDate || '', note: '(이전 기록)', recordedAt: saved.updatedAt || '' }];
       }
-      byUser[uid] = { uid, user, lunch: 0, salad: 0, eventLunch: 0, lunchPrice, saladPrice, eventPrice: lunchPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, invoiceNo: saved.invoiceNo || '', dueDate: saved.dueDate || '', payments, dateBreakdown: {} };
+      byUser[uid] = { uid, user, lunch: 0, salad: 0, eventLunch: 0, catering: 0, cateringAmount: 0, cateringItems: [], lunchPrice, saladPrice, eventPrice: lunchPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, invoiceNo: saved.invoiceNo || '', dueDate: saved.dueDate || '', payments, dateBreakdown: {} };
     });
 
     const dates = monthDates(month);
@@ -9461,7 +9824,7 @@ async function loadSettlements() {
         if (!data?.delivered) return;
         if (!allUsers[uid]) return;
         const user = allUsers[uid] || {};
-        if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, eventLunch: 0, lunchPrice: 0, saladPrice: 0, eventPrice: 0, amount: 0, status: '미정산', note: '', adjust: 0, invoiceNo: '', dueDate: '', payments: [], dateBreakdown: {} };
+        if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, eventLunch: 0, catering: 0, cateringAmount: 0, cateringItems: [], lunchPrice: 0, saladPrice: 0, eventPrice: 0, amount: 0, status: '미정산', note: '', adjust: 0, invoiceNo: '', dueDate: '', payments: [], dateBreakdown: {} };
         const counts = normalizeQtyValuesForUser(user, {
           lunch: orderLunchQty(data),
           salad: orderSaladQty(data),
@@ -9469,12 +9832,29 @@ async function loadSettlements() {
           disposableLunch: data.disposableLunch
         });
         const dl = counts.lunch, dd = counts.salad, de = counts.event;
+        const catering = orderCateringSummary(data, { preserveSnapshot: true });
         const dataEventPrice = orderEventLunchPrice(data) || (de ? orderLunchPrice(data, user) : 0);
         byUser[uid].lunch += dl;
         byUser[uid].salad += dd;
         byUser[uid].eventLunch += de;
+        byUser[uid].catering += catering.totalQty;
+        byUser[uid].cateringAmount += catering.totalAmount;
+        catering.items.forEach(item => {
+          const existing = byUser[uid].cateringItems.find(entry => entry.menuId === item.menuId);
+          if (existing) existing.qty += item.qty;
+          else byUser[uid].cateringItems.push({ ...item });
+        });
         if (dataEventPrice) byUser[uid].eventPrice = dataEventPrice;
-        if (dl > 0 || dd > 0 || de > 0) byUser[uid].dateBreakdown[ds] = { lunch: dl, salad: dd, eventLunch: de };
+        if (dl > 0 || dd > 0 || de > 0 || catering.totalQty > 0) {
+          byUser[uid].dateBreakdown[ds] = {
+            lunch: dl,
+            salad: dd,
+            eventLunch: de,
+            catering: catering.totalQty,
+            cateringAmount: catering.totalAmount,
+            cateringItems: catering.items
+          };
+        }
       });
     });
 
@@ -9492,6 +9872,9 @@ async function loadSettlements() {
           lunch: Number(row.lunch || 0),
           salad: Number(row.salad || 0),
           eventLunch: Number(row.eventLunch || 0),
+          catering: Number(row.catering ?? row.cateringTotal ?? 0),
+          cateringAmount: Number(row.cateringAmount || 0),
+          cateringItems: Array.isArray(row.cateringItems) ? row.cateringItems : [],
           lunchPrice: Number(row.lunchPrice || 0),
           saladPrice: Number(row.saladPrice || 0),
           eventPrice: Number(row.eventPrice || row.lunchPrice || 0),
@@ -9512,9 +9895,9 @@ async function loadSettlements() {
       });
 
     const rows = Object.values(byUser)
-      .map(row => ({ ...row, amount: settlementLunchAmount(row) + settlementSaladAmount(row) + settlementEventAmount(row) }))
+      .map(row => ({ ...row, amount: settlementLunchAmount(row) + settlementSaladAmount(row) + settlementEventAmount(row) + settlementCateringAmount(row) }))
       .concat(manualRows)
-      .filter(row => row.lunch > 0 || row.salad > 0 || row.eventLunch > 0)
+      .filter(row => row.lunch > 0 || row.salad > 0 || row.eventLunch > 0 || settlementCateringQty(row) > 0)
       .sort((a, b) => (a.user.businessName || '').localeCompare(b.user.businessName || '', 'ko'));
 
     const adminEvents = adminEventsFromData(adminData);
@@ -9527,7 +9910,7 @@ async function loadSettlements() {
     renderSettlements();
     renderSettlementCharts().catch(() => {});
   } catch(e) {
-    tbody.innerHTML = `<tr class="no-order-row"><td colspan="13">정산 계산 실패: ${escapeHtml(e.message)}</td></tr>`;
+    tbody.innerHTML = `<tr class="no-order-row"><td colspan="14">정산 계산 실패: ${escapeHtml(e.message)}</td></tr>`;
     eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">행사도시락 내역을 불러오지 못했습니다.</td></tr>';
     const mobileList = document.getElementById('settlement-mobile-list');
     const eventMobileList = document.getElementById('settlement-event-mobile-list');
@@ -9560,6 +9943,7 @@ function settlementMobileCardHtml(row) {
   const balanceSettled = balance <= 0;
   const uid = row.uid;
   const eventQty = settlementEventQty(row);
+  const cateringQty = settlementCateringQty(row);
   const adjustText = row.adjust ? ` · 조정 ${row.adjust > 0 ? '+' : ''}${formatMoney(row.adjust)}` : '';
   const note = row.note
     ? `<div class="settlement-mobile-note">메모 · ${escapeHtml(row.note)}</div>`
@@ -9588,6 +9972,7 @@ function settlementMobileCardHtml(row) {
         <span class="settlement-mobile-item">일반도시락 <strong>${row.lunch}</strong>개</span>
         <span class="settlement-mobile-item">샐러드 <strong>${row.salad}</strong>개</span>
         <span class="settlement-mobile-item">일회용 <strong>${eventQty}</strong>개</span>
+        ${cateringQty > 0 ? `<span class="settlement-mobile-item" title="${escapeHtml(settlementCateringLabel(row))}">월식 행사 <strong>${cateringQty}</strong>개</span>` : ''}
       </div>
       <div class="settlement-mobile-meta">
         <div class="settlement-mobile-meta-item">
@@ -9686,6 +10071,7 @@ function renderSettlements() {
   const eventMobileList = document.getElementById('settlement-event-mobile-list');
   const totalLunch = settlementRows.reduce((sum, row) => sum + row.lunch, 0);
   const totalSalad = settlementRows.reduce((sum, row) => sum + row.salad, 0);
+  const totalCatering = settlementRows.reduce((sum, row) => sum + settlementCateringQty(row), 0);
   const eventRows = settlementEvents.map(eventSettlementRow);
   const standardMobileCount = settlementRows.filter(row => filterMatchesRow(row)).length;
   const eventMobileCount = eventRows.filter(row => filterMatchesRow(row)).length;
@@ -9694,7 +10080,7 @@ function renderSettlements() {
   const totalBilled = allRows.reduce((sum, row) => sum + settlementBilledTotal(row), 0);
   const totalPaid = allRows.reduce((sum, r) => sum + settlementPaidTotal(r), 0);
   const totalUnpaid = Math.max(0, totalBilled - totalPaid);
-  const productAmounts = allRows.reduce(addSettlementProductAmounts, { lunch: 0, salad: 0, event: 0 });
+  const productAmounts = allRows.reduce(addSettlementProductAmounts, { lunch: 0, salad: 0, event: 0, catering: 0 });
   const overdueCount = allRows.filter(r => r.status !== '입금완료' && calcOverdue(r.dueDate) > 0).length;
 
   document.getElementById('settle-total').innerHTML = `${totalBilled.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
@@ -9703,9 +10089,11 @@ function renderSettlements() {
   document.getElementById('settle-lunch-total').innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
   document.getElementById('settle-salad-total').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
   document.getElementById('settle-event-lunch-total').innerHTML = `${totalEventLunch}<span class="summary-unit">개</span>`;
+  document.getElementById('settle-catering-total').innerHTML = `${totalCatering}<span class="summary-unit">개</span>`;
   document.getElementById('settle-lunch-amount-total').textContent = formatMoney(productAmounts.lunch);
   document.getElementById('settle-salad-amount-total').textContent = formatMoney(productAmounts.salad);
   document.getElementById('settle-event-amount-total').textContent = formatMoney(productAmounts.event);
+  document.getElementById('settle-catering-amount-total').textContent = formatMoney(productAmounts.catering);
   document.getElementById('settle-overdue-count').innerHTML = `${overdueCount}<span class="summary-unit">곳</span>`;
   document.getElementById('settlement-standard-mobile-count').textContent = standardMobileCount;
   document.getElementById('settlement-event-mobile-count').textContent = eventMobileCount;
@@ -9715,12 +10103,12 @@ function renderSettlements() {
   document.getElementById('settle-check-all').checked = false;
 
   if (settlementRows.length === 0) {
-    tbody.innerHTML = '<tr class="no-order-row"><td colspan="13">선택한 월의 업체 주문이 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr class="no-order-row"><td colspan="14">선택한 월의 업체 주문이 없습니다.</td></tr>';
     mobileList.innerHTML = '<div class="settlement-mobile-empty">선택한 월의 업체 주문이 없습니다.</div>';
   } else {
     const filtered = settlementRows.filter(row => filterMatchesRow(row));
     if (filtered.length === 0) {
-      tbody.innerHTML = `<tr class="no-order-row"><td colspan="13">해당 조건의 업체가 없습니다.</td></tr>`;
+      tbody.innerHTML = `<tr class="no-order-row"><td colspan="14">해당 조건의 업체가 없습니다.</td></tr>`;
       mobileList.innerHTML = '<div class="settlement-mobile-empty">해당 조건의 업체가 없습니다.</div>';
     } else {
       mobileList.innerHTML = filtered.map(settlementMobileCardHtml).join('');
@@ -9738,6 +10126,7 @@ function renderSettlements() {
           <td class="qty-cell">${row.lunch}<button class="breakdown-btn" onclick="toggleBreakdown('${escapeHtml(row.uid)}')">📋 일별▼</button></td>
           <td class="qty-cell">${row.salad}</td>
           <td class="qty-cell">${settlementEventQty(row)}</td>
+          <td class="qty-cell" title="${escapeHtml(settlementCateringLabel(row))}">${settlementCateringQty(row)}</td>
           <td style="font-size:12px;line-height:1.55">${settlementProductBreakdownHtml(row)}</td>
           <td>${formatMoney(billed)}${adjustLabel}</td>
           <td>${row.invoiceNo ? `<span class="invoice-no">${escapeHtml(row.invoiceNo)}</span>` : '<span style="color:var(--sub);font-size:12px">-</span>'}</td>
@@ -9756,7 +10145,7 @@ function renderSettlements() {
           </td>
         </tr>
         <tr class="breakdown-row" id="bdr-${safeUid}" style="display:none">
-          <td colspan="13" class="breakdown-cell">${renderBreakdownHTML(row)}</td>
+          <td colspan="14" class="breakdown-cell">${renderBreakdownHTML(row)}</td>
         </tr>
       `}).join('');
     }
@@ -9840,7 +10229,12 @@ function makeSettlementReceipt(uid) {
     : [
         { name: `${month} 일반도시락`, count: row.lunch, price: row.lunchPrice },
         { name: `${month} 샐러드`, count: row.salad, price: row.saladPrice },
-        { name: `${month} 일회용도시락`, count: eventQty, price: eventPrice }
+        { name: `${month} 일회용도시락`, count: eventQty, price: eventPrice },
+        ...settlementCateringSummary(row).items.map(item => ({
+          name: `${month} ${item.name}`,
+          count: item.qty,
+          price: item.unitPrice
+        }))
       ];
   setReceiptItems(receiptItems.filter(item => item.count > 0));
   if (row.type === 'event') {
@@ -10066,8 +10460,9 @@ function productionOrderRowsForPrint() {
       const values = rowEl
         ? orderQtyValuesFromRow(rowEl)
         : { lunch: orderLunchQty(row), salad: orderSaladQty(row), event: orderEventLunchQty(row) };
+      const catering = orderCateringQty(row);
       const user = allUsers[row.uid] || deletedUsers[row.uid] || {};
-      const total = values.lunch + values.salad + values.event;
+      const total = values.lunch + values.salad + values.event + catering;
       if (total <= 0) return null;
       const note = row.note && row.note !== '요일 기본값' ? row.note : '';
       return {
@@ -10076,6 +10471,7 @@ function productionOrderRowsForPrint() {
         lunch: values.lunch,
         salad: values.salad,
         event: values.event,
+        catering,
         total,
         time: user.mealTime || (row.source === 'default' ? '기본수량' : formatTime(row.submittedAt)),
         source: orderSourceMeta(row).label,
@@ -10109,13 +10505,14 @@ function printTodayProductionSheet() {
     acc.lunch += row.lunch;
     acc.salad += row.salad;
     acc.event += row.event;
+    acc.catering += row.catering;
     acc.total += row.total;
     return acc;
-  }, { lunch: 0, salad: 0, event: 0, total: 0 });
+  }, { lunch: 0, salad: 0, event: 0, catering: 0, total: 0 });
   const standaloneEventTotal = eventRows.reduce((sum, row) => sum + row.qty, 0);
   const orderHtml = orderRows.length ? `
     <table class="compact-table order-table-print">
-      <thead><tr><th>#</th><th>업체명</th><th>도</th><th>샐</th><th>일</th><th>계</th><th>시간</th><th>메모</th></tr></thead>
+      <thead><tr><th>#</th><th>업체명</th><th>도</th><th>샐</th><th>일</th><th>행</th><th>계</th><th>시간</th><th>메모</th></tr></thead>
       <tbody>
         ${orderRows.map((row, i) => `
           <tr>
@@ -10124,6 +10521,7 @@ function printTodayProductionSheet() {
             <td class="num">${row.lunch}</td>
             <td class="num">${row.salad}</td>
             <td class="num">${row.event || ''}</td>
+            <td class="num">${row.catering || ''}</td>
             <td class="num">${row.total}</td>
             <td class="time">${escapeHtml(row.time || '')}</td>
             <td class="memo">${escapeHtml(row.note || '')}</td>
@@ -10176,7 +10574,8 @@ function printTodayProductionSheet() {
       .order-table-print th:nth-child(4),.order-table-print td:nth-child(4),
       .order-table-print th:nth-child(5),.order-table-print td:nth-child(5),
       .order-table-print th:nth-child(6),.order-table-print td:nth-child(6){width:42px;text-align:center}
-      .order-table-print th:nth-child(7),.order-table-print td:nth-child(7){width:64px;text-align:center;font-weight:800}
+      .order-table-print th:nth-child(7),.order-table-print td:nth-child(7){width:42px;text-align:center;font-weight:800}
+      .order-table-print th:nth-child(8),.order-table-print td:nth-child(8){width:64px;text-align:center}
       .event-print-block{break-inside:avoid;page-break-inside:avoid}
       .event-table-print th:nth-child(1),.event-table-print td:nth-child(1){width:30px;text-align:center}
       .event-table-print th:nth-child(2),.event-table-print td:nth-child(2){width:24%}
@@ -10197,6 +10596,7 @@ function printTodayProductionSheet() {
           <span>도시락 <strong>${monthlyTotals.lunch}</strong>개</span>
           <span>샐러드 <strong>${monthlyTotals.salad}</strong>개</span>
           <span>일회용 <strong>${monthlyTotals.event}</strong>개</span>
+          <span>월식 행사 <strong>${monthlyTotals.catering}</strong>개</span>
           <span>별도 행사 <strong>${standaloneEventTotal}</strong>개</span>
         </div>
         <section>
@@ -10309,9 +10709,13 @@ async function bulkUpdateSettlement() {
         lunchTotal: row.lunch || 0,
         saladTotal: row.salad || 0,
         eventLunchTotal: settlementEventQty(row),
+        cateringTotal: settlementCateringQty(row),
         lunch: row.lunch || 0,
         salad: row.salad || 0,
         eventLunch: settlementEventQty(row),
+        catering: settlementCateringQty(row),
+        cateringAmount: settlementCateringAmount(row),
+        cateringItems: settlementCateringSummary(row).items,
         lunchPrice: row.lunchPrice || 0,
         saladPrice: row.saladPrice || 0,
         eventPrice: settlementEventUnitPrice(row),
@@ -10357,13 +10761,17 @@ function exportSettlementCSV() {
   const rows = [...settlementRows, ...settlementEvents.map(eventSettlementRow)];
   if (rows.length === 0) { showToast('정산 데이터가 없습니다.'); return; }
   const month = document.getElementById('settle-month').value || currentMonthStr();
-  const headers = ['업체명', '일반도시락(개)', '샐러드(개)', '일회용/행사도시락(개)', '일반도시락 금액', '샐러드 금액', '일회용/행사도시락 금액', '청구액(원)', '조정금액', '청구서번호', '납부기한', '입금합계', '잔액', '상태', '메모'];
+  const headers = ['업체명', '일반도시락(개)', '샐러드(개)', '일회용/행사도시락(개)', '월식 행사도시락(개)', '월식 행사도시락 메뉴', '일반도시락 금액', '샐러드 금액', '일회용/행사도시락 금액', '월식 행사도시락 금액', '청구액(원)', '조정금액', '청구서번호', '납부기한', '입금합계', '잔액', '상태', '메모'];
   const dataRows = rows.map(row => {
     const billed = settlementBilledTotal(row);
     const paidTotal = settlementPaidTotal(row);
+    const catering = row.type === 'event'
+      ? { totalQty: 0, totalAmount: 0, items: [] }
+      : settlementCateringSummary(row);
     return [
-      row.user.businessName || '-', row.lunch, row.salad, settlementEventQty(row),
-      settlementLunchAmount(row), settlementSaladAmount(row), settlementEventAmount(row),
+      row.user.businessName || '-', row.lunch, row.salad, settlementEventQty(row), catering.totalQty,
+      catering.items.map(item => `${item.name} ${item.qty}개`).join(' / ') || '-',
+      settlementLunchAmount(row), settlementSaladAmount(row), settlementEventAmount(row), catering.totalAmount,
       billed, row.adjust || 0,
       row.invoiceNo || '-', row.dueDate || '-',
       paidTotal, billed - paidTotal, row.status, row.note
@@ -10372,8 +10780,10 @@ function exportSettlementCSV() {
   const totalLunch = rows.reduce((s, r) => s + r.lunch, 0);
   const totalSalad = rows.reduce((s, r) => s + r.salad, 0);
   const totalEventLunch = rows.reduce((s, r) => s + settlementEventQty(r), 0);
+  const totalCatering = rows.reduce((s, r) => s + (r.type === 'event' ? 0 : settlementCateringQty(r)), 0);
+  const totalCateringAmount = rows.reduce((s, r) => s + (r.type === 'event' ? 0 : settlementCateringAmount(r)), 0);
   const totalAmount = rows.reduce((s, r) => s + settlementBilledTotal(r), 0);
-  dataRows.push(['합계', totalLunch, totalSalad, totalEventLunch, '', '', '', totalAmount, '', '', '', '', '', '', '']);
+  dataRows.push(['합계', totalLunch, totalSalad, totalEventLunch, totalCatering, '', '', '', '', totalCateringAmount, totalAmount, '', '', '', '', '', '', '']);
   const csv = [headers, ...dataRows]
     .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     .join('\n');
@@ -10400,6 +10810,11 @@ function copySettlementKakao(uid) {
   if (settlementEventQty(row) > 0) {
     const eventLabel = row.type === 'event' ? '행사도시락' : '일회용도시락';
     lines.push(`${eventLabel} ${settlementEventQty(row)}개 × ${settlementEventUnitPrice(row).toLocaleString()}원 = ${settlementEventAmount(row).toLocaleString()}원`);
+  }
+  if (row.type !== 'event') {
+    settlementCateringSummary(row).items.forEach(item => {
+      lines.push(`${item.name} ${item.qty}개 × ${item.unitPrice.toLocaleString()}원 = ${item.amount.toLocaleString()}원`);
+    });
   }
   const billed = settlementBilledTotal(row);
   const paidTotal = settlementPaidTotal(row);
@@ -10429,6 +10844,11 @@ async function copyAllSettlementKakao() {
     if (row.lunch > 0) lines.push(`  일반도시락 ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원`);
     if (row.salad > 0) lines.push(`  샐러드 ${row.salad}개 × ${row.saladPrice.toLocaleString()}원`);
     if (settlementEventQty(row) > 0) lines.push(`  ${row.type === 'event' ? '행사도시락' : '일회용도시락'} ${settlementEventQty(row)}개 × ${settlementEventUnitPrice(row).toLocaleString()}원`);
+    if (row.type !== 'event') {
+      settlementCateringSummary(row).items.forEach(item => {
+        lines.push(`  ${item.name} ${item.qty}개 × ${item.unitPrice.toLocaleString()}원`);
+      });
+    }
     lines.push(`  청구액: ${settlementBilledTotal(row).toLocaleString()}원`);
     lines.push('');
   });
@@ -10485,6 +10905,7 @@ function buildSheetHTML(uid, forPrint) {
     .settle-sheet-title .month{font-size:14px;font-weight:800;color:#7B3F1A;margin-bottom:4px}
     .settle-sheet-title .brand{text-align:right;font-size:12px;line-height:1.5;color:#4b5563}
     .settle-sheet-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 14px}
+    .settle-sheet-summary.monthly{grid-template-columns:repeat(5,minmax(0,1fr))}
     .settle-sheet-box{border:1px solid #d1d5db;background:#f9fafb;border-radius:8px;padding:10px;text-align:center}
     .settle-sheet-box .label{font-size:10px;color:#6b7280;font-weight:800;margin-bottom:5px}
     .settle-sheet-box .value{font-size:18px;font-weight:900;color:#7B3F1A}
@@ -10543,15 +10964,25 @@ function buildSheetHTML(uid, forPrint) {
     </div>`;
   }
 
-  let totalLunch = 0, totalSalad = 0, totalEventLunch = 0, subtotal = 0;
+  let totalLunch = 0, totalSalad = 0, totalEventLunch = 0, totalCatering = 0, subtotal = 0;
   const detailRows = [];
 
   if (row.manualOverride) {
     totalLunch = row.lunch || 0;
     totalSalad = row.salad || 0;
     totalEventLunch = row.eventLunch || 0;
+    const catering = settlementCateringSummary(row);
+    totalCatering = catering.totalQty;
     subtotal = manualMonthlyRowAmount(row);
-    detailRows.push({ date:'합계', lunch:totalLunch, salad:totalSalad, eventLunch:totalEventLunch, amount:subtotal });
+    detailRows.push({
+      date:'합계',
+      lunch:totalLunch,
+      salad:totalSalad,
+      eventLunch:totalEventLunch,
+      catering:totalCatering,
+      cateringLabel:catering.items.map(item => `${item.name} ${item.qty}개`).join(' · '),
+      amount:subtotal
+    });
   } else {
     monthDates(month).forEach(ds => {
       const rec = row.type === 'manualMonthly'
@@ -10560,13 +10991,23 @@ function buildSheetHTML(uid, forPrint) {
       const lunch = orderLunchQty(rec);
       const salad = orderSaladQty(rec);
       const eventLunch = orderEventLunchQty(rec);
-      const amount = lunch * lunchPrice + salad * saladPrice + eventLunch * eventPrice;
+      const catering = orderCateringSummary(rec, { preserveSnapshot: true });
+      const amount = lunch * lunchPrice + salad * saladPrice + eventLunch * eventPrice + catering.totalAmount;
       totalLunch += lunch;
       totalSalad += salad;
       totalEventLunch += eventLunch;
+      totalCatering += catering.totalQty;
       subtotal += amount;
-      if (lunch || salad || eventLunch || amount) {
-        detailRows.push({ date:`${parseInt(mon, 10)}/${parseInt(ds.split('-')[2], 10)}`, lunch, salad, eventLunch, amount });
+      if (lunch || salad || eventLunch || catering.totalQty || amount) {
+        detailRows.push({
+          date:`${parseInt(mon, 10)}/${parseInt(ds.split('-')[2], 10)}`,
+          lunch,
+          salad,
+          eventLunch,
+          catering:catering.totalQty,
+          cateringLabel:catering.items.map(item => `${item.name} ${item.qty}개`).join(' · '),
+          amount
+        });
       }
     });
   }
@@ -10580,13 +11021,18 @@ function buildSheetHTML(uid, forPrint) {
         <td>${item.lunch || ''}</td>
         <td>${item.salad || ''}</td>
         <td>${item.eventLunch || ''}</td>
+        <td>${item.catering || ''}</td>
+        <td style="text-align:left">${escapeHtml(item.cateringLabel || '')}</td>
         <td class="num">${money(item.amount)}원</td>
       </tr>`).join('')
-    : '<tr><td colspan="6" class="empty">정산 대상 배송 내역이 없습니다.</td></tr>';
+    : '<tr><td colspan="8" class="empty">정산 대상 배송 내역이 없습니다.</td></tr>';
   const adjustRow = adjustment ? `<tr>
-    <td colspan="5" style="text-align:right;font-weight:800">조정금액</td>
+    <td colspan="7" style="text-align:right;font-weight:800">조정금액</td>
     <td class="num" style="font-weight:800">${adjustment > 0 ? '+' : ''}${money(adjustment)}원</td>
   </tr>` : '';
+  const cateringPriceLabel = settlementCateringSummary(row).items
+    .map(item => `${item.name} ${money(item.unitPrice)}원`)
+    .join(' · ');
 
   return `${printStyles}<div class="settle-sheet">
     ${titleBlock('월별 정산서')}
@@ -10597,27 +11043,28 @@ function buildSheetHTML(uid, forPrint) {
       ['납부기한', row.dueDate || ''],
       ['공급자', `${SUPPLIER_INFO.name} / ${SUPPLIER_INFO.bizNo}`],
     ])}
-    <div class="settle-sheet-summary">
+    <div class="settle-sheet-summary monthly">
       ${summaryBox('일반도시락', `${totalLunch}개`)}
       ${summaryBox('샐러드', `${totalSalad}개`)}
       ${summaryBox('일회용도시락', `${totalEventLunch}개`)}
+      ${summaryBox('월식 행사도시락', `${totalCatering}개`)}
       ${summaryBox('청구액', `${money(billedTotal)}원`, 'total')}
     </div>
     <table class="settle-sheet-detail">
       <thead>
-        <tr><th style="width:12%">날짜</th><th>품목</th><th style="width:12%">일반</th><th style="width:12%">샐러드</th><th style="width:12%">일회용</th><th style="width:18%">금액</th></tr>
+        <tr><th style="width:10%">날짜</th><th>품목</th><th style="width:8%">일반</th><th style="width:8%">샐러드</th><th style="width:8%">일회용</th><th style="width:8%">월식 행사</th><th>행사 메뉴</th><th style="width:15%">금액</th></tr>
       </thead>
       <tbody>${detailHtml}</tbody>
       <tfoot>
-        <tr class="sh-total-row"><td colspan="2" style="text-align:right">합계</td><td>${totalLunch}</td><td>${totalSalad}</td><td>${totalEventLunch}</td><td class="num">${money(subtotal)}원</td></tr>
+        <tr class="sh-total-row"><td colspan="2" style="text-align:right">합계</td><td>${totalLunch}</td><td>${totalSalad}</td><td>${totalEventLunch}</td><td>${totalCatering}</td><td></td><td class="num">${money(subtotal)}원</td></tr>
         ${adjustRow}
-        <tr class="sh-total-row"><td colspan="5" style="text-align:right">최종 청구액</td><td class="num" style="color:#c0392b">${money(billedTotal)}원</td></tr>
+        <tr class="sh-total-row"><td colspan="7" style="text-align:right">최종 청구액</td><td class="num" style="color:#c0392b">${money(billedTotal)}원</td></tr>
       </tfoot>
     </table>
     <div class="settle-sheet-note">
       <div class="settle-sheet-note-title">단가 및 안내</div>
       <div style="line-height:1.8">
-        일반도시락 ${money(lunchPrice)}원 · 샐러드 ${money(saladPrice)}원${totalEventLunch ? ` · 일회용도시락 ${money(eventPrice)}원` : ''}<br>
+        일반도시락 ${money(lunchPrice)}원 · 샐러드 ${money(saladPrice)}원${totalEventLunch ? ` · 일회용도시락 ${money(eventPrice)}원` : ''}${cateringPriceLabel ? ` · ${escapeHtml(cateringPriceLabel)}` : ''}<br>
         <span style="white-space:pre-wrap">${escapeHtml(note)}</span>
       </div>
     </div>
@@ -11510,18 +11957,22 @@ function renderBreakdownHTML(row) {
   const days = ['일','월','화','수','목','금','토'];
   const safeUid = row.uid.replace(/[^a-zA-Z0-9_-]/g, '_');
   const hasEventLunch = dates.some(ds => (breakdown[ds].eventLunch || 0) > 0);
+  const hasCatering = dates.some(ds => settlementCateringQty(breakdown[ds]) > 0);
   const rows = dates.map(ds => {
     const [,m,d] = ds.split('-');
     const dt = new Date(`${ds}T00:00:00+09:00`);
     const label = `${parseInt(m)}/${parseInt(d)}(${days[dt.getDay()]})`;
+    const catering = settlementCateringSummary(breakdown[ds]);
     return `<tr>
       <td class="bd-date">${label}</td>
       <td><input type="number" class="bd-input" id="bd-${safeUid}-${ds}-lunch" value="${breakdown[ds].lunch || 0}" min="0" max="99"></td>
       <td><input type="number" class="bd-input" id="bd-${safeUid}-${ds}-salad" value="${breakdown[ds].salad || 0}" min="0" max="99"></td>
       ${hasEventLunch ? `<td><input type="number" class="bd-input" id="bd-${safeUid}-${ds}-event" value="${breakdown[ds].eventLunch || 0}" min="0" max="99"></td>` : ''}
+      ${hasCatering ? `<td style="text-align:left">${catering.totalQty ? escapeHtml(catering.items.map(item => `${item.name} ${item.qty}개`).join(' · ')) : '-'}</td>` : ''}
     </tr>`;
   }).join('');
   const totalEventLunch = dates.reduce((sum, ds) => sum + (breakdown[ds].eventLunch || 0), 0);
+  const totalCatering = dates.reduce((sum, ds) => sum + settlementCateringQty(breakdown[ds]), 0);
   return `<div class="breakdown-wrap">
     <div class="breakdown-header">
       <span style="font-weight:700;color:var(--primary);font-size:13px">📋 ${escapeHtml(row.user.businessName || '-')} 일별 배송내역</span>
@@ -11531,9 +11982,9 @@ function renderBreakdownHTML(row) {
       </div>
     </div>
     <table class="breakdown-table">
-      <thead><tr><th>날짜</th><th>🍱 일반</th><th>🥗 샐러드</th>${hasEventLunch ? '<th>🥡 일회용</th>' : ''}</tr></thead>
+      <thead><tr><th>날짜</th><th>🍱 일반</th><th>🥗 샐러드</th>${hasEventLunch ? '<th>🥡 일회용</th>' : ''}${hasCatering ? '<th>🎁 월식 행사도시락</th>' : ''}</tr></thead>
       <tbody>${rows}
-        <tr class="breakdown-total"><td>합계</td><td id="bd-total-lunch-${safeUid}">${row.lunch}</td><td id="bd-total-salad-${safeUid}">${row.salad}</td>${hasEventLunch ? `<td>${totalEventLunch}</td>` : ''}</tr>
+        <tr class="breakdown-total"><td>합계</td><td id="bd-total-lunch-${safeUid}">${row.lunch}</td><td id="bd-total-salad-${safeUid}">${row.salad}</td>${hasEventLunch ? `<td>${totalEventLunch}</td>` : ''}${hasCatering ? `<td>${totalCatering}개</td>` : ''}</tr>
       </tbody>
     </table>
   </div>`;
@@ -11563,7 +12014,15 @@ async function saveBreakdownEdits(uid) {
     const newSalad = Math.max(0, parseInt(saladEl.value, 10) || 0);
     const eventEl = document.getElementById(`bd-${safeUid}-${ds}-event`);
     const newEventLunch = eventEl ? Math.max(0, parseInt(eventEl.value, 10) || 0) : (sourceBreakdown[ds].eventLunch || 0);
-    newDaily[ds] = { lunch: newLunch, salad: newSalad, eventLunch: newEventLunch };
+    const catering = settlementCateringSummary(sourceBreakdown[ds]);
+    newDaily[ds] = {
+      lunch: newLunch,
+      salad: newSalad,
+      eventLunch: newEventLunch,
+      catering: catering.totalQty,
+      cateringAmount: catering.totalAmount,
+      cateringItems: catering.items
+    };
     if (newLunch !== (sourceBreakdown[ds].lunch || 0) || newSalad !== (sourceBreakdown[ds].salad || 0) || newEventLunch !== (sourceBreakdown[ds].eventLunch || 0)) {
       changed = true;
       if (row.type === 'manualMonthly') continue;
@@ -11571,13 +12030,17 @@ async function saveBreakdownEdits(uid) {
       const lunchPrice = existing.lunchPrice ?? row.lunchPrice ?? userLunchPrice(row.user || {}) ?? 0;
       const saladPrice = existing.saladPrice ?? row.saladPrice ?? userSaladPrice(row.user || {}) ?? 0;
       const eventLunchPrice = existing.eventLunchPrice ?? existing.eventPrice ?? row.eventPrice ?? row.lunchPrice ?? 0;
+      const existingCatering = orderCateringSummary(existing, { preserveSnapshot: true });
+      const storedCatering = existingCatering.items.length ? existingCatering : catering;
+      const cateringItems = storedCatering.items;
       const items = buildOrderItems({
         lunchQty: newLunch,
         lunchPrice,
         saladQty: newSalad,
         saladPrice,
         eventLunchQty: newEventLunch,
-        eventLunchPrice
+        eventLunchPrice,
+        cateringItems
       });
       updates[`deliveryRecords.${ds}.${uid}`] = {
         ...existing,
@@ -11590,10 +12053,14 @@ async function saveBreakdownEdits(uid) {
         eventLunchQty: newEventLunch,
         eventLunchPrice,
         eventPrice: eventLunchPrice,
-        totalQty: newLunch + newSalad + newEventLunch,
+        catering: storedCatering.totalQty,
+        cateringTotal: storedCatering.totalQty,
+        cateringAmount: storedCatering.totalAmount,
+        cateringItems,
+        totalQty: newLunch + newSalad + newEventLunch + storedCatering.totalQty,
         totalAmount: items.reduce((sum, item) => sum + item.amount, 0),
         items,
-        delivered: newLunch > 0 || newSalad > 0 || newEventLunch > 0,
+        delivered: newLunch > 0 || newSalad > 0 || newEventLunch > 0 || storedCatering.totalQty > 0,
         updatedAt: new Date().toISOString()
       };
     }
@@ -11605,12 +12072,19 @@ async function saveBreakdownEdits(uid) {
       const lunch = Object.values(newDaily).reduce((sum, day) => sum + (day.lunch || 0), 0);
       const salad = Object.values(newDaily).reduce((sum, day) => sum + (day.salad || 0), 0);
       const eventLunch = Object.values(newDaily).reduce((sum, day) => sum + (day.eventLunch || 0), 0);
-      const amount = lunch * (row.lunchPrice || 0) + salad * (row.saladPrice || 0) + eventLunch * (row.eventPrice || row.lunchPrice || 0);
+      const cateringItems = settlementCateringSummary(row).items;
+      const catering = cateringItems.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+      const cateringAmount = cateringItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+      const amount = lunch * (row.lunchPrice || 0) + salad * (row.saladPrice || 0) + eventLunch * (row.eventPrice || row.lunchPrice || 0) + cateringAmount;
       await saveSettlementItem(month, uid, row, {
         daily: newDaily,
         lunch,
         salad,
         eventLunch,
+        catering,
+        cateringTotal: catering,
+        cateringAmount,
+        cateringItems,
         amount,
         manualOverride: false
       });
