@@ -128,3 +128,68 @@ test('existing administrator claim can set customer prices', async () => {
     priceSalad: 8000
   }));
 });
+
+function validDailyOrder(overrides = {}) {
+  return {
+    uid: 'test-owner',
+    targetDate: '2026-07-27',
+    lunchCount: 2,
+    saladCount: 0,
+    cateringItems: [],
+    note: '',
+    selfHoliday: false,
+    submittedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ...overrides
+  };
+}
+
+test('owner can submit a daily order with allowed catering menu IDs and quantities', async () => {
+  const db = env.authenticatedContext('test-owner', { email: 'owner@example.invalid' }).firestore();
+  await assertSucceeds(setDoc(doc(db, 'orders/2026-07-27/items/test-owner'), validDailyOrder({
+    cateringItems: [
+      { menuId: 'pork-set-9000', qty: 2 },
+      { menuId: 'premium-vip-33900', qty: 1 }
+    ]
+  })));
+});
+
+test('owner can submit all catering menu IDs within the distinct-item limit', async () => {
+  const db = env.authenticatedContext('test-owner', { email: 'owner@example.invalid' }).firestore();
+  const menuIds = [
+    'pork-set-9000',
+    'chicken-set-9500',
+    'chicken-tteokgalbi-13900',
+    'kimchi-pork-tteokgalbi-14900',
+    'soy-pork-chicken-15900',
+    'grilled-pork-soy-pork-17900',
+    'bulgogi-set-18900',
+    'bulgogi-fish-19900',
+    'eel-abalone-27900',
+    'la-galbi-salmon-29900',
+    'premium-vip-33900'
+  ];
+  await assertSucceeds(setDoc(doc(db, 'orders/2026-07-27/items/test-owner'), validDailyOrder({
+    cateringItems: menuIds.map(menuId => ({ menuId, qty: 1 }))
+  })));
+});
+
+test('owner cannot submit a daily order with an unknown catering menu', async () => {
+  const db = env.authenticatedContext('test-owner', { email: 'owner@example.invalid' }).firestore();
+  await assertFails(setDoc(doc(db, 'orders/2026-07-27/items/test-owner'), validDailyOrder({
+    cateringItems: [{ menuId: 'not-in-catalog', qty: 1 }]
+  })));
+});
+
+test('owner cannot submit invalid catering quantities or catering while on holiday', async () => {
+  const db = env.authenticatedContext('test-owner', { email: 'owner@example.invalid' }).firestore();
+  await assertFails(setDoc(doc(db, 'orders/2026-07-27/items/test-owner'), validDailyOrder({
+    cateringItems: [{ menuId: 'pork-set-9000', qty: 51 }]
+  })));
+  await assertFails(setDoc(doc(db, 'orders/2026-07-27/items/test-owner'), validDailyOrder({
+    lunchCount: 0,
+    saladCount: 0,
+    cateringItems: [{ menuId: 'pork-set-9000', qty: 1 }],
+    selfHoliday: true
+  })));
+});
