@@ -1685,6 +1685,44 @@
 .self-holiday-btn{width:100%;padding:15px;border:1.5px solid #e74c3c;background:#fff;color:#c0392b;border-radius:8px;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:8px;transition:.15s}
 .self-holiday-btn:hover{background:#fdecea}
 .self-holiday-badge{display:inline-block;background:#fdecea;color:#c0392b;border-radius:8px;padding:3px 8px;font-size:12px;font-weight:800}
+.multi-holiday-open-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 0;padding:13px 15px;border:1.5px solid #e7b1aa;background:#fff8f6;color:#a8382d;border-radius:8px;font:inherit;text-align:left;cursor:pointer}
+.multi-holiday-open-main{display:flex;align-items:center;gap:10px;min-width:0}
+.multi-holiday-open-main .gj-icon{width:22px;height:22px;flex:0 0 auto}
+.multi-holiday-open-title{display:block;font-size:15px;font-weight:900;color:#8f2f26}
+.multi-holiday-open-help{display:block;margin-top:2px;font-size:12px;line-height:1.35;color:#8c625e}
+.multi-holiday-open-arrow{font-size:22px;line-height:1;flex:0 0 auto}
+.multi-holiday-sheet{max-height:92dvh;overflow-y:auto;padding-bottom:24px}
+.multi-holiday-heading{font-size:20px;font-weight:900;color:var(--text);margin-bottom:6px}
+.multi-holiday-description{font-size:13px;line-height:1.55;color:var(--text-sub);margin-bottom:16px}
+.multi-holiday-calendar-head{display:grid;grid-template-columns:42px 1fr 42px;align-items:center;gap:8px;margin-bottom:10px}
+.multi-holiday-calendar-head strong{text-align:center;font-size:17px;color:var(--text)}
+.multi-holiday-month-btn{width:42px;height:42px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--primary);font-size:24px;line-height:1;cursor:pointer}
+.multi-holiday-month-btn:disabled{opacity:.35;cursor:not-allowed}
+.multi-holiday-weekdays,.multi-holiday-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.multi-holiday-weekdays{margin-bottom:5px}
+.multi-holiday-weekdays span{text-align:center;font-size:11px;font-weight:800;color:var(--text-sub);padding:3px 0}
+.multi-holiday-weekdays span:first-child{color:#c0392b}
+.multi-holiday-calendar-grid{padding:8px;border:1px solid var(--border);border-radius:8px;background:#faf9f6}
+.multi-holiday-day{aspect-ratio:1;min-width:0;border:1px solid transparent;border-radius:8px;background:#fff;color:var(--text);font:inherit;font-size:14px;font-weight:800;cursor:pointer;position:relative}
+.multi-holiday-day:hover{border-color:#d9a39c;background:#fff6f4}
+.multi-holiday-day.is-selected{background:#b54437;border-color:#b54437;color:#fff;box-shadow:0 3px 8px rgba(181,68,55,.22)}
+.multi-holiday-day.is-disabled{background:#f0efec;color:#aaa;cursor:not-allowed;text-decoration:none}
+.multi-holiday-day.is-holiday:not(.is-disabled){color:#c0392b}
+.multi-holiday-day.is-today::after{content:'';position:absolute;left:50%;bottom:4px;width:4px;height:4px;border-radius:50%;background:currentColor;transform:translateX(-50%)}
+.multi-holiday-blank{aspect-ratio:1}
+.multi-holiday-selection{margin-top:14px;padding:13px;border:1px solid #efd7bd;border-radius:8px;background:#fff8ed}
+.multi-holiday-selection-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--text-sub)}
+.multi-holiday-selection-head strong{font-size:14px;color:var(--primary)}
+.multi-holiday-selected-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.multi-holiday-empty{font-size:12px;color:var(--text-sub)}
+.multi-holiday-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid #e8b9b3;border-radius:999px;background:#fff;color:#8f2f26;padding:6px 8px 6px 10px;font-size:12px;font-weight:800}
+.multi-holiday-chip button{width:20px;height:20px;border:0;border-radius:50%;background:#fdecea;color:#a8382d;font-size:15px;line-height:18px;cursor:pointer;padding:0}
+.multi-holiday-error{display:none;margin-top:10px;padding:10px 12px;border-radius:8px;background:#fdecea;color:#b03a2e;font-size:12px;font-weight:700;line-height:1.5}
+.multi-holiday-actions{display:grid;grid-template-columns:1fr 1.6fr;gap:8px;margin-top:14px}
+.multi-holiday-actions button{min-height:48px;border-radius:8px;font:inherit;font-size:15px;font-weight:900;cursor:pointer}
+.multi-holiday-cancel-btn{border:1px solid var(--border);background:#fff;color:var(--text-sub)}
+.multi-holiday-save-btn{border:0;background:#b54437;color:#fff}
+.multi-holiday-save-btn:disabled{background:#b8b8b8;cursor:not-allowed}
 .modal-meal-card{background:#f9f8f5;border-radius:8px;padding:13px;margin-bottom:14px;font-size:15px;border:1px solid var(--border)}
 .modal-meal-title{font-size:15px;font-weight:800;color:var(--text-sub);margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .modal-meal-title .gj-icon{width:20px;height:20px;color:var(--primary)}
@@ -2004,6 +2042,16 @@
         <div class="order-slot-date">날짜 확인 중</div>
       </button>
     </div>
+    <button class="multi-holiday-open-btn" type="button" onclick="openMultiHolidayModal()">
+      <span class="multi-holiday-open-main">
+        <svg class="gj-icon"><use href="#gj-calendar"></use></svg>
+        <span>
+          <span class="multi-holiday-open-title">여러 날짜 자체 휴무 설정</span>
+          <span class="multi-holiday-open-help">쉬는 날짜를 달력에서 한 번에 선택할 수 있어요</span>
+        </span>
+      </span>
+      <span class="multi-holiday-open-arrow" aria-hidden="true">›</span>
+    </button>
     <div class="deadline-timer" id="deadline-timer" style="display:none">
       <div class="deadline-timer-main">
         <div class="deadline-timer-icon"><svg class="gj-icon"><use href="#gj-clock"></use></svg></div>
@@ -2371,8 +2419,10 @@
       <ol>
         <li><b>일정</b> 탭에서 이번 주와 다음 주 주문 현황을 확인합니다.</li>
         <li>원하는 날짜 카드를 누르면 그 날짜 주문을 따로 수정할 수 있습니다.</li>
-        <li>그날 식사를 받지 않으려면 <b>자체 휴무로 등록</b>을 누릅니다.</li>
-        <li>자체 휴무를 취소하려면 같은 날짜를 다시 열어 수량을 입력하고 저장합니다.</li>
+        <li>하루만 쉬려면 날짜를 열고 <b>자체 휴무로 등록</b>을 누릅니다.</li>
+        <li>여러 날을 쉬려면 주문 탭의 <b>여러 날짜 자체 휴무 설정</b>에서 날짜를 모두 선택하고 저장합니다.</li>
+        <li>선택한 날짜에 기존 주문이 있으면 확인 후 수량 0개의 자체 휴무로 바뀝니다.</li>
+        <li>자체 휴무를 취소하려면 일정 탭에서 같은 날짜를 다시 열어 해제합니다.</li>
       </ol>
       <div class="help-tip">업체 휴무일이나 배송이 없는 날은 주문 버튼이 비활성화될 수 있습니다.</div>
     </div>
@@ -2447,6 +2497,37 @@
     <button class="self-holiday-btn" id="modal-holiday-btn" onclick="submitSelfHoliday()" style="display:none">자체 휴무로 등록</button>
     <div class="submitted-badge" id="modal-submitted-badge" style="display:none">
       <svg class="gj-icon"><use href="#gj-check"></use></svg> 전송 완료
+    </div>
+  </div>
+</div>
+
+<!-- 여러 날짜 자체 휴무 모달 -->
+<div class="modal-overlay" id="multi-holiday-modal" onclick="closeMultiHolidayModal(event)">
+  <div class="modal-sheet multi-holiday-sheet" onclick="event.stopPropagation()">
+    <button class="modal-x-btn" type="button" onclick="closeMultiHolidayModal()" aria-label="닫기">×</button>
+    <div class="modal-handle"></div>
+    <div class="multi-holiday-heading">여러 날짜 자체 휴무</div>
+    <div class="multi-holiday-description">쉬는 날짜를 눌러 여러 개 선택해주세요. 선택한 날짜에는 도시락·샐러드·추가 도시락이 모두 0개로 등록됩니다.</div>
+    <div class="multi-holiday-calendar-head">
+      <button class="multi-holiday-month-btn" id="multi-holiday-prev-btn" type="button" onclick="moveMultiHolidayMonth(-1)" aria-label="이전 달">‹</button>
+      <strong id="multi-holiday-month-label"></strong>
+      <button class="multi-holiday-month-btn" id="multi-holiday-next-btn" type="button" onclick="moveMultiHolidayMonth(1)" aria-label="다음 달">›</button>
+    </div>
+    <div class="multi-holiday-weekdays" aria-hidden="true">
+      <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+    </div>
+    <div class="multi-holiday-calendar-grid" id="multi-holiday-calendar-grid" role="grid" aria-label="자체 휴무 날짜 선택"></div>
+    <div class="multi-holiday-selection">
+      <div class="multi-holiday-selection-head">
+        <strong id="multi-holiday-selection-summary">선택한 날짜 0일</strong>
+        <span>최대 31일</span>
+      </div>
+      <div class="multi-holiday-selected-list" id="multi-holiday-selected-list"></div>
+    </div>
+    <div class="multi-holiday-error" id="multi-holiday-error" role="alert"></div>
+    <div class="multi-holiday-actions">
+      <button class="multi-holiday-cancel-btn" type="button" onclick="closeMultiHolidayModal()">취소</button>
+      <button class="multi-holiday-save-btn" id="multi-holiday-save-btn" type="button" onclick="saveMultiSelfHolidays()">선택한 날짜 저장</button>
     </div>
   </div>
 </div>
@@ -2678,6 +2759,8 @@ let mealWeekOffset = 0;
 let modalDateStr = '';
 let modalLunch = 0;
 let modalSalad = 0;
+let multiHolidaySelectedDates = [];
+let multiHolidayCalendarMonth = '';
 let customerPopupNoticeShown = false;
 const mealMenuCache = {};
 
@@ -2687,6 +2770,8 @@ let customHolidays = {};
 const FIXED_TODAY_ORDER_DEADLINE = { hour: 9, minute: 10 };
 let orderDeadline = { ...FIXED_TODAY_ORDER_DEADLINE };
 const DEFAULT_MEAL_PRICE = 8000;
+const MULTI_HOLIDAY_MAX_DATES = 31;
+const MULTI_HOLIDAY_MAX_FUTURE_DAYS = 366;
 const MEAL_TIME_OPTIONS = [
   '10:30','10:40','10:50',
   '11:00','11:10','11:20','11:30','11:40','11:50',
@@ -4712,6 +4797,268 @@ async function submitSelfHoliday() {
     console.error('자체 휴무 저장 오류:', e);
     showToast('저장 실패. 다시 시도해주세요.', 'error');
     btn.disabled = false;
+  }
+}
+
+function getMultiHolidayRange() {
+  const minDate = dateStr(getKST());
+  return {
+    minDate,
+    maxDate: addCalendarDays(minDate, MULTI_HOLIDAY_MAX_FUTURE_DAYS)
+  };
+}
+
+function shiftMultiHolidayMonth(monthKey, delta) {
+  const [year, month] = String(monthKey || '').split('-').map(Number);
+  const dt = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function getMultiHolidayDateState(targetDate) {
+  const { minDate, maxDate } = getMultiHolidayRange();
+  if (targetDate < minDate) return { enabled: false, reason: '지난 날짜는 선택할 수 없습니다.' };
+  if (targetDate > maxDate) return { enabled: false, reason: '오늘부터 1년 이내 날짜만 선택할 수 있습니다.' };
+  if (isWeekendDate(targetDate)) return { enabled: false, reason: '주말은 월식 배송일이 아닙니다.' };
+
+  const holiday = holidayName(targetDate);
+  if (holiday) return { enabled: false, reason: `${holiday}에는 월식 배송이 없습니다.` };
+  if (targetDate === minDate && isClosed()) return { enabled: false, reason: '오늘 주문은 이미 마감되었습니다.' };
+  if (isMealPausedOnDate(userProfile || {}, targetDate)) {
+    return { enabled: false, reason: '월식 일시정지 기간에는 자체 휴무를 따로 등록하지 않아도 됩니다.' };
+  }
+  return { enabled: true, reason: '' };
+}
+
+function showMultiHolidayError(message = '') {
+  const box = document.getElementById('multi-holiday-error');
+  if (!box) return;
+  box.textContent = message;
+  box.style.display = message ? 'block' : 'none';
+}
+
+function openMultiHolidayModal() {
+  if (!currentUser) return;
+  const today = dateStr(getKST());
+  multiHolidaySelectedDates = [];
+  multiHolidayCalendarMonth = today.slice(0, 7);
+  showMultiHolidayError('');
+  renderMultiHolidayCalendar();
+  document.getElementById('multi-holiday-modal')?.classList.add('open');
+}
+
+function closeMultiHolidayModal(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('multi-holiday-modal')?.classList.remove('open');
+  showMultiHolidayError('');
+}
+
+function moveMultiHolidayMonth(delta) {
+  const { minDate, maxDate } = getMultiHolidayRange();
+  const minMonth = minDate.slice(0, 7);
+  const maxMonth = maxDate.slice(0, 7);
+  const nextMonth = shiftMultiHolidayMonth(multiHolidayCalendarMonth, delta);
+  if (nextMonth < minMonth || nextMonth > maxMonth) return;
+  multiHolidayCalendarMonth = nextMonth;
+  renderMultiHolidayCalendar();
+}
+
+function renderMultiHolidayCalendar() {
+  const grid = document.getElementById('multi-holiday-calendar-grid');
+  const label = document.getElementById('multi-holiday-month-label');
+  if (!grid || !label) return;
+
+  const { minDate, maxDate } = getMultiHolidayRange();
+  const minMonth = minDate.slice(0, 7);
+  const maxMonth = maxDate.slice(0, 7);
+  const [year, month] = multiHolidayCalendarMonth.split('-').map(Number);
+  label.textContent = `${year}년 ${month}월`;
+
+  const previousButton = document.getElementById('multi-holiday-prev-btn');
+  const nextButton = document.getElementById('multi-holiday-next-btn');
+  if (previousButton) previousButton.disabled = multiHolidayCalendarMonth <= minMonth;
+  if (nextButton) nextButton.disabled = multiHolidayCalendarMonth >= maxMonth;
+
+  grid.replaceChildren();
+  const firstDay = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const lastDate = new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+  for (let i = 0; i < firstDay; i++) {
+    const blank = document.createElement('span');
+    blank.setAttribute('aria-hidden', 'true');
+    grid.appendChild(blank);
+  }
+
+  for (let day = 1; day <= lastDate; day++) {
+    const targetDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const state = getMultiHolidayDateState(targetDate);
+    const selected = multiHolidaySelectedDates.includes(targetDate);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'multi-holiday-day';
+    button.textContent = String(day);
+    button.disabled = !state.enabled;
+    button.setAttribute('role', 'gridcell');
+    button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    button.setAttribute('aria-label', state.enabled
+      ? `${formatDateKR(targetDate)} 자체 휴무 ${selected ? '선택 해제' : '선택'}`
+      : `${formatDateKR(targetDate)} 선택 불가: ${state.reason}`);
+    button.title = state.enabled ? `${formatDateKR(targetDate)} 자체 휴무` : state.reason;
+    if (!state.enabled) button.classList.add('is-disabled');
+    if (selected) button.classList.add('is-selected');
+    if (targetDate === minDate) button.classList.add('is-today');
+    if (holidayName(targetDate)) button.classList.add('is-holiday');
+    button.addEventListener('click', () => toggleMultiHolidayDate(targetDate));
+    grid.appendChild(button);
+  }
+
+  renderMultiHolidaySelection();
+}
+
+function toggleMultiHolidayDate(targetDate) {
+  const state = getMultiHolidayDateState(targetDate);
+  if (!state.enabled) {
+    showMultiHolidayError(state.reason);
+    return;
+  }
+
+  if (multiHolidaySelectedDates.includes(targetDate)) {
+    multiHolidaySelectedDates = multiHolidaySelectedDates.filter((date) => date !== targetDate);
+  } else {
+    if (multiHolidaySelectedDates.length >= MULTI_HOLIDAY_MAX_DATES) {
+      showMultiHolidayError(`한 번에 최대 ${MULTI_HOLIDAY_MAX_DATES}일까지 선택할 수 있습니다.`);
+      return;
+    }
+    multiHolidaySelectedDates = [...multiHolidaySelectedDates, targetDate].sort();
+  }
+  showMultiHolidayError('');
+  renderMultiHolidayCalendar();
+}
+
+function removeMultiHolidayDate(targetDate) {
+  multiHolidaySelectedDates = multiHolidaySelectedDates.filter((date) => date !== targetDate);
+  showMultiHolidayError('');
+  renderMultiHolidayCalendar();
+}
+
+function renderMultiHolidaySelection() {
+  const summary = document.getElementById('multi-holiday-selection-summary');
+  const list = document.getElementById('multi-holiday-selected-list');
+  const saveButton = document.getElementById('multi-holiday-save-btn');
+  if (!summary || !list || !saveButton) return;
+
+  summary.textContent = `선택한 날짜 ${multiHolidaySelectedDates.length}일`;
+  saveButton.disabled = multiHolidaySelectedDates.length === 0;
+  list.replaceChildren();
+
+  if (!multiHolidaySelectedDates.length) {
+    const empty = document.createElement('span');
+    empty.className = 'multi-holiday-empty';
+    empty.textContent = '달력에서 쉬는 날짜를 선택해주세요.';
+    list.appendChild(empty);
+    return;
+  }
+
+  multiHolidaySelectedDates.forEach((targetDate) => {
+    const chip = document.createElement('span');
+    chip.className = 'multi-holiday-chip';
+    chip.append(document.createTextNode(formatDateKR(targetDate)));
+
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.textContent = '×';
+    removeButton.setAttribute('aria-label', `${formatDateKR(targetDate)} 선택 해제`);
+    removeButton.addEventListener('click', () => removeMultiHolidayDate(targetDate));
+    chip.appendChild(removeButton);
+    list.appendChild(chip);
+  });
+}
+
+async function saveMultiSelfHolidays() {
+  const button = document.getElementById('multi-holiday-save-btn');
+  if (!button || !currentUser || !multiHolidaySelectedDates.length) return;
+
+  button.disabled = true;
+  button.textContent = '확인 중...';
+  showMultiHolidayError('');
+
+  try {
+    const selectedDates = [...multiHolidaySelectedDates].sort();
+    const localInvalidDates = selectedDates
+      .map((targetDate) => ({ targetDate, ...getMultiHolidayDateState(targetDate) }))
+      .filter((item) => !item.enabled);
+
+    if (localInvalidDates.length) {
+      const details = localInvalidDates.slice(0, 3)
+        .map((item) => `${formatDateKR(item.targetDate)}: ${item.reason}`)
+        .join('\n');
+      throw new Error(`저장할 수 없는 날짜가 있습니다.\n${details}`);
+    }
+
+    const checks = await Promise.all(selectedDates.map(async (targetDate) => {
+      const [lockSnapshot, orderSnapshot] = await Promise.all([
+        db.collection('orderLocks').doc(targetDate).get(),
+        db.collection('orders').doc(targetDate).collection('items').doc(currentUser.uid).get()
+      ]);
+      return { targetDate, locked: lockSnapshot.exists, orderSnapshot };
+    }));
+
+    const lockedDates = checks.filter((item) => item.locked);
+    if (lockedDates.length) {
+      const details = lockedDates.slice(0, 3)
+        .map((item) => formatDateKR(item.targetDate))
+        .join(', ');
+      throw new Error(`관리자가 주문을 마감한 날짜가 포함되어 있습니다: ${details}`);
+    }
+
+    const overwriteDates = checks.filter(({ orderSnapshot }) => {
+      if (!orderSnapshot.exists) return false;
+      const order = orderSnapshot.data() || {};
+      if (order.selfHoliday === true) return false;
+      return Number(order.lunchCount || 0) > 0
+        || Number(order.saladCount || 0) > 0
+        || (Array.isArray(order.cateringItems) && order.cateringItems.length > 0)
+        || Boolean(String(order.note || '').trim());
+    });
+
+    if (overwriteDates.length) {
+      const approved = window.confirm(
+        `${overwriteDates.length}일은 이미 주문한 내역이 있습니다.\n`
+        + '자체 휴무로 저장하면 해당 날짜의 도시락·샐러드 주문 수량이 0개로 바뀝니다.\n\n'
+        + '계속 저장하시겠습니까?'
+      );
+      if (!approved) {
+        button.disabled = false;
+        button.textContent = '선택한 날짜 저장';
+        return;
+      }
+    }
+
+    button.textContent = '저장 중...';
+    const batch = db.batch();
+    selectedDates.forEach((targetDate) => {
+      const ref = db.collection('orders').doc(targetDate).collection('items').doc(currentUser.uid);
+      batch.set(ref, {
+        uid: currentUser.uid,
+        targetDate,
+        lunchCount: 0,
+        saladCount: 0,
+        cateringItems: [],
+        selfHoliday: true,
+        submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    await batch.commit();
+
+    closeMultiHolidayModal();
+    showToast(`${selectedDates.length}일을 자체 휴무로 등록했습니다.`, 'success');
+    await Promise.all([renderToday(), renderWeek()]);
+  } catch(e) {
+    console.error('여러 날짜 자체 휴무 저장 오류:', e);
+    showMultiHolidayError(e.message || '저장에 실패했습니다. 다시 시도해주세요.');
+    showToast('자체 휴무 저장에 실패했습니다.', 'error');
+  } finally {
+    button.textContent = '선택한 날짜 저장';
+    button.disabled = multiHolidaySelectedDates.length === 0;
   }
 }
 
