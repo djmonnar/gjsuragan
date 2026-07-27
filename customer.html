@@ -2639,7 +2639,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const CUSTOMER_APP_VERSION = '20260629-weekday-meal-labels';
+const CUSTOMER_APP_VERSION = '20260727-order-submit-fix';
 const TAX_CERTIFICATE_NOTICE_KEY = 'gjs-tax-certificate-notice-seen-v1';
 
 // ───────── PWA Service Worker 등록 ─────────
@@ -3024,9 +3024,10 @@ function addCalendarDays(dStr, delta) {
 }
 
 function getNextBusinessDay(fromStr) {
-  for (let i = 1; i <= 7; i++) {
+  // 연휴·장기 휴무(여름휴가 등)가 이어져도 다음 영업일을 찾도록 31일까지 탐색
+  for (let i = 1; i <= 31; i++) {
     const s = addCalendarDays(fromStr, i);
-    if (!isNoDeliveryDate(s)) return s;
+    if (s && !isNoDeliveryDate(s)) return s;
   }
   return null;
 }
@@ -3107,6 +3108,7 @@ function scheduleOrderTargetRefresh() {
 }
 
 function formatDateKR(dStr) {
+  if (!dStr) return '날짜 미정';
   const [y, m, d] = dStr.split('-');
   const days = ['일','월','화','수','목','금','토'];
   const dt = new Date(`${dStr}T00:00:00+09:00`);
@@ -4435,8 +4437,13 @@ function captureActiveOrderDraft() {
 
 function setActiveOrderSlot(slot) {
   if (slot === activeOrderSlot) return;
+  const nextSlot = slot === 'tomorrow' ? 'tomorrow' : 'today';
+  if (!getOrderSlots()[nextSlot]?.targetDate) {
+    showToast('31일 안에 예정된 다음 배송일이 없습니다.', 'error');
+    return;
+  }
   captureActiveOrderDraft();
-  activeOrderSlot = slot === 'tomorrow' ? 'tomorrow' : 'today';
+  activeOrderSlot = nextSlot;
   renderToday();
 }
 
@@ -4446,10 +4453,15 @@ function renderOrderSlotTabs(slots) {
     if (!btn) return;
     btn.classList.toggle('active', ctx.key === activeOrderSlot);
     btn.classList.toggle('is-closed', isActiveOrderSlotClosed(ctx));
+    btn.disabled = !ctx.targetDate;
     const title = btn.querySelector('.order-slot-title');
     const date = btn.querySelector('.order-slot-date');
     if (title) title.innerHTML = `${iconSvg(ctx.isToday ? 'clock' : 'calendar')}${ctx.label}`;
     if (date) {
+      if (!ctx.targetDate) {
+        date.textContent = '예정된 배송일 없음';
+        return;
+      }
       const status = ctx.noDelivery
         ? (ctx.holiday || '배송 없음')
         : ctx.isToday && ctx.closed
@@ -4462,7 +4474,7 @@ function renderOrderSlotTabs(slots) {
 
 async function renderToday() {
   const slots = getOrderSlots();
-  if (!slots[activeOrderSlot]) activeOrderSlot = 'today';
+  if (!slots[activeOrderSlot]?.targetDate) activeOrderSlot = 'today';
   const ctx = slots[activeOrderSlot];
   const targetDate = ctx.targetDate;
   currentOrderTargetDate = targetDate;
@@ -4715,6 +4727,11 @@ async function submitOrder(source) {
     ? (document.getElementById('today-note')?.value?.trim() || '')
     : (document.getElementById('modal-note')?.value?.trim() || '');
 
+  if (!targetDate) {
+    showToast('주문 날짜를 확인할 수 없습니다. 화면을 새로고침한 뒤 다시 시도해주세요.', 'error');
+    return;
+  }
+
   if (isMealPausedOnDate(userProfile, targetDate)) {
     const resumeDate = String(userProfile?.mealResumeDate || '').trim();
     showToast(resumeDate ? `${formatDateKR(resumeDate)}부터 월식 주문이 다시 열립니다.` : '월식이 일시정지되어 있습니다. 재개가 필요하면 궁중수라간에 연락해주세요.', 'error');
@@ -4751,10 +4768,18 @@ async function submitOrder(source) {
         note: note,
         submittedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+  } catch(e) {
+    console.error('주문 전송 오류:', e);
+    showToast(`전송 실패: ${e.message || '다시 시도해주세요.'}`, 'error');
+    btn.disabled = false;
+    btn.textContent = '주문 전송하기';
+    return;
+  }
 
-    showToast('주문이 전송되었습니다.', 'success');
-    if (source === 'today') delete orderSlotDrafts[activeOrderSlot];
-
+  // 저장은 성공한 상태 — 화면 갱신 중 오류가 나도 '전송 실패'로 표시하지 않는다
+  showToast('주문이 전송되었습니다.', 'success');
+  if (source === 'today') delete orderSlotDrafts[activeOrderSlot];
+  try {
     if (source === 'today') {
       await renderToday();
     } else {
@@ -4763,8 +4788,7 @@ async function submitOrder(source) {
       if (modalDateStr === currentOrderTargetDate) renderToday();
     }
   } catch(e) {
-    console.error('주문 전송 오류:', e);
-    showToast(`전송 실패: ${e.message || '다시 시도해주세요.'}`, 'error');
+    console.error('주문 후 화면 갱신 오류:', e);
     btn.disabled = false;
     btn.textContent = '주문 전송하기';
   }

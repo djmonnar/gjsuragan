@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v54-settlement-method-summary';
+const CACHE = 'gjsuragan-v55-order-submit-null-date-fix';
 const PRECACHE = [
   './customer.html',
   './admin.html',
