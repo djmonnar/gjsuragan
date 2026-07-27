@@ -119,6 +119,10 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .settle-status-badge.청구완료{background:#e3f2fd;color:#1565c0}
 .settle-status-badge.입금완료{background:#e8f5e9;color:#1e6e40}
 .settle-status-badge.보류{background:#f3e5f5;color:#6a1b9a}
+.settle-pay-method{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;background:#eef1f4;color:#3d4852}
+.quick-pay-btn{border:0;border-radius:8px;padding:8px 8px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap}
+.quick-pay-btn.transfer{background:#e8f5e9;color:#1e6e40}
+.quick-pay-btn.card{background:#e3f2fd;color:#1565c0}
 .status-select{min-width:100px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;background:#fff}
 .settle-note{width:140px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit}
 .mini-btn{border:0;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--gold2);color:var(--primary)}
@@ -156,7 +160,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .due-badge.overdue{background:#fdecea;color:#c0392b}
 .due-badge.soon{background:#fff3e0;color:#e65100}
 .due-badge.ok{color:var(--sub);font-size:12px}
-.payment-row{display:grid;grid-template-columns:1fr 1fr 2fr 32px;gap:8px;align-items:end;background:#fafafa;padding:10px;border-radius:8px;border:1px solid var(--border)}
+.payment-row{display:grid;grid-template-columns:1fr 1fr 88px 2fr 32px;gap:8px;align-items:end;background:#fafafa;padding:10px;border-radius:8px;border:1px solid var(--border)}
 .payment-row .form-input{margin-bottom:0}
 .settle-summary-bar{background:var(--gold2);border-radius:10px;padding:12px 14px;margin:12px 0;font-size:13px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .settle-summary-bar .ssb-label{color:var(--sub);font-size:11px;margin-bottom:2px}
@@ -492,9 +496,11 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .settlement-mobile-switch-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;margin-left:4px;padding:0 6px;border-radius:999px;background:rgba(0,0,0,.06);font-size:11px;font-weight:900}
   .settlement-mobile-switch button.active .settlement-mobile-switch-count{background:rgba(255,255,255,.2)}
   .settlement-section[data-mobile-view="standard"] .settlement-event-heading,
+  .settlement-section[data-mobile-view="standard"] #settle-event-batch-toolbar,
   .settlement-section[data-mobile-view="standard"] #settlement-event-mobile-list{display:none}
   .settlement-section[data-mobile-view="event"] .settle-dashboard,
   .settlement-section[data-mobile-view="event"] .settlement-standard-heading,
+  .settlement-section[data-mobile-view="event"] #settle-batch-toolbar,
   .settlement-section[data-mobile-view="event"] #settlement-mobile-list{display:none}
   .settle-kpi-grid{gap:8px}
   .settle-kpi-grid .summary-card{min-width:0;padding:12px}
@@ -1925,7 +1931,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <button class="settle-tab-btn active" data-filter="all" onclick="setSettleFilter('all')">전체</button>
           <button class="settle-tab-btn" data-filter="미정산" onclick="setSettleFilter('미정산')">확인필요</button>
           <button class="settle-tab-btn overdue-tab" data-filter="연체" onclick="setSettleFilter('연체')">연체</button>
-          <button class="settle-tab-btn" data-filter="청구완료" onclick="setSettleFilter('청구완료')">청구확인</button>
+          <button class="settle-tab-btn" data-filter="청구완료" onclick="setSettleFilter('청구완료')">입금대기</button>
           <button class="settle-tab-btn" data-filter="입금완료" onclick="setSettleFilter('입금완료')">입금완료</button>
           <button class="settle-tab-btn" data-filter="보류" onclick="setSettleFilter('보류')">보류</button>
         </div>
@@ -2010,12 +2016,12 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 
     <!-- 일괄 처리 툴바 -->
     <div class="batch-toolbar" id="settle-batch-toolbar" style="display:none">
-      <label><input type="checkbox" id="settle-check-all" onchange="toggleAllSettlements(this.checked)"> 전체 선택</label>
+      <label><input type="checkbox" id="settle-check-all" onchange="toggleAllSettlements(this.checked,'standard')"> 전체 선택</label>
       <select class="batch-status-select" id="batch-status-select">
         <option value="">월말 상태 일괄정리</option>
-        <option value="청구완료">청구확인</option><option>입금완료</option><option>보류</option><option value="미정산">확인필요</option>
+        <option value="청구완료">입금대기 (청구서 발송)</option><option value="입금완료:이체">입금완료 · 이체</option><option value="입금완료:카드">입금완료 · 카드</option><option>입금완료</option><option>보류</option><option value="미정산">확인필요</option>
       </select>
-      <button class="batch-apply-btn" onclick="bulkUpdateSettlement()">✅ 일괄 적용</button>
+      <button class="batch-apply-btn" onclick="bulkUpdateSettlement('standard')">✅ 일괄 적용</button>
       <button class="export-btn" onclick="exportSettlementCSV()">📊 엑셀 내보내기</button>
       <button class="kakao-btn" onclick="copyAllSettlementKakao()">💬 전체 카톡</button>
     </div>
@@ -2053,6 +2059,14 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 
     <!-- 행사도시락 정산 테이블 -->
     <div class="section-title settlement-event-heading" style="margin-top:18px">🎉 행사도시락 정산 내역</div>
+    <div class="batch-toolbar" id="settle-event-batch-toolbar" style="display:none">
+      <label><input type="checkbox" id="settle-event-check-all" onchange="toggleAllSettlements(this.checked,'event')"> 전체 선택</label>
+      <select class="batch-status-select" id="batch-event-status-select">
+        <option value="">월말 상태 일괄정리</option>
+        <option value="청구완료">입금대기 (청구서 발송)</option><option value="입금완료:이체">입금완료 · 이체</option><option value="입금완료:카드">입금완료 · 카드</option><option>입금완료</option><option>보류</option><option value="미정산">확인필요</option>
+      </select>
+      <button class="batch-apply-btn" onclick="bulkUpdateSettlement('event')">✅ 일괄 적용</button>
+    </div>
     <div class="settlement-desktop-table">
       <table class="order-table">
         <thead>
@@ -2534,7 +2548,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div>
         <label class="form-label">월말 확인 상태</label>
         <select class="form-input" id="settle-edit-status" onchange="updatePaymentSummary()">
-          <option value="청구완료">청구확인</option><option>입금완료</option><option>보류</option><option value="미정산">확인필요</option>
+          <option value="청구완료">입금대기 (청구서 발송)</option><option>입금완료</option><option>보류</option><option value="미정산">확인필요</option>
         </select>
       </div>
       <div>
@@ -3105,7 +3119,7 @@ function dueDateBadgeHtml(row) {
 function settlementStatusLabel(status) {
   return ({
     '미정산': '확인필요',
-    '청구완료': '청구확인',
+    '청구완료': '입금대기',
     '입금완료': '입금완료',
     '보류': '보류'
   })[status] || status || '-';
@@ -3134,6 +3148,22 @@ function settlementPaidTotal(row = {}) {
   const legacyPaid = parseInt(row.paidAmount, 10) || 0;
   if (legacyPaid > 0) return legacyPaid;
   return row.status === '입금완료' ? settlementBilledTotal(row) : 0;
+}
+function settlementPayMethodLabel(row = {}) {
+  const methods = [];
+  (row.payments || []).forEach(p => {
+    if ((parseInt(p.amount, 10) || 0) <= 0) return;
+    const m = p.method === '카드' ? '카드' : p.method === '이체' ? '이체' : '';
+    if (m && !methods.includes(m)) methods.push(m);
+  });
+  return methods.join('+');
+}
+function settlementPayMethodChipHtml(row = {}) {
+  if (settlementPaidTotal(row) <= 0) return '';
+  const label = settlementPayMethodLabel(row);
+  if (!label) return '';
+  const icon = label === '카드' ? '💳' : label === '이체' ? '🏦' : '💳🏦';
+  return `<div style="margin-top:3px"><span class="settle-pay-method">${icon} ${escapeHtml(label)}</span></div>`;
 }
 function settlementEventQty(row = {}) {
   return Number(row.eventLunch ?? row.eventLunchTotal ?? row.eventCount ?? 0) || 0;
@@ -9925,9 +9955,15 @@ function syncSettlementChecks(value, checked) {
   });
 }
 
-function settlementMobileActionsHtml(uid) {
+function settlementMobileActionsHtml(uid, row) {
   const safeUid = escapeHtml(uid);
+  const balance = row ? settlementBilledTotal(row) - settlementPaidTotal(row) : 0;
+  const quickPay = balance > 0
+    ? `<button class="quick-pay-btn transfer" onclick="quickSettlePayment('${safeUid}','이체')">이체입금</button>
+    <button class="quick-pay-btn card" onclick="quickSettlePayment('${safeUid}','카드')">카드입금</button>`
+    : '';
   return `<div class="settlement-mobile-actions">
+    ${quickPay}
     <button class="mini-btn" onclick="openSheetModal('${safeUid}')">정산표 보기</button>
     <button class="mini-btn" onclick="openSettlementEdit('${safeUid}')">정산 수정</button>
     <button class="kakao-mini-btn" onclick="copySettlementKakao('${safeUid}')">카톡 복사</button>
@@ -9977,7 +10013,7 @@ function settlementMobileCardHtml(row) {
       <div class="settlement-mobile-meta">
         <div class="settlement-mobile-meta-item">
           <span class="settlement-mobile-meta-label">입금액</span>
-          <span class="settlement-mobile-meta-value">${formatMoney(paidTotal)}</span>
+          <span class="settlement-mobile-meta-value">${formatMoney(paidTotal)}${settlementPayMethodLabel(row) ? ` (${escapeHtml(settlementPayMethodLabel(row))})` : ''}</span>
         </div>
         <div class="settlement-mobile-meta-item">
           <span class="settlement-mobile-meta-label">납부기한</span>
@@ -9989,7 +10025,7 @@ function settlementMobileCardHtml(row) {
         <summary>일별 주문 내역</summary>
         ${renderBreakdownHTML(row)}
       </details>
-      ${settlementMobileActionsHtml(uid)}
+      ${settlementMobileActionsHtml(uid, row)}
     </div>
   </article>`;
 }
@@ -10038,7 +10074,7 @@ function settlementEventMobileCardHtml(item, row) {
         </div>
         <div class="settlement-mobile-meta-item">
           <span class="settlement-mobile-meta-label">입금액</span>
-          <span class="settlement-mobile-meta-value">${formatMoney(paidTotal)}</span>
+          <span class="settlement-mobile-meta-value">${formatMoney(paidTotal)}${settlementPayMethodLabel(row) ? ` (${escapeHtml(settlementPayMethodLabel(row))})` : ''}</span>
         </div>
         <div class="settlement-mobile-meta-item">
           <span class="settlement-mobile-meta-label">청구서번호</span>
@@ -10046,7 +10082,7 @@ function settlementEventMobileCardHtml(item, row) {
         </div>
       </div>
       ${note}
-      ${settlementMobileActionsHtml(uid)}
+      ${settlementMobileActionsHtml(uid, row)}
     </div>
   </article>`;
 }
@@ -10098,9 +10134,12 @@ function renderSettlements() {
   document.getElementById('settlement-standard-mobile-count').textContent = standardMobileCount;
   document.getElementById('settlement-event-mobile-count').textContent = eventMobileCount;
 
-  const hasBatch = allRows.length > 0;
-  document.getElementById('settle-batch-toolbar').style.display = hasBatch ? 'flex' : 'none';
+  document.getElementById('settle-batch-toolbar').style.display = settlementRows.length > 0 ? 'flex' : 'none';
   document.getElementById('settle-check-all').checked = false;
+  const eventToolbar = document.getElementById('settle-event-batch-toolbar');
+  if (eventToolbar) eventToolbar.style.display = settlementEvents.length > 0 ? 'flex' : 'none';
+  const eventCheckAll = document.getElementById('settle-event-check-all');
+  if (eventCheckAll) eventCheckAll.checked = false;
 
   if (settlementRows.length === 0) {
     tbody.innerHTML = '<tr class="no-order-row"><td colspan="14">선택한 월의 업체 주문이 없습니다.</td></tr>';
@@ -10132,10 +10171,11 @@ function renderSettlements() {
           <td>${row.invoiceNo ? `<span class="invoice-no">${escapeHtml(row.invoiceNo)}</span>` : '<span style="color:var(--sub);font-size:12px">-</span>'}</td>
           <td>${dueDateBadgeHtml(row)}</td>
           <td class="${balanceClass}">${formatMoney(balance)}</td>
-          <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span></td>
+          <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span>${settlementPayMethodChipHtml(row)}</td>
           <td class="note-cell">${row.note ? escapeHtml(row.note) : '<span style="color:var(--sub)">-</span>'}</td>
           <td>
             <div class="inline-actions">
+              ${balance > 0 ? `<button class="quick-pay-btn transfer" onclick="quickSettlePayment('${escapeHtml(row.uid)}','이체')">이체입금</button><button class="quick-pay-btn card" onclick="quickSettlePayment('${escapeHtml(row.uid)}','카드')">카드입금</button>` : ''}
               <button class="mini-btn" onclick="openSettlementEdit('${row.uid}')">수정</button>
               <button class="mini-btn" onclick="openSheetModal('${row.uid}')">정산표</button>
               <button class="kakao-mini-btn" onclick="copySettlementKakao('${row.uid}')">💬</button>
@@ -10182,10 +10222,11 @@ function renderSettlements() {
         <td>${row.invoiceNo ? `<span class="invoice-no">${escapeHtml(row.invoiceNo)}</span>` : '<span style="color:var(--sub);font-size:12px">-</span>'}</td>
         <td>${dueDateBadgeHtml(row)}</td>
         <td class="${balanceClass}">${formatMoney(balance)}</td>
-        <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span></td>
+        <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span>${settlementPayMethodChipHtml(row)}</td>
         <td class="note-cell">${row.note ? escapeHtml(row.note) : '<span style="color:var(--sub)">-</span>'}</td>
         <td>
           <div class="inline-actions">
+            ${balance > 0 ? `<button class="quick-pay-btn transfer" onclick="quickSettlePayment('event:${escapeHtml(item.id)}','이체')">이체입금</button><button class="quick-pay-btn card" onclick="quickSettlePayment('event:${escapeHtml(item.id)}','카드')">카드입금</button>` : ''}
             <button class="mini-btn" onclick="openSettlementEdit('event:${item.id}')">수정</button>
             <button class="mini-btn" onclick="openSheetModal('event:${item.id}')">정산표</button>
             <button class="kakao-mini-btn" onclick="copySettlementKakao('event:${item.id}')">💬</button>
@@ -10678,15 +10719,21 @@ async function exportKakaoSummary() {
 }
 
 // ── 정산 일괄 처리 ──
-function toggleAllSettlements(checked) {
-  document.querySelectorAll('.settle-check').forEach(el => el.checked = checked);
+function toggleAllSettlements(checked, scope = 'standard') {
+  document.querySelectorAll('.settle-check').forEach(el => {
+    const isEvent = String(el.value).startsWith('event:');
+    if ((scope === 'event') === isEvent) el.checked = checked;
+  });
 }
 
-async function bulkUpdateSettlement() {
+async function bulkUpdateSettlement(scope = 'standard') {
   const month = document.getElementById('settle-month').value || currentMonthStr();
-  const newStatus = document.getElementById('batch-status-select').value;
-  if (!newStatus) { showToast('변경할 상태를 선택해주세요.'); return; }
-  const uids = [...new Set(Array.from(document.querySelectorAll('.settle-check:checked'), el => el.value))];
+  const selectId = scope === 'event' ? 'batch-event-status-select' : 'batch-status-select';
+  const rawStatus = document.getElementById(selectId).value;
+  if (!rawStatus) { showToast('변경할 상태를 선택해주세요.'); return; }
+  const [newStatus, payMethod] = rawStatus.split(':');
+  const uids = [...new Set(Array.from(document.querySelectorAll('.settle-check:checked'), el => el.value))]
+    .filter(uid => (scope === 'event') === String(uid).startsWith('event:'));
   if (uids.length === 0) { showToast('정산 항목을 선택해주세요.'); return; }
   try {
     const batch = db.batch();
@@ -10696,6 +10743,15 @@ async function bulkUpdateSettlement() {
     uids.forEach(uid => {
       const row = getSettlementRow(uid);
       if (!row) return;
+      let payments = row.payments || [];
+      let paidDate = row.paidDate || '';
+      if (payMethod) {
+        const balance = settlementBilledTotal(row) - settlementPaidTotal(row);
+        if (balance > 0) {
+          paidDate = dateStr(getKST());
+          payments = [...payments, { date: paidDate, amount: balance, note: '', method: payMethod, recordedAt: now }];
+        }
+      }
       const data = {
         status: newStatus,
         note: row.note,
@@ -10703,9 +10759,9 @@ async function bulkUpdateSettlement() {
         adjust: row.adjust || 0,
         invoiceNo: row.invoiceNo || '',
         dueDate: row.dueDate || '',
-        payments: row.payments || [],
-        paidDate: row.paidDate || '',
-        paidAmount: row.paidAmount || 0,
+        payments,
+        paidDate,
+        paidAmount: payMethod ? payments.reduce((s, p) => s + (parseInt(p.amount, 10) || 0), 0) : (row.paidAmount || 0),
         lunchTotal: row.lunch || 0,
         saladTotal: row.salad || 0,
         eventLunchTotal: settlementEventQty(row),
@@ -10751,9 +10807,56 @@ async function bulkUpdateSettlement() {
       applySettlementToUserCache(uid, month, data);
     });
     renderSettlements();
-    showToast(`✅ ${updatedRows.length}건을 "${newStatus}"으로 변경했습니다.`);
+    showToast(`✅ ${updatedRows.length}건을 "${newStatus}${payMethod ? ` · ${payMethod}` : ''}"으로 변경했습니다.`);
   } catch(e) {
     showToast('일괄 저장 실패: ' + e.message);
+  }
+}
+
+async function quickSettlePayment(uid, method) {
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  const row = getSettlementRow(uid);
+  if (!row) return;
+  const billed = settlementBilledTotal(row);
+  const balance = billed - settlementPaidTotal(row);
+  if (balance <= 0) { showToast('남은 잔액이 없습니다.'); return; }
+  const name = row.user.businessName || '-';
+  if (!confirm(`${name}\n잔액 ${balance.toLocaleString()}원을 ${method}입금으로 처리하고 입금완료로 변경할까요?`)) return;
+  const now = new Date().toISOString();
+  const today = dateStr(getKST());
+  const payments = [...(row.payments || []), { date: today, amount: balance, note: '', method, recordedAt: now }];
+  const paidTotal = payments.reduce((s, p) => s + (parseInt(p.amount, 10) || 0), 0);
+  const data = {
+    status: '입금완료',
+    note: row.note,
+    amount: row.amount,
+    adjust: row.adjust || 0,
+    invoiceNo: row.invoiceNo || '',
+    dueDate: row.dueDate || '',
+    payments,
+    paidDate: today,
+    paidAmount: paidTotal,
+    updatedAt: now
+  };
+  try {
+    if (row.type === 'event') {
+      await db.collection('users').doc(adminUid).set({
+        adminEvents: { [row.eventId]: { settlement: { ...eventSettlementData(row.event || {}), ...data }, updatedAt: now } }
+      }, { merge: true });
+      const item = settlementEvents.find(e => e.id === row.eventId);
+      if (item) {
+        item.settlement = { ...(item.settlement || {}), ...data };
+        item.updatedAt = now;
+      }
+    } else {
+      await saveSettlementItem(month, uid, row, data);
+      applySettlementToUserCache(uid, month, data);
+    }
+    Object.assign(row, data);
+    renderSettlements();
+    showToast(`✅ ${name} ${method}입금 ${balance.toLocaleString()}원 처리 완료`);
+  } catch(e) {
+    showToast('입금 처리 실패: ' + e.message);
   }
 }
 
@@ -10761,7 +10864,7 @@ function exportSettlementCSV() {
   const rows = [...settlementRows, ...settlementEvents.map(eventSettlementRow)];
   if (rows.length === 0) { showToast('정산 데이터가 없습니다.'); return; }
   const month = document.getElementById('settle-month').value || currentMonthStr();
-  const headers = ['업체명', '일반도시락(개)', '샐러드(개)', '일회용/행사도시락(개)', '월식 행사도시락(개)', '월식 행사도시락 메뉴', '일반도시락 금액', '샐러드 금액', '일회용/행사도시락 금액', '월식 행사도시락 금액', '청구액(원)', '조정금액', '청구서번호', '납부기한', '입금합계', '잔액', '상태', '메모'];
+  const headers = ['업체명', '일반도시락(개)', '샐러드(개)', '일회용/행사도시락(개)', '월식 행사도시락(개)', '월식 행사도시락 메뉴', '일반도시락 금액', '샐러드 금액', '일회용/행사도시락 금액', '월식 행사도시락 금액', '청구액(원)', '조정금액', '청구서번호', '납부기한', '입금합계', '잔액', '상태', '결제수단', '메모'];
   const dataRows = rows.map(row => {
     const billed = settlementBilledTotal(row);
     const paidTotal = settlementPaidTotal(row);
@@ -10774,7 +10877,7 @@ function exportSettlementCSV() {
       settlementLunchAmount(row), settlementSaladAmount(row), settlementEventAmount(row), catering.totalAmount,
       billed, row.adjust || 0,
       row.invoiceNo || '-', row.dueDate || '-',
-      paidTotal, billed - paidTotal, row.status, row.note
+      paidTotal, billed - paidTotal, settlementStatusLabel(row.status), settlementPayMethodLabel(row) || '-', row.note
     ];
   });
   const totalLunch = rows.reduce((s, r) => s + r.lunch, 0);
@@ -10783,7 +10886,7 @@ function exportSettlementCSV() {
   const totalCatering = rows.reduce((s, r) => s + (r.type === 'event' ? 0 : settlementCateringQty(r)), 0);
   const totalCateringAmount = rows.reduce((s, r) => s + (r.type === 'event' ? 0 : settlementCateringAmount(r)), 0);
   const totalAmount = rows.reduce((s, r) => s + settlementBilledTotal(r), 0);
-  dataRows.push(['합계', totalLunch, totalSalad, totalEventLunch, totalCatering, '', '', '', '', totalCateringAmount, totalAmount, '', '', '', '', '', '', '']);
+  dataRows.push(['합계', totalLunch, totalSalad, totalEventLunch, totalCatering, '', '', '', '', totalCateringAmount, totalAmount, '', '', '', '', '', '', '', '']);
   const csv = [headers, ...dataRows]
     .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     .join('\n');
@@ -11225,6 +11328,11 @@ function renderPaymentList(payments) {
           <input class="form-input" type="date" data-field="date" value="${escapeHtml(p.date||'')}" oninput="updatePaymentSummary()"></div>
         <div><label class="form-label" style="font-size:11px">입금액</label>
           <input class="form-input" type="number" data-field="amount" value="${p.amount||0}" placeholder="0" oninput="updatePaymentSummary()"></div>
+        <div><label class="form-label" style="font-size:11px">결제수단</label>
+          <select class="form-input" data-field="method">
+            <option value="이체"${p.method === '카드' ? '' : ' selected'}>이체</option>
+            <option value="카드"${p.method === '카드' ? ' selected' : ''}>카드</option>
+          </select></div>
         <div><label class="form-label" style="font-size:11px">메모</label>
           <input class="form-input" type="text" data-field="note" value="${escapeHtml(p.note||'')}" placeholder="메모(선택)"></div>
         <button onclick="removePaymentRow(${i})"
@@ -11246,6 +11354,11 @@ function addPaymentRow() {
         <input class="form-input" type="date" data-field="date" value="${today}" oninput="updatePaymentSummary()"></div>
       <div><label class="form-label" style="font-size:11px">입금액</label>
         <input class="form-input" type="number" data-field="amount" value="0" placeholder="0" oninput="updatePaymentSummary()"></div>
+      <div><label class="form-label" style="font-size:11px">결제수단</label>
+        <select class="form-input" data-field="method">
+          <option value="이체" selected>이체</option>
+          <option value="카드">카드</option>
+        </select></div>
       <div><label class="form-label" style="font-size:11px">메모</label>
         <input class="form-input" type="text" data-field="note" value="" placeholder="메모(선택)"></div>
       <button onclick="removePaymentRow(${idx})"
@@ -11267,6 +11380,7 @@ function collectPaymentsFromModal() {
   return Array.from(document.querySelectorAll('#payment-list .payment-row')).map(row => ({
     date: row.querySelector('[data-field="date"]').value,
     amount: parseInt(row.querySelector('[data-field="amount"]').value, 10) || 0,
+    method: row.querySelector('[data-field="method"]')?.value || '이체',
     note: row.querySelector('[data-field="note"]').value.trim(),
     recordedAt: new Date().toISOString()
   })).filter(p => p.amount > 0);
