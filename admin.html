@@ -1966,6 +1966,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="summary-card paid-in">
           <div class="summary-label">✅ 입금액</div>
           <div class="summary-value" id="settle-paid-total">0<span class="summary-unit">원</span></div>
+          <div class="summary-detail" id="settle-paid-method-total">🏦 이체 0원 · 💳 카드 0원</div>
         </div>
         <div class="summary-card unpaid">
           <div class="summary-label">⚠️ 미수금</div>
@@ -10116,11 +10117,31 @@ function renderSettlements() {
   const totalBilled = allRows.reduce((sum, row) => sum + settlementBilledTotal(row), 0);
   const totalPaid = allRows.reduce((sum, r) => sum + settlementPaidTotal(r), 0);
   const totalUnpaid = Math.max(0, totalBilled - totalPaid);
+  const payMethodTotals = { '이체': 0, '카드': 0, '미지정': 0 };
+  allRows.forEach(r => {
+    let methodSum = 0;
+    (r.payments || []).forEach(p => {
+      const amt = parseInt(p.amount, 10) || 0;
+      if (amt <= 0) return;
+      if (p.method === '카드' || p.method === '이체') {
+        payMethodTotals[p.method] += amt;
+        methodSum += amt;
+      }
+    });
+    const paid = settlementPaidTotal(r);
+    if (paid > methodSum) payMethodTotals['미지정'] += paid - methodSum;
+  });
   const productAmounts = allRows.reduce(addSettlementProductAmounts, { lunch: 0, salad: 0, event: 0, catering: 0 });
   const overdueCount = allRows.filter(r => r.status !== '입금완료' && calcOverdue(r.dueDate) > 0).length;
 
   document.getElementById('settle-total').innerHTML = `${totalBilled.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
   document.getElementById('settle-paid-total').innerHTML = `${totalPaid.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
+  const payMethodEl = document.getElementById('settle-paid-method-total');
+  if (payMethodEl) {
+    let methodText = `🏦 이체 ${formatMoney(payMethodTotals['이체'])} · 💳 카드 ${formatMoney(payMethodTotals['카드'])}`;
+    if (payMethodTotals['미지정'] > 0) methodText += ` · 미지정 ${formatMoney(payMethodTotals['미지정'])}`;
+    payMethodEl.textContent = methodText;
+  }
   document.getElementById('settle-unpaid-total').innerHTML = `${totalUnpaid.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
   document.getElementById('settle-lunch-total').innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
   document.getElementById('settle-salad-total').innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;

@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v53-settlement-payments';
+const CACHE = 'gjsuragan-v54-settlement-method-summary';
 const PRECACHE = [
   './customer.html',
   './admin.html',
