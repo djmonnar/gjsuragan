@@ -4044,6 +4044,15 @@ function formatDateTimeKR(ts) {
   }).format(d);
 }
 
+function orderDeliveredTimeLabel(value) {
+  if (!value) return '';
+  const d = value.toDate ? value.toDate() : new Date(value);
+  if (!d || Number.isNaN(d.getTime())) return '';
+  const dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  const time = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+  return dateKey === currentDateStr ? time : formatDateTimeKR(value);
+}
+
 function changeRequestTypeLabel(type) {
   return {
     schedule_change:'배송일 변경',
@@ -5217,7 +5226,7 @@ async function loadOrders() {
           : isSelfHoliday
           ? '<span class="delivery-status" style="background:#fdecea;color:#c0392b;border-color:#f5b7b1">휴무</span>'
           : o.delivered
-          ? '<span class="delivery-status done">완료</span>'
+          ? `<span class="delivery-status done">완료</span>${orderDeliveredTimeLabel(o.deliveredAt) ? `<div style="font-size:11px;color:var(--sub);margin-top:3px;white-space:nowrap" title="배송 완료 처리 시각">${escapeHtml(orderDeliveredTimeLabel(o.deliveredAt))}</div>` : ''}`
           : o.source === 'default'
           ? '<span class="delivery-status" style="background:#eef2ff;color:#4f46e5;border-color:#c7d2fe">제출안함</span>'
           : '<span class="delivery-status">대기</span>';

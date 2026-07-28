@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v55-order-submit-null-date-fix';
+const CACHE = 'gjsuragan-v56-order-delivered-time';
 const PRECACHE = [
   './customer.html',
   './admin.html',
