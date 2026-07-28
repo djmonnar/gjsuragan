@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v57-settlement-auto-refresh';
+const CACHE = 'gjsuragan-v58-order-time-labels';
 const PRECACHE = [
   './customer.html',
   './admin.html',
