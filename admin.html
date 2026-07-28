@@ -1936,7 +1936,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <button class="settle-tab-btn" data-filter="보류" onclick="setSettleFilter('보류')">보류</button>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--sub)">정산은 주문 탭에서 배송완료한 결과를 월말에 확인하는 화면입니다. 평소 직원 업무는 주문 탭에서 끝납니다.</div>
+      <div style="font-size:12px;color:var(--sub)">정산은 주문 탭에서 배송완료한 결과를 월말에 확인하는 화면입니다. 평소 직원 업무는 주문 탭에서 끝납니다.<span id="settle-last-loaded"></span></div>
       <!-- 엑셀 가져오기 (접기 가능) -->
       <details style="margin-top:10px">
         <summary style="font-size:13px;font-weight:700;color:var(--sub);cursor:pointer">📂 거래처 엑셀 가져오기</summary>
@@ -7314,6 +7314,7 @@ async function saveBatchEntry() {
 
   const updates = {};
   let savedCount = 0;
+  const batchSavedUids = [];
   customers.forEach(([uid, u]) => {
     const lunch = parseInt(document.getElementById(`b-lunch-${uid}`)?.value, 10) || 0;
     const salad = parseInt(document.getElementById(`b-salad-${uid}`)?.value, 10) || 0;
@@ -7335,6 +7336,7 @@ async function saveBatchEntry() {
         deliveredBy: adminUid, adminAdjusted: true, source: 'manual'
       };
       savedCount++;
+      batchSavedUids.push(uid);
     } else if ((cachedDeliveryRecords[date] || {})[uid]) {
       updates[`deliveryRecords.${date}.${uid}`] = firebase.firestore.FieldValue.delete();
     }
@@ -7355,7 +7357,19 @@ async function saveBatchEntry() {
     });
     document.getElementById('batch-modal').classList.remove('open');
     if (date === currentDateStr) loadOrders();
-    showToast(`✅ ${savedCount}곳 배송 내역이 저장되었습니다.`);
+    if (batchSavedUids.length) {
+      try {
+        const result = await autoBillCompletedDeliveries(date, batchSavedUids);
+        const skippedText = result.skipped ? ` / 보류 ${result.skipped}곳 제외` : '';
+        showToast(`✅ ${savedCount}곳 배송 내역 저장 · 정산 ${result.billed}곳 자동 반영${skippedText}`);
+      } catch(settlementError) {
+        console.error('일괄 입력 정산 자동 반영 실패:', settlementError);
+        showToast(`✅ ${savedCount}곳 배송 내역 저장됨 · 정산 자동 반영은 실패했습니다.`);
+      }
+      if (activeAdminTab === 'settlements') loadSettlements();
+    } else {
+      showToast(`✅ ${savedCount}곳 배송 내역이 저장되었습니다.`);
+    }
   } catch(e) {
     errEl.textContent = '저장 실패: ' + e.message;
     errEl.classList.add('show');
@@ -9949,6 +9963,12 @@ async function loadSettlements() {
     settlementRows = rows;
     renderSettlements();
     renderSettlementCharts().catch(() => {});
+    settlementLastLoadedAt = Date.now();
+    const loadedLabel = document.getElementById('settle-last-loaded');
+    if (loadedLabel) {
+      const time = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+      loadedLabel.textContent = ` · 마지막 집계 ${time}`;
+    }
   } catch(e) {
     tbody.innerHTML = `<tr class="no-order-row"><td colspan="14">정산 계산 실패: ${escapeHtml(e.message)}</td></tr>`;
     eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">행사도시락 내역을 불러오지 못했습니다.</td></tr>';
@@ -9958,6 +9978,28 @@ async function loadSettlements() {
     if (eventMobileList) eventMobileList.innerHTML = '<div class="settlement-mobile-empty">행사도시락 내역을 불러오지 못했습니다.</div>';
   }
 }
+
+let settlementLastLoadedAt = 0;
+let settlementAutoRefreshing = false;
+// 정산 탭이 열린 상태로 화면에 복귀하면(다른 탭·기기에서 배송완료 처리 후 등) 자동 재집계
+async function autoRefreshSettlementsIfStale() {
+  if (activeAdminTab !== 'settlements') return;
+  if (document.hidden) return;
+  if (settlementAutoRefreshing) return;
+  if (Date.now() - settlementLastLoadedAt < 5000) return;
+  settlementAutoRefreshing = true;
+  try {
+    await loadSettlements();
+  } catch(e) {
+    console.warn('정산 자동 새로고침 실패:', e);
+  } finally {
+    settlementAutoRefreshing = false;
+  }
+}
+window.addEventListener('focus', autoRefreshSettlementsIfStale);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) autoRefreshSettlementsIfStale();
+});
 
 function syncSettlementChecks(value, checked) {
   document.querySelectorAll('.settle-check').forEach(el => {
