@@ -1272,7 +1272,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <th style="text-align:center">총수량</th>
           <th style="text-align:right">총금액</th>
           <th>배송</th>
-          <th>전송 시간</th>
+          <th>배송 · 전송</th>
           <th>메모</th>
           <th>관리</th>
         </tr>
@@ -3037,7 +3037,14 @@ function orderDeliveryTimeHtml(row = {}) {
   const user = allUsers[row.uid] || {};
   const deliveryTime = String(row.deliveryTime || row.mealTime || user.mealTime || '').trim();
   const submittedText = row.source === 'default' ? '기본수량' : formatTime(row.submittedAt);
-  return `${deliveryTime ? `<span style="font-weight:600;color:var(--primary)">${escapeHtml(deliveryTime)}</span><br>` : ''}${escapeHtml(submittedText || '-')}`;
+  const label = text => `<span style="font-size:10px;font-weight:700;color:var(--sub);letter-spacing:.02em">${text}</span> `;
+  const deliveryHtml = deliveryTime
+    ? `${label('배송')}<span style="font-weight:600;color:var(--primary)">${escapeHtml(deliveryTime)}</span><br>`
+    : '';
+  const submittedHtml = submittedText && submittedText !== '기본수량' && submittedText !== '-'
+    ? `${label('전송')}${escapeHtml(submittedText)}`
+    : escapeHtml(submittedText || '-');
+  return `${deliveryHtml}${submittedHtml}`;
 }
 function isDisposableLunchUser(user = {}) {
   return Boolean(user?.disposableLunch || user?.useDisposableLunch || user?.disposableLunchCustomer);
@@ -5226,7 +5233,7 @@ async function loadOrders() {
           : isSelfHoliday
           ? '<span class="delivery-status" style="background:#fdecea;color:#c0392b;border-color:#f5b7b1">휴무</span>'
           : o.delivered
-          ? `<span class="delivery-status done">완료</span>${orderDeliveredTimeLabel(o.deliveredAt) ? `<div style="font-size:11px;color:var(--sub);margin-top:3px;white-space:nowrap" title="배송 완료 처리 시각">${escapeHtml(orderDeliveredTimeLabel(o.deliveredAt))}</div>` : ''}`
+          ? `<span class="delivery-status done">완료</span>${orderDeliveredTimeLabel(o.deliveredAt) ? `<div style="font-size:11px;color:var(--sub);margin-top:3px;white-space:nowrap" title="배송 완료 처리 시각"><span style="font-size:10px;font-weight:700;letter-spacing:.02em">완료</span> ${escapeHtml(orderDeliveredTimeLabel(o.deliveredAt))}</div>` : ''}`
           : o.source === 'default'
           ? '<span class="delivery-status" style="background:#eef2ff;color:#4f46e5;border-color:#c7d2fe">제출안함</span>'
           : '<span class="delivery-status">대기</span>';
