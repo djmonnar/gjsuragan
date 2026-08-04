@@ -66,6 +66,10 @@ IP, for example:
 The `api` HTTPS function is deployed in `asia-northeast3`, so create the static
 IP, VPC connector, router, and Cloud NAT in `asia-northeast3` as well.
 
+To turn the connector off/on for cost savings during idle months, see
+`scripts/logen-infra/README.md` (keeps the static IP so the Logen whitelist
+stays valid).
+
 Current Seoul egress resources:
 
 - Static IP: `34.50.34.252` (`gjs-logen-nat-ip`)
