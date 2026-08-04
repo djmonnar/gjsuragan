@@ -1779,7 +1779,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
       <div style="font-size:14px;font-weight:700;margin-bottom:10px">고객 비공개 필드 분리</div>
       <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px">
-        users 문서에 남아있는 배송지, 단가, 관리자 메모 같은 필드를 관리자 전용 userPrivate 컬렉션으로 옮깁니다.
+        users 문서에 남아있는 배송지, 관리자 메모 같은 비공개 필드를 관리자 전용 userPrivate 컬렉션으로 옮깁니다. 고객별 단가는 고객 정산 화면과 동기화되도록 users 문서에 유지합니다.
       </div>
       <button onclick="migrateUserPrivateFields()"
         style="background:#fff;color:var(--primary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">비공개 필드 분리</button>
@@ -2711,16 +2711,19 @@ const EVENT_LUNCH_MENUS = [
 ];
 const USER_PRIVATE_FIELDS = [
   'deliveryPlace',
+  'deliveryPlaceDetail',
   'address',
-  'lunchPrice',
-  'saladPrice',
-  'priceLunch',
-  'priceSalad',
   'adminMemo',
   'disposableLunch',
   'memo',
   'status',
   'role'
+];
+const USER_PRIVATE_LEGACY_PRICE_FIELDS = [
+  'lunchPrice',
+  'saladPrice',
+  'priceLunch',
+  'priceSalad'
 ];
 const DEFAULT_MEAL_PRICE = 8000;
 
@@ -3305,12 +3308,18 @@ function orderSaladPrice(order = {}, user = {}) {
 function userPrivateRef(uid) {
   return db.collection('userPrivate').doc(uid);
 }
-function privateUserPayload({ deliveryPlace = '', deliveryPlaceDetail = '', lunchPrice = 0, saladPrice = 0, adminMemo = '', disposableLunch = false } = {}) {
+function publicUserPricePayload(lunchPrice = 0, saladPrice = 0) {
+  return {
+    lunchPrice,
+    saladPrice,
+    priceLunch: lunchPrice,
+    priceSalad: saladPrice
+  };
+}
+function privateUserPayload({ deliveryPlace = '', deliveryPlaceDetail = '', adminMemo = '', disposableLunch = false } = {}) {
   return {
     deliveryPlace,
     deliveryPlaceDetail,
-    lunchPrice,
-    saladPrice,
     adminMemo,
     disposableLunch: Boolean(disposableLunch),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -3318,6 +3327,12 @@ function privateUserPayload({ deliveryPlace = '', deliveryPlaceDetail = '', lunc
 }
 function userPrivateDeletePayload() {
   return USER_PRIVATE_FIELDS.reduce((acc, field) => {
+    acc[field] = firebase.firestore.FieldValue.delete();
+    return acc;
+  }, {});
+}
+function userPrivateLegacyPriceDeletePayload() {
+  return USER_PRIVATE_LEGACY_PRICE_FIELDS.reduce((acc, field) => {
     acc[field] = firebase.firestore.FieldValue.delete();
     return acc;
   }, {});
@@ -7723,7 +7738,8 @@ async function saveMember() {
       mealPausedAt: firebase.firestore.FieldValue.delete(),
       mealPausedBy: firebase.firestore.FieldValue.delete()
     };
-    await db.collection('users').doc(uid).update({
+    const batch = db.batch();
+    batch.update(db.collection('users').doc(uid), {
       businessName: bizname,
       phone,
       mealTime,
@@ -7732,11 +7748,16 @@ async function saveMember() {
       sameDailyMeal,
       weekdayMeals,
       ...pauseFields,
+      ...publicUserPricePayload(lunchPrice, saladPrice),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       ...userPrivateDeletePayload()
     });
-    await userPrivateRef(uid).set(privateUserPayload({ deliveryPlace, deliveryPlaceDetail, lunchPrice, saladPrice, adminMemo, disposableLunch }), { merge: true });
-    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, deliveryPlaceDetail, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, lunchPrice, saladPrice, adminMemo, disposableLunch, mealPaused };
+    batch.set(userPrivateRef(uid), {
+      ...privateUserPayload({ deliveryPlace, deliveryPlaceDetail, adminMemo, disposableLunch }),
+      ...userPrivateLegacyPriceDeletePayload()
+    }, { merge: true });
+    await batch.commit();
+    allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, deliveryPlaceDetail, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, ...publicUserPricePayload(lunchPrice, saladPrice), adminMemo, disposableLunch, mealPaused };
     if (mealPaused) {
       allUsers[uid].mealPauseStartDate = mealPauseStartDate;
       allUsers[uid].mealResumeDate = mealResumeDate;
@@ -9860,13 +9881,14 @@ async function loadSettlements() {
     Object.entries(allUsers).forEach(([uid, user]) => {
       // TODO: legacy users.settlements fallback은 데이터 마이그레이션 후 제거
       const saved = settlementItems[uid] || user.settlements?.[month] || {};
-      const lunchPrice = userLunchPrice(user) || 0;
-      const saladPrice = userSaladPrice(user) || 0;
+      const lunchPrice = Number(saved.lunchPrice ?? saved.priceLunch ?? userLunchPrice(user) ?? 0) || 0;
+      const saladPrice = Number(saved.saladPrice ?? saved.priceSalad ?? userSaladPrice(user) ?? 0) || 0;
+      const eventPrice = Number(saved.eventPrice ?? saved.eventLunchPrice ?? lunchPrice) || 0;
       let payments = saved.payments || [];
       if (payments.length === 0 && saved.paidAmount > 0) {
         payments = [{ amount: saved.paidAmount, date: saved.paidDate || '', note: '(이전 기록)', recordedAt: saved.updatedAt || '' }];
       }
-      byUser[uid] = { uid, user, lunch: 0, salad: 0, eventLunch: 0, catering: 0, cateringAmount: 0, cateringItems: [], lunchPrice, saladPrice, eventPrice: lunchPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, invoiceNo: saved.invoiceNo || '', dueDate: saved.dueDate || '', payments, dateBreakdown: {} };
+      byUser[uid] = { uid, user, lunch: 0, salad: 0, eventLunch: 0, catering: 0, cateringAmount: 0, cateringItems: [], lunchPrice, saladPrice, eventPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, invoiceNo: saved.invoiceNo || '', dueDate: saved.dueDate || '', payments, dateBreakdown: {} };
     });
 
     const dates = monthDates(month);
@@ -11903,8 +11925,8 @@ function renderLegalHolidayList() {
 }
 
 async function migrateUserPrivateFields() {
-  if (!confirm('users 문서의 배송지/단가/관리자 메모를 userPrivate 경로로 옮길까요?')) return;
-  if (!confirm('한 번 더 확인합니다. 복사 후 users 문서에서는 해당 비공개 필드를 삭제합니다. 진행할까요?')) return;
+  if (!confirm('users 문서의 배송지/관리자 메모를 userPrivate 경로로 옮길까요? 고객별 단가는 고객 정산 화면과 동기화되도록 users 문서에 유지합니다.')) return;
+  if (!confirm('한 번 더 확인합니다. 복사 후 users 문서에서는 해당 비공개 필드만 삭제합니다. 진행할까요?')) return;
   const resultEl = document.getElementById('user-private-migration-result');
   if (resultEl) resultEl.textContent = '분리 작업 중...';
   try {
