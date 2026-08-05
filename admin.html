@@ -140,6 +140,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .settle-tab-btn{border:1.5px solid var(--border);background:#fff;color:var(--sub);padding:7px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
 .settle-tab-btn:hover{border-color:var(--primary);color:var(--primary)}
 .settle-tab-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.settle-tab-btn.unpaid-tab.active{background:#c0392b;border-color:#c0392b}
 .settle-tab-btn.overdue-tab.active{background:#c0392b;border-color:#c0392b}
 .settle-dashboard{display:grid;grid-template-columns:auto 1fr;gap:16px;margin-bottom:16px;align-items:start}
 .settle-kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;min-width:280px}
@@ -148,6 +149,9 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .settle-chart-card.donut-card{flex:0 0 210px}
 .settle-chart-title{font-size:12px;font-weight:700;color:var(--sub);margin-bottom:8px}
 .summary-detail{font-size:12px;color:var(--sub);font-weight:800;margin-top:7px;white-space:nowrap}
+.unpaid-company-card{width:100%;font:inherit;color:inherit;cursor:pointer;appearance:none}
+.unpaid-company-card .summary-value,.unpaid-company-card .summary-detail{display:block}
+.unpaid-company-card:focus-visible,.unpaid-company-card.active{outline:2px solid #c0392b;outline-offset:2px}
 .settle-chart-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap}
 .settle-chart-heading .settle-chart-title{margin-bottom:0}
 .settle-chart-modes{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -1930,6 +1934,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="settle-filter-tabs">
           <button class="settle-tab-btn active" data-filter="all" onclick="setSettleFilter('all')">전체</button>
           <button class="settle-tab-btn" data-filter="미정산" onclick="setSettleFilter('미정산')">확인필요</button>
+          <button class="settle-tab-btn unpaid-tab" data-filter="미입금" onclick="setSettleFilter('미입금')">미입금</button>
           <button class="settle-tab-btn overdue-tab" data-filter="연체" onclick="setSettleFilter('연체')">연체</button>
           <button class="settle-tab-btn" data-filter="청구완료" onclick="setSettleFilter('청구완료')">입금대기</button>
           <button class="settle-tab-btn" data-filter="입금완료" onclick="setSettleFilter('입금완료')">입금완료</button>
@@ -1972,10 +1977,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <div class="summary-label">⚠️ 미수금</div>
           <div class="summary-value" id="settle-unpaid-total">0<span class="summary-unit">원</span></div>
         </div>
-        <div class="summary-card" style="border-color:#e57373">
-          <div class="summary-label" style="color:#c0392b">🚨 연체 업체</div>
-          <div class="summary-value" id="settle-overdue-count" style="color:#c0392b">0<span class="summary-unit">곳</span></div>
-        </div>
+        <button type="button" class="summary-card unpaid unpaid-company-card" id="settle-unpaid-company-card" onclick="setSettleFilter('미입금')" aria-pressed="false" aria-label="미입금 업체만 보기">
+          <span class="summary-label">🚨 미입금 업체</span>
+          <span class="summary-value" id="settle-unpaid-company-count">0<span class="summary-unit">곳</span></span>
+          <span class="summary-detail" id="settle-unpaid-company-detail">부분입금 0곳 · 연체 0곳</span>
+        </button>
         <div class="summary-card">
           <div class="summary-label">🍱 일반도시락</div>
           <div class="summary-value" id="settle-lunch-total">0<span class="summary-unit">개</span></div>
@@ -3137,8 +3143,9 @@ function settlementStatusLabel(status) {
 }
 function filterMatchesRow(row) {
   if (currentSettleFilter === 'all') return true;
+  if (currentSettleFilter === '미입금') return isSettlementUnpaid(row);
   if (currentSettleFilter === '연체') {
-    return row.status !== '입금완료' && calcOverdue(row.dueDate) > 0;
+    return isSettlementUnpaid(row) && calcOverdue(row.dueDate) > 0;
   }
   return row.status === currentSettleFilter;
 }
@@ -3147,6 +3154,12 @@ function setSettleFilter(filter) {
   document.querySelectorAll('.settle-tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.filter === filter);
   });
+  const unpaidCard = document.getElementById('settle-unpaid-company-card');
+  if (unpaidCard) {
+    const active = filter === '미입금';
+    unpaidCard.classList.toggle('active', active);
+    unpaidCard.setAttribute('aria-pressed', String(active));
+  }
   renderSettlements();
 }
 function settlementBilledTotal(row = {}) {
@@ -3159,6 +3172,22 @@ function settlementPaidTotal(row = {}) {
   const legacyPaid = parseInt(row.paidAmount, 10) || 0;
   if (legacyPaid > 0) return legacyPaid;
   return row.status === '입금완료' ? settlementBilledTotal(row) : 0;
+}
+function settlementOutstandingBalance(row = {}) {
+  return Math.max(0, settlementBilledTotal(row) - settlementPaidTotal(row));
+}
+function isSettlementUnpaid(row = {}) {
+  return settlementOutstandingBalance(row) > 0;
+}
+function settlementCompanyKey(row = {}) {
+  const businessName = row.type === 'event'
+    ? eventCustomerName(row.event || {})
+    : (row.user?.businessName || '');
+  const normalizedName = String(businessName).trim().replace(/\s+/g, ' ').toLocaleLowerCase('ko-KR');
+  return normalizedName ? `name:${normalizedName}` : `row:${row.uid || row.eventId || ''}`;
+}
+function settlementCompanyCount(rows = []) {
+  return new Set(rows.map(settlementCompanyKey)).size;
 }
 function settlementPayMethodLabel(row = {}) {
   const methods = [];
@@ -10196,7 +10225,7 @@ function renderSettlements() {
   const totalEventLunch = allRows.reduce((sum, row) => sum + settlementEventQty(row), 0);
   const totalBilled = allRows.reduce((sum, row) => sum + settlementBilledTotal(row), 0);
   const totalPaid = allRows.reduce((sum, r) => sum + settlementPaidTotal(r), 0);
-  const totalUnpaid = Math.max(0, totalBilled - totalPaid);
+  const totalUnpaid = allRows.reduce((sum, row) => sum + settlementOutstandingBalance(row), 0);
   const payMethodTotals = { '이체': 0, '카드': 0, '미지정': 0 };
   allRows.forEach(r => {
     let methodSum = 0;
@@ -10212,7 +10241,10 @@ function renderSettlements() {
     if (paid > methodSum) payMethodTotals['미지정'] += paid - methodSum;
   });
   const productAmounts = allRows.reduce(addSettlementProductAmounts, { lunch: 0, salad: 0, event: 0, catering: 0 });
-  const overdueCount = allRows.filter(r => r.status !== '입금완료' && calcOverdue(r.dueDate) > 0).length;
+  const unpaidRows = allRows.filter(isSettlementUnpaid);
+  const unpaidCompanyCount = settlementCompanyCount(unpaidRows);
+  const partialPaymentCount = settlementCompanyCount(unpaidRows.filter(row => settlementPaidTotal(row) > 0));
+  const overdueCount = settlementCompanyCount(unpaidRows.filter(row => calcOverdue(row.dueDate) > 0));
 
   document.getElementById('settle-total').innerHTML = `${totalBilled.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
   document.getElementById('settle-paid-total').innerHTML = `${totalPaid.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
@@ -10231,7 +10263,8 @@ function renderSettlements() {
   document.getElementById('settle-salad-amount-total').textContent = formatMoney(productAmounts.salad);
   document.getElementById('settle-event-amount-total').textContent = formatMoney(productAmounts.event);
   document.getElementById('settle-catering-amount-total').textContent = formatMoney(productAmounts.catering);
-  document.getElementById('settle-overdue-count').innerHTML = `${overdueCount}<span class="summary-unit">곳</span>`;
+  document.getElementById('settle-unpaid-company-count').innerHTML = `${unpaidCompanyCount}<span class="summary-unit">곳</span>`;
+  document.getElementById('settle-unpaid-company-detail').textContent = `부분입금 ${partialPaymentCount}곳 · 연체 ${overdueCount}곳`;
   document.getElementById('settlement-standard-mobile-count').textContent = standardMobileCount;
   document.getElementById('settlement-event-mobile-count').textContent = eventMobileCount;
 
