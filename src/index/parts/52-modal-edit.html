@@ -36,6 +36,7 @@
             <option value="1">주 1회</option>
             <option value="2">주 2회</option>
             <option value="3">주 3회</option>
+            <option value="manual">수동 입력</option>
           </select>
         </div>
         <div class="fgrp" id="ef-sched-sel">
@@ -47,6 +48,19 @@
         <div class="fgrp" id="ef-start-wrap">
           <div class="flab">정기 시작일</div>
           <input type="date" class="inp" id="e-startdate">
+        </div>
+        <div class="fgrp manual-date-field" id="ef-manual-dates" style="display:none;">
+          <div class="flab">배송일 직접 선택</div>
+          <div class="manual-calendar">
+            <div class="manual-calendar-head">
+              <button type="button" class="manual-calendar-nav" data-manual-month="-1" title="이전 달" aria-label="이전 달">‹</button>
+              <strong id="e-manual-month-label"></strong>
+              <button type="button" class="manual-calendar-today" data-manual-month="today">오늘</button>
+              <button type="button" class="manual-calendar-nav" data-manual-month="1" title="다음 달" aria-label="다음 달">›</button>
+            </div>
+            <div id="e-manual-calendar"></div>
+            <div class="manual-calendar-summary" id="e-manual-summary"></div>
+          </div>
         </div>
         <div class="fgrp" id="ef-sched-from-wrap">
           <div class="flab">새 일정 적용 시작일 <span style="font-size:10px;color:var(--text3);">(비우면 저장 즉시 적용)</span></div>

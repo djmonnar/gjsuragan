@@ -19,20 +19,21 @@ const expectedScriptSources = [
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-  'assets/js/auth-core.js?v=20260706-pause2',
+  'assets/js/auth-core.js?v=20260806-manualdates1',
   'assets/js/delivery-transaction.js?v=20260710-safety1',
   'assets/js/imweb.js?v=20260712-phone1',
-  'assets/js/schedule-report.js?v=20260507-3',
+  'assets/js/schedule-report.js?v=20260806-manualdates1',
+  'assets/js/manual-delivery-dates.js?v=20260806-manualdates1',
   'assets/js/rendering-formatters.js?v=20260711-helper1',
-  'assets/js/rendering.js?v=20260713-customers1',
+  'assets/js/rendering.js?v=20260806-manualdates1',
   'assets/js/order-settlement.js?v=20260712-sales1',
   'assets/js/route-map.js?v=20260626-roundtrip1',
   'assets/js/import-export.js?v=20260625-door-x1',
   'assets/js/logen.js?v=20260625-logen-change1',
-  'assets/js/ui.js?v=20260706-manual1',
+  'assets/js/ui.js?v=20260806-manualdates1',
   'assets/js/notice-memos.js?v=20260709-notice1'
 ];
-const expectedStylesheets = ['assets/css/index.css?v=20260713-customers1'];
+const expectedStylesheets = ['assets/css/index.css?v=20260806-manualdates2'];
 
 function fail(message) {
   console.error(`index build: ${message}`);
@@ -143,7 +144,7 @@ function validateGenerated(buffer) {
   }
 
   const ids = [...source.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
-  if (ids.length !== 244) fail(`DOM id count is ${ids.length}; expected 244`);
+  if (ids.length !== 253) fail(`DOM id count is ${ids.length}; expected 253`);
   const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
   if (duplicates.length) fail(`duplicate DOM ids: ${[...new Set(duplicates)].join(', ')}`);
 

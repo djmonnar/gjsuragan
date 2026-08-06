@@ -71,12 +71,17 @@ function setTypeTab(type){
   if($e('af-prod'))      $e('af-prod').style.display=type==='once'?'':'none';
   if($e('af-once-date')) $e('af-once-date').style.display=type==='once'?'':'none';
   if($e('af-qty'))       $e('af-qty').style.display=type==='once'?'':'none';
+  if(typeof syncManualScheduleMode === 'function'){
+    syncManualScheduleMode('add', type === 'sub' ? $e('at')?.value : '', type === 'sub');
+  }
 }
 
 function updSch(){
   const tp=document.getElementById('at').value, sel=document.getElementById('ach');
   sel.innerHTML='';
+  if(typeof syncManualScheduleMode === 'function') syncManualScheduleMode('add', tp, orderType === 'sub');
   if(!tp){sel.innerHTML='<option>주기를 먼저 선택하세요</option>';return;}
+  if(tp === 'manual'){sel.innerHTML='<option value="">날짜 직접 선택</option>';return;}
   SCH[tp].forEach((sc,i)=>{const o=document.createElement('option');o.value=i;o.textContent=sc.l;sel.appendChild(o);});
 }
 
@@ -94,6 +99,7 @@ function openEdit(id){
   g2('e-ordernum',c.orderNum||'');
   g2('e-amount',typeof orderAmountValue === 'function' && orderAmountValue(c) !== null ? orderAmountValue(c) : '');
   document.getElementById('e-direct').checked=!!(c.isDirect);
+  if(typeof loadManualScheduleEditor === 'function') loadManualScheduleEditor('edit', c);
 
   // 정기/선택 구분에 따라 일정 필드 표시
   const isSub = c.orderType === 'sub';
@@ -108,19 +114,21 @@ function openEdit(id){
   if(!isSub){
     document.getElementById('e-freq').value = '';
     document.getElementById('e-sched').innerHTML = '<option value="">선택하세요</option>';
+    if(typeof syncManualScheduleMode === 'function') syncManualScheduleMode('edit', '', false);
   }
 
   if(isSub){
     // 일정 변경 예약이 있으면 예약 내용을, 없으면 현재 cookDays를 역산해서 표시
-    const pend = c.pendingSchedule || null;
+    const manual = typeof isManualDeliverySchedule === 'function' && isManualDeliverySchedule(c);
+    const pend = manual ? null : (c.pendingSchedule || null);
     const srcType = pend ? pend.type : c.type;
     const srcCookDays = (pend ? pend.cookDays : c.cookDays) || [];
-    const freq = String(srcType || srcCookDays.length || '');
+    const freq = manual ? 'manual' : String(srcType || srcCookDays.length || '');
     document.getElementById('e-freq').value = freq;
     editUpdSch(); // 드롭다운 옵션 생성
 
     // cookDays와 일치하는 인덱스 선택
-    if(freq && srcCookDays.length){
+    if(!manual && freq && srcCookDays.length){
       const cookKey = srcCookDays.slice().sort((a,b)=>a-b).join(',');
       const schIndexMap = {
         '1':{1:0,2:1,3:2,4:3,5:4},
@@ -168,7 +176,7 @@ function openEditSchedule(id){
     if(!freqEl) return;
     freqEl.scrollIntoView({ behavior:'smooth', block:'center' });
     freqEl.focus();
-    ['ef-sched-wrap','ef-sched-sel'].forEach(wid => {
+    ['ef-sched-wrap','ef-sched-sel','ef-manual-dates'].forEach(wid => {
       const w = document.getElementById(wid);
       if(!w) return;
       w.style.transition = 'background .4s';
@@ -247,6 +255,11 @@ function editUpdSch(){
   const freq = document.getElementById('e-freq').value;
   const sel  = document.getElementById('e-sched');
   sel.innerHTML = '<option value="">선택하세요</option>';
+  if(typeof syncManualScheduleMode === 'function') syncManualScheduleMode('edit', freq, true);
+  if(freq === 'manual'){
+    sel.innerHTML = '<option value="">날짜 직접 선택</option>';
+    return;
+  }
   if(!freq || !SCH[freq]) return;
   SCH[freq].forEach((sc,i)=>{
     const opt = document.createElement('option');
@@ -271,6 +284,7 @@ function clearAdd(){
   document.getElementById('at').value='';
   document.getElementById('ach').innerHTML='<option>주기를 먼저 선택하세요</option>';
   document.getElementById('asd').value=todayStr();document.getElementById('aod').value=todayStr();
+  if(typeof resetManualScheduleEditor === 'function') resetManualScheduleEditor('add');
   setTypeTab('sub');
 }
 
