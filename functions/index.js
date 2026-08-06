@@ -2,12 +2,16 @@ const admin = require('firebase-admin');
 const { onDocumentCreated, onDocumentWritten, onDocumentWrittenWithAuthContext } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onRequest } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const { logger } = require('firebase-functions');
 const crypto = require('crypto');
 const logenClient = require('./logenClient');
 const { mapCustomerToLogenOrder, orderNumber } = require('./logenMapper');
 const { parseMealPlanOcr } = require('./mealPlanParser');
 const kakaoAuth = require('./kakaoAuth');
+
+const logenSecretKey = defineSecret('LOGEN_SECRET_KEY');
+const logenHealthToken = defineSecret('LOGEN_HEALTH_TOKEN');
 
 admin.initializeApp();
 
@@ -204,6 +208,7 @@ exports.flushPendingChangeRequestNotifications = onSchedule({
 exports.api = onRequest({
   region: 'asia-northeast3',
   invoker: 'public',
+  secrets: [logenSecretKey, logenHealthToken],
   vpcConnector: 'projects/gjsuragan-60505/locations/asia-northeast3/connectors/gjsuragan-seoul-connector',
   vpcConnectorEgressSettings: 'ALL_TRAFFIC'
 }, async (req, res) => {
@@ -278,7 +283,17 @@ async function handleLogenHealth(req) {
     error.status = 403;
     throw error;
   }
-  return logenClient.contractFares();
+  const ipResponse = await fetch('https://api.ipify.org?format=json');
+  if (!ipResponse.ok) throw new Error(`Egress IP check failed: HTTP ${ipResponse.status}`);
+  const { ip: egressIp = '' } = await ipResponse.json();
+  try {
+    const result = await logenClient.contractFares();
+    return { egressIp, ...result };
+  } catch (error) {
+    const cause = error.cause || {};
+    const causeText = [cause.code, cause.message].filter(Boolean).join(' ');
+    throw new Error(`Logen health failed from ${egressIp || 'unknown IP'}: ${error.message}${causeText ? ` (${causeText})` : ''}`);
+  }
 }
 
 async function handleMealOcrParse(body, user) {
