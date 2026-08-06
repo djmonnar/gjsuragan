@@ -57,6 +57,8 @@ test('등록·수정 모달과 배송관리 경로가 수동 날짜 목록을 �
   const authCore = read('assets/js/auth-core.js');
   const scheduleReport = read('assets/js/schedule-report.js');
   const rendering = read('assets/js/rendering.js');
+  const manualDates = read('assets/js/manual-delivery-dates.js');
+  const formsCss = read('assets/css/index/04-forms-modals.css');
 
   assert.match(addModal, /<option value="manual">수동 입력<\/option>/);
   assert.match(editModal, /<option value="manual">수동 입력<\/option>/);
@@ -64,6 +66,9 @@ test('등록·수정 모달과 배송관리 경로가 수동 날짜 목록을 �
   assert.match(authCore, /manualScheduleSelectionValid/);
   assert.match(scheduleReport, /manualScheduleIncludes\(c, ds\)/);
   assert.match(rendering, /manualUpcomingDeliveryDates\(c, today\)/);
+  assert.match(manualDates, /manual-calendar-summary-order/);
+  assert.match(formsCss, /\.manual-calendar-order\{[^}]*font-size:19px/);
+  assert.doesNotMatch(formsCss, /\.manual-calendar-order\{[^}]*position:absolute/);
 });
 
 test('manual delivery order follows calendar order regardless of click order', () => {

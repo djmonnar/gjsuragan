@@ -18,7 +18,7 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 313077,
+    "normalizedBytes": 313186,
     "lines": 7244,
     "functionDeclarations": 420,
     "uniqueCallableGlobals": 384,
@@ -104,7 +104,7 @@
     },
     {
       "path": "assets/js/manual-delivery-dates.js",
-      "metrics": { "bytes": 11801, "lines": 274, "functionDeclarations": 22, "asyncFunctions": 0 },
+      "metrics": { "bytes": 11910, "lines": 274, "functionDeclarations": 22, "asyncFunctions": 0 },
       "globalsDefined": ["validManualDeliveryDate", "normalizeManualDeliveryDates", "isManualDeliverySchedule", "manualScheduleIncludes", "manualScheduledFutureDates", "manualUpcomingDeliveryDates", "manualScheduleSelectionValid", "manualDeliveryOrderNumber", "manualDeliveryOrderLabel", "loadManualScheduleEditor", "resetManualScheduleEditor", "syncManualScheduleMode", "renderManualScheduleEditor", "manualScheduleDatesForSave"],
       "internalFunctions": ["localToday", "monthKey", "shiftMonth", "editorRequiredCount", "editorFutureDates", "formatCalendarDate", "handleManualScheduleClick", "initManualScheduleEditor"],
       "requiredDefinitions": ["normalizeManualDeliveryDates", "isManualDeliverySchedule", "manualScheduleIncludes", "manualUpcomingDeliveryDates", "manualScheduleSelectionValid", "manualDeliveryOrderNumber", "manualDeliveryOrderLabel", "manualScheduleDatesForSave"],
