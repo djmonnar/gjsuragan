@@ -21,7 +21,7 @@ The current order is part of the application contract.
 | 2 | `delivery-transaction.js` | 78 | 2,962 | 3 | Atomic delivery state transitions |
 | 3 | `imweb.js` | 867 | 35,296 | 48 | Imweb integration, spreadsheet import, legacy completion handlers |
 | 4 | `schedule-report.js` | 374 | 17,189 | 37 | Date/schedule/report calculation and final delivery policy |
-| 5 | `manual-delivery-dates.js` | 259 | 10,806 | 20 | Manual delivery-date calculation and calendar editor |
+| 5 | `manual-delivery-dates.js` | 274 | 11,801 | 22 | Manual delivery-date calculation and calendar editor |
 | 6 | `rendering-formatters.js` | 55 | 1,736 | 10 | Pure text, badge and order-label formatters |
 | 7 | `rendering.js` | 1,767 | 88,724 | 90 | Dashboard, delivery, customer and modal rendering |
 | 8 | `order-settlement.js` | 245 | 10,733 | 16 | Order amount normalization, grouping and monthly sales rendering |
@@ -30,10 +30,10 @@ The current order is part of the application contract.
 | 11 | `logen.js` | 296 | 12,449 | 27 | Logen registration and slip lookup UI |
 | 12 | `ui.js` | 454 | 19,093 | 37 | Navigation, forms, modals and compatibility wrappers |
 | 13 | `notice-memos.js` | 315 | 11,509 | 23 | Delivery notice memo feature in a private IIFE |
-| **Total** |  | **7,229** | **312,082** | **418** | **56** | |
+| **Total** |  | **7,244** | **313,077** | **420** | **56** | |
 
-The audit found 382 callable function names, 62 shared global state declarations,
-5 private state declarations, 34 explicit `window`/root exports, 134 static
+The audit found 384 callable function names, 62 shared global state declarations,
+5 private state declarations, 36 explicit `window`/root exports, 134 static
 cross-file call relationships, and 156 inline event attributes referencing 81
 distinct call-like names.
 

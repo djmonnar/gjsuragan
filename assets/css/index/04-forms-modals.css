@@ -68,11 +68,14 @@ textarea.inp{resize:vertical;min-height:80px;line-height:1.6;}
 .manual-calendar-weekdays{margin-bottom:4px;}
 .manual-calendar-weekdays span{height:24px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text3);}
 .manual-calendar-day,.manual-calendar-empty{height:42px;min-width:0;}
-.manual-calendar-day{border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:background .12s,border-color .12s,color .12s;}
+.manual-calendar-day{position:relative;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:background .12s,border-color .12s,color .12s;}
+.manual-calendar-date{display:inline-block;}
+.manual-calendar-order{position:absolute;top:3px;right:4px;display:flex;align-items:center;justify-content:center;min-width:14px;height:14px;font-size:13px;font-weight:800;line-height:1;}
 .manual-calendar-day:hover{border-color:var(--accent);background:var(--accent-xl);}
 .manual-calendar-day.is-today{border-color:var(--borders);font-weight:800;}
 .manual-calendar-day.is-selected{border-color:var(--accent);background:var(--accent);color:#fff;}
-.manual-calendar-day.is-complete{border-color:rgba(3,102,214,.24);background:rgba(3,102,214,.08);color:#0366d6;text-decoration:line-through;}
+.manual-calendar-day.is-complete{border-color:rgba(3,102,214,.24);background:rgba(3,102,214,.08);color:#0366d6;}
+.manual-calendar-day.is-complete .manual-calendar-date{text-decoration:line-through;}
 .manual-calendar-day.is-disabled{cursor:default;opacity:.48;}
 .manual-calendar-day.is-disabled:hover{border-color:transparent;background:transparent;}
 .manual-calendar-day.is-complete:hover{border-color:rgba(3,102,214,.24);background:rgba(3,102,214,.08);}

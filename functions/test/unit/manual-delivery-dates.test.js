@@ -65,3 +65,20 @@ test('등록·수정 모달과 배송관리 경로가 수동 날짜 목록을 �
   assert.match(scheduleReport, /manualScheduleIncludes\(c, ds\)/);
   assert.match(rendering, /manualUpcomingDeliveryDates\(c, today\)/);
 });
+
+test('manual delivery order follows calendar order regardless of click order', () => {
+  const dates = ['2026-08-22', '2026-08-06', '2026-08-15', '2026-08-14'];
+  assert.equal(manualSchedule.manualDeliveryOrderNumber(dates, '2026-08-06'), 1);
+  assert.equal(manualSchedule.manualDeliveryOrderNumber(dates, '2026-08-14'), 2);
+  assert.equal(manualSchedule.manualDeliveryOrderNumber(dates, '2026-08-15'), 3);
+  assert.equal(manualSchedule.manualDeliveryOrderNumber(dates, '2026-08-22'), 4);
+  assert.equal(manualSchedule.manualDeliveryOrderNumber(dates, '2026-08-30'), 0);
+});
+
+test('manual delivery order labels use circled numbers through twenty', () => {
+  assert.equal(manualSchedule.manualDeliveryOrderLabel(1), '①');
+  assert.equal(manualSchedule.manualDeliveryOrderLabel(13), '⑬');
+  assert.equal(manualSchedule.manualDeliveryOrderLabel(20), '⑳');
+  assert.equal(manualSchedule.manualDeliveryOrderLabel(21), '21');
+  assert.equal(manualSchedule.manualDeliveryOrderLabel(0), '');
+});

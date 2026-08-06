@@ -67,6 +67,17 @@
     return manualScheduledFutureDates(dates, deliveredDates, fromDate).length === required;
   }
 
+  function manualDeliveryOrderNumber(dates, dateStr){
+    const index = normalizeManualDeliveryDates(dates).indexOf(dateStr);
+    return index >= 0 ? index + 1 : 0;
+  }
+
+  function manualDeliveryOrderLabel(orderNumber){
+    const labels = ['', '①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
+    const order = Math.max(0, Number(orderNumber) || 0);
+    return labels[order] || (order ? String(order) : '');
+  }
+
   function localToday(){
     if(root && typeof root.todayStr === 'function') return root.todayStr();
     const date = new Date();
@@ -128,6 +139,8 @@
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const isDelivered = delivered.has(dateStr);
       const isSelected = selected.has(dateStr) && !isDelivered;
+      const orderNumber = (isSelected || isDelivered) ? manualDeliveryOrderNumber(state.dates, dateStr) : 0;
+      const orderLabel = manualDeliveryOrderLabel(orderNumber);
       const isPast = dateStr < today;
       const disabled = isDelivered || (isPast && !isSelected);
       const classes = [
@@ -137,8 +150,8 @@
         dateStr === today ? 'is-today' : '',
         disabled ? 'is-disabled' : ''
       ].filter(Boolean).join(' ');
-      const status = isDelivered ? ', 배송완료' : (isSelected ? ', 선택됨' : '');
-      cells.push(`<button type="button" class="${classes}" data-manual-date="${dateStr}" aria-label="${year}년 ${month}월 ${day}일${status}" aria-pressed="${isSelected}"${disabled ? ' disabled' : ''}>${day}</button>`);
+      const status = isDelivered ? `, ${orderNumber}회차 배송완료` : (isSelected ? `, ${orderNumber}회차 선택됨` : '');
+      cells.push(`<button type="button" class="${classes}" data-manual-date="${dateStr}" aria-label="${year}년 ${month}월 ${day}일${status}" aria-pressed="${isSelected}"${disabled ? ' disabled' : ''}><span class="manual-calendar-date">${day}</span>${orderLabel ? `<span class="manual-calendar-order" aria-hidden="true">${orderLabel}</span>` : ''}</button>`);
     }
 
     label.textContent = `${year}년 ${month}월`;
@@ -149,7 +162,7 @@
     const completeCount = state.deliveredDates.length;
     const countClass = futureDates.length === required ? 'is-ready' : 'is-pending';
     const datesText = futureDates.length
-      ? futureDates.map(formatCalendarDate).join(' · ')
+      ? futureDates.map(date => `${manualDeliveryOrderLabel(manualDeliveryOrderNumber(state.dates, date))} ${formatCalendarDate(date)}`).join(' · ')
       : '선택된 배송일 없음';
     summary.innerHTML = `<div class="manual-calendar-summary-head"><strong class="${countClass}">배송일 ${futureDates.length} / ${required}</strong>${completeCount ? `<span>완료 ${completeCount}회</span>` : ''}</div><div class="manual-calendar-selected">${datesText}</div>`;
   }
@@ -250,6 +263,8 @@
     manualScheduledFutureDates,
     manualUpcomingDeliveryDates,
     manualScheduleSelectionValid,
+    manualDeliveryOrderNumber,
+    manualDeliveryOrderLabel,
     loadManualScheduleEditor,
     resetManualScheduleEditor,
     syncManualScheduleMode,
