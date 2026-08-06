@@ -3656,6 +3656,46 @@ async function saveSettlementItem(month, uid, row, data, options = {}) {
   return payload;
 }
 
+function isManualDeliveryRecord(uid, data = {}, hasRegisteredUser = false) {
+  if (hasRegisteredUser) return false;
+  const source = String(data.source || '').toLowerCase();
+  return Boolean(data.adminManual || source === 'adminmanual' || String(uid).startsWith('manual_'));
+}
+function savedSettlementPayments(saved = {}) {
+  const payments = Array.isArray(saved.payments) ? saved.payments : [];
+  if (payments.length > 0 || !(Number(saved.paidAmount) > 0)) return payments;
+  return [{ amount: Number(saved.paidAmount) || 0, date: saved.paidDate || '', note: '(이전 기록)', recordedAt: saved.updatedAt || '' }];
+}
+function manualDeliverySettlementRow(uid, data = {}, saved = {}) {
+  return {
+    uid,
+    type: 'manualOrderMonthly',
+    manualOrder: true,
+    user: {
+      businessName: data.businessName || saved.businessName || uid,
+      phone: data.phone || saved.phone || '',
+      email: ''
+    },
+    lunch: 0,
+    salad: 0,
+    eventLunch: 0,
+    catering: 0,
+    cateringAmount: 0,
+    cateringItems: [],
+    lunchPrice: Number(data.lunchPrice ?? saved.lunchPrice ?? saved.priceLunch ?? 0) || 0,
+    saladPrice: Number(data.saladPrice ?? saved.saladPrice ?? saved.priceSalad ?? 0) || 0,
+    eventPrice: Number(data.eventLunchPrice ?? data.eventPrice ?? saved.eventPrice ?? saved.eventLunchPrice ?? 0) || 0,
+    amount: Number(saved.amount || 0) || 0,
+    status: saved.status || '미정산',
+    note: saved.note || '',
+    adjust: Number(saved.adjust || 0) || 0,
+    invoiceNo: saved.invoiceNo || '',
+    dueDate: saved.dueDate || '',
+    payments: savedSettlementPayments(saved),
+    dateBreakdown: {}
+  };
+}
+
 async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
   const month = String(deliveryDate || currentDateStr).slice(0, 7);
   const targetUids = [...new Set((uids || []).filter(Boolean))];
@@ -3671,7 +3711,8 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
   let skipped = 0;
 
   for (const uid of targetUids) {
-    const user = allUsers[uid] || deletedUsers[uid] || {};
+    const registeredUser = allUsers[uid] || deletedUsers[uid] || null;
+    const user = registeredUser || {};
     const saved = settlementItems[uid] || user.settlements?.[month] || {};
     if (saved.status === '보류') {
       skipped++;
@@ -3684,7 +3725,12 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
     let catering = 0;
     let cateringAmount = 0;
     let cateringItems = [];
-    let eventPrice = userLunchPrice(user) || 0;
+    let lunchPrice = registeredUser ? (userLunchPrice(user) || 0) : (Number(saved.lunchPrice ?? saved.priceLunch ?? 0) || 0);
+    let saladPrice = registeredUser ? (userSaladPrice(user) || 0) : (Number(saved.saladPrice ?? saved.priceSalad ?? 0) || 0);
+    let eventPrice = registeredUser ? (userLunchPrice(user) || 0) : (Number(saved.eventPrice ?? saved.eventLunchPrice ?? 0) || 0);
+    let manualOrder = false;
+    let manualBusinessName = saved.businessName || '';
+    let manualPhone = saved.phone || '';
     const daily = {};
 
     monthDates(month).forEach(ds => {
@@ -3695,6 +3741,14 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
       const de = orderEventLunchQty(record);
       const cateringSummary = orderCateringSummary(record, { preserveSnapshot: true });
       const recordEventPrice = orderEventLunchPrice(record);
+      if (isManualDeliveryRecord(uid, record, Boolean(registeredUser))) {
+        manualOrder = true;
+        manualBusinessName = record.businessName || manualBusinessName || uid;
+        manualPhone = record.phone || manualPhone;
+        if (dl > 0) lunchPrice = orderLunchPrice(record, {});
+        if (dsalad > 0) saladPrice = orderSaladPrice(record, {});
+        if (de > 0) eventPrice = recordEventPrice || orderLunchPrice(record, {});
+      }
       lunch += dl;
       salad += dsalad;
       eventLunch += de;
@@ -3715,9 +3769,8 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
     });
 
     if ((lunch + salad + eventLunch + catering) <= 0) continue;
+    if (!registeredUser && !manualOrder) continue;
 
-    const lunchPrice = userLunchPrice(user) || 0;
-    const saladPrice = userSaladPrice(user) || 0;
     const amount = settlementLunchAmount({ lunch, lunchPrice })
       + settlementSaladAmount({ salad, saladPrice })
       + settlementEventAmount({ eventLunch, eventPrice })
@@ -3728,9 +3781,12 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
     const status = paidTotal > 0 && paidTotal >= (amount + adjust) ? '입금완료' : '청구완료';
     const invoiceNo = saved.invoiceNo || await generateInvoiceNo(month);
     const dueDate = saved.dueDate || defaultDueDate(month);
+    const settlementUser = registeredUser || { businessName: manualBusinessName || uid, phone: manualPhone, email: '' };
     const row = {
       uid,
-      user,
+      type: manualOrder ? 'manualOrderMonthly' : 'customerMonthly',
+      manualOrder,
+      user: settlementUser,
       lunch,
       salad,
       eventLunch,
@@ -3768,6 +3824,7 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
       saladPrice,
       eventPrice,
       daily,
+      source: manualOrder ? 'adminManualDelivery' : (saved.source || ''),
       autoBilled: true,
       autoBilledAt: new Date().toISOString()
     });
@@ -5989,7 +6046,8 @@ async function rebuildSettlementsForUids(month, uids) {
   const deliveryRecords = deliveryRecordsFromData(adminData);
 
   for (const uid of targetUids) {
-    const user = allUsers[uid] || deletedUsers[uid] || {};
+    const registeredUser = allUsers[uid] || deletedUsers[uid] || null;
+    const user = registeredUser || {};
     const saved = settlementItems[uid] || {};
     let lunch = 0;
     let salad = 0;
@@ -5997,7 +6055,12 @@ async function rebuildSettlementsForUids(month, uids) {
     let catering = 0;
     let cateringAmount = 0;
     const cateringById = new Map();
-    let eventPrice = userLunchPrice(user) || 0;
+    let lunchPrice = registeredUser ? (userLunchPrice(user) || 0) : (Number(saved.lunchPrice ?? saved.priceLunch ?? 0) || 0);
+    let saladPrice = registeredUser ? (userSaladPrice(user) || 0) : (Number(saved.saladPrice ?? saved.priceSalad ?? 0) || 0);
+    let eventPrice = registeredUser ? (userLunchPrice(user) || 0) : (Number(saved.eventPrice ?? saved.eventLunchPrice ?? 0) || 0);
+    let manualOrder = false;
+    let manualBusinessName = saved.businessName || '';
+    let manualPhone = saved.phone || '';
     const daily = {};
     monthDates(month).forEach(ds => {
       const record = (deliveryRecords[ds] || {})[uid];
@@ -6007,6 +6070,14 @@ async function rebuildSettlementsForUids(month, uids) {
       const de = orderEventLunchQty(record);
       const cateringSummary = orderCateringSummary(record, { preserveSnapshot: true });
       const recordEventPrice = orderEventLunchPrice(record);
+      if (isManualDeliveryRecord(uid, record, Boolean(registeredUser))) {
+        manualOrder = true;
+        manualBusinessName = record.businessName || manualBusinessName || uid;
+        manualPhone = record.phone || manualPhone;
+        if (dl > 0) lunchPrice = orderLunchPrice(record, {});
+        if (dsalad > 0) saladPrice = orderSaladPrice(record, {});
+        if (de > 0) eventPrice = recordEventPrice || orderLunchPrice(record, {});
+      }
       lunch += dl;
       salad += dsalad;
       eventLunch += de;
@@ -6042,9 +6113,8 @@ async function rebuildSettlementsForUids(month, uids) {
       }
       continue;
     }
+    if (!registeredUser && !manualOrder) continue;
 
-    const lunchPrice = userLunchPrice(user) || 0;
-    const saladPrice = userSaladPrice(user) || 0;
     const amount = settlementLunchAmount({ lunch, lunchPrice })
       + settlementSaladAmount({ salad, saladPrice })
       + settlementEventAmount({ eventLunch, eventPrice })
@@ -6055,8 +6125,13 @@ async function rebuildSettlementsForUids(month, uids) {
     const status = paidTotal > 0 && paidTotal >= (amount + adjust) ? '입금완료' : '청구완료';
     const invoiceNo = saved.invoiceNo || await generateInvoiceNo(month);
     const dueDate = saved.dueDate || defaultDueDate(month);
+    const settlementUser = registeredUser || { businessName: manualBusinessName || uid, phone: manualPhone, email: '' };
     await saveSettlementItem(month, uid, {
-      uid, user, lunch, salad, eventLunch, catering, cateringAmount, cateringItems,
+      uid,
+      type: manualOrder ? 'manualOrderMonthly' : 'customerMonthly',
+      manualOrder,
+      user: settlementUser,
+      lunch, salad, eventLunch, catering, cateringAmount, cateringItems,
       lunchPrice, saladPrice, eventPrice, amount, dateBreakdown: daily
     }, {
       status,
@@ -6082,6 +6157,7 @@ async function rebuildSettlementsForUids(month, uids) {
       saladPrice,
       eventPrice,
       daily,
+      source: manualOrder ? 'adminManualDelivery' : (saved.source || ''),
       autoBilled: true,
       autoBilledAt: new Date().toISOString()
     });
@@ -9934,8 +10010,12 @@ async function loadSettlements() {
       Object.entries(deliveryRecords[ds] || {}).forEach(([uid, data]) => {
         if (data?.deleted || data?.orderDeleted) return;
         if (!data?.delivered) return;
-        if (!allUsers[uid]) return;
-        const user = allUsers[uid] || {};
+        if (!allUsers[uid]) {
+          if (!isManualDeliveryRecord(uid, data, Boolean(deletedUsers[uid]))) return;
+          const saved = settlementItems[uid] || {};
+          if (!byUser[uid]) byUser[uid] = manualDeliverySettlementRow(uid, data, saved);
+        }
+        const user = allUsers[uid] || byUser[uid]?.user || {};
         if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, eventLunch: 0, catering: 0, cateringAmount: 0, cateringItems: [], lunchPrice: 0, saladPrice: 0, eventPrice: 0, amount: 0, status: '미정산', note: '', adjust: 0, invoiceNo: '', dueDate: '', payments: [], dateBreakdown: {} };
         const counts = normalizeQtyValuesForUser(user, {
           lunch: orderLunchQty(data),
@@ -9946,6 +10026,13 @@ async function loadSettlements() {
         const dl = counts.lunch, dd = counts.salad, de = counts.event;
         const catering = orderCateringSummary(data, { preserveSnapshot: true });
         const dataEventPrice = orderEventLunchPrice(data) || (de ? orderLunchPrice(data, user) : 0);
+        if (byUser[uid].manualOrder) {
+          if (data.businessName) byUser[uid].user.businessName = data.businessName;
+          if (data.phone) byUser[uid].user.phone = data.phone;
+          if (dl > 0) byUser[uid].lunchPrice = orderLunchPrice(data, {});
+          if (dd > 0) byUser[uid].saladPrice = orderSaladPrice(data, {});
+          if (de > 0) byUser[uid].eventPrice = dataEventPrice;
+        }
         byUser[uid].lunch += dl;
         byUser[uid].salad += dd;
         byUser[uid].eventLunch += de;
