@@ -17,23 +17,24 @@ The current order is part of the application contract.
 
 | Order | File | Lines | Bytes (LF) | Functions | Async | Primary responsibility |
 | ---: | --- | ---: | ---: | ---: | ---: | --- |
-| 1 | `auth-core.js` | 795 | 26,589 | 25 | 13 | Authentication, shared customer state, customer CRUD |
+| 1 | `auth-core.js` | 842 | 29,143 | 25 | 13 | Authentication, shared customer state, customer CRUD |
 | 2 | `delivery-transaction.js` | 78 | 2,962 | 3 | Atomic delivery state transitions |
-| 3 | `imweb.js` | 846 | 34,398 | 47 | Imweb integration, spreadsheet import, legacy completion handlers |
-| 4 | `schedule-report.js` | 371 | 17,010 | 37 | Date/schedule/report calculation and final delivery policy |
-| 5 | `rendering-formatters.js` | 55 | 1,736 | 10 | Pure text, badge and order-label formatters |
-| 6 | `rendering.js` | 1,763 | 88,494 | 90 | Dashboard, delivery, customer and modal rendering |
-| 7 | `order-settlement.js` | 245 | 10,733 | 16 | Order amount normalization, grouping and monthly sales rendering |
-| 8 | `route-map.js` | 762 | 28,321 | 43 | Route page, geocoding cache, map and route proxy |
-| 9 | `import-export.js` | 915 | 44,121 | 39 | Text/XLSX import, previews and export |
-| 10 | `logen.js` | 296 | 12,449 | 27 | Logen registration and slip lookup UI |
-| 11 | `ui.js` | 440 | 18,101 | 37 | Navigation, forms, modals and compatibility wrappers |
-| 12 | `notice-memos.js` | 315 | 11,509 | 23 | Delivery notice memo feature in a private IIFE |
-| **Total** |  | **6,892** | **296,867** | **397** | **56** | |
+| 3 | `imweb.js` | 867 | 35,296 | 48 | Imweb integration, spreadsheet import, legacy completion handlers |
+| 4 | `schedule-report.js` | 374 | 17,189 | 37 | Date/schedule/report calculation and final delivery policy |
+| 5 | `manual-delivery-dates.js` | 259 | 10,806 | 20 | Manual delivery-date calculation and calendar editor |
+| 6 | `rendering-formatters.js` | 55 | 1,736 | 10 | Pure text, badge and order-label formatters |
+| 7 | `rendering.js` | 1,767 | 88,724 | 90 | Dashboard, delivery, customer and modal rendering |
+| 8 | `order-settlement.js` | 245 | 10,733 | 16 | Order amount normalization, grouping and monthly sales rendering |
+| 9 | `route-map.js` | 762 | 28,321 | 43 | Route page, geocoding cache, map and route proxy |
+| 10 | `import-export.js` | 915 | 44,121 | 39 | Text/XLSX import, previews and export |
+| 11 | `logen.js` | 296 | 12,449 | 27 | Logen registration and slip lookup UI |
+| 12 | `ui.js` | 454 | 19,093 | 37 | Navigation, forms, modals and compatibility wrappers |
+| 13 | `notice-memos.js` | 315 | 11,509 | 23 | Delivery notice memo feature in a private IIFE |
+| **Total** |  | **7,229** | **312,082** | **418** | **56** | |
 
-The audit found 369 callable function names, 62 shared global state declarations,
-3 IIFE-private state declarations, 22 explicit `window`/root exports, 134 static
-cross-file call relationships, and 154 inline event attributes referencing 80
+The audit found 382 callable function names, 62 shared global state declarations,
+5 private state declarations, 34 explicit `window`/root exports, 134 static
+cross-file call relationships, and 156 inline event attributes referencing 81
 distinct call-like names.
 
 ## Load-order contract
@@ -48,15 +49,17 @@ distinct call-like names.
 4. `schedule-report.js` deliberately replaces those handlers with stable
    transaction-backed implementations. It installs them immediately and again
    on lifecycle/timer callbacks to resist late replacement.
-5. `rendering-formatters.js` declares ten side-effect-free classic-script globals
+5. `manual-delivery-dates.js` provides the manual-date policy and calendar editor
+   used by customer CRUD, schedule calculation, and rendering.
+6. `rendering-formatters.js` declares ten side-effect-free classic-script globals
    immediately before their rendering consumers.
-6. `rendering.js` provides the base `listFor` consumer and `renderDash` renderer.
-7. `order-settlement.js` loads after its rendering and formatter dependencies and
+7. `rendering.js` provides the base `listFor` consumer and `renderDash` renderer.
+8. `order-settlement.js` loads after its rendering and formatter dependencies and
    before import paths that normalize incoming order amounts.
-8. `ui.js` deliberately wraps `listFor` and wraps `renderDash` twice: once for
+9. `ui.js` deliberately wraps `listFor` and wraps `renderDash` twice: once for
    completed-row presentation and once for active-set statistics. These wrappers
    depend on both the schedule and rendering files already being loaded.
-9. `notice-memos.js` keeps feature state private, binds the dashboard's existing
+10. `notice-memos.js` keeps feature state private, binds the dashboard's existing
    notice navigation to `goTab('notice')`, and exposes only its eight HTML handler
    functions.
 

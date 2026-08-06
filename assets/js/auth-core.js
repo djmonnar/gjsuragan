@@ -447,22 +447,42 @@ async function saveNew(){
 
     if(!s){ toast('세트를 선택하세요','er'); return; }
     if(!tp){ toast('배송 주기를 선택하세요','er'); return; }
-    if(si === '' || si === null){ toast('배송 일정을 선택하세요','er'); return; }
     if(!tot){ toast('총 구독 횟수를 입력하세요','er'); return; }
-    if(!sd){ toast('시작일을 선택하세요','er'); return; }
-
-    const sch = SCH[tp][parseInt(si)];
-
-    Object.assign(data, {
-      set:s,
-      type:parseInt(tp),
-      scheduleName:sch.l,
-      cookDays:sch.c,
-      arriveDays:sch.a,
-      total:tot,
-      remain:tot,
-      startDate:sd
-    });
+    if(tp === 'manual'){
+      const manualDates = typeof manualScheduleDatesForSave === 'function' ? manualScheduleDatesForSave('add') : [];
+      if(typeof manualScheduleSelectionValid !== 'function' || !manualScheduleSelectionValid(manualDates, [], todayStr(), tot)){
+        const selectedCount = typeof manualScheduledFutureDates === 'function'
+          ? manualScheduledFutureDates(manualDates, [], todayStr()).length
+          : manualDates.length;
+        toast(`총 구독 횟수 ${tot}회에 맞게 배송일 ${tot}개를 선택하세요. (현재 ${selectedCount}개)`, 'er');
+        return;
+      }
+      Object.assign(data, {
+        set:s,
+        scheduleMode:'manual',
+        scheduleName:'날짜 직접 지정',
+        manualDeliveryDates:manualDates,
+        cookDays:[],
+        arriveDays:[],
+        total:tot,
+        remain:tot,
+        startDate:manualDates[0]
+      });
+    } else {
+      if(si === '' || si === null){ toast('배송 일정을 선택하세요','er'); return; }
+      if(!sd){ toast('시작일을 선택하세요','er'); return; }
+      const sch = SCH[tp][parseInt(si)];
+      Object.assign(data, {
+        set:s,
+        type:parseInt(tp),
+        scheduleName:sch.l,
+        cookDays:sch.c,
+        arriveDays:sch.a,
+        total:tot,
+        remain:tot,
+        startDate:sd
+      });
+    }
 
   } else {
     // 선택주문
@@ -544,35 +564,60 @@ async function saveEdit(){
     const applyFrom = g('e-sched-from');
 
     if(!freq){ toast('배송 주기를 선택하세요','er'); return; }
-    if(schIdx === ''){ toast('배송 일정을 선택하세요','er'); return; }
-    if(!sd){ toast('정기 시작일을 선택하세요','er'); return; }
+    if(freq === 'manual'){
+      const manualDates = typeof manualScheduleDatesForSave === 'function' ? manualScheduleDatesForSave('edit') : [];
+      const deliveredDates = current.deliveredDates || [];
+      if(typeof manualScheduleSelectionValid !== 'function' || !manualScheduleSelectionValid(manualDates, deliveredDates, todayStr(), upd.remain)){
+        const selectedCount = typeof manualScheduledFutureDates === 'function'
+          ? manualScheduledFutureDates(manualDates, deliveredDates, todayStr()).length
+          : manualDates.length;
+        toast(`잔여 수량 ${upd.remain}회에 맞게 배송일 ${upd.remain}개를 선택하세요. (현재 ${selectedCount}개)`, 'er');
+        return;
+      }
+      upd.type = firebase.firestore.FieldValue.delete();
+      upd.scheduleMode = 'manual';
+      upd.scheduleName = '날짜 직접 지정';
+      upd.manualDeliveryDates = manualDates;
+      upd.cookDays = [];
+      upd.arriveDays = [];
+      upd.startDate = manualDates[0] || current.startDate || todayStr();
+      upd.needsReview = false;
+      upd.reviewReason = '';
+      upd.pendingSchedule = firebase.firestore.FieldValue.delete();
+    } else {
+      if(schIdx === ''){ toast('배송 일정을 선택하세요','er'); return; }
+      if(!sd){ toast('정기 시작일을 선택하세요','er'); return; }
+      const sch = SCH[freq][parseInt(schIdx)];
 
-    const sch = SCH[freq][parseInt(schIdx)];
-
-    if(sch){
-      const scheduleChanged = current.type !== parseInt(freq) || !sameNumberArray(sch.c, current.cookDays);
-      if(applyFrom && applyFrom > todayStr() && scheduleChanged){
-        // 일정 변경 예약: 적용일까지 현재 일정 유지, 적용일에 자동 반영
-        upd.pendingSchedule = {
-          type:parseInt(freq),
-          scheduleName:sch.l,
-          cookDays:sch.c,
-          arriveDays:sch.a,
-          effectiveDate:applyFrom,
-          createdAt:todayStr()
-        };
-        upd.startDate = sd;
-        upd.needsReview = false;
-        upd.reviewReason = '';
-      } else {
-        upd.type = parseInt(freq);
-        upd.scheduleName = sch.l;
-        upd.cookDays = sch.c;
-        upd.arriveDays = sch.a;
-        upd.startDate = sd;
-        upd.needsReview = false;
-        upd.reviewReason = '';
-        upd.pendingSchedule = firebase.firestore.FieldValue.delete();
+      if(sch){
+        const scheduleChanged = (typeof isManualDeliverySchedule === 'function' && isManualDeliverySchedule(current))
+          || current.type !== parseInt(freq)
+          || !sameNumberArray(sch.c, current.cookDays);
+        if(applyFrom && applyFrom > todayStr() && scheduleChanged){
+          // 일정 변경 예약: 적용일까지 현재 일정 유지, 적용일에 자동 반영
+          upd.pendingSchedule = {
+            type:parseInt(freq),
+            scheduleName:sch.l,
+            cookDays:sch.c,
+            arriveDays:sch.a,
+            effectiveDate:applyFrom,
+            createdAt:todayStr()
+          };
+          upd.startDate = sd;
+          upd.needsReview = false;
+          upd.reviewReason = '';
+        } else {
+          upd.type = parseInt(freq);
+          upd.scheduleMode = firebase.firestore.FieldValue.delete();
+          upd.manualDeliveryDates = firebase.firestore.FieldValue.delete();
+          upd.scheduleName = sch.l;
+          upd.cookDays = sch.c;
+          upd.arriveDays = sch.a;
+          upd.startDate = sd;
+          upd.needsReview = false;
+          upd.reviewReason = '';
+          upd.pendingSchedule = firebase.firestore.FieldValue.delete();
+        }
       }
     }
 
@@ -736,6 +781,8 @@ async function autoApplyPendingSchedules(){
       const p = c.pendingSchedule;
       batch.update(window.__DB.collection('customers').doc(c.id), {
         type:p.type,
+        scheduleMode:firebase.firestore.FieldValue.delete(),
+        manualDeliveryDates:firebase.firestore.FieldValue.delete(),
         scheduleName:p.scheduleName,
         cookDays:p.cookDays,
         arriveDays:p.arriveDays,

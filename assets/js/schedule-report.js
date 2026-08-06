@@ -18,6 +18,9 @@ function isDelivSub(c,ds){
   if(wasDeliveredOn(c,ds)) return true;
   if(c.status!=='active'||Number(c.remain||0)<=0) return false;
   if(c.startDate && ds < c.startDate) return false;  // 첫 배송일 이전 차단
+  if(typeof isManualDeliverySchedule === 'function' && isManualDeliverySchedule(c)){
+    return typeof manualScheduleIncludes === 'function' && manualScheduleIncludes(c, ds);
+  }
   const d=dow(ds);
   // cookDays가 저장된 경우: 조리일 기준으로 표시 (오늘 조리=오늘 출고)
   if(c.cookDays&&c.cookDays.length>0){

@@ -1234,6 +1234,10 @@ function customerNextDelivery(c){
   if(c.orderType === 'once') return c.onceDate || c.startDate || '';
   if(typeof isDeliv !== 'function' || typeof addDays !== 'function' || typeof todayStr !== 'function') return c.startDate || '';
   const today = todayStr();
+  if(typeof isManualDeliverySchedule === 'function' && isManualDeliverySchedule(c)){
+    const dates = typeof manualUpcomingDeliveryDates === 'function' ? manualUpcomingDeliveryDates(c, today) : [];
+    return dates[0] || '';
+  }
   for(let i=0; i<60; i++){
     const ds = addDays(today, i);
     if(isDeliv(c, ds) && !(c.deliveredDates || []).includes(ds)) return ds;

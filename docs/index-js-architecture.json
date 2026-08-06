@@ -6,6 +6,7 @@
     "assets/js/delivery-transaction.js",
     "assets/js/imweb.js",
     "assets/js/schedule-report.js",
+    "assets/js/manual-delivery-dates.js",
     "assets/js/rendering-formatters.js",
     "assets/js/rendering.js",
     "assets/js/order-settlement.js",
@@ -16,14 +17,14 @@
     "assets/js/notice-memos.js"
   ],
   "summary": {
-    "files": 12,
-    "normalizedBytes": 297321,
-    "lines": 6902,
-    "functionDeclarations": 398,
-    "uniqueCallableGlobals": 370,
-    "explicitWindowExports": 22,
+    "files": 13,
+    "normalizedBytes": 312082,
+    "lines": 7229,
+    "functionDeclarations": 418,
+    "uniqueCallableGlobals": 382,
+    "explicitWindowExports": 34,
     "globalStateDeclarations": 62,
-    "privateStateDeclarations": 3,
+    "privateStateDeclarations": 5,
     "asyncFunctions": 56,
     "crossFileCallRelationships": 134,
     "firestoreAccessPoints": 31,
@@ -33,7 +34,7 @@
   "files": [
     {
       "path": "assets/js/auth-core.js",
-      "metrics": { "bytes": 26589, "lines": 795, "functionDeclarations": 25, "asyncFunctions": 13 },
+      "metrics": { "bytes": 29143, "lines": 842, "functionDeclarations": 25, "asyncFunctions": 13 },
       "globalsDefined": ["showLoginScreen", "showAppScreen", "bootAppOnce", "stopFirestore", "setCancelLogs", "loadCancelLogsOnce", "doLogin", "doLogout", "productLabel", "productBadgeClass", "initFirestore", "formatDateInputValue", "normalizeDateInputValue", "customerOrderDateInputValue", "saveNew", "saveEdit", "delCust", "chargeRemain", "togglePause", "openPauseModal", "confirmPause", "resumeCustomer", "autoApplyPendingSchedules", "cancelPendingSchedule", "autoResumePausedCustomers"],
       "requiredDefinitions": ["doLogin", "doLogout", "initFirestore", "saveNew", "saveEdit", "delCust"],
       "globalsConsumed": ["DELIVERY_ADMIN_EMAIL", "firebase", "todayStr", "addDays", "updateHDate", "updateDashDisp", "updateTodayDisp", "initReport", "refreshAll", "renderCancelLogs", "selectedLogenShipmentsForChange", "normalizeOrderAmount", "orderSalesRootNumber", "orderSalesGroupKey", "g", "openM", "closeM", "toast"],
@@ -85,7 +86,7 @@
     },
     {
       "path": "assets/js/schedule-report.js",
-      "metrics": { "bytes": 17010, "lines": 371, "functionDeclarations": 37, "asyncFunctions": 3 },
+      "metrics": { "bytes": 17189, "lines": 374, "functionDeclarations": 37, "asyncFunctions": 3 },
       "globalsDefined": ["todayStr", "dow", "wasDeliveredOn", "isDelivSub", "isDelivOnce", "isDeliv", "listFor", "todayList", "addDays", "dateLabel", "moveDashDate", "resetDashDate", "updateDashDisp", "moveTodayDate", "resetTodayDate", "updateTodayDisp", "initReport", "setView", "moveReport", "resetReport", "getWeekRange", "getMonthRange", "dateToStr", "renderReport", "renderWeek", "renderMonth", "renderReportList", "jumpToDate", "markDone", "undoMarkDone", "markAll", "markAllDirect", "markAllCourier"],
       "internalFunctions": ["deliveryToast", "selectedDeliveryDate", "cleanDates", "rerenderDeliveryScreens", "patchLocalCustomer", "stableMarkDone", "stableUndoMarkDone", "markMany", "installStableDeliveryHandlers"],
       "requiredDefinitions": ["todayStr", "isDelivSub", "isDelivOnce", "listFor", "renderReport", "stableMarkDone", "stableUndoMarkDone"],
@@ -100,6 +101,25 @@
       "eventsAndListeners": ["DOMContentLoaded", "window load", "setTimeout 500 ms"],
       "recommendedOwnership": "date/schedule/report calculation and final employee delivery-handler policy",
       "risk": "high"
+    },
+    {
+      "path": "assets/js/manual-delivery-dates.js",
+      "metrics": { "bytes": 10806, "lines": 259, "functionDeclarations": 20, "asyncFunctions": 0 },
+      "globalsDefined": ["validManualDeliveryDate", "normalizeManualDeliveryDates", "isManualDeliverySchedule", "manualScheduleIncludes", "manualScheduledFutureDates", "manualUpcomingDeliveryDates", "manualScheduleSelectionValid", "loadManualScheduleEditor", "resetManualScheduleEditor", "syncManualScheduleMode", "renderManualScheduleEditor", "manualScheduleDatesForSave"],
+      "internalFunctions": ["localToday", "monthKey", "shiftMonth", "editorRequiredCount", "editorFutureDates", "formatCalendarDate", "handleManualScheduleClick", "initManualScheduleEditor"],
+      "requiredDefinitions": ["normalizeManualDeliveryDates", "isManualDeliverySchedule", "manualScheduleIncludes", "manualUpcomingDeliveryDates", "manualScheduleSelectionValid", "manualScheduleDatesForSave"],
+      "globalsConsumed": ["todayStr", "toast", "document"],
+      "globalState": [],
+      "privateState": ["editorStates", "editorConfig"],
+      "windowExports": ["validManualDeliveryDate", "normalizeManualDeliveryDates", "isManualDeliverySchedule", "manualScheduleIncludes", "manualScheduledFutureDates", "manualUpcomingDeliveryDates", "manualScheduleSelectionValid", "loadManualScheduleEditor", "resetManualScheduleEditor", "syncManualScheduleMode", "renderManualScheduleEditor", "manualScheduleDatesForSave"],
+      "domIds": ["af-manual-dates", "a-manual-month-label", "a-manual-calendar", "a-manual-summary", "ato", "af-sched", "af-start", "ef-manual-dates", "e-manual-month-label", "e-manual-calendar", "e-manual-summary", "erem", "ef-sched-sel", "ef-start-wrap", "ef-sched-from-wrap"],
+      "firestoreCollections": [],
+      "externalApis": [],
+      "crossFileCalls": { "schedule-report.js": ["todayStr"], "ui.js": ["toast"] },
+      "topLevelBehavior": ["UMD factory exports manual schedule calculation and calendar editor helpers"],
+      "eventsAndListeners": ["manual calendar click", "remaining-count input"],
+      "recommendedOwnership": "manual delivery date calculation and calendar editor",
+      "risk": "medium"
     },
     {
       "path": "assets/js/rendering-formatters.js",
@@ -120,7 +140,7 @@
     },
     {
       "path": "assets/js/rendering.js",
-      "metrics": { "bytes": 88494, "lines": 1763, "functionDeclarations": 90, "asyncFunctions": 5 },
+      "metrics": { "bytes": 88724, "lines": 1767, "functionDeclarations": 90, "asyncFunctions": 5 },
       "globalsDefined": ["refreshAll", "renderDash", "renderToday", "renderCust", "renderCancelLogs", "toggleCancelPopover", "closeCancelPopover", "printCourierList", "printDirectList", "printAllDeliveryList", "markAllDirect", "markAllCourier", "showDet", "showCustomerGroup", "customerGroupOrderSummary", "editOnceDate", "resetCustomerFilters", "setCustomerQuickFilter", "showMoreCustomers", "customerCopyText", "closeCustomerDetail", "customerGroupQuickMatches", "customerGroupCounts", "updateCustomerOverview"],
       "requiredDefinitions": ["refreshAll", "renderDash", "renderToday", "renderCust", "renderCancelLogs", "printAllDeliveryList", "markAllDirect", "markAllCourier", "showCustomerGroup"],
       "globalsConsumed": ["custs", "cancelLogs", "escHtml", "firstOrderBadgeHtml", "customerText", "customerJsArg", "customerPhoneDigits", "customerTimestampMs", "customerNewBadgeHtml", "customerProductKey", "customerOrderTypeLabel", "customerOrderTypeBadge", "productLabel", "productBadgeClass", "customerOrderDateInputValue", "chargeRemain", "togglePause", "cancelPendingSchedule", "runDeliveryTransaction", "showAddrModal", "quickDelete", "markDone", "undoMarkDone", "todayStr", "isDeliv", "listFor", "addDays", "updateDashDisp", "updateTodayDisp", "renderRouteMap", "renderOrderSettlement", "logenStatusBadgeHtml", "logenSlipNoHtml", "logenActionHtml", "logenCourierSummaryHtml", "gauge", "scheduleDisp", "copyLozen", "statusLabel", "shortDate", "s", "openEdit", "copyOrder", "goTab", "toast"],
@@ -205,7 +225,7 @@
     },
     {
       "path": "assets/js/ui.js",
-      "metrics": { "bytes": 18101, "lines": 440, "functionDeclarations": 37, "asyncFunctions": 0 },
+      "metrics": { "bytes": 19093, "lines": 454, "functionDeclarations": 37, "asyncFunctions": 0 },
       "globalsDefined": ["gauge", "scheduleDisp", "copyLozen", "statusLabel", "shortDate", "s", "g", "g2", "updateHDate", "toggleTheme", "setTypeTab", "updSch", "openEdit", "syncEditResumeField", "openEditSchedule", "goPausedCustomers", "sameNumberArray", "scheduleIndexForOrder", "copyOrder", "editUpdSch", "changeQty", "clearAdd", "goTab", "openM", "closeM", "toggleAll", "toast", "isDeliveredOnDate", "completedDeliveryListFor", "applyCompletedDeliveryRows", "installCompletedDeliveryVisibilityPatch", "dashProductKey", "isDashAbcSet", "isActiveSubscription", "isPendingAbcDelivery", "applyDashboardActiveSetStats", "installDashboardActiveSetStatsPatch"],
       "requiredDefinitions": ["toggleTheme", "openEdit", "goTab", "openM", "closeM", "toast"],
       "globalsConsumed": ["custs", "editId", "orderType", "PRODUCTS", "SCH", "DAYS", "SL", "customerOrderDateInputValue", "orderAmountValue", "todayStr", "isDeliv", "addDays", "renderReport", "renderCancelLogs", "renderDash", "renderCust", "renderRouteMap", "renderOrderSettlement", "renderNoticeMemos"],
@@ -240,7 +260,7 @@
       "risk": "low"
     }
   ],
-  "explicitWindowExports": ["deliveryStatePatch", "runDeliveryTransaction", "markDone", "undoMarkDone", "markAll", "markAllDirect", "markAllCourier", "renderCancelLogs", "toggleCancelPopover", "closeCancelPopover", "__gjsRouteNaverReady", "navermap_authFailure", "listFor", "renderDash", "renderNoticeMemos", "resetNoticeMemoForm", "saveNoticeMemo", "editNoticeMemo", "toggleNoticeMemoActive", "deleteNoticeMemo", "closeNoticeMemoPopup", "openNoticeMemoTabFromPopup"],
+  "explicitWindowExports": ["deliveryStatePatch", "runDeliveryTransaction", "markDone", "undoMarkDone", "markAll", "markAllDirect", "markAllCourier", "validManualDeliveryDate", "normalizeManualDeliveryDates", "isManualDeliverySchedule", "manualScheduleIncludes", "manualScheduledFutureDates", "manualUpcomingDeliveryDates", "manualScheduleSelectionValid", "loadManualScheduleEditor", "resetManualScheduleEditor", "syncManualScheduleMode", "renderManualScheduleEditor", "manualScheduleDatesForSave", "renderCancelLogs", "toggleCancelPopover", "closeCancelPopover", "__gjsRouteNaverReady", "navermap_authFailure", "listFor", "renderDash", "renderNoticeMemos", "resetNoticeMemoForm", "saveNoticeMemo", "editNoticeMemo", "toggleNoticeMemoActive", "deleteNoticeMemo", "closeNoticeMemoPopup", "openNoticeMemoTabFromPopup"],
   "extractedFormatterFunctions": [
     { "name": "escHtml", "normalizedBodySha256": "452e2a58932e988ceb3bdcd01d6926ddab9dd64d8b35d090ed2b9aee36d8f914" },
     { "name": "firstOrderBadgeHtml", "normalizedBodySha256": "d8a49dde5c5d36fbe55176e96c82a183e837561a6ea138ad8299402fac5630cb" },
@@ -313,6 +333,7 @@
     "delivery-transaction.js": "delivery transaction policy; retain",
     "imweb.js": "Imweb API/import; later separate legacy delivery handlers only with compatibility tests",
     "schedule-report.js": "schedule/report calculations and final delivery handler installation",
+    "manual-delivery-dates.js": "manual delivery date calculation and calendar editor",
     "rendering-formatters.js": "pure text, badge and order-label formatters; retain",
     "rendering.js": "next split candidate: dashboard, delivery and customer rendering",
     "order-settlement.js": "order amount parsing, order-level sales grouping and settlement presentation",
