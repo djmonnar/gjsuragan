@@ -68,9 +68,9 @@ textarea.inp{resize:vertical;min-height:80px;line-height:1.6;}
 .manual-calendar-weekdays{margin-bottom:4px;}
 .manual-calendar-weekdays span{height:24px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text3);}
 .manual-calendar-day,.manual-calendar-empty{height:42px;min-width:0;}
-.manual-calendar-day{position:relative;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:background .12s,border-color .12s,color .12s;}
-.manual-calendar-date{display:inline-block;}
-.manual-calendar-order{position:absolute;top:3px;right:4px;display:flex;align-items:center;justify-content:center;min-width:14px;height:14px;font-size:13px;font-weight:800;line-height:1;}
+.manual-calendar-day{border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:3px;transition:background .12s,border-color .12s,color .12s;}
+.manual-calendar-date{display:inline-block;font-size:13px;}
+.manual-calendar-order{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:19px;height:19px;font-size:19px;font-weight:800;line-height:1;}
 .manual-calendar-day:hover{border-color:var(--accent);background:var(--accent-xl);}
 .manual-calendar-day.is-today{border-color:var(--borders);font-weight:800;}
 .manual-calendar-day.is-selected{border-color:var(--accent);background:var(--accent);color:#fff;}
@@ -84,7 +84,9 @@ textarea.inp{resize:vertical;min-height:80px;line-height:1.6;}
 .manual-calendar-summary-head strong{font-size:12px;}
 .manual-calendar-summary-head strong.is-ready{color:var(--ok);}
 .manual-calendar-summary-head strong.is-pending{color:var(--warn);}
-.manual-calendar-selected{margin-top:5px;font-size:11px;line-height:1.6;color:var(--text2);overflow-wrap:anywhere;}
+.manual-calendar-selected{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:7px;font-size:12px;line-height:1.5;color:var(--text2);overflow-wrap:anywhere;}
+.manual-calendar-summary-item{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
+.manual-calendar-summary-order{color:var(--accent);font-size:17px;font-weight:800;line-height:1;}
 
 /* ── 그리드 ── */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}

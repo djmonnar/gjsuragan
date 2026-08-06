@@ -162,7 +162,7 @@
     const completeCount = state.deliveredDates.length;
     const countClass = futureDates.length === required ? 'is-ready' : 'is-pending';
     const datesText = futureDates.length
-      ? futureDates.map(date => `${manualDeliveryOrderLabel(manualDeliveryOrderNumber(state.dates, date))} ${formatCalendarDate(date)}`).join(' · ')
+      ? futureDates.map(date => `<span class="manual-calendar-summary-item"><span class="manual-calendar-summary-order">${manualDeliveryOrderLabel(manualDeliveryOrderNumber(state.dates, date))}</span><span>${formatCalendarDate(date)}</span></span>`).join('')
       : '선택된 배송일 없음';
     summary.innerHTML = `<div class="manual-calendar-summary-head"><strong class="${countClass}">배송일 ${futureDates.length} / ${required}</strong>${completeCount ? `<span>완료 ${completeCount}회</span>` : ''}</div><div class="manual-calendar-selected">${datesText}</div>`;
   }
