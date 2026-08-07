@@ -266,6 +266,65 @@ async function inquirySlipNos(orders) {
   return normalizeInquiryResults(orders, response);
 }
 
+// 화물추적 — 운송장번호로 스캔 이력을 조회한다 (송장 출력 후에만 조회 가능)
+function normalizeTrackingResults(orders, response) {
+  const rows = resultRows(response);
+  const bySlip = new Map(rows.map(row => [String(row.slipNo || ''), row]));
+  return orders.map(order => {
+    const slipNo = String(order.slipNo || '');
+    const row = bySlip.get(slipNo) || {};
+    const ok = String(row.resultCd || '').toUpperCase() === 'TRUE';
+    const scans = (Array.isArray(row.data1) ? row.data1 : [])
+      .map(item => ({
+        scanDt: String(item?.scanDt || ''),
+        scanTm: String(item?.scanTm || ''),
+        status: String(item?.statNm || ''),
+        branchName: String(item?.branNm || ''),
+        salesName: String(item?.salesNm || ''),
+        receiverType: String(item?.acptorTyNm || '')
+      }))
+      .filter(item => item.scanDt || item.status)
+      // 스캔 시각순 정렬 (응답 순서에 의존하지 않도록)
+      .sort((a, b) => `${a.scanDt}${a.scanTm}`.localeCompare(`${b.scanDt}${b.scanTm}`));
+    const last = scans[scans.length - 1] || null;
+    return {
+      customerId: order.customerId,
+      slipNo,
+      ok,
+      scans,
+      lastStatus: last ? last.status : '',
+      lastScanAt: last ? `${last.scanDt}${last.scanTm}` : '',
+      delivered: scans.some(item => item.status.includes('배송완료')),
+      message: row.resultMsg || row.sttsMsg || ''
+    };
+  });
+}
+
+async function trackCargo(orders) {
+  const cfg = config();
+  const targets = orders.filter(order => String(order.slipNo || '').trim());
+  if (!targets.length) return [];
+  if (cfg.dryRun) {
+    return targets.map(order => ({
+      customerId: order.customerId,
+      slipNo: order.slipNo,
+      ok: true,
+      scans: [{ scanDt: '20260807', scanTm: '120000', status: '배송완료', branchName: 'TEST', salesName: '', receiverType: '현관/문앞' }],
+      lastStatus: '배송완료',
+      lastScanAt: '20260807120000',
+      delivered: true,
+      message: 'LOGEN_DRY_RUN'
+    }));
+  }
+  const payload = {
+    userId: cfg.userId,
+    data: targets.map(order => ({ slipNo: String(order.slipNo).trim() })),
+    __orders: targets
+  };
+  const response = await postLogen('/inquiryCargoTrackingMulti', payload);
+  return normalizeTrackingResults(targets, response);
+}
+
 async function contractFares() {
   const cfg = config();
   const response = await postLogen('/contPickFares', {
@@ -298,5 +357,6 @@ async function contractFares() {
 module.exports = {
   registerOrders,
   inquirySlipNos,
+  trackCargo,
   contractFares
 };
