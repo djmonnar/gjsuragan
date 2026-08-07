@@ -23,8 +23,12 @@ function productLabel(code) {
   }[code] || code || '궁중수라간 반찬';
 }
 
+// 로젠 qty는 이번 회차에 보낼 '박스 수'다.
+// total(총 구독 횟수)을 여기에 쓰면 정기배송 12회 고객이 12박스로 접수되므로 절대 참조하지 않는다.
 function orderQuantity(customer) {
-  return Math.max(1, Number(customer.qty || customer.total || customer.quantity || 1) || 1);
+  const explicit = Number(customer.qty ?? customer.quantity);
+  if (Number.isFinite(explicit) && explicit >= 1) return Math.floor(explicit);
+  return 1;
 }
 
 function orderNumber(customer) {
