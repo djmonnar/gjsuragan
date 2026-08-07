@@ -1099,6 +1099,7 @@ function initFirebase(){
       fbUser = user || null;
       fbAuthResolved = true;
       updateFirebaseAuthUI();
+      if(fbUser) loadCustomBusinessHolidays();
     });
   }catch(err){
     console.warn(err);
@@ -1726,42 +1727,51 @@ function getDateKey(dt){
 function getParsedDateKey(parsed){
   return parsed ? getDateKey(parsed.date) : '';
 }
+// 휴무일 표 — customer.html의 KOREA_HOLIDAYS / FIXED_KOREA_HOLIDAYS와 동일하게 유지할 것.
+// 대체공휴일·연휴가 빠지면 식단표에서 그 날짜가 빈칸으로 뚫린다.
+const BUSINESS_CLOSED_FIXED = {
+  '01-01':'신정','03-01':'삼일절','05-01':'근로자의날','05-05':'어린이날',
+  '06-06':'현충일','07-17':'제헌절','08-15':'광복절','10-03':'개천절',
+  '10-09':'한글날','12-25':'성탄절'
+};
+const BUSINESS_CLOSED_DATED = {
+  '2026-01-01':'신정',
+  '2026-02-16':'설 연휴','2026-02-17':'설날','2026-02-18':'설 연휴',
+  '2026-03-01':'삼일절','2026-03-02':'삼일절 대체공휴일',
+  '2026-05-01':'근로자의날','2026-05-05':'어린이날',
+  '2026-05-24':'부처님오신날','2026-05-25':'부처님오신날 대체공휴일',
+  '2026-06-03':'전국동시지방선거일','2026-06-06':'현충일',
+  '2026-07-17':'제헌절',
+  '2026-08-15':'광복절','2026-08-17':'광복절 대체공휴일',
+  '2026-09-24':'추석 연휴','2026-09-25':'추석','2026-09-26':'추석 연휴',
+  '2026-10-03':'개천절','2026-10-05':'개천절 대체공휴일','2026-10-09':'한글날',
+  '2026-12-25':'성탄절'
+};
+// 관리자 페이지(설정 → 자체 휴무일)에서 등록한 여름휴가 등 — config/holidays에서 읽어온다
+let customBusinessHolidays = {};
+async function loadCustomBusinessHolidays(){
+  if(!fbDb) return;
+  try{
+    const snap = await fbDb.collection('config').doc('holidays').get();
+    customBusinessHolidays = (snap.exists && snap.data().custom) || {};
+    if(typeof render === 'function') render();
+  }catch(err){
+    console.warn('자체 휴무일을 불러오지 못했습니다:', err);
+  }
+}
 function isFixedBusinessClosedDate(dt){
   const md = String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
-  return ['01-01','03-01','05-01','05-05','06-06','08-15','10-03','10-09','12-25'].includes(md);
+  return Object.prototype.hasOwnProperty.call(BUSINESS_CLOSED_FIXED, md);
 }
 function isKnownBusinessClosedDate(dt){
   const key = getDateKey(dt);
-  const known = new Set([
-    '2026-02-16','2026-02-17','2026-02-18',
-    '2026-03-02',
-    '2026-05-25',
-    '2026-06-03'
-  ]);
-  return known.has(key);
+  return Object.prototype.hasOwnProperty.call(BUSINESS_CLOSED_DATED, key)
+    || Object.prototype.hasOwnProperty.call(customBusinessHolidays, key);
 }
 function getBusinessClosedName(dt){
   const md = String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
-  const fixed = {
-    '01-01':'신정',
-    '03-01':'삼일절',
-    '05-01':'근로자의날',
-    '05-05':'어린이날',
-    '06-06':'현충일',
-    '08-15':'광복절',
-    '10-03':'개천절',
-    '10-09':'한글날',
-    '12-25':'성탄절'
-  };
-  const known = {
-    '2026-02-16':'설날 연휴',
-    '2026-02-17':'설날',
-    '2026-02-18':'설날 연휴',
-    '2026-03-02':'삼일절 대체공휴일',
-    '2026-05-25':'부처님오신날 대체공휴일',
-    '2026-06-03':'전국동시지방선거일'
-  };
-  return known[getDateKey(dt)] || fixed[md] || '공휴일';
+  const key = getDateKey(dt);
+  return BUSINESS_CLOSED_DATED[key] || customBusinessHolidays[key] || BUSINESS_CLOSED_FIXED[md] || '공휴일';
 }
 function isBusinessClosedDate(dt){
   return isFixedBusinessClosedDate(dt) || isKnownBusinessClosedDate(dt);
@@ -2651,19 +2661,19 @@ function parseDateParts(str, fallbackYear, fallbackMonth){
 function getDateKey(dt){
   return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
 }
+const CLOSED_FIXED = ${JSON.stringify(BUSINESS_CLOSED_FIXED)};
+const CLOSED_DATED = ${JSON.stringify(Object.assign({}, BUSINESS_CLOSED_DATED, customBusinessHolidays))};
 function isFixedBusinessClosedDate(dt){
   const md = String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
-  return ['01-01','03-01','05-01','05-05','06-06','08-15','10-03','10-09','12-25'].includes(md);
+  return Object.prototype.hasOwnProperty.call(CLOSED_FIXED, md);
 }
 function isKnownBusinessClosedDate(dt){
-  return ['2026-02-16','2026-02-17','2026-02-18','2026-03-02','2026-05-25','2026-06-03'].includes(getDateKey(dt));
+  return Object.prototype.hasOwnProperty.call(CLOSED_DATED, getDateKey(dt));
 }
 function isBusinessClosedDate(dt){ return isFixedBusinessClosedDate(dt) || isKnownBusinessClosedDate(dt); }
 function getBusinessClosedName(dt){
   const md = String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
-  const fixed = {'01-01':'신정','03-01':'삼일절','05-01':'근로자의날','05-05':'어린이날','06-06':'현충일','08-15':'광복절','10-03':'개천절','10-09':'한글날','12-25':'성탄절'};
-  const known = {'2026-02-16':'설날 연휴','2026-02-17':'설날','2026-02-18':'설날 연휴','2026-03-02':'삼일절 대체공휴일','2026-05-25':'부처님오신날 대체공휴일','2026-06-03':'전국동시지방선거일'};
-  return known[getDateKey(dt)] || fixed[md] || '공휴일';
+  return CLOSED_DATED[getDateKey(dt)] || CLOSED_FIXED[md] || '공휴일';
 }
 function looksLikeHolidayEntry(entry){
   const text = [entry && entry.main, entry && entry.soup, entry && entry.salad].concat((entry && entry.sides) || []).join(' ');
