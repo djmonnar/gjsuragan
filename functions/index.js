@@ -247,6 +247,11 @@ exports.api = onRequest({
       sendJson(res, 200, { ok: true, ...result });
       return;
     }
+    if (pathname === '/api/logen/track-cargo' || pathname === '/logen/track-cargo') {
+      const result = await handleLogenCargoTracking(req.body || {}, user);
+      sendJson(res, 200, { ok: true, ...result });
+      return;
+    }
     if (pathname === '/api/route/optimize' || pathname === '/route/optimize') {
       const result = await handleRouteOptimize(req.body || {}, user);
       sendJson(res, 200, { ok: true, ...result });
@@ -2617,6 +2622,65 @@ async function handleLogenSlipInquiry(body, user) {
   }));
 
   return countSummary(clientResults, skippedItems, missing);
+}
+
+async function handleLogenCargoTracking(body, user) {
+  const prepared = await prepareLogenOrders(body, 'inquiry');
+  const { shipDate, candidates, skippedItems, missing } = prepared;
+  if (!candidates.length) return countSummary([], skippedItems, missing);
+
+  // 송장번호가 있는 건만 추적할 수 있다 (로젠 출력 후 발번)
+  const withSlip = candidates
+    .map(item => ({ item, slipNo: shipmentFor(item.customer, shipDate).slipNo || '' }))
+    .filter(entry => entry.slipNo);
+  const noSlip = candidates
+    .filter(item => !shipmentFor(item.customer, shipDate).slipNo)
+    .map(item => ({ customerId: item.id, orderNum: item.order.orderNum, reason: 'no_slip_no' }));
+  if (!withSlip.length) return countSummary([], [...skippedItems, ...noSlip], missing);
+
+  let clientResults;
+  try {
+    clientResults = await logenClient.trackCargo(withSlip.map(entry => ({
+      customerId: entry.item.id,
+      slipNo: entry.slipNo
+    })));
+  } catch (error) {
+    clientResults = withSlip.map(entry => ({
+      customerId: entry.item.id,
+      slipNo: entry.slipNo,
+      ok: false,
+      message: error.message || 'Logen cargo tracking failed'
+    }));
+  }
+
+  const byId = new Map(clientResults.map(row => [String(row.customerId), row]));
+  await Promise.all(withSlip.map(entry => {
+    const result = byId.get(entry.item.id);
+    if (!result || result.ok !== true) return null;
+    return setShipment(entry.item.ref, shipDate, {
+      tracking: {
+        lastStatus: result.lastStatus || '',
+        lastScanAt: result.lastScanAt || '',
+        delivered: result.delivered === true,
+        scans: (result.scans || []).slice(-20),
+        checkedAt: admin.firestore.FieldValue.serverTimestamp(),
+        checkedBy: user.email || user.uid || ''
+      }
+    });
+  }).filter(Boolean));
+
+  return {
+    ...countSummary(clientResults, [...skippedItems, ...noSlip], missing),
+    tracking: clientResults.map(row => ({
+      customerId: row.customerId,
+      slipNo: row.slipNo,
+      ok: row.ok,
+      lastStatus: row.lastStatus || '',
+      delivered: row.delivered === true,
+      scans: row.scans || [],
+      message: row.message || ''
+    }))
+  };
 }
 
 async function enabledPushTokens() {

@@ -29,7 +29,7 @@ const expectedScriptSources = [
   'assets/js/order-settlement.js?v=20260712-sales1',
   'assets/js/route-map.js?v=20260626-roundtrip1',
   'assets/js/import-export.js?v=20260625-door-x1',
-  'assets/js/logen.js?v=20260807-resend1',
+  'assets/js/logen.js?v=20260807-tracking1',
   'assets/js/ui.js?v=20260806-manualdates1',
   'assets/js/notice-memos.js?v=20260709-notice1'
 ];
@@ -155,7 +155,7 @@ function validateGenerated(buffer) {
   if (!sameValues(modalIds, expectedModalIds)) fail('modal id list or order changed');
 
   const inlineEventCount = countMatches(source, /\son[a-z]+\s*=/gi);
-  if (inlineEventCount !== 156) fail(`inline event count is ${inlineEventCount}; expected 156`);
+  if (inlineEventCount !== 157) fail(`inline event count is ${inlineEventCount}; expected 157`);
 
   const scriptSources = [...source.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/gi)]
     .map(match => match[1]);

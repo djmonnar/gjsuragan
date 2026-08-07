@@ -158,6 +158,8 @@ function logenActionHtml(c, shipDate){
   }
   if(slipNo){
     parts.push(`<button class="btn btn-g sm" onclick="copyLogenSlipNo('${c.id}','${shipDate}')">복사</button>`);
+    const trackingBadge = logenTrackingBadgeHtml(c, shipDate);
+    if(trackingBadge) parts.push(trackingBadge);
   }
   if(LOGEN_SENT_STATUSES.includes(status)){
     parts.push(`<button class="btn btn-d sm" title="로젠 취소 후 다시 보낼 때 사용" onclick="resetLogenShipment('${c.id}','${shipDate}')">전송취소</button>`);
@@ -286,6 +288,63 @@ async function ackLogenChange(customerId, shipDate){
     renderToday();
   }catch(e){
     toast('변경 확인 처리 실패: '+(e.message||e),'er');
+  }
+}
+
+// ── 화물추적 ──
+function logenTracking(c, shipDate){
+  return logenShipment(c, shipDate).tracking || {};
+}
+
+function logenTrackingBadgeHtml(c, shipDate){
+  const t = logenTracking(c, shipDate);
+  const status = t.lastStatus || '';
+  if(!status) return '';
+  const style = t.delivered
+    ? 'background:#ecfdf5;color:#047857;border-color:#a7f3d0;'
+    : 'background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;';
+  return `<button class="btn sm" style="${style}font-size:11px;padding:3px 8px;" title="배송 추적 이력 보기" onclick="showLogenTracking('${c.id}','${shipDate}')">${escHtml(status)}</button>`;
+}
+
+function formatScanTime(scan){
+  const d = String(scan.scanDt || '');
+  const t = String(scan.scanTm || '');
+  if(d.length < 8) return '';
+  return `${d.slice(4,6)}/${d.slice(6,8)} ${t.slice(0,2)}:${t.slice(2,4)}`;
+}
+
+function showLogenTracking(customerId, shipDate){
+  const c = custs.find(x => x.id === customerId);
+  if(!c) return;
+  const t = logenTracking(c, shipDate);
+  const scans = Array.isArray(t.scans) ? t.scans : [];
+  if(!scans.length){ toast('추적 이력이 없습니다. 배송추적을 먼저 눌러주세요','info'); return; }
+  const slipNo = logenShipment(c, shipDate).slipNo || '';
+  const lines = scans.map(s => {
+    const where = [s.branchName, s.salesName].filter(Boolean).join(' · ');
+    const who = s.receiverType ? ` (${s.receiverType})` : '';
+    return `${formatScanTime(s)}  ${s.status}${where ? '  ' + where : ''}${who}`;
+  });
+  alert(`${c.name} 배송 추적\n송장번호: ${slipNo}\n${'─'.repeat(34)}\n${lines.join('\n')}`);
+}
+
+async function trackLogenCargo(){
+  const shipDate = logenShipDate();
+  const selected = checkedCourierCustomerIds();
+  const customerIds = selected.length
+    ? selected
+    : filteredCourierForShipDate(shipDate)
+        .filter(c => !!(logenShipment(c, shipDate).slipNo || logenShipment(c, shipDate).invoiceNo))
+        .map(c => c.id);
+  if(!customerIds.length){ toast('추적할 송장번호가 없습니다. 송장번호 조회를 먼저 하세요','info'); return; }
+  try{
+    const data = await postLogenApi('/api/logen/track-cargo', { shipDate, customerIds, mode:selected.length?'selected':'all' });
+    const rows = Array.isArray(data.tracking) ? data.tracking : [];
+    const done = rows.filter(r => r.delivered).length;
+    toast(`배송추적 완료: ${rows.length}건 조회 · 배송완료 ${done}건`,'ok');
+    renderToday();
+  }catch(e){
+    toast('배송추적 실패: '+(e.message||e),'er');
   }
 }
 

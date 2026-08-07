@@ -18,18 +18,18 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 315378,
-    "lines": 7291,
-    "functionDeclarations": 422,
-    "uniqueCallableGlobals": 386,
+    "normalizedBytes": 318008,
+    "lines": 7350,
+    "functionDeclarations": 427,
+    "uniqueCallableGlobals": 391,
     "explicitWindowExports": 36,
     "globalStateDeclarations": 62,
     "privateStateDeclarations": 5,
-    "asyncFunctions": 57,
+    "asyncFunctions": 58,
     "crossFileCallRelationships": 134,
     "firestoreAccessPoints": 31,
-    "inlineHandlerAttributes": 156,
-    "inlineHandlerFunctionNames": 81
+    "inlineHandlerAttributes": 157,
+    "inlineHandlerFunctionNames": 82
   },
   "files": [
     {
@@ -208,8 +208,8 @@
     },
     {
       "path": "assets/js/logen.js",
-      "metrics": { "bytes": 14242, "lines": 335, "functionDeclarations": 28, "asyncFunctions": 9 },
-      "globalsDefined": ["logenApiBase", "logenShipment", "logenStatus", "logenDigits", "logenComparableSnapshot", "logenSnapshotChanged", "logenNeedsChange", "logenStatusBadgeHtml", "logenSlipNoHtml", "logenShipDate", "checkedCourierCustomerIds", "filteredCourierForShipDate", "isLogenResendable", "unsentCourierCustomerIds", "logenIdToken", "postLogenApi", "summarizeLogenResult", "logenActionHtml", "logenCourierSummaryHtml", "selectedLogenShipmentsForChange", "sendSelectedLogenOrders", "sendSingleLogenOrder", "sendUnsentLogenOrders", "inquireLogenSlipNos", "inquireSingleLogenSlipNo", "ackLogenChange", "resetLogenShipment", "copyLogenSlipNo"],
+      "metrics": { "bytes": 16872, "lines": 394, "functionDeclarations": 33, "asyncFunctions": 10 },
+      "globalsDefined": ["logenApiBase", "logenShipment", "logenStatus", "logenDigits", "logenComparableSnapshot", "logenSnapshotChanged", "logenNeedsChange", "logenStatusBadgeHtml", "logenSlipNoHtml", "logenShipDate", "checkedCourierCustomerIds", "filteredCourierForShipDate", "isLogenResendable", "unsentCourierCustomerIds", "logenIdToken", "postLogenApi", "summarizeLogenResult", "logenActionHtml", "logenCourierSummaryHtml", "selectedLogenShipmentsForChange", "sendSelectedLogenOrders", "sendSingleLogenOrder", "sendUnsentLogenOrders", "inquireLogenSlipNos", "inquireSingleLogenSlipNo", "ackLogenChange", "logenTracking", "logenTrackingBadgeHtml", "formatScanTime", "showLogenTracking", "trackLogenCargo", "resetLogenShipment", "copyLogenSlipNo"],
       "requiredDefinitions": ["sendSelectedLogenOrders", "sendUnsentLogenOrders", "inquireLogenSlipNos", "ackLogenChange"],
       "globalsConsumed": ["custs", "window.__AUTH", "window.__DB", "productLabel", "todayStr", "listFor", "filterDeliveryByProduct", "renderToday", "toast"],
       "globalState": ["LOGEN_DEFAULT_API_BASE", "LOGEN_STATUS_LABELS", "LOGEN_SENT_STATUSES"],
