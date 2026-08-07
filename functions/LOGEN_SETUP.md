@@ -12,24 +12,33 @@ in `admin.html` or any public frontend file.
 - Default fare type: `030` credit
 - Sender fields: fixed GJSURAGAN business information
 
-## userId vs custCd (확인 필요)
+## Where registered orders show up in Logen
 
-Logen guide: "secretKey는 **상위 거래처** 기준으로만 발급되며". Logen's own
-bulk-order sample uses **different** values for the two fields:
+`registerOrderData` feeds Logen's **"주문등록출력(복수건)"** screen (per Logen's
+spec: 로젠시스템의 "주문등록출력(복수건)" 화면에서 출력하기 위한 주문데이터를
+전송한다). Orders sent by API do **not** appear under 주문등록/출력 → 단건, which
+is for manually keyed single orders. Waybill numbers are issued when the label is
+printed on Logen's side, so `slipNo` comes back `null` until then — that is normal,
+not an error.
 
-```json
-{ "userId": "10358007", "data": [{ "custCd": "20179999", ... }] }
-```
+## userId vs custCd
 
-So `userId` appears to be the **상위 거래처(API 계정)** that owns the secretKey,
-while `custCd` is the 발송 업체코드. This project currently sets **both** to
-`58020072`, which is the 업체코드 from Logen's IP-registration email.
+Logen spec: `userId` = 연동업체코드, 비고 "연동업체코드가 아닌 경우 거래처코드
+입력". So setting both `LOGEN_USER_ID` and `LOGEN_CUST_CD` to the 거래처코드
+(`58020072`) is valid per spec.
 
-Authentication is IP + secretKey only — `userId` is not part of auth, so a wrong
-`userId` does **not** return 401. Calls succeed (`resultCd: TRUE`) while the order
-may be filed under the wrong account context and never appear in 로젠물류센터.
-If registered orders are invisible on Logen's side, confirm the correct 상위
-거래처 코드 with Logen and set `LOGEN_USER_ID` to it.
+Note that authentication is IP + secretKey only — `userId` is not part of auth,
+so a wrong `userId` would not return 401.
+
+## Spec table vs sample JSON
+
+The doc's field table and its JSON sample disagree on two fields. The table is
+authoritative here:
+
+| field | table | sample |
+|---|---|---|
+| `inQty` | `inQty`, Integer | `inqty`, string |
+| `goodsAmt` | Integer | string |
 
 ## Function environment variables
 

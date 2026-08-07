@@ -94,7 +94,7 @@ async function postLogen(path, payload) {
       fixTakeNo: row?.fixTakeNo,
       slipNo: row?.slipNo,
       qty: row?.qty,
-      inqty: row?.inqty,
+      inQty: row?.inQty,
       fareTy: row?.fareTy,
       dlvFare: row?.dlvFare,
       boxTyCd: row?.boxTyCd,
@@ -144,8 +144,8 @@ async function postLogen(path, payload) {
 function registerRow(order, cfg, context = {}) {
   const takeDt = ymd(context.takeDt || context.shipDate || order.shipDate) || ymd(new Date().toISOString());
   const qty = Math.max(1, Number(order.quantity || order.qty || 1) || 1);
-  // 필드명·타입은 로젠 bulk-order 명세 샘플을 그대로 따른다.
-  // (inqty를 inQty로 보내면 로젠이 인식하지 못하므로 대소문자까지 일치시킬 것)
+  // 필드명·타입은 로젠 bulk-order 명세표를 따른다.
+  // 이 데이터는 로젠 "주문등록출력(복수건)" 화면에 쌓이며, 송장 출력은 로젠 쪽에서 한다.
   const row = {
     custCd: cfg.custCd,
     takeDt,
@@ -167,8 +167,10 @@ function registerRow(order, cfg, context = {}) {
     dlvFare: Number(order.dlvFare || cfg.dlvFare || 0),
     extraFare: Number(order.extraFare || 0),
     goodsNm: order.itemName || '궁중수라간 반찬',
-    goodsAmt: String(order.goodsAmt || 0),
-    inqty: String(order.inQty || qty || 1),
+    // 명세표 기준: goodsAmt·inQty는 Integer, 필드명은 inQty(대문자 Q).
+    // 문서의 JSON 샘플에는 "inqty"(소문자)·문자열로 적혀 있으나 명세표를 따른다.
+    goodsAmt: Number(order.goodsAmt || 0),
+    inQty: Number(order.inQty || qty || 1),
     goodsOpt: order.itemOption || null,
     addOpt: '',
     sndMsg: order.deliveryMessage || '',
