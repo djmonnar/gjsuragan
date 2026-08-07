@@ -100,6 +100,21 @@ async function postLogen(path, payload) {
     logger.warn('Logen API HTTP failed', { path, status: res.status, body: text.slice(0, 800) });
     throw new Error(data.error || data.message || `Logen HTTP ${res.status}`);
   }
+  // HTTP 200이어도 로젠이 업무 레벨 사유(송장 미발번 등)를 돌려주는 경우가 있어
+  // 응답 요약을 남긴다. 송장번호가 안 나올 때 원인을 추적하려면 이 로그가 필요하다.
+  logger.info('Logen API response', {
+    path,
+    env: cfg.env,
+    sttsCd: data?.sttsCd || '',
+    sttsMsg: String(data?.sttsMsg || '').slice(0, 200),
+    rows: (Array.isArray(data?.data) ? data.data : []).slice(0, 10).map(row => ({
+      fixTakeNo: row?.fixTakeNo || '',
+      resultCd: row?.resultCd || '',
+      resultMsg: String(row?.resultMsg || '').slice(0, 120),
+      slipNo: row?.slipNo || '',
+      slipRows: Array.isArray(row?.data1) ? row.data1.length : 0
+    }))
+  });
   return data;
 }
 

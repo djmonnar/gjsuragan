@@ -12,11 +12,19 @@ function dow(ds){
 function wasDeliveredOn(c,ds){
   return Array.isArray(c.deliveredDates) && c.deliveredDates.includes(ds);
 }
+// 해당 날짜에 배송 대상인지 (재개 예정일이 지난 정지 고객은 그날부터 배송 대상)
+// status만 보면 재개일이 와도 관리자가 페이지를 열기 전까지 목록에서 빠진다.
+function isActiveOn(c,ds){
+  if(!c) return false;
+  if(c.status==='active') return true;
+  if(c.status==='pause' && c.resumeDate && ds >= c.resumeDate) return true;
+  return false;
+}
 function isDelivSub(c,ds){
   if(c.orderType!=='sub') return false;
   // 배송완료 처리된 날짜는 잔여 0회/종료 상태여도 회색 완료 행으로 남겨야 함
   if(wasDeliveredOn(c,ds)) return true;
-  if(c.status!=='active'||Number(c.remain||0)<=0) return false;
+  if(!isActiveOn(c,ds)||Number(c.remain||0)<=0) return false;
   if(c.startDate && ds < c.startDate) return false;  // 첫 배송일 이전 차단
   if(typeof isManualDeliverySchedule === 'function' && isManualDeliverySchedule(c)){
     return typeof manualScheduleIncludes === 'function' && manualScheduleIncludes(c, ds);
@@ -36,7 +44,7 @@ function isDelivOnce(c,ds){
   if(c.orderType!=='once') return false;
   // 1회성 주문은 완료 후 remain=0/status=end가 되므로 완료 이력을 우선 인정
   if(wasDeliveredOn(c,ds)) return true;
-  if(c.status!=='active'||Number(c.remain||0)<=0) return false;
+  if(!isActiveOn(c,ds)||Number(c.remain||0)<=0) return false;
   if(c.startDate && ds < c.startDate) return false;  // 첫 배송일 이전 차단
   if(c.isDirect){
     // 직배송: onceDate 당일 배송
