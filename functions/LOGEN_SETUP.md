@@ -22,13 +22,19 @@ LOGEN_ENV=test
 LOGEN_SECRET_KEY=...
 LOGEN_USER_ID=58020072
 LOGEN_CUST_CD=58020072
-LOGEN_SENDER_NAME=궁중수라간
 LOGEN_SENDER_PHONE=01035071278
-LOGEN_SENDER_ADDRESS=경상남도 진주시 동진로107번길 8 2층
 LOGEN_FARE_TY=030
 LOGEN_DLV_FARE=...
 LOGEN_DRY_RUN=false
 ```
+
+**Do not put Korean text in the env file.** `LOGEN_SENDER_NAME` and
+`LOGEN_SENDER_ADDRESS` were previously set there and got mangled during deploy
+(UTF-8 bytes read as CP949), so `궁중수라간` reached Logen as `沅곸쨷...` and
+would have printed on real waybills. The correct values are hard-coded as
+defaults in `logenClient.js`; leave both variables unset. If either is set to a
+value containing CJK ideographs, `logenClient.js` now treats it as corrupted,
+logs a warning, and falls back to the built-in default.
 
 Optional:
 
