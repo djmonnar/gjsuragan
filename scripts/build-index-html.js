@@ -29,7 +29,7 @@ const expectedScriptSources = [
   'assets/js/order-settlement.js?v=20260712-sales1',
   'assets/js/route-map.js?v=20260626-roundtrip1',
   'assets/js/import-export.js?v=20260625-door-x1',
-  'assets/js/logen.js?v=20260625-logen-change1',
+  'assets/js/logen.js?v=20260807-resend1',
   'assets/js/ui.js?v=20260806-manualdates1',
   'assets/js/notice-memos.js?v=20260709-notice1'
 ];

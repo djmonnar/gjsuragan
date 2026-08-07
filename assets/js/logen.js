@@ -159,6 +159,9 @@ function logenActionHtml(c, shipDate){
   if(slipNo){
     parts.push(`<button class="btn btn-g sm" onclick="copyLogenSlipNo('${c.id}','${shipDate}')">복사</button>`);
   }
+  if(LOGEN_SENT_STATUSES.includes(status)){
+    parts.push(`<button class="btn btn-d sm" title="로젠 취소 후 다시 보낼 때 사용" onclick="resetLogenShipment('${c.id}','${shipDate}')">전송취소</button>`);
+  }
   return parts.length
     ? `<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;">${parts.join('')}</div>`
     : '';
@@ -283,6 +286,42 @@ async function ackLogenChange(customerId, shipDate){
     renderToday();
   }catch(e){
     toast('변경 확인 처리 실패: '+(e.message||e),'er');
+  }
+}
+
+// 잘못 보낸 건을 다시 보낼 수 있도록 전송 상태를 초기화한다.
+// 로젠에는 이미 접수가 남아 있으므로 반드시 로젠 취소를 먼저 받아야 한다.
+async function resetLogenShipment(customerId, shipDate){
+  const c = custs.find(x => x.id === customerId);
+  if(!c) return;
+  const shipment = logenShipment(c, shipDate);
+  const orderNum = shipment.orderNum || c.orderNum || '';
+  const slipNo = shipment.slipNo || shipment.invoiceNo || '';
+  const warn = [
+    `${c.name} · ${shipDate} 로젠 전송 기록을 지우고 다시 보낼 수 있게 합니다.`,
+    '',
+    slipNo ? `⚠ 이미 발번된 송장번호가 있습니다: ${slipNo}` : '⚠ 로젠에 접수는 이미 등록되어 있습니다.',
+    orderNum ? `주문번호: ${orderNum}` : '',
+    '',
+    '로젠에 취소 요청을 먼저 하지 않으면 중복 접수될 수 있습니다.',
+    '계속할까요?'
+  ].filter(v => v !== null).join('\n');
+  if(!confirm(warn)) return;
+  try{
+    await window.__DB.collection('customers').doc(customerId).update({
+      [`logenShipments.${shipDate}`]: {
+        status: 'logen_ready',
+        resetFrom: shipment.status || '',
+        resetSlipNo: slipNo || '',
+        resetOrderNum: orderNum || '',
+        resetAt: new Date().toISOString(),
+        resetBy: window.__AUTH?.currentUser?.email || ''
+      }
+    });
+    toast(`${c.name} 로젠 전송 상태 초기화됨 · 다시 전송할 수 있습니다`,'ok');
+    renderToday();
+  }catch(e){
+    toast('전송 초기화 실패: '+(e.message||e),'er');
   }
 }
 
