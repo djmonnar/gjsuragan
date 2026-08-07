@@ -112,7 +112,10 @@ async function postLogen(path, payload) {
       resultCd: row?.resultCd || '',
       resultMsg: String(row?.resultMsg || '').slice(0, 120),
       slipNo: row?.slipNo || '',
-      slipRows: Array.isArray(row?.data1) ? row.data1.length : 0
+      slipRows: Array.isArray(row?.data1) ? row.data1.length : 0,
+      // data1 안에서 운송장번호를 못 찾는 경우가 있어 실제 키·값을 남긴다
+      slipSample: (Array.isArray(row?.data1) ? row.data1 : []).slice(0, 3)
+        .map(item => JSON.stringify(item).slice(0, 200))
     }))
   });
   return data;
