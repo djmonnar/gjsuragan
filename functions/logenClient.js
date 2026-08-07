@@ -81,6 +81,26 @@ async function postLogen(path, payload) {
 
   const body = { ...payload };
   delete body.__orders;
+  // 로젠에 문의할 때 '무엇을 보냈는지' 근거가 필요하므로 라우팅 관련 필드만 남긴다.
+  // 수령인 이름·주소·연락처는 개인정보라 기록하지 않는다.
+  logger.info('Logen API request', {
+    path,
+    env: cfg.env,
+    url: `${cfg.baseUrl}${path}`,
+    userId: body.userId,
+    rows: (Array.isArray(body.data) ? body.data : []).slice(0, 10).map(row => ({
+      custCd: row?.custCd,
+      takeDt: row?.takeDt,
+      fixTakeNo: row?.fixTakeNo,
+      slipNo: row?.slipNo,
+      qty: row?.qty,
+      inqty: row?.inqty,
+      fareTy: row?.fareTy,
+      dlvFare: row?.dlvFare,
+      boxTyCd: row?.boxTyCd,
+      goodsNm: row?.goodsNm
+    }))
+  });
   const res = await fetch(`${cfg.baseUrl}${path}`, {
     method: 'POST',
     headers: {

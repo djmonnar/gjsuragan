@@ -12,6 +12,25 @@ in `admin.html` or any public frontend file.
 - Default fare type: `030` credit
 - Sender fields: fixed GJSURAGAN business information
 
+## userId vs custCd (확인 필요)
+
+Logen guide: "secretKey는 **상위 거래처** 기준으로만 발급되며". Logen's own
+bulk-order sample uses **different** values for the two fields:
+
+```json
+{ "userId": "10358007", "data": [{ "custCd": "20179999", ... }] }
+```
+
+So `userId` appears to be the **상위 거래처(API 계정)** that owns the secretKey,
+while `custCd` is the 발송 업체코드. This project currently sets **both** to
+`58020072`, which is the 업체코드 from Logen's IP-registration email.
+
+Authentication is IP + secretKey only — `userId` is not part of auth, so a wrong
+`userId` does **not** return 401. Calls succeed (`resultCd: TRUE`) while the order
+may be filed under the wrong account context and never appear in 로젠물류센터.
+If registered orders are invisible on Logen's side, confirm the correct 상위
+거래처 코드 with Logen and set `LOGEN_USER_ID` to it.
+
 ## Function environment variables
 
 Set these in the Functions environment. For local Firebase deploys, put them in
