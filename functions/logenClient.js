@@ -121,32 +121,45 @@ async function postLogen(path, payload) {
 function registerRow(order, cfg, context = {}) {
   const takeDt = ymd(context.takeDt || context.shipDate || order.shipDate) || ymd(new Date().toISOString());
   const qty = Math.max(1, Number(order.quantity || order.qty || 1) || 1);
+  // 필드명·타입은 로젠 bulk-order 명세 샘플을 그대로 따른다.
+  // (inqty를 inQty로 보내면 로젠이 인식하지 못하므로 대소문자까지 일치시킬 것)
   const row = {
     custCd: cfg.custCd,
     takeDt,
+    slipNo: String(order.slipNo || ''),      // 빈 값 = 로젠이 운송장번호 발번
     fixTakeNo: required(order.orderNum || order.fixTakeNo, 'fixTakeNo'),
     sndCustNm: cfg.senderName,
+    sndZipCd: String(order.senderZipCode || ''),
     sndCustAddr: cfg.senderAddress,
     sndTelNo: cfg.senderPhone,
     sndCellNo: cfg.senderCellPhone || cfg.senderPhone,
     rcvCustNm: required(order.receiverName, 'rcvCustNm'),
+    rcvZipCd: String(order.receiverZipCode || ''),
     rcvCustAddr: required(order.receiverAddress, 'rcvCustAddr'),
     rcvTelNo: required(order.receiverPhone, 'rcvTelNo'),
     rcvCellNo: order.receiverCellPhone || order.receiverPhone || '',
     fareTy: cfg.fareTy,
+    boxTyCd: cfg.boxTyCd || null,
     qty,
     dlvFare: Number(order.dlvFare || cfg.dlvFare || 0),
     extraFare: Number(order.extraFare || 0),
     goodsNm: order.itemName || '궁중수라간 반찬',
-    goodsAmt: Number(order.goodsAmt || 0),
-    inQty: Number(order.inQty || qty || 1),
-    goodsOpt: order.itemOption || '',
-    sndMsg: order.deliveryMessage || ''
+    goodsAmt: String(order.goodsAmt || 0),
+    inqty: String(order.inQty || qty || 1),
+    goodsOpt: order.itemOption || null,
+    addOpt: '',
+    sndMsg: order.deliveryMessage || '',
+    mrgInQty: '',
+    mrgItemCd: '',
+    mrgItemNm: '',
+    mrgItemOpt: '',
+    mrgGoodsAmt: '',
+    mrgAddOpt: '',
+    mrgYn: ''
   };
   if (!row.dlvFare) {
     throw new Error('LOGEN_DLV_FARE is required before registering Logen orders');
   }
-  if (cfg.boxTyCd) row.boxTyCd = cfg.boxTyCd;
   return row;
 }
 
@@ -182,8 +195,10 @@ function normalizeInquiryResults(orders, response) {
     const row = byOrder.get(String(order.orderNum || order.fixTakeNo || '')) || {};
     const resultCd = String(row.resultCd || '').toUpperCase();
     const ok = row.ok === true || row.success === true || resultCd === 'TRUE' || resultCd === 'SUCCESS';
-    const slipRows = Array.isArray(row.data1) ? row.data1 : [];
-    const slipNo = row.slipNo || row.invoiceNo || row.waybillNo || slipRows.find(item => item?.slipNo)?.slipNo || '';
+    // data1에는 운송장이 여러 장 올 수 있고 delYn='Y'는 취소된 송장이므로 제외한다.
+    const slipRows = (Array.isArray(row.data1) ? row.data1 : [])
+      .filter(item => item && item.slipNo && String(item.delYn || '').toUpperCase() !== 'Y');
+    const slipNo = row.slipNo || row.invoiceNo || row.waybillNo || slipRows[0]?.slipNo || '';
     return {
       customerId: order.customerId,
       orderNum: order.orderNum,
