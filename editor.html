@@ -1778,7 +1778,13 @@ function isBusinessClosedDate(dt){
 }
 function looksLikeHolidayEntry(entry){
   const text = [entry?.main, entry?.soup, entry?.salad, ...(entry?.sides || [])].map(normalizeSpaces).join(' ');
-  return /공휴일|휴무|휴일|어린이날|부처님|석가탄신|현충일|광복절|개천절|한글날|성탄절|크리스마스|설날|추석|선거일|근로자의날|노동절/.test(text);
+  return /공휴일|휴무|휴일|휴가|어린이날|부처님|석가탄신|현충일|광복절|개천절|한글날|성탄절|크리스마스|설날|추석|선거일|근로자의날|노동절/.test(text);
+}
+// 휴무 카드에 쓸 이름 — 법정·자체 휴무일이면 그 이름, 아니면 입력해둔 문구(예: 여름휴가)
+function holidayLabelFor(dt, entry){
+  if(isBusinessClosedDate(dt)) return getBusinessClosedName(dt);
+  const text = normalizeSpaces(entry?.main || entry?.soup || entry?.salad || '');
+  return text || '휴무';
 }
 function shouldSkipMenuEntry(entry, fallbackYear, fallbackMonth){
   const parsed = parseDateParts(entry?.date, entry?.year || fallbackYear, entry?.month || fallbackMonth);
@@ -2322,8 +2328,8 @@ function buildMenuCard(day){
       </div>
     </div>`;
 }
-function buildHolidayCard(dt){
-  const label = getBusinessClosedName(dt);
+function buildHolidayCard(dt, labelOverride){
+  const label = labelOverride || getBusinessClosedName(dt);
   return `<div class="ksura-card ksura-holiday-card">
       <div class="ksura-card-head">
         <span class="ksura-date">${escapeHtml(formatDateObj(dt))}</span>
@@ -2338,6 +2344,14 @@ function buildHolidayCard(dt){
 }
 function buildMonthCards(monthObj){
   const valid = (monthObj.menuData || []).filter(entry=>!shouldSkipMenuEntry(entry, monthObj.year, monthObj.month));
+  // 휴무로 걸러낸 항목(여름휴가 등)은 날짜별 라벨로 남겨 휴무 카드로 그린다
+  const closedLabels = new Map();
+  (monthObj.menuData || []).forEach(entry=>{
+    if(!shouldSkipMenuEntry(entry, monthObj.year, monthObj.month)) return;
+    const parsed = parseDateParts(entry.date, monthObj.year, monthObj.month);
+    if(!parsed) return;
+    closedLabels.set(getParsedDateKey(parsed), holidayLabelFor(parsed.date, entry));
+  });
   const parsedItems = valid.map(entry=>({entry, parsed:parseDateParts(entry.date, monthObj.year, monthObj.month)})).filter(item=>item.parsed);
   const unparsed = valid.filter(entry=>!parseDateParts(entry.date, monthObj.year, monthObj.month));
   if(!parsedItems.length){
@@ -2351,7 +2365,9 @@ function buildMonthCards(monthObj){
   for(let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate()+1)){
     if(!isWeekdayDate(cursor)) continue;
     const entry = byDate.get(getDateKey(cursor));
-    html += entry ? buildMenuCard(entry) : (isBusinessClosedDate(cursor) ? buildHolidayCard(cursor) : '<div class="ksura-dummy"></div>');
+    const closedLabel = closedLabels.get(getDateKey(cursor))
+      || (isBusinessClosedDate(cursor) ? getBusinessClosedName(cursor) : '');
+    html += entry ? buildMenuCard(entry) : (closedLabel ? buildHolidayCard(cursor, closedLabel) : '<div class="ksura-dummy"></div>');
   }
   html += unparsed.map(buildMenuCard).join('');
   return html;
@@ -2677,7 +2693,12 @@ function getBusinessClosedName(dt){
 }
 function looksLikeHolidayEntry(entry){
   const text = [entry && entry.main, entry && entry.soup, entry && entry.salad].concat((entry && entry.sides) || []).join(' ');
-  return /공휴일|휴무|휴일|어린이날|부처님|석가탄신|현충일|광복절|개천절|한글날|성탄절|크리스마스|설날|추석|선거일|근로자의날|노동절/.test(text);
+  return /공휴일|휴무|휴일|휴가|어린이날|부처님|석가탄신|현충일|광복절|개천절|한글날|성탄절|크리스마스|설날|추석|선거일|근로자의날|노동절/.test(text);
+}
+function holidayLabelFor(dt, entry){
+  if(isBusinessClosedDate(dt)) return getBusinessClosedName(dt);
+  const text = String((entry && (entry.main || entry.soup || entry.salad)) || '').replace(/\\s+/g, ' ').trim();
+  return text || '휴무';
 }
 function shouldSkipMenuEntry(entry, fallbackYear, fallbackMonth){
   const parsed = parseDateParts(entry && entry.date, fallbackYear, fallbackMonth);
@@ -2714,7 +2735,13 @@ function render(){
   const parsedItems = valid.map(day=>({day:day, parsed:parseDateParts(day.date, selected.year, selected.month)})).filter(item=>item.parsed);
   const unparsed = valid.filter(day=>!parseDateParts(day.date, selected.year, selected.month));
   const renderCard = day => '<div class="ksura-card"><div class="ksura-card-head"><span class="ksura-date">' + escapeHtml(day.date) + '</span><div class="ksura-badge">' + IC.truck + ' ' + escapeHtml(day.arrival || '') + ' 도착</div></div><div class="ksura-card-body"><div><div class="ksura-main">' + IC.main + '<span>' + escapeHtml(day.main || '') + '</span></div><div class="ksura-menu-list"><div class="ksura-menu-item">' + IC.soup + '<div class="ksura-soup">' + escapeHtml(day.soup || '') + '</div></div><div class="ksura-menu-item">' + IC.dot + '<div class="ksura-sides">' + (day.sides || []).map(s => '<span>· ' + escapeHtml(s) + '</span>').join('') + '</div></div></div></div><div class="ksura-salad">' + IC.leaf + '<span>' + escapeHtml(day.salad || '') + '</span></div></div></div>';
-  const renderHolidayCard = dt => '<div class="ksura-card ksura-holiday-card"><div class="ksura-card-head"><span class="ksura-date">' + escapeHtml((dt.getMonth()+1) + '/' + dt.getDate() + ' (' + DOW_KO[dt.getDay()] + ')') + '</span></div><div class="ksura-holiday-body"><div><div class="ksura-holiday-title">' + escapeHtml(getBusinessClosedName(dt)) + ' 휴무</div><div class="ksura-holiday-sub">이날은 식단을 운영하지 않습니다.</div></div></div></div>';
+  const renderHolidayCard = (dt, label) => '<div class="ksura-card ksura-holiday-card"><div class="ksura-card-head"><span class="ksura-date">' + escapeHtml((dt.getMonth()+1) + '/' + dt.getDate() + ' (' + DOW_KO[dt.getDay()] + ')') + '</span></div><div class="ksura-holiday-body"><div><div class="ksura-holiday-title">' + escapeHtml(label || getBusinessClosedName(dt)) + ' 휴무</div><div class="ksura-holiday-sub">이날은 식단을 운영하지 않습니다.</div></div></div></div>';
+  const closedLabels = new Map();
+  (selected.menuData || []).forEach(day=>{
+    if(!shouldSkipMenuEntry(day, selected.year, selected.month)) return;
+    const p = parseDateParts(day.date, selected.year, selected.month);
+    if(p) closedLabels.set(getDateKey(p.date), holidayLabelFor(p.date, day));
+  });
   if(parsedItems.length){
     parsedItems.sort((a,b)=>a.parsed.date - b.parsed.date);
     const byDate = new Map(parsedItems.map(item=>[getDateKey(item.parsed.date), item.day]));
@@ -2723,7 +2750,9 @@ function render(){
     for(let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate()+1)){
       if(!isWeekdayDate(cursor)) continue;
       const entry = byDate.get(getDateKey(cursor));
-      cards += entry ? renderCard(entry) : (isBusinessClosedDate(cursor) ? renderHolidayCard(cursor) : '<div class="ksura-dummy"></div>');
+      const closedLabel = closedLabels.get(getDateKey(cursor))
+        || (isBusinessClosedDate(cursor) ? getBusinessClosedName(cursor) : '');
+      cards += entry ? renderCard(entry) : (closedLabel ? renderHolidayCard(cursor, closedLabel) : '<div class="ksura-dummy"></div>');
     }
     cards += unparsed.map(renderCard).join('');
   } else {
