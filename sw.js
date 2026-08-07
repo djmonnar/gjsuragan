@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v58-order-time-labels';
+const CACHE = 'gjsuragan-v60-admin-business-register';
 const PRECACHE = [
   './customer.html',
   './admin.html',

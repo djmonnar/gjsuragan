@@ -1321,6 +1321,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="member-hint">연락처·배송지·기본 주문을 한눈에 확인하고, 고객을 눌러 상세정보를 수정합니다.</div>
       </div>
       <div class="member-toolbar-actions">
+        <button class="save-btn" style="width:auto;padding:9px 13px" onclick="openBusinessCreate()" title="앱 가입 없이 업체를 직접 등록합니다">＋ 업체 직접 등록</button>
         <button class="refresh-btn" onclick="loadAllUsers().then(() => { renderMembers(); loadRecentOrderLogs(); })"><svg class="action-icon"><use href="#admin-i-refresh"></use></svg><span>새로고침</span></button>
         <button class="secondary-btn" onclick="exportMemberPhoneExcel()" title="전체 회원 전화번호 엑셀 다운로드">📞 전화번호 엑셀</button>
       </div>
@@ -2272,12 +2273,13 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   <div class="modal-box member-edit-box">
     <div class="modal-header member-edit-header">
       <div class="member-edit-heading">
-        <div class="modal-title">고객정보 수정</div>
+        <div class="modal-title" id="edit-modal-title">고객정보 수정</div>
         <div class="member-edit-subtitle" id="edit-member-subtitle">연락처와 기본 주문을 확인합니다.</div>
       </div>
       <button class="modal-close" type="button" onclick="closeMemberModal()" aria-label="고객정보 수정 닫기">✕</button>
     </div>
     <input type="hidden" id="edit-uid">
+    <input type="hidden" id="edit-mode">
     <div class="member-edit-scroll">
       <section class="member-form-section">
         <div class="member-form-section-title"><span>기본정보</span><small>연락처와 배송지</small></div>
@@ -2404,9 +2406,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="error-msg" id="edit-error"></div>
     </div>
     <div class="modal-actions member-modal-actions">
-      <button class="danger-btn" type="button" onclick="deleteMember()">고객 삭제</button>
+      <button class="danger-btn" type="button" id="edit-delete-btn" onclick="deleteMember()">고객 삭제</button>
       <button class="secondary-btn" type="button" onclick="closeMemberModal()">취소</button>
-      <button class="save-btn" type="button" onclick="saveMember()">변경사항 저장</button>
+      <button class="save-btn" type="button" id="edit-save-btn" onclick="saveMember()">변경사항 저장</button>
     </div>
   </div>
 </div>
@@ -7103,6 +7105,7 @@ async function loadRecentOrderLogs() {
 
 function memberRowBadgesHtml(user = {}, duplicateCount = 0) {
   const badges = [newMemberBadgeHtml(user), disposableLunchBadgeHtml(user), taxInvoiceBadgeHtml(user)];
+  if (isAdminRegisteredBusiness(user)) badges.push('<span class="admin-memo-chip" title="앱 가입 없이 관리자가 직접 등록한 업체">직접등록</span>');
   if (isMealPausedOnDate(user, dateStr(getKST()))) badges.push('<span class="member-row-badge paused">일시정지</span>');
   if (memberHasMissingInfo(user)) badges.push('<span class="member-row-badge missing">정보 확인</span>');
   if (memberWeeklyOrderQty(user) <= 0) badges.push('<span class="member-row-badge zero">0개·휴무</span>');
@@ -7276,13 +7279,61 @@ async function restoreMember(uid) {
   } catch(e) { showToast('복구 실패: ' + e.message); }
 }
 
+// 로그인 계정 없이 관리자가 직접 등록한 업체 (수동 주문·정산이 한 업체로 합산되도록)
+function isAdminRegisteredBusiness(user = {}) {
+  return Boolean(user.adminRegistered) || String(user.uid || '').startsWith('biz_');
+}
+
+function setMemberModalMode(mode, uid = '') {
+  const isCreate = mode === 'create';
+  document.getElementById('edit-mode').value = isCreate ? 'create' : 'edit';
+  document.getElementById('edit-uid').value = uid;
+  document.getElementById('edit-modal-title').textContent = isCreate ? '업체 직접 등록' : '고객정보 수정';
+  document.getElementById('edit-save-btn').textContent = isCreate ? '업체 등록' : '변경사항 저장';
+  const deleteBtn = document.getElementById('edit-delete-btn');
+  if (deleteBtn) deleteBtn.style.display = isCreate ? 'none' : '';
+}
+
+// 회원관리 탭 → 업체 직접 등록 (앱 가입 없이 우리가 관리하는 업체)
+function openBusinessCreate() {
+  setMemberModalMode('create');
+  document.getElementById('edit-bizname').value = '';
+  document.getElementById('edit-phone').value = '';
+  document.getElementById('edit-member-email').textContent = '로그인 계정 없음 (관리자 직접 등록)';
+  document.getElementById('edit-member-subtitle').textContent = '앱 가입 없이 업체를 등록합니다. 수동 배송 입력에서 바로 선택할 수 있습니다.';
+  document.getElementById('edit-place').value = '';
+  document.getElementById('edit-place-detail').value = '';
+  setMealTimeControls('edit', '');
+  document.getElementById('edit-lunch').value = 0;
+  document.getElementById('edit-salad').value = 0;
+  const meals = normalizeWeekdayMeals({}, 0, 0);
+  document.getElementById('edit-same-daily').checked = true;
+  fillWeekdayInputs('edit', meals);
+  document.getElementById('edit-weekday-fields').style.display = 'none';
+  document.getElementById('edit-lunch-price').value = '';
+  document.getElementById('edit-salad-price').value = '';
+  document.getElementById('edit-admin-memo').value = '';
+  document.getElementById('edit-meal-paused').checked = false;
+  document.getElementById('edit-meal-pause-start').value = '';
+  document.getElementById('edit-meal-resume-date').value = '';
+  toggleMemberPauseFields();
+  document.getElementById('edit-disposable-lunch').checked = false;
+  document.getElementById('edit-error').classList.remove('show');
+  document.getElementById('member-modal').classList.add('open');
+  const scroll = document.querySelector('#member-modal .member-edit-scroll');
+  if (scroll) scroll.scrollTop = 0;
+  document.getElementById('edit-bizname').focus();
+}
+
 function openMemberEdit(uid) {
   const u = allUsers[uid];
   if (!u) return;
+  setMemberModalMode('edit', uid);
   document.getElementById('edit-uid').value = uid;
   document.getElementById('edit-bizname').value = u.businessName || '';
   document.getElementById('edit-phone').value = u.phone || '';
-  document.getElementById('edit-member-email').textContent = u.email || '-';
+  document.getElementById('edit-member-email').textContent = u.email
+    || (isAdminRegisteredBusiness({ ...u, uid }) ? '로그인 계정 없음 (관리자 직접 등록)' : '-');
   document.getElementById('edit-member-subtitle').textContent = [u.businessName || u.name || '고객', u.phone || '연락처 미입력'].join(' · ');
   document.getElementById('edit-place').value = u.deliveryPlace || u.address || '';
   document.getElementById('edit-place-detail').value = u.deliveryPlaceDetail || '';
@@ -7787,7 +7838,8 @@ function closeMemberModal(e) {
 }
 
 async function saveMember() {
-  const uid = document.getElementById('edit-uid').value;
+  const isCreate = document.getElementById('edit-mode').value === 'create';
+  const uid = isCreate ? `biz_${Date.now()}` : document.getElementById('edit-uid').value;
   const bizname = document.getElementById('edit-bizname').value.trim();
   const phone = document.getElementById('edit-phone').value.trim();
   const deliveryPlace = document.getElementById('edit-place').value.trim();
@@ -7844,7 +7896,7 @@ async function saveMember() {
       mealPausedBy: firebase.firestore.FieldValue.delete()
     };
     const batch = db.batch();
-    batch.update(db.collection('users').doc(uid), {
+    const userPayload = {
       businessName: bizname,
       phone,
       mealTime,
@@ -7856,13 +7908,24 @@ async function saveMember() {
       ...publicUserPricePayload(lunchPrice, saladPrice),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       ...userPrivateDeletePayload()
-    });
+    };
+    if (isCreate) {
+      batch.set(db.collection('users').doc(uid), {
+        ...userPayload,
+        adminRegistered: true,
+        registeredBy: adminUid || '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } else {
+      batch.update(db.collection('users').doc(uid), userPayload);
+    }
     batch.set(userPrivateRef(uid), {
       ...privateUserPayload({ deliveryPlace, deliveryPlaceDetail, adminMemo, disposableLunch }),
       ...userPrivateLegacyPriceDeletePayload()
     }, { merge: true });
     await batch.commit();
     allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, deliveryPlaceDetail, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, ...publicUserPricePayload(lunchPrice, saladPrice), adminMemo, disposableLunch, mealPaused };
+    if (isCreate) allUsers[uid].adminRegistered = true;
     if (mealPaused) {
       allUsers[uid].mealPauseStartDate = mealPauseStartDate;
       allUsers[uid].mealResumeDate = mealResumeDate;
@@ -7875,7 +7938,9 @@ async function saveMember() {
     closeMemberModal();
     renderMembers();
     loadOrders();
-    showToast(mealPaused ? '✅ 고객정보와 월식 일시정지가 저장되었습니다.' : '✅ 고객정보가 저장되었습니다.');
+    showToast(isCreate
+      ? `✅ ${bizname} 업체가 등록되었습니다. 수동 배송 입력에서 선택할 수 있습니다.`
+      : (mealPaused ? '✅ 고객정보와 월식 일시정지가 저장되었습니다.' : '✅ 고객정보가 저장되었습니다.'));
   } catch(e) {
     const errEl = document.getElementById('edit-error');
     errEl.textContent = '저장 실패: ' + e.message;
