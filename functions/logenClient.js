@@ -9,6 +9,23 @@ function envText(name, fallback = '') {
   return String(process.env[name] || fallback).trim();
 }
 
+// 배포 과정에서 한글 환경변수가 CP949로 잘못 읽히면 '궁중수라간'이 '沅곸쨷...'처럼 깨진다.
+// 깨진 값이 그대로 송장에 찍히지 않도록, 한자가 섞여 있으면 코드 기본값을 쓴다.
+function looksMojibake(text) {
+  return /[一-鿿]/.test(String(text || ''));
+}
+
+function koreanEnvText(name, fallback) {
+  const value = envText(name, '');
+  if (!value || looksMojibake(value)) {
+    if (value) {
+      logger.warn('Logen sender field looks corrupted; using built-in default', { name });
+    }
+    return fallback;
+  }
+  return value;
+}
+
 function config() {
   const env = envText('LOGEN_ENV', 'test').toLowerCase();
   return {
@@ -17,10 +34,10 @@ function config() {
     secretKey: envText('LOGEN_SECRET_KEY'),
     userId: envText('LOGEN_USER_ID', '58020072'),
     custCd: envText('LOGEN_CUST_CD', '58020072'),
-    senderName: envText('LOGEN_SENDER_NAME', '궁중수라간'),
+    senderName: koreanEnvText('LOGEN_SENDER_NAME', '궁중수라간'),
     senderPhone: envText('LOGEN_SENDER_PHONE', '01035071278').replace(/\D/g, ''),
     senderCellPhone: envText('LOGEN_SENDER_CELL_PHONE').replace(/\D/g, ''),
-    senderAddress: envText('LOGEN_SENDER_ADDRESS', '경상남도 진주시 동진로107번길 8 2층'),
+    senderAddress: koreanEnvText('LOGEN_SENDER_ADDRESS', '경상남도 진주시 동진로107번길 8 2층'),
     fareTy: envText('LOGEN_FARE_TY', '030'),
     boxTyCd: envText('LOGEN_BOX_TY_CD'),
     dlvFare: Number(envText('LOGEN_DLV_FARE', '0')) || 0,
