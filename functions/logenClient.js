@@ -164,7 +164,10 @@ function registerRow(order, cfg, context = {}) {
     fareTy: cfg.fareTy,
     boxTyCd: cfg.boxTyCd || null,
     qty,
-    dlvFare: Number(order.dlvFare || cfg.dlvFare || 0),
+    // dlvFare는 박스 1개 운임이 아니라 '이번 접수 건의 총 운임'이다.
+    // 명세 예시도 qty 2 → dlvFare 6000(=2×3000). 박스당 계약운임 미만이면
+    // 로젠이 "택배운임이 계약운임보다 낮아 등록 불가"로 반려한다.
+    dlvFare: Number(order.dlvFare || (cfg.dlvFare || 0) * qty),
     extraFare: Number(order.extraFare || 0),
     goodsNm: order.itemName || '궁중수라간 반찬',
     // 명세표 기준: goodsAmt·inQty는 Integer, 필드명은 inQty(대문자 Q).
