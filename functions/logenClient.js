@@ -81,6 +81,26 @@ async function postLogen(path, payload) {
 
   const body = { ...payload };
   delete body.__orders;
+  // 로젠에 문의할 때 '무엇을 보냈는지' 근거가 필요하므로 라우팅 관련 필드만 남긴다.
+  // 수령인 이름·주소·연락처는 개인정보라 기록하지 않는다.
+  logger.info('Logen API request', {
+    path,
+    env: cfg.env,
+    url: `${cfg.baseUrl}${path}`,
+    userId: body.userId,
+    rows: (Array.isArray(body.data) ? body.data : []).slice(0, 10).map(row => ({
+      custCd: row?.custCd,
+      takeDt: row?.takeDt,
+      fixTakeNo: row?.fixTakeNo,
+      slipNo: row?.slipNo,
+      qty: row?.qty,
+      inQty: row?.inQty,
+      fareTy: row?.fareTy,
+      dlvFare: row?.dlvFare,
+      boxTyCd: row?.boxTyCd,
+      goodsNm: row?.goodsNm
+    }))
+  });
   const res = await fetch(`${cfg.baseUrl}${path}`, {
     method: 'POST',
     headers: {
@@ -112,7 +132,10 @@ async function postLogen(path, payload) {
       resultCd: row?.resultCd || '',
       resultMsg: String(row?.resultMsg || '').slice(0, 120),
       slipNo: row?.slipNo || '',
-      slipRows: Array.isArray(row?.data1) ? row.data1.length : 0
+      slipRows: Array.isArray(row?.data1) ? row.data1.length : 0,
+      // data1 안에서 운송장번호를 못 찾는 경우가 있어 실제 키·값을 남긴다
+      slipSample: (Array.isArray(row?.data1) ? row.data1 : []).slice(0, 3)
+        .map(item => JSON.stringify(item).slice(0, 200))
     }))
   });
   return data;
@@ -121,8 +144,8 @@ async function postLogen(path, payload) {
 function registerRow(order, cfg, context = {}) {
   const takeDt = ymd(context.takeDt || context.shipDate || order.shipDate) || ymd(new Date().toISOString());
   const qty = Math.max(1, Number(order.quantity || order.qty || 1) || 1);
-  // 필드명·타입은 로젠 bulk-order 명세 샘플을 그대로 따른다.
-  // (inqty를 inQty로 보내면 로젠이 인식하지 못하므로 대소문자까지 일치시킬 것)
+  // 필드명·타입은 로젠 bulk-order 명세표를 따른다.
+  // 이 데이터는 로젠 "주문등록출력(복수건)" 화면에 쌓이며, 송장 출력은 로젠 쪽에서 한다.
   const row = {
     custCd: cfg.custCd,
     takeDt,
@@ -141,11 +164,16 @@ function registerRow(order, cfg, context = {}) {
     fareTy: cfg.fareTy,
     boxTyCd: cfg.boxTyCd || null,
     qty,
-    dlvFare: Number(order.dlvFare || cfg.dlvFare || 0),
+    // dlvFare는 박스 1개 운임이 아니라 '이번 접수 건의 총 운임'이다.
+    // 명세 예시도 qty 2 → dlvFare 6000(=2×3000). 박스당 계약운임 미만이면
+    // 로젠이 "택배운임이 계약운임보다 낮아 등록 불가"로 반려한다.
+    dlvFare: Number(order.dlvFare || (cfg.dlvFare || 0) * qty),
     extraFare: Number(order.extraFare || 0),
     goodsNm: order.itemName || '궁중수라간 반찬',
-    goodsAmt: String(order.goodsAmt || 0),
-    inqty: String(order.inQty || qty || 1),
+    // 명세표 기준: goodsAmt·inQty는 Integer, 필드명은 inQty(대문자 Q).
+    // 문서의 JSON 샘플에는 "inqty"(소문자)·문자열로 적혀 있으나 명세표를 따른다.
+    goodsAmt: Number(order.goodsAmt || 0),
+    inQty: Number(order.inQty || qty || 1),
     goodsOpt: order.itemOption || null,
     addOpt: '',
     sndMsg: order.deliveryMessage || '',

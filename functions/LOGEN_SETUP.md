@@ -12,6 +12,34 @@ in `admin.html` or any public frontend file.
 - Default fare type: `030` credit
 - Sender fields: fixed GJSURAGAN business information
 
+## Where registered orders show up in Logen
+
+`registerOrderData` feeds Logen's **"주문등록출력(복수건)"** screen (per Logen's
+spec: 로젠시스템의 "주문등록출력(복수건)" 화면에서 출력하기 위한 주문데이터를
+전송한다). Orders sent by API do **not** appear under 주문등록/출력 → 단건, which
+is for manually keyed single orders. Waybill numbers are issued when the label is
+printed on Logen's side, so `slipNo` comes back `null` until then — that is normal,
+not an error.
+
+## userId vs custCd
+
+Logen spec: `userId` = 연동업체코드, 비고 "연동업체코드가 아닌 경우 거래처코드
+입력". So setting both `LOGEN_USER_ID` and `LOGEN_CUST_CD` to the 거래처코드
+(`58020072`) is valid per spec.
+
+Note that authentication is IP + secretKey only — `userId` is not part of auth,
+so a wrong `userId` would not return 401.
+
+## Spec table vs sample JSON
+
+The doc's field table and its JSON sample disagree on two fields. The table is
+authoritative here:
+
+| field | table | sample |
+|---|---|---|
+| `inQty` | `inQty`, Integer | `inqty`, string |
+| `goodsAmt` | Integer | string |
+
 ## Function environment variables
 
 Set these in the Functions environment. For local Firebase deploys, put them in
