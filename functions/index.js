@@ -2561,7 +2561,9 @@ async function handleLogenRegister(body, user) {
   const byId = new Map(clientResults.map(row => [String(row.customerId), row]));
   await Promise.all(candidates.map(item => {
     const result = byId.get(item.id) || {};
-    const ok = result.ok !== false;
+    // 로젠 응답에 해당 주문 행이 없으면 성공으로 간주하지 않는다.
+    // (PARTIAL SUCCESS 응답에서 누락된 건이 '전송완료'로 잘못 표시되던 문제)
+    const ok = result.ok === true;
     const status = ok
       ? (result.slipNo ? 'slip_ready' : 'logen_registered')
       : 'logen_failed';
@@ -2602,7 +2604,7 @@ async function handleLogenSlipInquiry(body, user) {
   const byId = new Map(clientResults.map(row => [String(row.customerId), row]));
   await Promise.all(candidates.map(item => {
     const result = byId.get(item.id) || {};
-    const ok = result.ok !== false;
+    const ok = result.ok === true;
     const status = ok && result.slipNo ? 'slip_ready' : ok ? 'slip_pending' : 'logen_failed';
     return setShipment(item.ref, shipDate, {
       status,
