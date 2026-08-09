@@ -441,6 +441,21 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .save-btn{width:100%;background:var(--primary);color:#fff;border:0;border-radius:10px;padding:13px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:6px;transition:all 0.25s var(--ease-spring)}
 .save-btn:hover{filter:brightness(1.08);transform:scale(1.01)}
 .save-btn:active{transform:scale(0.97)}
+.bulk-confirm-box{max-width:560px}
+.bulk-confirm-scope{font-size:13px;font-weight:800;color:var(--primary);margin-bottom:12px}
+.bulk-confirm-summary{border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.bulk-confirm-summary-row{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:11px 0;border-bottom:1px solid var(--border)}
+.bulk-confirm-summary-row:last-child{border-bottom:0}
+.bulk-confirm-summary-row span{color:var(--sub);font-size:13px}
+.bulk-confirm-summary-row strong{color:var(--text);font-size:14px;text-align:right}
+.bulk-confirm-targets{margin-top:14px}
+.bulk-confirm-targets span{display:block;color:var(--sub);font-size:12px;font-weight:700;margin-bottom:5px}
+.bulk-confirm-targets p{margin:0;color:var(--text);font-size:13px;line-height:1.55}
+.bulk-confirm-impact{margin-top:14px;padding:12px 14px;border-left:4px solid var(--primary);background:#f3f8f7;color:var(--text);font-size:13px;line-height:1.6}
+.bulk-confirm-impact.warning{border-left-color:#c0392b;background:#fff4f2;color:#8f2f24}
+.bulk-confirm-actions{margin-top:18px}
+.bulk-confirm-actions .secondary-btn{min-width:96px;align-self:stretch}
+.bulk-confirm-actions .save-btn{margin-top:0}
 /* 토스트 */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#333;color:#fff;padding:11px 20px;border-radius:20px;font-size:13px;opacity:0;transition:all .3s;z-index:3000;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -2024,12 +2039,12 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 
     <!-- 일괄 처리 툴바 -->
     <div class="batch-toolbar" id="settle-batch-toolbar" style="display:none">
-      <label><input type="checkbox" id="settle-check-all" onchange="toggleAllSettlements(this.checked,'standard')"> 전체 선택</label>
+      <label><input type="checkbox" id="settle-check-all" onchange="toggleAllSettlements(this.checked,'standard')"> 일반 업체 전체 선택</label>
       <select class="batch-status-select" id="batch-status-select">
-        <option value="">월말 상태 일괄정리</option>
-        <option value="청구완료">입금대기 (청구서 발송)</option><option value="입금완료:이체">입금완료 · 이체</option><option value="입금완료:카드">입금완료 · 카드</option><option>입금완료</option><option>보류</option><option value="미정산">확인필요</option>
+        <option value="">일반 업체 상태 선택</option>
+        <option value="청구완료">입금대기 (청구서 발송)</option><option value="입금완료:이체">입금완료 · 이체</option><option value="입금완료:카드">입금완료 · 카드</option><option value="입금완료">입금완료 (입금 기록 없음)</option><option>보류</option><option value="미정산">확인필요</option>
       </select>
-      <button class="batch-apply-btn" onclick="bulkUpdateSettlement('standard')">✅ 일괄 적용</button>
+      <button class="batch-apply-btn" type="button" onclick="bulkUpdateSettlement('standard')">일반 업체 일괄 변경</button>
       <button class="export-btn" onclick="exportSettlementCSV()">📊 엑셀 내보내기</button>
       <button class="kakao-btn" onclick="copyAllSettlementKakao()">💬 전체 카톡</button>
     </div>
@@ -2068,12 +2083,12 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <!-- 행사도시락 정산 테이블 -->
     <div class="section-title settlement-event-heading" style="margin-top:18px">🎉 행사도시락 정산 내역</div>
     <div class="batch-toolbar" id="settle-event-batch-toolbar" style="display:none">
-      <label><input type="checkbox" id="settle-event-check-all" onchange="toggleAllSettlements(this.checked,'event')"> 전체 선택</label>
+      <label><input type="checkbox" id="settle-event-check-all" onchange="toggleAllSettlements(this.checked,'event')"> 행사도시락 전체 선택</label>
       <select class="batch-status-select" id="batch-event-status-select">
-        <option value="">월말 상태 일괄정리</option>
-        <option value="청구완료">입금대기 (청구서 발송)</option><option value="입금완료:이체">입금완료 · 이체</option><option value="입금완료:카드">입금완료 · 카드</option><option>입금완료</option><option>보류</option><option value="미정산">확인필요</option>
+        <option value="">행사도시락 상태 선택</option>
+        <option value="청구완료">입금대기 (청구서 발송)</option><option value="입금완료:이체">입금완료 · 이체</option><option value="입금완료:카드">입금완료 · 카드</option><option value="입금완료">입금완료 (입금 기록 없음)</option><option>보류</option><option value="미정산">확인필요</option>
       </select>
-      <button class="batch-apply-btn" onclick="bulkUpdateSettlement('event')">✅ 일괄 적용</button>
+      <button class="batch-apply-btn" type="button" onclick="bulkUpdateSettlement('event')">행사도시락 일괄 변경</button>
     </div>
     <div class="settlement-desktop-table">
       <table class="order-table">
@@ -2648,6 +2663,33 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <div class="modal-actions" style="margin-top:16px">
       <button class="save-btn" onclick="saveSettlementEdit()">저장하기</button>
       <button class="danger-btn" onclick="deleteSettlement()">정산삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- 정산 일괄 변경 확인 모달 -->
+<div class="modal-overlay" id="settlement-bulk-confirm-modal" aria-hidden="true" onclick="if(event.target===this) closeBulkSettlementConfirm()">
+  <div class="modal-box bulk-confirm-box" role="dialog" aria-modal="true" aria-labelledby="settlement-bulk-confirm-title">
+    <div class="modal-header">
+      <div class="modal-title" id="settlement-bulk-confirm-title">정산 일괄 변경 확인</div>
+      <button class="modal-close" type="button" aria-label="닫기" onclick="closeBulkSettlementConfirm()">✕</button>
+    </div>
+    <div class="bulk-confirm-scope" id="settlement-bulk-confirm-scope"></div>
+    <div class="bulk-confirm-summary">
+      <div class="bulk-confirm-summary-row"><span>정산월</span><strong id="settlement-bulk-confirm-month">-</strong></div>
+      <div class="bulk-confirm-summary-row"><span>선택 건수</span><strong id="settlement-bulk-confirm-count">-</strong></div>
+      <div class="bulk-confirm-summary-row"><span>변경 상태</span><strong id="settlement-bulk-confirm-status">-</strong></div>
+      <div class="bulk-confirm-summary-row"><span>결제수단</span><strong id="settlement-bulk-confirm-method">-</strong></div>
+      <div class="bulk-confirm-summary-row"><span>추가 입금액</span><strong id="settlement-bulk-confirm-amount">-</strong></div>
+    </div>
+    <div class="bulk-confirm-targets">
+      <span>선택 대상</span>
+      <p id="settlement-bulk-confirm-targets">-</p>
+    </div>
+    <div class="bulk-confirm-impact" id="settlement-bulk-confirm-impact"></div>
+    <div class="modal-actions bulk-confirm-actions">
+      <button class="secondary-btn" type="button" onclick="closeBulkSettlementConfirm()">취소</button>
+      <button class="save-btn" type="button" id="settlement-bulk-confirm-apply" onclick="confirmBulkSettlementUpdate()">변경사항 적용</button>
     </div>
   </div>
 </div>
@@ -10212,6 +10254,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function syncSettlementChecks(value, checked) {
+  const scope = String(value).startsWith('event:') ? 'event' : 'standard';
+  if (checked) clearSettlementSelection(scope === 'event' ? 'standard' : 'event');
   document.querySelectorAll('.settle-check').forEach(el => {
     if (el.value === value) el.checked = checked;
   });
@@ -11005,30 +11049,161 @@ async function exportKakaoSummary() {
 }
 
 // ── 정산 일괄 처리 ──
-function toggleAllSettlements(checked, scope = 'standard') {
+let pendingBulkSettlementUpdate = null;
+
+function settlementRefMatchesScope(value, scope) {
+  return (scope === 'event') === String(value).startsWith('event:');
+}
+
+function settlementScopeLabel(scope) {
+  return scope === 'event' ? '행사도시락' : '일반 업체';
+}
+
+function selectedSettlementUids(scope) {
+  return [...new Set(
+    Array.from(document.querySelectorAll('.settle-check:checked'), el => el.value)
+      .filter(value => settlementRefMatchesScope(value, scope))
+  )];
+}
+
+function clearSettlementSelection(scope) {
   document.querySelectorAll('.settle-check').forEach(el => {
-    const isEvent = String(el.value).startsWith('event:');
-    if ((scope === 'event') === isEvent) el.checked = checked;
+    if (settlementRefMatchesScope(el.value, scope)) el.checked = false;
+  });
+  const masterId = scope === 'event' ? 'settle-event-check-all' : 'settle-check-all';
+  const master = document.getElementById(masterId);
+  if (master) master.checked = false;
+}
+
+function toggleAllSettlements(checked, scope = 'standard') {
+  if (checked) clearSettlementSelection(scope === 'event' ? 'standard' : 'event');
+  document.querySelectorAll('.settle-check').forEach(el => {
+    if (settlementRefMatchesScope(el.value, scope)) el.checked = checked;
   });
 }
 
-async function bulkUpdateSettlement(scope = 'standard') {
+function closeBulkSettlementConfirm(force = false) {
+  if (pendingBulkSettlementUpdate?.applying && !force) return;
+  const modal = document.getElementById('settlement-bulk-confirm-modal');
+  modal?.classList.remove('open');
+  modal?.setAttribute('aria-hidden', 'true');
+  pendingBulkSettlementUpdate = null;
+  const applyButton = document.getElementById('settlement-bulk-confirm-apply');
+  if (applyButton) {
+    applyButton.disabled = false;
+    applyButton.textContent = '변경사항 적용';
+  }
+}
+
+function bulkUpdateSettlement(scope = 'standard') {
+  scope = scope === 'event' ? 'event' : 'standard';
   const month = document.getElementById('settle-month').value || currentMonthStr();
   const selectId = scope === 'event' ? 'batch-event-status-select' : 'batch-status-select';
   const rawStatus = document.getElementById(selectId).value;
   if (!rawStatus) { showToast('변경할 상태를 선택해주세요.'); return; }
   const [newStatus, payMethod] = rawStatus.split(':');
-  const uids = [...new Set(Array.from(document.querySelectorAll('.settle-check:checked'), el => el.value))]
-    .filter(uid => (scope === 'event') === String(uid).startsWith('event:'));
+  const uids = selectedSettlementUids(scope);
   if (uids.length === 0) { showToast('정산 항목을 선택해주세요.'); return; }
+
+  const rows = uids.map(uid => getSettlementRow(uid)).filter(row => {
+    if (!row) return false;
+    return scope === 'event' ? row.type === 'event' : row.type !== 'event';
+  });
+  if (rows.length !== uids.length) {
+    showToast('선택 범위를 확인할 수 없습니다. 정산을 다시 불러와주세요.');
+    return;
+  }
+
+  const additionalPayment = payMethod
+    ? rows.reduce((sum, row) => sum + Math.max(0, settlementBilledTotal(row) - settlementPaidTotal(row)), 0)
+    : 0;
+  const paymentTargetCount = payMethod
+    ? rows.filter(row => settlementBilledTotal(row) - settlementPaidTotal(row) > 0).length
+    : 0;
+  const names = rows.map(row => row.user?.businessName || row.eventName || '-');
+  const visibleNames = names.slice(0, 6);
+  const targetText = visibleNames.join(', ') + (names.length > visibleNames.length ? ` 외 ${names.length - visibleNames.length}건` : '');
+  const scopeLabel = settlementScopeLabel(scope);
+  const statusLabel = settlementStatusLabel(newStatus);
+  let impactText = `선택한 ${scopeLabel} ${rows.length}건의 상태만 "${statusLabel}"로 변경합니다. 기존 입금 이력은 유지됩니다.`;
+  let warning = false;
+  if (payMethod) {
+    impactText = `${paymentTargetCount}건에 ${payMethod} 입금 총 ${formatMoney(additionalPayment)}이 추가되고, 선택한 ${rows.length}건의 상태가 "${statusLabel}"로 변경됩니다.`;
+  } else if (newStatus === '입금완료') {
+    impactText = `입금 기록을 추가하지 않고 ${rows.length}건의 상태만 "입금완료"로 변경합니다. 입금 이력이 없는 항목도 전액 납부로 계산될 수 있습니다.`;
+    warning = true;
+  } else if (newStatus === '청구완료') {
+    impactText = `${rows.length}건의 상태만 "입금대기"로 변경합니다. 기존 입금 이력과 입금액은 삭제되지 않습니다.`;
+  }
+
+  pendingBulkSettlementUpdate = {
+    scope,
+    month,
+    rawStatus,
+    uids: rows.map(row => row.uid),
+    applying: false
+  };
+  document.getElementById('settlement-bulk-confirm-title').textContent = `${scopeLabel} 일괄 변경 확인`;
+  document.getElementById('settlement-bulk-confirm-scope').textContent = `변경 대상: ${scopeLabel}만 적용`;
+  document.getElementById('settlement-bulk-confirm-month').textContent = month;
+  document.getElementById('settlement-bulk-confirm-count').textContent = `${rows.length}건`;
+  document.getElementById('settlement-bulk-confirm-status').textContent = statusLabel;
+  document.getElementById('settlement-bulk-confirm-method').textContent = payMethod || '입금 기록 추가 없음';
+  document.getElementById('settlement-bulk-confirm-amount').textContent = formatMoney(additionalPayment);
+  document.getElementById('settlement-bulk-confirm-targets').textContent = targetText;
+  const impact = document.getElementById('settlement-bulk-confirm-impact');
+  impact.textContent = impactText;
+  impact.classList.toggle('warning', warning);
+  const modal = document.getElementById('settlement-bulk-confirm-modal');
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  setTimeout(() => document.getElementById('settlement-bulk-confirm-apply')?.focus(), 0);
+}
+
+async function confirmBulkSettlementUpdate() {
+  const request = pendingBulkSettlementUpdate;
+  if (!request || request.applying) return;
+  request.applying = true;
+  const applyButton = document.getElementById('settlement-bulk-confirm-apply');
+  if (applyButton) {
+    applyButton.disabled = true;
+    applyButton.textContent = '처리 중...';
+  }
+
+  try {
+    await applyBulkSettlementUpdate(request);
+    closeBulkSettlementConfirm(true);
+  } catch(e) {
+    request.applying = false;
+    if (applyButton) {
+      applyButton.disabled = false;
+      applyButton.textContent = '변경사항 적용';
+    }
+    showToast('일괄 저장 실패: ' + e.message);
+  }
+}
+
+async function applyBulkSettlementUpdate({ scope, month, rawStatus, uids }) {
+  if ((document.getElementById('settle-month').value || currentMonthStr()) !== month) {
+    throw new Error('정산월이 변경되었습니다. 다시 선택해주세요.');
+  }
+  if (!uids.length || uids.some(uid => !settlementRefMatchesScope(uid, scope))) {
+    throw new Error('일반 업체와 행사도시락 선택 범위가 섞였습니다.');
+  }
+  const [newStatus, payMethod] = rawStatus.split(':');
+  const rows = uids.map(uid => getSettlementRow(uid)).filter(row => {
+    if (!row) return false;
+    return scope === 'event' ? row.type === 'event' : row.type !== 'event';
+  });
+  if (rows.length !== uids.length) throw new Error('선택 항목이 변경되었습니다. 다시 시도해주세요.');
+
   try {
     const batch = db.batch();
     const eventAdminUpdates = {};
     const updatedRows = [];
     const now = new Date().toISOString();
-    uids.forEach(uid => {
-      const row = getSettlementRow(uid);
-      if (!row) return;
+    rows.forEach(row => {
+      const uid = row.uid;
       let payments = row.payments || [];
       let paidDate = row.paidDate || '';
       if (payMethod) {
@@ -11047,7 +11222,7 @@ async function bulkUpdateSettlement(scope = 'standard') {
         dueDate: row.dueDate || '',
         payments,
         paidDate,
-        paidAmount: payMethod ? payments.reduce((s, p) => s + (parseInt(p.amount, 10) || 0), 0) : (row.paidAmount || 0),
+        paidAmount: payments.reduce((s, p) => s + (parseInt(p.amount, 10) || 0), 0),
         lunchTotal: row.lunch || 0,
         saladTotal: row.salad || 0,
         eventLunchTotal: settlementEventQty(row),
@@ -11093,9 +11268,12 @@ async function bulkUpdateSettlement(scope = 'standard') {
       applySettlementToUserCache(uid, month, data);
     });
     renderSettlements();
-    showToast(`✅ ${updatedRows.length}건을 "${newStatus}${payMethod ? ` · ${payMethod}` : ''}"으로 변경했습니다.`);
+    clearSettlementSelection(scope);
+    const selectId = scope === 'event' ? 'batch-event-status-select' : 'batch-status-select';
+    document.getElementById(selectId).value = '';
+    showToast(`${settlementScopeLabel(scope)} ${updatedRows.length}건을 "${settlementStatusLabel(newStatus)}${payMethod ? ` · ${payMethod}` : ''}"으로 변경했습니다.`);
   } catch(e) {
-    showToast('일괄 저장 실패: ' + e.message);
+    throw e;
   }
 }
 
