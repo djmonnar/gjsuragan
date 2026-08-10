@@ -95,9 +95,10 @@ jobs:
           gcloud functions list --format='table(name,state,environment)' || true
           for name in $(gcloud functions list --format='value(name)'); do
             echo "── $name"
+            # 값은 절대 출력하지 않는다. 이 저장소는 공개라 Actions 로그도 공개된다.
             gcloud functions describe "$name" --region="$FUNCTIONS_REGION" --gen2 \
               --format='value(serviceConfig.environmentVariables)' 2>/dev/null \
-              | tr ';' '\n' || echo "  (조회 실패)"
+              | tr ';' '\n' | sed 's/=.*/=<설정됨>/' || echo "  (조회 실패)"
           done
 
       - name: Deploy to Firebase
