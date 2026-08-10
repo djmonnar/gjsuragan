@@ -5110,6 +5110,11 @@ function eventLunchTotalForRows(rows = []) {
   return rows.reduce((sum, item) => sum + (eventOrderTotalQty(item) || Number(item.count || 0) || 0), 0);
 }
 
+// 총 행사도시락 = 월식 업체 행사 추가주문(cateringItems) + 단독 행사도시락 주문(adminEvents/eventOrders)
+function currentEventLunchOrderTotal() {
+  return eventLunchTotalForRows(currentOrderEventRows);
+}
+
 function orderSourceMeta(order = {}) {
   if (order.zeroQuantityHoliday || order.source === 'zeroHoliday' || order.source === 'zeroDefault') return { label: '0개 휴무', cls: 'holiday' };
   if (order.selfHoliday || order.source === 'selfHoliday') return { label: '자체휴무', cls: 'holiday' };
@@ -5322,7 +5327,7 @@ async function loadOrders() {
     updateOrderLockButton();
     const message = holidayName(currentDateStr) ? `${holidayName(currentDateStr)}은 배송이 없습니다` : '토·일은 월식 배송이 없습니다';
     document.getElementById('order-tbody').innerHTML = `<tr class="no-order-row"><td colspan="13">${escapeHtml(message)}</td></tr>`;
-    setOrderSummaryValues(0, 0, 0, 0, 0);
+    setOrderSummaryValues(0, 0, 0, 0, eventLunchTotalForRows(dateEvents));
     document.getElementById('not-sub-title').textContent = '🚚 배송 없음';
     document.getElementById('not-submitted-list').innerHTML = '<div class="no-not">공휴일과 주말은 주문 확인 대상에서 제외됩니다.</div>';
     renderOrderMobileSearchResults();
@@ -5444,7 +5449,7 @@ async function loadOrders() {
       if (checkAll) checkAll.checked = orders.some(o => !o.delivered && !o.selfHoliday);
     }
 
-    setOrderSummaryValues(orders.length, totalLunch, totalSalad, totalEventLunch, totalCatering);
+    setOrderSummaryValues(orders.length, totalLunch, totalSalad, totalEventLunch, totalCatering + currentEventLunchOrderTotal());
     renderNotSubmitted(orders);
     renderOrderMobileSearchResults();
     checkPreviousIncompleteDeliveries();
@@ -5678,6 +5683,7 @@ function refreshOrderSummaryFromInputs() {
     totalCatering += orderCateringQty(row);
     count += 1;
   });
+  totalCatering += currentEventLunchOrderTotal();
   const countEl = document.getElementById('sum-count');
   const lunchEl = document.getElementById('sum-lunch');
   const saladEl = document.getElementById('sum-salad');
