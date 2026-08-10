@@ -1,0 +1,106 @@
+name: Deploy Functions
+
+# GitHub 웹에서 버튼으로 실행합니다.
+# Actions 탭 → 왼쪽 "Deploy Functions" → 오른쪽 "Run workflow"
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: '배포 대상 (기본값은 바뀐 함수 하나만)'
+        required: true
+        default: 'functions:onCustomerOrderWritten'
+      allow_full:
+        description: '전체 함수 배포일 때만 yes 로 바꾸세요'
+        required: false
+        default: 'no'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
+
+env:
+  FIREBASE_PROJECT_ID: gjsuragan-60505
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # functions/.env 는 git에 올라가지 않는다.
+      # 전체 배포하면 러너에 .env가 없어서 운영 중인 함수의 환경변수가 지워질 수 있으므로,
+      # 전체 배포는 allow_full=yes 로 명시할 때만 허용한다.
+      - name: Guard full deploy
+        env:
+          ONLY: ${{ inputs.only }}
+          ALLOW_FULL: ${{ inputs.allow_full }}
+        run: |
+          if [ "$ONLY" = "functions" ] && [ "$ALLOW_FULL" != "yes" ]; then
+            echo "::error::전체 함수 배포는 functions/.env 가 없으면 환경변수가 지워질 수 있습니다."
+            echo "::error::정말 전체를 배포하려면 allow_full 을 yes 로 바꿔 다시 실행하세요."
+            exit 1
+          fi
+          echo "배포 대상: $ONLY"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Lint and unit test
+        working-directory: functions
+        run: |
+          npm run lint
+          npm run test:unit
+
+      - name: Write service account key
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT 시크릿이 없습니다. 저장소 Settings → Secrets and variables → Actions 에서 추가하세요."
+            exit 1
+          fi
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service-account.json" >> "$GITHUB_ENV"
+
+      # 배포 전 현재 운영 중인 환경변수를 기록해둔다. 실패해도 배포는 계속한다.
+      - name: Show current runtime env vars
+        continue-on-error: true
+        env:
+          ONLY: ${{ inputs.only }}
+        run: |
+          gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+          gcloud config set project "$FIREBASE_PROJECT_ID"
+          name="${ONLY#functions:}"
+          if [ "$name" = "functions" ]; then
+            gcloud functions list --regions=us-central1 --format='table(name,state)'
+          else
+            gcloud functions describe "$name" --region=us-central1 \
+              --format='value(serviceConfig.environmentVariables)'
+          fi
+
+      - name: Deploy to Firebase
+        env:
+          ONLY: ${{ inputs.only }}
+        run: |
+          npx --yes firebase-tools@15 deploy \
+            --only "$ONLY" \
+            --project "$FIREBASE_PROJECT_ID" \
+            --non-interactive \
+            --force
+
+      - name: Remove service account key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/service-account.json"
