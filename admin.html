@@ -1010,6 +1010,34 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .member-pause-settings[hidden]{display:none}
 .member-pause-settings .form-label{margin-top:0}
 .member-pause-help{grid-column:1/-1;color:#9a3412;font-size:11px;font-weight:700;line-height:1.45}
+.member-holiday-help{font-size:12px;line-height:1.55;color:var(--sub);font-weight:700;margin-bottom:12px}
+.member-holiday-calendar-head{display:grid;grid-template-columns:36px 1fr 36px;align-items:center;gap:8px;margin-bottom:9px}
+.member-holiday-calendar-head strong{text-align:center;font-size:15px;font-weight:900;color:var(--text)}
+.member-holiday-month-btn{width:36px;height:36px;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--primary);font-size:20px;line-height:1;cursor:pointer}
+.member-holiday-month-btn:disabled{opacity:.35;cursor:not-allowed}
+.member-holiday-weekdays,.member-holiday-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.member-holiday-weekdays{margin-bottom:4px}
+.member-holiday-weekdays span{text-align:center;font-size:11px;font-weight:800;color:var(--sub);padding:2px 0}
+.member-holiday-weekdays span:first-child{color:#c0392b}
+.member-holiday-grid{padding:8px;border:1px solid var(--border);border-radius:9px;background:#f8fafb;min-height:96px}
+.member-holiday-loading{grid-column:1/-1;display:flex;align-items:center;justify-content:center;min-height:80px;font-size:12px;font-weight:800;color:var(--sub)}
+.member-holiday-day{aspect-ratio:1;min-width:0;border:1px solid transparent;border-radius:8px;background:#fff;color:var(--text);font:inherit;font-size:13px;font-weight:800;cursor:pointer;position:relative;padding:0}
+.member-holiday-day:hover:not(:disabled){border-color:#f0b6ae;background:#fff6f4}
+.member-holiday-day.is-selected{background:#b54437;border-color:#b54437;color:#fff}
+.member-holiday-day.is-added{box-shadow:0 0 0 2px #f6c66a inset}
+.member-holiday-day.is-removed{background:#fff;border-color:#b54437;color:#b54437;text-decoration:line-through}
+.member-holiday-day.is-disabled{background:#f1f2f4;color:#b0b5bd;cursor:not-allowed}
+.member-holiday-day.is-holiday:not(.is-disabled){color:#c0392b}
+.member-holiday-day.is-today::after{content:'';position:absolute;left:50%;bottom:3px;width:4px;height:4px;border-radius:50%;background:currentColor;transform:translateX(-50%)}
+.member-holiday-selection{margin-top:11px;padding:11px 12px;border:1px solid #efd7bd;border-radius:9px;background:#fff8ed}
+.member-holiday-selection-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:700;color:var(--sub)}
+.member-holiday-selection-head strong{font-size:13px;font-weight:900;color:var(--primary)}
+.member-holiday-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.member-holiday-empty{font-size:12px;font-weight:700;color:var(--sub)}
+.member-holiday-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid #e8b9b3;border-radius:999px;background:#fff;color:#8f2f26;padding:5px 7px 5px 10px;font-size:12px;font-weight:800}
+.member-holiday-chip.is-added{border-color:#d9a441;color:#8a5a06;background:#fffaf0}
+.member-holiday-chip button{width:19px;height:19px;border:0;border-radius:50%;background:#fdecea;color:#a8382d;font-size:14px;line-height:17px;cursor:pointer;padding:0}
+.member-holiday-error{display:none;margin-top:9px;padding:9px 11px;border-radius:8px;background:#fdecea;color:#b03a2e;font-size:12px;font-weight:800;line-height:1.5}
 .member-modal-actions{flex:0 0 auto;margin:0;padding:12px 20px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:rgba(255,255,255,.97);box-shadow:0 -8px 22px rgba(15,23,42,.07)}
 .member-modal-actions .secondary-btn{min-height:42px}
 
@@ -2378,6 +2406,28 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
             <input class="form-input" type="number" id="edit-fri-salad" min="0" max="50" aria-label="금요일 샐러드">
           </div>
         </div>
+      </section>
+
+      <section class="member-form-section" id="edit-holiday-section">
+        <div class="member-form-section-title"><span>휴무 지정</span><small>선택한 날짜는 0개로 저장</small></div>
+        <div class="member-holiday-help">달력에서 날짜를 눌러 휴무를 지정하거나 해제합니다. 지정한 날짜는 도시락·샐러드·행사도시락이 모두 0개로 저장되어 주문표와 정산에서 빠지며, 아래 <b>변경사항 저장</b>을 눌러야 반영됩니다.</div>
+        <div class="member-holiday-calendar-head">
+          <button class="member-holiday-month-btn" type="button" id="edit-holiday-prev" onclick="moveMemberHolidayMonth(-1)" aria-label="이전 달">‹</button>
+          <strong id="edit-holiday-month-label"></strong>
+          <button class="member-holiday-month-btn" type="button" id="edit-holiday-next" onclick="moveMemberHolidayMonth(1)" aria-label="다음 달">›</button>
+        </div>
+        <div class="member-holiday-weekdays" aria-hidden="true">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+        </div>
+        <div class="member-holiday-grid" id="edit-holiday-grid" role="grid" aria-label="휴무 날짜 선택"></div>
+        <div class="member-holiday-selection">
+          <div class="member-holiday-selection-head">
+            <strong id="edit-holiday-summary">지정된 휴무 0일</strong>
+            <span id="edit-holiday-pending">변경 없음</span>
+          </div>
+          <div class="member-holiday-chips" id="edit-holiday-chips"></div>
+        </div>
+        <div class="member-holiday-error" id="edit-holiday-error" role="alert"></div>
       </section>
 
       <section class="member-form-section">
@@ -7366,6 +7416,7 @@ function openBusinessCreate() {
   document.getElementById('edit-meal-resume-date').value = '';
   toggleMemberPauseFields();
   document.getElementById('edit-disposable-lunch').checked = false;
+  setupMemberHolidayCalendar('');
   document.getElementById('edit-error').classList.remove('show');
   document.getElementById('member-modal').classList.add('open');
   const scroll = document.querySelector('#member-modal .member-edit-scroll');
@@ -7401,6 +7452,7 @@ function openMemberEdit(uid) {
   document.getElementById('edit-meal-resume-date').value = u.mealResumeDate || '';
   toggleMemberPauseFields();
   document.getElementById('edit-disposable-lunch').checked = isDisposableLunchUser(u);
+  setupMemberHolidayCalendar(uid);
   document.getElementById('edit-error').classList.remove('show');
   document.getElementById('member-modal').classList.add('open');
   const scroll = document.querySelector('#member-modal .member-edit-scroll');
@@ -7413,6 +7465,290 @@ function toggleMemberPauseFields() {
   const startInput = document.getElementById('edit-meal-pause-start');
   if (settings) settings.hidden = !checked;
   if (checked && startInput && !startInput.value) startInput.value = dateStr(getKST());
+}
+
+// ───────── 고객정보 수정 → 휴무 지정 달력 ─────────
+// 고객 화면의 자체 휴무와 같은 문서(orders/{날짜}/items/{uid})에 저장해서
+// 관리자가 지정한 휴무도 고객이 자기 화면에서 그대로 확인·수정할 수 있게 한다.
+const MEMBER_HOLIDAY_MAX_FUTURE_DAYS = 366;
+let memberHolidayUid = '';
+let memberHolidayMonth = '';
+let memberHolidayLoading = false;
+let memberHolidayLoadToken = 0;
+const memberHolidaySaved = new Set();
+const memberHolidaySelected = new Set();
+const memberHolidayLoadedMonths = new Set();
+
+function memberHolidayRange() {
+  const minDate = dateStr(getKST());
+  return { minDate, maxDate: addDays(minDate, MEMBER_HOLIDAY_MAX_FUTURE_DAYS) };
+}
+
+function shiftMonthKey(monthKey, delta) {
+  const [year, month] = String(monthKey || '').split('-').map(Number);
+  const dt = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function memberHolidayMonthDates(monthKey) {
+  const [year, month] = String(monthKey || '').split('-').map(Number);
+  if (!year || !month) return [];
+  const lastDate = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const dates = [];
+  for (let day = 1; day <= lastDate; day++) {
+    dates.push(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+  }
+  return dates;
+}
+
+function memberHolidayDateState(targetDate) {
+  const { minDate, maxDate } = memberHolidayRange();
+  if (targetDate < minDate) return { enabled: false, reason: '지난 날짜는 변경할 수 없습니다.' };
+  if (targetDate > maxDate) return { enabled: false, reason: '오늘부터 1년 이내 날짜만 지정할 수 있습니다.' };
+  if (isWeekendDate(targetDate)) return { enabled: false, reason: '주말은 월식 배송일이 아닙니다.' };
+  const holiday = holidayName(targetDate);
+  if (holiday) return { enabled: false, reason: `${holiday}에는 월식 배송이 없습니다.` };
+  if (isMealPausedOnDate(allUsers[memberHolidayUid] || {}, targetDate)) {
+    return { enabled: false, reason: '월식 일시정지 기간이라 휴무를 따로 지정하지 않아도 됩니다.' };
+  }
+  return { enabled: true, reason: '' };
+}
+
+function showMemberHolidayError(message = '') {
+  const box = document.getElementById('edit-holiday-error');
+  if (!box) return;
+  box.textContent = message;
+  box.style.display = message ? 'block' : 'none';
+}
+
+function memberHolidayPendingChanges() {
+  const toAdd = [...memberHolidaySelected].filter(date => !memberHolidaySaved.has(date)).sort();
+  const toRemove = [...memberHolidaySaved].filter(date => !memberHolidaySelected.has(date)).sort();
+  return { toAdd, toRemove };
+}
+
+async function loadMemberHolidayMonth(monthKey) {
+  if (!memberHolidayUid || memberHolidayLoadedMonths.has(monthKey)) return;
+  const uid = memberHolidayUid;
+  const token = ++memberHolidayLoadToken;
+  const targets = memberHolidayMonthDates(monthKey).filter(date => memberHolidayDateState(date).enabled);
+  memberHolidayLoading = true;
+  renderMemberHolidayCalendar();
+  try {
+    const snaps = await Promise.all(targets.map(date =>
+      db.collection('orders').doc(date).collection('items').doc(uid).get()
+    ));
+    if (token !== memberHolidayLoadToken || uid !== memberHolidayUid) return;
+    targets.forEach((date, index) => {
+      if (snaps[index].exists && (snaps[index].data() || {}).selfHoliday === true) {
+        memberHolidaySaved.add(date);
+        memberHolidaySelected.add(date);
+      }
+    });
+    memberHolidayLoadedMonths.add(monthKey);
+  } catch(e) {
+    if (token === memberHolidayLoadToken) showMemberHolidayError('휴무 정보를 불러오지 못했습니다: ' + e.message);
+  } finally {
+    if (token === memberHolidayLoadToken) {
+      memberHolidayLoading = false;
+      renderMemberHolidayCalendar();
+    }
+  }
+}
+
+function renderMemberHolidayCalendar() {
+  const grid = document.getElementById('edit-holiday-grid');
+  const label = document.getElementById('edit-holiday-month-label');
+  if (!grid || !label || !memberHolidayMonth) return;
+  const { minDate, maxDate } = memberHolidayRange();
+  const [year, month] = memberHolidayMonth.split('-').map(Number);
+  label.textContent = `${year}년 ${month}월`;
+  const prevBtn = document.getElementById('edit-holiday-prev');
+  const nextBtn = document.getElementById('edit-holiday-next');
+  if (prevBtn) prevBtn.disabled = memberHolidayLoading || memberHolidayMonth <= minDate.slice(0, 7);
+  if (nextBtn) nextBtn.disabled = memberHolidayLoading || memberHolidayMonth >= maxDate.slice(0, 7);
+
+  grid.replaceChildren();
+  if (memberHolidayLoading) {
+    const loading = document.createElement('div');
+    loading.className = 'member-holiday-loading';
+    loading.textContent = '휴무 정보를 불러오는 중...';
+    grid.appendChild(loading);
+    renderMemberHolidayChips();
+    return;
+  }
+
+  const firstDay = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  for (let i = 0; i < firstDay; i++) {
+    const blank = document.createElement('span');
+    blank.setAttribute('aria-hidden', 'true');
+    grid.appendChild(blank);
+  }
+  memberHolidayMonthDates(memberHolidayMonth).forEach(targetDate => {
+    const state = memberHolidayDateState(targetDate);
+    const selected = memberHolidaySelected.has(targetDate);
+    const saved = memberHolidaySaved.has(targetDate);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'member-holiday-day';
+    button.textContent = String(Number(targetDate.slice(8)));
+    button.disabled = !state.enabled;
+    button.setAttribute('role', 'gridcell');
+    button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    if (!state.enabled) button.classList.add('is-disabled');
+    if (selected) button.classList.add('is-selected');
+    if (selected && !saved) button.classList.add('is-added');
+    if (!selected && saved) button.classList.add('is-removed');
+    if (targetDate === minDate) button.classList.add('is-today');
+    if (holidayName(targetDate)) button.classList.add('is-holiday');
+    const actionLabel = `${formatDateKR(targetDate)} 휴무 ${selected ? '해제' : '지정'}`;
+    button.title = state.enabled ? actionLabel : state.reason;
+    button.setAttribute('aria-label', state.enabled ? actionLabel : `${formatDateKR(targetDate)} 선택 불가: ${state.reason}`);
+    if (state.enabled) button.addEventListener('click', () => toggleMemberHolidayDate(targetDate));
+    grid.appendChild(button);
+  });
+  renderMemberHolidayChips();
+}
+
+function renderMemberHolidayChips() {
+  const summary = document.getElementById('edit-holiday-summary');
+  const pending = document.getElementById('edit-holiday-pending');
+  const list = document.getElementById('edit-holiday-chips');
+  if (!summary || !pending || !list) return;
+  const selected = [...memberHolidaySelected].sort();
+  const { toAdd, toRemove } = memberHolidayPendingChanges();
+  summary.textContent = `지정된 휴무 ${selected.length}일`;
+  const pendingParts = [];
+  if (toAdd.length) pendingParts.push(`추가 ${toAdd.length}일`);
+  if (toRemove.length) pendingParts.push(`해제 ${toRemove.length}일`);
+  pending.textContent = pendingParts.length ? `저장 시 ${pendingParts.join(' · ')}` : '변경 없음';
+
+  list.replaceChildren();
+  if (!selected.length) {
+    const empty = document.createElement('span');
+    empty.className = 'member-holiday-empty';
+    empty.textContent = toRemove.length ? '저장하면 지정된 휴무가 모두 해제됩니다.' : '달력에서 휴무 날짜를 선택해주세요.';
+    list.appendChild(empty);
+    return;
+  }
+  selected.forEach(targetDate => {
+    const chip = document.createElement('span');
+    chip.className = `member-holiday-chip${memberHolidaySaved.has(targetDate) ? '' : ' is-added'}`;
+    chip.append(document.createTextNode(formatDateKR(targetDate)));
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.textContent = '×';
+    removeBtn.setAttribute('aria-label', `${formatDateKR(targetDate)} 휴무 해제`);
+    removeBtn.addEventListener('click', () => toggleMemberHolidayDate(targetDate));
+    chip.appendChild(removeBtn);
+    list.appendChild(chip);
+  });
+}
+
+function toggleMemberHolidayDate(targetDate) {
+  const state = memberHolidayDateState(targetDate);
+  if (!state.enabled) {
+    showMemberHolidayError(state.reason);
+    return;
+  }
+  if (memberHolidaySelected.has(targetDate)) memberHolidaySelected.delete(targetDate);
+  else memberHolidaySelected.add(targetDate);
+  showMemberHolidayError('');
+  renderMemberHolidayCalendar();
+}
+
+async function moveMemberHolidayMonth(delta) {
+  if (memberHolidayLoading || !memberHolidayMonth) return;
+  const { minDate, maxDate } = memberHolidayRange();
+  const nextMonth = shiftMonthKey(memberHolidayMonth, delta);
+  if (nextMonth < minDate.slice(0, 7) || nextMonth > maxDate.slice(0, 7)) return;
+  memberHolidayMonth = nextMonth;
+  showMemberHolidayError('');
+  renderMemberHolidayCalendar();
+  await loadMemberHolidayMonth(nextMonth);
+}
+
+function setupMemberHolidayCalendar(uid = '') {
+  memberHolidayUid = uid;
+  memberHolidayMonth = dateStr(getKST()).slice(0, 7);
+  memberHolidayLoading = false;
+  memberHolidayLoadToken += 1;
+  memberHolidaySaved.clear();
+  memberHolidaySelected.clear();
+  memberHolidayLoadedMonths.clear();
+  showMemberHolidayError('');
+  const section = document.getElementById('edit-holiday-section');
+  if (!section) return;
+  // 업체 직접 등록은 아직 주문을 붙일 uid가 없으므로 휴무 지정을 숨긴다.
+  section.style.display = uid ? '' : 'none';
+  if (!uid) return;
+  renderMemberHolidayCalendar();
+  loadMemberHolidayMonth(memberHolidayMonth);
+}
+
+// 저장 전에 필요한 읽기와 확인을 끝내고, 실제 쓰기 작업만 담은 계획을 돌려준다.
+async function prepareMemberHolidaySave(uid) {
+  const { toAdd, toRemove } = memberHolidayPendingChanges();
+  if (!uid || (!toAdd.length && !toRemove.length)) return null;
+  const orderRef = date => db.collection('orders').doc(date).collection('items').doc(uid);
+  const [addSnaps, removeSnaps] = await Promise.all([
+    Promise.all(toAdd.map(date => orderRef(date).get())),
+    Promise.all(toRemove.map(date => orderRef(date).get()))
+  ]);
+  const overwrite = toAdd.filter((date, index) => {
+    const snap = addSnaps[index];
+    if (!snap.exists) return false;
+    const order = snap.data() || {};
+    if (order.selfHoliday === true) return false;
+    return orderLunchQty(order) > 0 || orderSaladQty(order) > 0
+      || orderEventLunchQty(order) > 0 || orderCateringQty(order) > 0;
+  });
+  if (overwrite.length) {
+    const preview = overwrite.slice(0, 3).map(formatDateKR).join('\n');
+    const approved = confirm(
+      `${overwrite.length}일은 이미 주문 수량이 등록되어 있습니다.\n${preview}${overwrite.length > 3 ? '\n...' : ''}\n\n`
+      + '휴무로 지정하면 해당 날짜의 도시락·샐러드·행사도시락이 모두 0개로 바뀝니다.\n계속 저장할까요?'
+    );
+    if (!approved) return { cancelled: true };
+  }
+  // 휴무를 지정한 뒤 고객이 다시 주문을 넣은 날짜는 건드리지 않는다.
+  const deletable = toRemove.filter((date, index) =>
+    removeSnaps[index].exists && (removeSnaps[index].data() || {}).selfHoliday === true);
+  return { cancelled: false, uid, toAdd, toRemove, deletable };
+}
+
+async function commitMemberHolidaySave(plan) {
+  if (!plan || plan.cancelled) return;
+  const { uid, toAdd, deletable } = plan;
+  const batch = db.batch();
+  toAdd.forEach(date => {
+    batch.set(db.collection('orders').doc(date).collection('items').doc(uid), {
+      uid,
+      targetDate: date,
+      lunchCount: 0,
+      saladCount: 0,
+      eventLunchCount: 0,
+      cateringItems: [],
+      selfHoliday: true,
+      note: '관리자 지정 휴무',
+      adminInput: true,
+      submittedBy: adminUid || '',
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  });
+  deletable.forEach(date => batch.delete(db.collection('orders').doc(date).collection('items').doc(uid)));
+  await batch.commit();
+  toAdd.forEach(date => memberHolidaySaved.add(date));
+  deletable.forEach(date => memberHolidaySaved.delete(date));
+}
+
+function memberHolidaySaveSummary(plan) {
+  if (!plan || plan.cancelled) return '';
+  const parts = [];
+  if (plan.toAdd.length) parts.push(`휴무 ${plan.toAdd.length}일 지정`);
+  if (plan.deletable.length) parts.push(`휴무 ${plan.deletable.length}일 해제`);
+  return parts.join(' · ');
 }
 
 function openOrderMemberInfo(uid) {
@@ -7930,6 +8266,9 @@ async function saveMember() {
     return;
   }
   try {
+    // 주문 문서를 건드리기 전에 확인 절차부터 끝낸다. 취소하면 아무것도 저장하지 않는다.
+    const holidayPlan = isCreate ? null : await prepareMemberHolidaySave(uid);
+    if (holidayPlan?.cancelled) return;
     const pauseFields = mealPaused ? {
       mealPaused: true,
       mealPauseStartDate,
@@ -7972,6 +8311,8 @@ async function saveMember() {
       ...userPrivateLegacyPriceDeletePayload()
     }, { merge: true });
     await batch.commit();
+    await commitMemberHolidaySave(holidayPlan);
+    const holidaySummary = memberHolidaySaveSummary(holidayPlan);
     allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, deliveryPlaceDetail, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, ...publicUserPricePayload(lunchPrice, saladPrice), adminMemo, disposableLunch, mealPaused };
     if (isCreate) allUsers[uid].adminRegistered = true;
     if (mealPaused) {
@@ -7988,7 +8329,9 @@ async function saveMember() {
     loadOrders();
     showToast(isCreate
       ? `✅ ${bizname} 업체가 등록되었습니다. 수동 배송 입력에서 선택할 수 있습니다.`
-      : (mealPaused ? '✅ 고객정보와 월식 일시정지가 저장되었습니다.' : '✅ 고객정보가 저장되었습니다.'));
+      : (holidaySummary
+        ? `✅ 고객정보 저장 · ${holidaySummary}`
+        : (mealPaused ? '✅ 고객정보와 월식 일시정지가 저장되었습니다.' : '✅ 고객정보가 저장되었습니다.')));
   } catch(e) {
     const errEl = document.getElementById('edit-error');
     errEl.textContent = '저장 실패: ' + e.message;
