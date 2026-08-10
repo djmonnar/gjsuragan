@@ -83,6 +83,9 @@ exports.onCustomerOrderWritten = onDocumentWritten('orders/{date}/items/{userId}
   const order = after.data() || {};
   const before = event.data?.before?.exists ? (event.data.before.data() || {}) : null;
   if (before && sameOrderForNotification(before, order)) return;
+  // 관리자가 직접 넣은 주문/휴무는 알림 대상이 아니다.
+  // (관리자 화면에서 휴무를 여러 날 지정하면 "고객님이 등록했습니다" 푸시가 날짜 수만큼 잘못 발송된다.)
+  if (isAdminOrderWrite(order)) return;
 
   await sendOrderNotification(event.params.date, event.params.userId, order, Boolean(before));
 });
