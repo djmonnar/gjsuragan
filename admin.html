@@ -1294,6 +1294,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>총 행사도시락</span></div>
       <div class="summary-value" id="sum-catering">0<span class="summary-unit">개</span></div>
     </div>
+    <div class="summary-card">
+      <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-lunch"></use></svg><span>총 곱빼기도시락</span></div>
+      <div class="summary-value" id="sum-large-lunch">0<span class="summary-unit">개</span></div>
+    </div>
   </div>
 
   <div class="table-section admin-tab-panel" data-tab="orders" id="order-event-summary-section" style="display:none">
@@ -5201,7 +5205,7 @@ function orderNoteHtml(order = {}) {
   return `${badge}${notePart || defaultPart || ''}`;
 }
 
-function setOrderSummaryValues(count, lunch, salad, eventLunch, catering = 0) {
+function setOrderSummaryValues(count, lunch, salad, eventLunch, catering = 0, largeLunch = 0) {
   document.getElementById('sum-count').innerHTML = `${count}<span class="summary-unit">곳</span>`;
   document.getElementById('sum-lunch').innerHTML = `${lunch}<span class="summary-unit">개</span>`;
   document.getElementById('sum-salad').innerHTML = `${salad}<span class="summary-unit">개</span>`;
@@ -5209,6 +5213,13 @@ function setOrderSummaryValues(count, lunch, salad, eventLunch, catering = 0) {
   if (eventEl) eventEl.innerHTML = `${eventLunch}<span class="summary-unit">개</span>`;
   const cateringEl = document.getElementById('sum-catering');
   if (cateringEl) cateringEl.innerHTML = `${catering}<span class="summary-unit">개</span>`;
+  const largeEl = document.getElementById('sum-large-lunch');
+  if (largeEl) largeEl.innerHTML = `${largeLunch}<span class="summary-unit">개</span>`;
+}
+
+// 곱빼기 도시락은 행사도시락 카탈로그로 주문받지만 요약에서는 따로 센다.
+function orderCateringSplit(order = {}) {
+  return window.GJS_CATERING.splitLargeLunch(orderCateringSummary(order, { preserveSnapshot: true }));
 }
 
 function renderOrderEventLunches(rows = currentOrderEventRows) {
@@ -5407,7 +5418,7 @@ async function loadOrders() {
     currentOrderReferenceItems = orderReferenceItemsForDate(currentDateStr, snap, orders);
     renderOrderReferencePanel();
 
-    let totalLunch = 0, totalSalad = 0, totalEventLunch = 0, totalCatering = 0;
+    let totalLunch = 0, totalSalad = 0, totalEventLunch = 0, totalCatering = 0, totalLargeLunch = 0;
     const tbody = document.getElementById('order-tbody');
 
     if (orders.length === 0) {
@@ -5419,8 +5430,10 @@ async function loadOrders() {
         totalSalad += o.saladCount || 0;
         const eventLunch = orderEventLunchQty(o);
         const cateringSummary = orderCateringSummary(o, { preserveSnapshot: true });
+        const cateringSplit = window.GJS_CATERING.splitLargeLunch(cateringSummary);
         totalEventLunch += eventLunch;
-        totalCatering += cateringSummary.totalQty;
+        totalCatering += cateringSplit.catering.totalQty;
+        totalLargeLunch += cateringSplit.largeLunch.totalQty;
         const totalQty = orderTotalQty(o);
         const totalAmount = orderTotalAmount(o, allUsers[o.uid] || {});
         const tr = document.createElement('tr');
@@ -5499,7 +5512,7 @@ async function loadOrders() {
       if (checkAll) checkAll.checked = orders.some(o => !o.delivered && !o.selfHoliday);
     }
 
-    setOrderSummaryValues(orders.length, totalLunch, totalSalad, totalEventLunch, totalCatering + currentEventLunchOrderTotal());
+    setOrderSummaryValues(orders.length, totalLunch, totalSalad, totalEventLunch, totalCatering + currentEventLunchOrderTotal(), totalLargeLunch);
     renderNotSubmitted(orders);
     renderOrderMobileSearchResults();
     checkPreviousIncompleteDeliveries();
@@ -5722,28 +5735,22 @@ function refreshOrderSummaryFromInputs() {
   let totalSalad = 0;
   let totalEventLunch = 0;
   let totalCatering = 0;
+  let totalLargeLunch = 0;
   let count = 0;
   document.querySelectorAll('#order-tbody tr').forEach(rowEl => {
     if (!rowEl.querySelector('.order-check')) return;
     const values = orderQtyValuesFromRow(rowEl);
     const row = currentOrderRows.find(item => item.uid === rowEl.dataset.orderUid) || {};
+    const split = orderCateringSplit(row);
     totalLunch += values.lunch;
     totalSalad += values.salad;
     totalEventLunch += values.event;
-    totalCatering += orderCateringQty(row);
+    totalCatering += split.catering.totalQty;
+    totalLargeLunch += split.largeLunch.totalQty;
     count += 1;
   });
   totalCatering += currentEventLunchOrderTotal();
-  const countEl = document.getElementById('sum-count');
-  const lunchEl = document.getElementById('sum-lunch');
-  const saladEl = document.getElementById('sum-salad');
-  const eventEl = document.getElementById('sum-event-lunch');
-  const cateringEl = document.getElementById('sum-catering');
-  if (countEl) countEl.innerHTML = `${count}<span class="summary-unit">곳</span>`;
-  if (lunchEl) lunchEl.innerHTML = `${totalLunch}<span class="summary-unit">개</span>`;
-  if (saladEl) saladEl.innerHTML = `${totalSalad}<span class="summary-unit">개</span>`;
-  if (eventEl) eventEl.innerHTML = `${totalEventLunch}<span class="summary-unit">개</span>`;
-  if (cateringEl) cateringEl.innerHTML = `${totalCatering}<span class="summary-unit">개</span>`;
+  setOrderSummaryValues(count, totalLunch, totalSalad, totalEventLunch, totalCatering, totalLargeLunch);
 }
 
 function openOrderQtyModal(uid) {
