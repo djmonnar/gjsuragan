@@ -5,12 +5,18 @@ const assert = require('node:assert/strict');
 const catering = require('../../../assets/js/catering-catalog.js');
 
 test('catering catalog exposes stable menu IDs and prices', () => {
-  assert.equal(catering.catalog.length, 11);
+  assert.equal(catering.catalog.length, 12);
   assert.deepEqual(catering.getItem('pork-set-9000'), {
     id: 'pork-set-9000',
     name: '제육 한상 (간장, 양념)',
     category: '한상 도시락',
     unitPrice: 9000
+  });
+  assert.deepEqual(catering.getItem('large-lunch-10000'), {
+    id: 'large-lunch-10000',
+    name: '곱빼기 도시락',
+    category: '도시락',
+    unitPrice: 10000
   });
   assert.equal(catering.getItem('unknown-menu'), null);
 });

@@ -6,6 +6,7 @@
   'use strict';
 
   const catalog = Object.freeze([
+    { id: 'large-lunch-10000', name: '곱빼기 도시락', category: '도시락', unitPrice: 10000 },
     { id: 'pork-set-9000', name: '제육 한상 (간장, 양념)', category: '한상 도시락', unitPrice: 9000 },
     { id: 'chicken-set-9500', name: '순살닭구이 한상', category: '한상 도시락', unitPrice: 9500 },
     { id: 'chicken-tteokgalbi-13900', name: '양념닭구이&떡갈비', category: '한정식', unitPrice: 13900 },
