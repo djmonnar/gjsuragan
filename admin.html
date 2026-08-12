@@ -270,6 +270,11 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .order-qty-edit-list{display:grid;gap:10px}
 .order-qty-edit-row{display:grid;grid-template-columns:90px 1fr;align-items:center;gap:10px;background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px}
 .order-qty-edit-label{font-size:14px;font-weight:900;color:var(--text)}
+.order-qty-edit-label small{display:block;margin-top:2px;font-size:11px;font-weight:700;color:var(--sub)}
+.order-qty-large-hint{margin-top:10px;font-size:12px;font-weight:800;color:#7a4b00;text-align:right;min-height:16px}
+.large-lunch-chip{display:block;width:100%;margin-top:5px;border:1px dashed #d0d5dd;background:#fff;color:var(--sub);border-radius:8px;padding:4px 6px;font-family:inherit;font-size:11px;font-weight:800;line-height:1.3;cursor:pointer;white-space:nowrap}
+.large-lunch-chip.has-large{border-style:solid;border-color:#d59a32;background:#fff8e7;color:#7b4b00}
+.large-lunch-chip:disabled{opacity:.5;cursor:not-allowed}
 .order-qty-edit-row .qty-stepper{justify-content:flex-end}
 .catering-order-trigger{width:100%;min-width:96px;border:1px solid #d7b46a;background:#fff9e8;color:#7a4b00;border-radius:9px;padding:7px 9px;font-family:inherit;font-size:12px;font-weight:900;cursor:pointer}
 .catering-order-trigger:disabled{opacity:.52;cursor:not-allowed}
@@ -490,7 +495,8 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .daily-order-table th:nth-child(4),.daily-order-table td:nth-child(4){width:98px;text-align:center;padding-left:6px;padding-right:6px}
   .daily-order-table th:nth-child(10),.daily-order-table td:nth-child(10){width:58px;text-align:center;padding-left:4px;padding-right:8px}
   .daily-order-table .biz-name{font-size:14px;line-height:1.25}
-  .daily-order-table .desktop-qty-heading,.daily-order-table .qty-stepper{display:none}
+  /* 모바일은 수량 버튼 하나로 모달을 열므로 곱빼기 칩은 숨긴다. */
+  .daily-order-table .desktop-qty-heading,.daily-order-table .qty-stepper,.daily-order-table .large-lunch-chip{display:none}
   .daily-order-table .mobile-qty-heading{display:inline}
   .daily-order-table .mobile-qty-btn{display:flex}
   .daily-order-table .delivery-status{font-size:10px;padding:3px 7px}
@@ -2254,6 +2260,14 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         </div>
       </div>
       <div class="order-qty-edit-row">
+        <div class="order-qty-edit-label">곱빼기<small>도시락 중 몇 개</small></div>
+        <div class="qty-stepper">
+          <button type="button" class="qty-step-btn" onclick="adjustOrderQtyModal('large',-1)">−</button>
+          <input class="qty-edit" id="order-qty-large" type="number" min="0" max="999" value="0" oninput="updateOrderQtyModalTotal()">
+          <button type="button" class="qty-step-btn" onclick="adjustOrderQtyModal('large',1)">+</button>
+        </div>
+      </div>
+      <div class="order-qty-edit-row">
         <div class="order-qty-edit-label">샐러드</div>
         <div class="qty-stepper">
           <button type="button" class="qty-step-btn" onclick="adjustOrderQtyModal('salad',-1)">−</button>
@@ -2277,6 +2291,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         </div>
       </div>
     </div>
+    <div class="order-qty-large-hint" id="order-qty-large-hint"></div>
     <div class="order-qty-total-box">
       <span>총 수량</span>
       <span id="order-qty-total">0개</span>
@@ -2842,6 +2857,7 @@ const SUPPLIER_INFO = {
 const DEFAULT_SETTLEMENT_SHEET_NOTE_TEMPLATE = '{month}월정산서 보내드립니다♡\n궁중수라간을 이용해 주셔서 항상 감사드립니다^^\n계좌이체시 꼭! 상호명으로 부탁드립니다!!';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
+const LARGE_LUNCH_UNIT_PRICE = 10000; // 곱빼기 도시락 단가 (업체 구분 없이 동일)
 const MEAL_TIME_OPTIONS = [
   '10:30','10:40','10:50',
   '11:00','11:10','11:20','11:30','11:40','11:50',
@@ -3188,7 +3204,9 @@ function normalizeQtyValuesForUser(user = {}, values = {}) {
   return {
     lunch: split.lunch,
     salad: parseDeliveryCount(values.salad, 0),
-    event: split.disposable
+    event: split.disposable,
+    // 곱빼기는 일반 도시락 수량을 넘을 수 없다. 일회용도시락 업체는 도시락이 0이 되므로 함께 0이 된다.
+    large: Math.min(parseDeliveryCount(values.large, 0), split.lunch)
   };
 }
 function formatMoney(value) {
@@ -3305,8 +3323,12 @@ function settlementEventQty(row = {}) {
 function settlementEventUnitPrice(row = {}) {
   return Number(row.eventPrice || row.eventLunchPrice || row.lunchPrice || 0) || 0;
 }
+function settlementLargeLunchQty(row = {}) {
+  const large = Math.trunc(Number(row.largeLunch ?? row.largeLunchCount ?? row.largeLunchQty ?? 0) || 0);
+  return Math.max(0, Math.min(large, Number(row.lunch || 0) || 0));
+}
 function settlementLunchAmount(row = {}) {
-  return (Number(row.lunch || 0) || 0) * (Number(row.lunchPrice || 0) || 0);
+  return lunchAmountWithLarge(Number(row.lunch || 0) || 0, settlementLargeLunchQty(row), Number(row.lunchPrice || 0) || 0);
 }
 function settlementSaladAmount(row = {}) {
   return (Number(row.salad || 0) || 0) * (Number(row.saladPrice || 0) || 0);
@@ -3358,7 +3380,7 @@ function settlementProductBreakdownHtml(row = {}) {
   const saladAmount = settlementSaladAmount(row);
   const eventAmount = settlementEventAmount(row);
   const cateringAmount = settlementCateringAmount(row);
-  if ((Number(row.lunch || 0) || 0) > 0) parts.push(`<div><b>일반</b> ${formatMoney(lunchAmount)}</div>`);
+  if ((Number(row.lunch || 0) || 0) > 0) parts.push(`<div><b>일반</b> ${formatMoney(lunchAmount)}${settlementLargeLunchQty(row) ? ` <span style="color:var(--sub)">(곱빼기 ${settlementLargeLunchQty(row)})</span>` : ''}</div>`);
   if ((Number(row.salad || 0) || 0) > 0) parts.push(`<div><b>샐러드</b> ${formatMoney(saladAmount)}</div>`);
   if (settlementEventQty(row) > 0) parts.push(`<div><b>일회용</b> ${formatMoney(eventAmount)}</div>`);
   if (settlementCateringQty(row) > 0) parts.push(`<div><b>월식 행사</b> ${formatMoney(cateringAmount)}</div>`);
@@ -3422,6 +3444,20 @@ function orderSaladQty(order = {}) {
 function orderEventLunchQty(order = {}) {
   return Number(order.eventLunchQty ?? order.eventLunchCount ?? order.eventLunch ?? 0) || 0;
 }
+// 곱빼기는 별도 품목이 아니라 도시락 수량에 포함된 일부다.
+// 개수는 도시락으로 그대로 세고 금액만 곱빼기 단가로 계산한다.
+function orderLargeLunchQty(order = {}) {
+  const large = Math.trunc(Number(order.largeLunchQty ?? order.largeLunchCount ?? order.largeLunch ?? 0) || 0);
+  return Math.max(0, Math.min(large, orderLunchQty(order)));
+}
+function lunchAmountWithLarge(lunchQty = 0, largeQty = 0, unitPrice = 0) {
+  const lunch = Math.max(0, Number(lunchQty) || 0);
+  const large = Math.max(0, Math.min(Number(largeQty) || 0, lunch));
+  return (lunch - large) * (Number(unitPrice) || 0) + large * LARGE_LUNCH_UNIT_PRICE;
+}
+function orderLunchAmount(order = {}, user = {}) {
+  return lunchAmountWithLarge(orderLunchQty(order), orderLargeLunchQty(order), orderLunchPrice(order, user));
+}
 function orderLunchPrice(order = {}, user = {}) {
   return Number(order.lunchPrice ?? userLunchPrice(user) ?? 0) || 0;
 }
@@ -3479,9 +3515,13 @@ function orderCateringAmount(order = {}, options = {}) {
     preserveSnapshot: options.preserveSnapshot !== false
   }).totalAmount;
 }
-function buildOrderItems({ lunchQty = 0, lunchPrice = 0, saladQty = 0, saladPrice = 0, eventLunchQty = 0, eventLunchPrice = 0, cateringItems = [] } = {}) {
+function buildOrderItems({ lunchQty = 0, lunchPrice = 0, largeLunchQty = 0, saladQty = 0, saladPrice = 0, eventLunchQty = 0, eventLunchPrice = 0, cateringItems = [] } = {}) {
+  // 곱빼기는 도시락 수량 안에 포함되므로, 명세서에서만 일반/곱빼기 줄로 나눠 적는다.
+  const largeQty = Math.max(0, Math.min(Math.trunc(Number(largeLunchQty) || 0), lunchQty));
+  const normalLunchQty = lunchQty - largeQty;
   const monthlyItems = [
-    { id: 'lunch', label: '도시락', qty: lunchQty, unitPrice: lunchPrice, amount: lunchQty * lunchPrice },
+    { id: 'lunch', label: '도시락', qty: normalLunchQty, unitPrice: lunchPrice, amount: normalLunchQty * lunchPrice },
+    { id: 'largeLunch', label: '도시락 (곱빼기)', qty: largeQty, unitPrice: LARGE_LUNCH_UNIT_PRICE, amount: largeQty * LARGE_LUNCH_UNIT_PRICE },
     { id: 'salad', label: '샐러드', qty: saladQty, unitPrice: saladPrice, amount: saladQty * saladPrice },
     { id: 'eventLunch', label: '일회용도시락', qty: eventLunchQty, unitPrice: eventLunchPrice, amount: eventLunchQty * eventLunchPrice }
   ].filter(item => item.qty > 0);
@@ -3504,7 +3544,7 @@ function orderTotalQty(order = {}) {
 }
 function orderTotalAmount(order = {}, user = {}) {
   if (Array.isArray(order.cateringItems)) {
-    return (orderLunchQty(order) * orderLunchPrice(order, user))
+    return orderLunchAmount(order, user)
       + (orderSaladQty(order) * orderSaladPrice(order, user))
       + (orderEventLunchQty(order) * orderDisposableLunchPrice(order, user))
       + orderCateringAmount(order);
@@ -3513,7 +3553,7 @@ function orderTotalAmount(order = {}, user = {}) {
   if (Array.isArray(order.items)) {
     return order.items.reduce((sum, item) => sum + (Number(item.amount ?? ((item.qty || 0) * (item.unitPrice || 0))) || 0), 0);
   }
-  return (orderLunchQty(order) * orderLunchPrice(order, user))
+  return orderLunchAmount(order, user)
     + (orderSaladQty(order) * orderSaladPrice(order, user))
     + (orderEventLunchQty(order) * orderDisposableLunchPrice(order, user));
 }
@@ -4993,18 +5033,21 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       lunch: deliveredOverride ? orderLunchQty(delivered) : lunch,
       salad: deliveredOverride ? orderSaladQty(delivered) : salad,
       event: deliveredOverride ? orderEventLunchQty(delivered) : eventLunch,
+      large: deliveredOverride ? orderLargeLunchQty(delivered) : orderLargeLunchQty(order),
       disposableLunch: deliveredOverride ? delivered.disposableLunch : order.disposableLunch
     });
     const displayLunch = displayCounts.lunch;
     const displaySalad = displayCounts.salad;
     const displayEventLunch = displayCounts.event;
+    const displayLargeLunch = displayCounts.large;
     const displayCateringItems = orderCatering.items;
     const displayTotalQty = displayLunch + displaySalad + displayEventLunch + orderCatering.totalQty;
-    const displayTotalAmount = (displayLunch * lunchPrice) + (displaySalad * saladPrice) + (displayEventLunch * eventLunchPrice) + orderCatering.totalAmount;
+    const displayTotalAmount = lunchAmountWithLarge(displayLunch, displayLargeLunch, lunchPrice) + (displaySalad * saladPrice) + (displayEventLunch * eventLunchPrice) + orderCatering.totalAmount;
     const displayOrder = {
       ...order,
       lunchQty: displayLunch,
       lunchCount: displayLunch,
+      largeLunchCount: displayLargeLunch,
       saladQty: displaySalad,
       saladCount: displaySalad,
       eventLunchQty: displayEventLunch,
@@ -5014,7 +5057,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       eventLunchPrice,
       totalQty: displayTotalQty,
       totalAmount: displayTotalAmount,
-      items: buildOrderItems({ lunchQty: displayLunch, lunchPrice, saladQty: displaySalad, saladPrice, eventLunchQty: displayEventLunch, eventLunchPrice, cateringItems: displayCateringItems })
+      items: buildOrderItems({ lunchQty: displayLunch, lunchPrice, largeLunchQty: displayLargeLunch, saladQty: displaySalad, saladPrice, eventLunchQty: displayEventLunch, eventLunchPrice, cateringItems: displayCateringItems })
     };
     rowsByUid[order.uid] = {
       ...displayOrder,
@@ -5418,6 +5461,7 @@ async function loadOrders() {
         totalLunch += o.lunchCount || 0;
         totalSalad += o.saladCount || 0;
         const eventLunch = orderEventLunchQty(o);
+        const largeLunch = orderLargeLunchQty(o);
         const cateringSummary = orderCateringSummary(o, { preserveSnapshot: true });
         totalEventLunch += eventLunch;
         totalCatering += cateringSummary.totalQty;
@@ -5448,7 +5492,7 @@ async function loadOrders() {
         const manageHtml = canDeleteOrder
           ? `<div class="inline-actions">${canEditManual ? `<button class="mini-btn" onclick="editManualOrder('${jsString(o.uid)}')">수정</button>` : ''}<button class="mini-btn order-save-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${cancelDeliveryHtml}${deleteOrderHtml}</div>`
           : `<div class="inline-actions"><button class="mini-btn order-save-btn" onclick="saveInlineQty('${jsString(o.uid)}')">저장</button>${cancelDeliveryHtml}</div>`;
-        const mobileQtyDetail = `도 ${o.lunchCount ?? 0} · 샐 ${o.saladCount ?? 0}${eventLunch ? ` · 일 ${eventLunch}` : ''}${cateringSummary.totalQty ? ` · 행 ${cateringSummary.totalQty}` : ''}`;
+        const mobileQtyDetail = `도 ${o.lunchCount ?? 0}${largeLunch ? `(곱${largeLunch})` : ''} · 샐 ${o.saladCount ?? 0}${eventLunch ? ` · 일 ${eventLunch}` : ''}${cateringSummary.totalQty ? ` · 행 ${cateringSummary.totalQty}` : ''}`;
         const cateringLabel = cateringSummary.totalQty
           ? `${cateringSummary.items.length > 1 ? `${escapeHtml(cateringSummary.items[0].name)} 외 ${cateringSummary.items.length - 1}종` : escapeHtml(cateringSummary.items[0].name)}<br>${cateringSummary.totalQty}개`
           : '추가';
@@ -5462,6 +5506,8 @@ async function loadOrders() {
               <input class="qty-edit deliver-lunch" type="number" min="0" max="999" value="${o.lunchCount ?? 0}" oninput="handleOrderQtyInput('${jsString(o.uid)}')" ${disabledAttr}>
               <button type="button" class="qty-step-btn" onclick="adjustQty(this,1)" ${disabledAttr}>+</button>
             </div>
+            <input type="hidden" class="deliver-large-lunch" value="${largeLunch}">
+            <button type="button" class="large-lunch-chip${largeLunch ? ' has-large' : ''}" onclick="openOrderQtyModal('${jsString(o.uid)}')" ${disabledAttr}>${largeLunch ? `곱빼기 ${largeLunch}` : '곱빼기 +'}</button>
             <button type="button" class="mobile-qty-btn" onclick="openOrderQtyModal('${jsString(o.uid)}')" ${disabledAttr}>
               <span class="mobile-qty-total">${totalQty}개</span>
               <span class="mobile-qty-detail">${mobileQtyDetail}</span>
@@ -5654,7 +5700,8 @@ function orderQtyValuesFromRow(rowEl) {
   return {
     lunch: parseDeliveryCount(rowEl?.querySelector('.deliver-lunch')?.value, 0),
     salad: parseDeliveryCount(rowEl?.querySelector('.deliver-salad')?.value, 0),
-    event: parseDeliveryCount(rowEl?.querySelector('.deliver-event-lunch')?.value, 0)
+    event: parseDeliveryCount(rowEl?.querySelector('.deliver-event-lunch')?.value, 0),
+    large: parseDeliveryCount(rowEl?.querySelector('.deliver-large-lunch')?.value, 0)
   };
 }
 
@@ -5665,7 +5712,7 @@ function updateMobileOrderQtyButton(rowEl, values) {
   const row = currentOrderRows.find(item => item.uid === uid) || {};
   const cateringQty = orderCateringQty(row);
   const total = values.lunch + values.salad + values.event + cateringQty;
-  const detail = `도 ${values.lunch} · 샐 ${values.salad}${values.event ? ` · 일 ${values.event}` : ''}${cateringQty ? ` · 행 ${cateringQty}` : ''}`;
+  const detail = `도 ${values.lunch}${values.large ? `(곱${values.large})` : ''} · 샐 ${values.salad}${values.event ? ` · 일 ${values.event}` : ''}${cateringQty ? ` · 행 ${cateringQty}` : ''}`;
   const totalEl = btn.querySelector('.mobile-qty-total');
   const detailEl = btn.querySelector('.mobile-qty-detail');
   if (totalEl) totalEl.textContent = `${total}개`;
@@ -5681,12 +5728,20 @@ function refreshOrderRowCalculatedCells(uid) {
   const lunchEl = rowEl.querySelector('.deliver-lunch');
   const saladEl = rowEl.querySelector('.deliver-salad');
   const eventEl = rowEl.querySelector('.deliver-event-lunch');
+  const largeEl = rowEl.querySelector('.deliver-large-lunch');
   if (lunchEl && Number(lunchEl.value || 0) !== values.lunch) lunchEl.value = values.lunch;
   if (saladEl && Number(saladEl.value || 0) !== values.salad) saladEl.value = values.salad;
   if (eventEl && Number(eventEl.value || 0) !== values.event) eventEl.value = values.event;
+  if (largeEl && Number(largeEl.value || 0) !== values.large) largeEl.value = values.large;
+  const chip = rowEl.querySelector('.large-lunch-chip');
+  if (chip) {
+    chip.textContent = values.large ? `곱빼기 ${values.large}` : '곱빼기 +';
+    chip.classList.toggle('has-large', values.large > 0);
+  }
   const items = buildOrderItems({
     lunchQty: values.lunch,
     lunchPrice: orderLunchPrice(row, user),
+    largeLunchQty: values.large,
     saladQty: values.salad,
     saladPrice: orderSaladPrice(row, user),
     eventLunchQty: values.event,
@@ -5755,6 +5810,7 @@ function openOrderQtyModal(uid) {
   document.getElementById('order-qty-name').textContent = row.businessName || allUsers[uid]?.businessName || '업체명';
   document.getElementById('order-qty-date').textContent = formatDateKR(currentDateStr);
   document.getElementById('order-qty-lunch').value = values.lunch;
+  document.getElementById('order-qty-large').value = values.large;
   document.getElementById('order-qty-salad').value = values.salad;
   document.getElementById('order-qty-event').value = values.event;
   const cateringSummary = orderCateringSummary(row, { preserveSnapshot: true });
@@ -5790,11 +5846,22 @@ function updateOrderQtyModalTotal() {
   const lunch = parseDeliveryCount(document.getElementById('order-qty-lunch')?.value, 0);
   const salad = parseDeliveryCount(document.getElementById('order-qty-salad')?.value, 0);
   const eventLunch = parseDeliveryCount(document.getElementById('order-qty-event')?.value, 0);
+  const largeEl = document.getElementById('order-qty-large');
+  // 곱빼기는 도시락 안에 포함되므로 도시락 수량을 넘을 수 없다.
+  const large = Math.min(parseDeliveryCount(largeEl?.value, 0), lunch);
+  if (largeEl && parseDeliveryCount(largeEl.value, 0) !== large) largeEl.value = large;
   const uid = document.getElementById('order-qty-uid')?.value || '';
   const row = currentOrderRows.find(item => item.uid === uid) || {};
   const cateringQty = orderCateringQty(row);
   const totalEl = document.getElementById('order-qty-total');
+  // 곱빼기는 도시락 수량의 일부라 총 수량에 더하지 않는다.
   if (totalEl) totalEl.textContent = `${lunch + salad + eventLunch + cateringQty}개`;
+  const hintEl = document.getElementById('order-qty-large-hint');
+  if (hintEl) {
+    hintEl.textContent = large
+      ? `도시락 ${lunch}개 중 ${large}개가 곱빼기 (${formatMoney(LARGE_LUNCH_UNIT_PRICE)})`
+      : '';
+  }
 }
 
 function adminCateringDraftQty(menuId) {
@@ -5912,14 +5979,17 @@ function saveOrderQtyModal() {
   const values = normalizeQtyValuesForUser(user, {
     lunch: parseDeliveryCount(document.getElementById('order-qty-lunch')?.value, 0),
     salad: parseDeliveryCount(document.getElementById('order-qty-salad')?.value, 0),
-    event: parseDeliveryCount(document.getElementById('order-qty-event')?.value, 0)
+    event: parseDeliveryCount(document.getElementById('order-qty-event')?.value, 0),
+    large: parseDeliveryCount(document.getElementById('order-qty-large')?.value, 0)
   });
   const lunchEl = rowEl.querySelector('.deliver-lunch');
   const saladEl = rowEl.querySelector('.deliver-salad');
   const eventEl = rowEl.querySelector('.deliver-event-lunch');
+  const largeEl = rowEl.querySelector('.deliver-large-lunch');
   if (lunchEl) lunchEl.value = values.lunch;
   if (saladEl) saladEl.value = values.salad;
   if (eventEl) eventEl.value = values.event;
+  if (largeEl) largeEl.value = values.large;
   refreshOrderRowCalculatedCells(uid);
   markOrderRowDirty(uid);
   closeOrderQtyModal();
@@ -5935,9 +6005,11 @@ async function saveInlineQty(uid) {
   const lunchEl = rowEl.querySelector('.deliver-lunch');
   const saladEl = rowEl.querySelector('.deliver-salad');
   const eventEl = rowEl.querySelector('.deliver-event-lunch');
+  const largeEl = rowEl.querySelector('.deliver-large-lunch');
   if (lunchEl) lunchEl.value = values.lunch;
   if (saladEl) saladEl.value = values.salad;
   if (eventEl) eventEl.value = values.event;
+  if (largeEl) largeEl.value = values.large;
   const lunchPrice = orderLunchPrice(row, user);
   const saladPrice = orderSaladPrice(row, user);
   const eventLunchPrice = orderDisposableLunchPrice(row, user);
@@ -5951,6 +6023,7 @@ async function saveInlineQty(uid) {
   const items = buildOrderItems({
     lunchQty: values.lunch,
     lunchPrice,
+    largeLunchQty: values.large,
     saladQty: values.salad,
     saladPrice,
     eventLunchQty: values.event,
@@ -5962,6 +6035,7 @@ async function saveInlineQty(uid) {
       uid,
       targetDate: currentDateStr,
       lunchCount: values.lunch,
+      largeLunchCount: values.large,
       saladCount: values.salad,
       eventLunchCount: values.event,
       cateringItems: window.GJS_CATERING.normalizeItems(cateringItems),
@@ -6061,11 +6135,13 @@ async function completeSelectedDeliveries() {
     const values = normalizeQtyValuesForUser(user, {
       lunch: rowEl.querySelector('.deliver-lunch')?.value,
       salad: rowEl.querySelector('.deliver-salad')?.value,
-      event: rowEl.querySelector('.deliver-event-lunch')?.value
+      event: rowEl.querySelector('.deliver-event-lunch')?.value,
+      large: rowEl.querySelector('.deliver-large-lunch')?.value
     });
     const lunch = values.lunch;
     const salad = values.salad;
     const eventLunch = values.event;
+    const largeLunch = values.large;
     const lunchPrice = orderLunchPrice(row, user);
     const saladPrice = orderSaladPrice(row, user);
     const eventLunchPrice = orderDisposableLunchPrice(row, user);
@@ -6079,6 +6155,7 @@ async function completeSelectedDeliveries() {
     const items = buildOrderItems({
       lunchQty: lunch,
       lunchPrice,
+      largeLunchQty: largeLunch,
       saladQty: salad,
       saladPrice,
       eventLunchQty: eventLunch,
@@ -6089,6 +6166,7 @@ async function completeSelectedDeliveries() {
       uid,
       businessName: user.businessName || row.businessName || '-',
       lunchCount: lunch,
+      largeLunchCount: largeLunch,
       saladCount: salad,
       lunchQty: lunch,
       lunchPrice,
@@ -10477,9 +10555,10 @@ async function loadSettlements() {
           lunch: orderLunchQty(data),
           salad: orderSaladQty(data),
           event: orderEventLunchQty(data),
+          large: orderLargeLunchQty(data),
           disposableLunch: data.disposableLunch
         });
-        const dl = counts.lunch, dd = counts.salad, de = counts.event;
+        const dl = counts.lunch, dd = counts.salad, de = counts.event, dlarge = counts.large;
         const catering = orderCateringSummary(data, { preserveSnapshot: true });
         const dataEventPrice = orderEventLunchPrice(data) || (de ? orderLunchPrice(data, user) : 0);
         if (byUser[uid].manualOrder) {
@@ -10490,6 +10569,7 @@ async function loadSettlements() {
           if (de > 0) byUser[uid].eventPrice = dataEventPrice;
         }
         byUser[uid].lunch += dl;
+        byUser[uid].largeLunch = (byUser[uid].largeLunch || 0) + dlarge;
         byUser[uid].salad += dd;
         byUser[uid].eventLunch += de;
         byUser[uid].catering += catering.totalQty;
@@ -10503,6 +10583,7 @@ async function loadSettlements() {
         if (dl > 0 || dd > 0 || de > 0 || catering.totalQty > 0) {
           byUser[uid].dateBreakdown[ds] = {
             lunch: dl,
+            largeLunch: dlarge,
             salad: dd,
             eventLunch: de,
             catering: catering.totalQty,
@@ -11364,13 +11445,16 @@ async function exportKakaoSummary() {
     rows.forEach(order => {
       const user = allUsers[order.uid] || {};
       const place = user.deliveryPlace || user.address || order.deliveryPlace || order.place || order.businessName || '배송지 미입력';
-      if (!groups[place]) groups[place] = { lunch: 0, salad: 0, rows: [] };
+      if (!groups[place]) groups[place] = { lunch: 0, salad: 0, large: 0, rows: [] };
       const lunch = order.lunchCount || 0;
       const salad = order.saladCount || 0;
       groups[place].lunch += lunch;
       groups[place].salad += salad;
       const suffix = order.source === 'default' ? ' (기본)' : '';
-      groups[place].rows.push(`${user.businessName || order.businessName || '-'}: 도시락 ${lunch} / 샐러드 ${salad} / 총 ${lunch + salad}${suffix}`);
+      const large = orderLargeLunchQty(order);
+      const largeText = large ? ` (곱빼기 ${large})` : '';
+      groups[place].rows.push(`${user.businessName || order.businessName || '-'}: 도시락 ${lunch}${largeText} / 샐러드 ${salad} / 총 ${lunch + salad}${suffix}`);
+      groups[place].large += large;
       totalLunch += lunch;
       totalSalad += salad;
     });
@@ -11380,7 +11464,7 @@ async function exportKakaoSummary() {
       .forEach(([place, group]) => {
         lines.push(`📍 ${place}`);
         group.rows.forEach(row => lines.push(`- ${row}`));
-        lines.push(`소계: 도시락 ${group.lunch} / 샐러드 ${group.salad} / 총 ${group.lunch + group.salad}`, '');
+        lines.push(`소계: 도시락 ${group.lunch}${group.large ? ` (곱빼기 ${group.large})` : ''} / 샐러드 ${group.salad} / 총 ${group.lunch + group.salad}`, '');
       });
     lines.push(`총 도시락: ${totalLunch}`);
     lines.push(`총 샐러드: ${totalSalad}`);
@@ -11721,7 +11805,12 @@ function copySettlementKakao(uid) {
   const lines = [`[궁중수라간 ${month} 정산 안내]`, `업체: ${name}`, ''];
   if (row.invoiceNo) lines.push(`청구서번호: ${row.invoiceNo}`);
   if (row.type === 'event') lines.push(`행사일시: ${row.event.eventDate || '-'} ${row.event.eventTime || ''}`.trim());
-  if (row.lunch > 0) lines.push(`일반도시락 ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원 = ${settlementLunchAmount(row).toLocaleString()}원`);
+  if (row.lunch > 0) {
+    const largeQty = settlementLargeLunchQty(row);
+    const normalQty = row.lunch - largeQty;
+    if (normalQty > 0) lines.push(`일반도시락 ${normalQty}개 × ${row.lunchPrice.toLocaleString()}원 = ${(normalQty * row.lunchPrice).toLocaleString()}원`);
+    if (largeQty > 0) lines.push(`도시락(곱빼기) ${largeQty}개 × ${LARGE_LUNCH_UNIT_PRICE.toLocaleString()}원 = ${(largeQty * LARGE_LUNCH_UNIT_PRICE).toLocaleString()}원`);
+  }
   if (row.salad > 0) lines.push(`샐러드 ${row.salad}개 × ${row.saladPrice.toLocaleString()}원 = ${(row.salad * row.saladPrice).toLocaleString()}원`);
   if (settlementEventQty(row) > 0) {
     const eventLabel = row.type === 'event' ? '행사도시락' : '일회용도시락';
@@ -11757,7 +11846,12 @@ async function copyAllSettlementKakao() {
   rows.forEach(row => {
     const name = row.user.businessName || '-';
     lines.push(`▶ ${name}`);
-    if (row.lunch > 0) lines.push(`  일반도시락 ${row.lunch}개 × ${row.lunchPrice.toLocaleString()}원`);
+    if (row.lunch > 0) {
+      const largeQty = settlementLargeLunchQty(row);
+      const normalQty = row.lunch - largeQty;
+      if (normalQty > 0) lines.push(`  일반도시락 ${normalQty}개 × ${row.lunchPrice.toLocaleString()}원`);
+      if (largeQty > 0) lines.push(`  도시락(곱빼기) ${largeQty}개 × ${LARGE_LUNCH_UNIT_PRICE.toLocaleString()}원`);
+    }
     if (row.salad > 0) lines.push(`  샐러드 ${row.salad}개 × ${row.saladPrice.toLocaleString()}원`);
     if (settlementEventQty(row) > 0) lines.push(`  ${row.type === 'event' ? '행사도시락' : '일회용도시락'} ${settlementEventQty(row)}개 × ${settlementEventUnitPrice(row).toLocaleString()}원`);
     if (row.type !== 'event') {
