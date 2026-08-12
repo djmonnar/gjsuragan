@@ -1,0 +1,49 @@
+name: Deploy Firestore Rules
+
+# 입력값이 없다. 모바일 GitHub 앱에서는 입력칸을 채울 수 없어,
+# 버튼만 누르면 되도록 규칙 배포를 따로 떼어냈다.
+# Actions 탭 → "Deploy Firestore Rules" → "Run workflow"
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-rules
+  cancel-in-progress: false
+
+env:
+  FIREBASE_PROJECT_ID: gjsuragan-60505
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Write service account key
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT 시크릿이 없습니다."
+            exit 1
+          fi
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service-account.json" >> "$GITHUB_ENV"
+
+      # 규칙 파일만 올린다. functions/.env 가 필요 없어 안전하다.
+      - name: Deploy Firestore rules
+        run: |
+          npx --yes firebase-tools@15 deploy \
+            --only firestore:rules \
+            --project "$FIREBASE_PROJECT_ID" \
+            --non-interactive \
+            --force
+
+      - name: Remove service account key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/service-account.json"
