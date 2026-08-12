@@ -5,8 +5,10 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
+  const LARGE_LUNCH_MENU_ID = 'large-lunch-10000';
+
   const catalog = Object.freeze([
-    { id: 'large-lunch-10000', name: '곱빼기 도시락', category: '도시락', unitPrice: 10000 },
+    { id: LARGE_LUNCH_MENU_ID, name: '곱빼기 도시락', category: '도시락', unitPrice: 10000 },
     { id: 'pork-set-9000', name: '제육 한상 (간장, 양념)', category: '한상 도시락', unitPrice: 9000 },
     { id: 'chicken-set-9500', name: '순살닭구이 한상', category: '한상 도시락', unitPrice: 9500 },
     { id: 'chicken-tteokgalbi-13900', name: '양념닭구이&떡갈비', category: '한정식', unitPrice: 13900 },
@@ -78,10 +80,33 @@
     };
   }
 
+  // 곱빼기 도시락은 카탈로그로 주문받지만 집계는 행사도시락과 분리한다.
+  function isLargeLunchItem(item) {
+    return String(item?.menuId || '') === LARGE_LUNCH_MENU_ID;
+  }
+
+  function totalsOf(items) {
+    return {
+      items,
+      totalQty: items.reduce((sum, item) => sum + item.qty, 0),
+      totalAmount: items.reduce((sum, item) => sum + item.amount, 0)
+    };
+  }
+
+  function splitLargeLunch(summary) {
+    const items = Array.isArray(summary?.items) ? summary.items : [];
+    return {
+      largeLunch: totalsOf(items.filter(isLargeLunchItem)),
+      catering: totalsOf(items.filter(item => !isLargeLunchItem(item)))
+    };
+  }
+
   return Object.freeze({
     catalog,
     getItem,
     normalizeItems,
-    summarize
+    summarize,
+    splitLargeLunch,
+    LARGE_LUNCH_MENU_ID
   });
 });

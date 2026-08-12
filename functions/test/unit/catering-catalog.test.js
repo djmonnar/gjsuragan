@@ -54,3 +54,28 @@ test('catering delivery snapshots preserve historical menu name and unit price',
   assert.equal(summary.items[0].unitPrice, 8500);
   assert.equal(summary.totalAmount, 17000);
 });
+
+test('large lunch is split out of catering totals', () => {
+  const summary = catering.summarize([
+    { menuId: catering.LARGE_LUNCH_MENU_ID, qty: 1 },
+    { menuId: 'kimchi-pork-tteokgalbi-14900', qty: 30 }
+  ]);
+  const split = catering.splitLargeLunch(summary);
+
+  assert.equal(summary.totalQty, 31);
+  assert.equal(split.largeLunch.totalQty, 1);
+  assert.equal(split.largeLunch.totalAmount, 10000);
+  assert.equal(split.catering.totalQty, 30);
+  assert.equal(split.catering.totalAmount, 447000);
+  assert.equal(split.largeLunch.totalQty + split.catering.totalQty, summary.totalQty);
+});
+
+test('split handles empty and catering-only orders', () => {
+  const empty = catering.splitLargeLunch(catering.summarize([]));
+  assert.equal(empty.largeLunch.totalQty, 0);
+  assert.equal(empty.catering.totalQty, 0);
+
+  const cateringOnly = catering.splitLargeLunch(catering.summarize([{ menuId: 'pork-set-9000', qty: 2 }]));
+  assert.equal(cateringOnly.largeLunch.totalQty, 0);
+  assert.equal(cateringOnly.catering.totalQty, 2);
+});
