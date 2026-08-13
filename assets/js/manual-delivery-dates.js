@@ -13,12 +13,14 @@
   const editorConfig = {
     add:{
       wrap:'af-manual-dates', monthLabel:'a-manual-month-label', calendar:'a-manual-calendar',
-      summary:'a-manual-summary', count:'ato', schedule:'af-sched', start:'af-start'
+      summary:'a-manual-summary', count:'ato', schedule:'af-sched', start:'af-start',
+      direct:'a-direct', hint:'a-manual-hint'
     },
     edit:{
       wrap:'ef-manual-dates', monthLabel:'e-manual-month-label', calendar:'e-manual-calendar',
       summary:'e-manual-summary', count:'erem', schedule:'ef-sched-sel', start:'ef-start-wrap',
-      pending:'ef-sched-from-wrap'
+      pending:'ef-sched-from-wrap',
+      direct:'e-direct', hint:'e-manual-hint'
     }
   };
 
@@ -106,6 +108,27 @@
     return manualScheduledFutureDates(state.dates, state.deliveredDates, localToday());
   }
 
+  // 캘린더에 넣는 날짜는 조리·출고일이다.
+  // 직배송은 그날 바로 배달하지만, 택배는 그날 발송해서 고객은 다음날 받는다.
+  function manualArrivalDate(dateStr){
+    if(!validManualDeliveryDate(dateStr)) return '';
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const arrival = new Date(year, month - 1, day + 1);
+    return `${arrival.getFullYear()}-${String(arrival.getMonth() + 1).padStart(2, '0')}-${String(arrival.getDate()).padStart(2, '0')}`;
+  }
+
+  function isSundayDate(dateStr){
+    if(!validManualDeliveryDate(dateStr)) return false;
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day).getDay() === 0;
+  }
+
+  function editorIsDirect(mode){
+    const config = editorConfig[mode];
+    const input = config?.direct && root?.document?.getElementById(config.direct);
+    return input?.checked === true;
+  }
+
   function formatCalendarDate(dateStr){
     const [year, month, day] = dateStr.split('-').map(Number);
     const weekday = ['일','월','화','수','목','금','토'][new Date(year, month - 1, day).getDay()];
@@ -161,10 +184,24 @@
     const required = editorRequiredCount(mode);
     const completeCount = state.deliveredDates.length;
     const countClass = futureDates.length === required ? 'is-ready' : 'is-pending';
+    const direct = editorIsDirect(mode);
     const datesText = futureDates.length
-      ? futureDates.map(date => `<span class="manual-calendar-summary-item"><span class="manual-calendar-summary-order">${manualDeliveryOrderLabel(manualDeliveryOrderNumber(state.dates, date))}</span><span>${formatCalendarDate(date)}</span></span>`).join('')
-      : '선택된 배송일 없음';
-    summary.innerHTML = `<div class="manual-calendar-summary-head"><strong class="${countClass}">배송일 ${futureDates.length} / ${required}</strong>${completeCount ? `<span>완료 ${completeCount}회</span>` : ''}</div><div class="manual-calendar-selected">${datesText}</div>`;
+      ? futureDates.map(date => {
+        const order = manualDeliveryOrderLabel(manualDeliveryOrderNumber(state.dates, date));
+        const detail = direct
+          ? `<span class="manual-calendar-arrive">${formatCalendarDate(date)} 배송</span>`
+          : `<span class="manual-calendar-arrive">${formatCalendarDate(date)} 출고 → <b>${formatCalendarDate(manualArrivalDate(date))} 도착</b>${isSundayDate(manualArrivalDate(date)) ? '<span class="manual-calendar-warn" title="일요일은 택배 배송이 없을 수 있습니다">!</span>' : ''}</span>`;
+        return `<span class="manual-calendar-summary-item"><span class="manual-calendar-summary-order">${order}</span>${detail}</span>`;
+      }).join('')
+      : '선택된 출고일 없음';
+    summary.innerHTML = `<div class="manual-calendar-summary-head"><strong class="${countClass}">출고일 ${futureDates.length} / ${required}</strong>${completeCount ? `<span>완료 ${completeCount}회</span>` : ''}</div><div class="manual-calendar-selected">${datesText}</div>`;
+
+    const hint = config.hint && root.document.getElementById(config.hint);
+    if(hint){
+      hint.textContent = direct
+        ? '직배송 고객입니다. 선택한 날짜에 조리해서 그날 바로 배달합니다.'
+        : '택배 고객입니다. 선택한 날짜는 조리·발송일이며, 고객은 다음날 받습니다.';
+    }
   }
 
   function handleManualScheduleClick(mode, event){
@@ -203,6 +240,8 @@
     wrap.addEventListener('click', event => handleManualScheduleClick(mode, event));
     const countInput = root.document.getElementById(config.count);
     if(countInput) countInput.addEventListener('input', () => renderManualScheduleEditor(mode));
+    const directInput = config.direct && root.document.getElementById(config.direct);
+    if(directInput) directInput.addEventListener('change', () => renderManualScheduleEditor(mode));
   }
 
   function loadManualScheduleEditor(mode, customer){
@@ -269,6 +308,7 @@
     resetManualScheduleEditor,
     syncManualScheduleMode,
     renderManualScheduleEditor,
-    manualScheduleDatesForSave
+    manualScheduleDatesForSave,
+    manualArrivalDate
   };
 });

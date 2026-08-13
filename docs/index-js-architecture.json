@@ -18,9 +18,9 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 318008,
-    "lines": 7350,
-    "functionDeclarations": 427,
+    "normalizedBytes": 320094,
+    "lines": 7390,
+    "functionDeclarations": 430,
     "uniqueCallableGlobals": 391,
     "explicitWindowExports": 36,
     "globalStateDeclarations": 62,
@@ -34,98 +34,648 @@
   "files": [
     {
       "path": "assets/js/auth-core.js",
-      "metrics": { "bytes": 29143, "lines": 842, "functionDeclarations": 25, "asyncFunctions": 13 },
-      "globalsDefined": ["showLoginScreen", "showAppScreen", "bootAppOnce", "stopFirestore", "setCancelLogs", "loadCancelLogsOnce", "doLogin", "doLogout", "productLabel", "productBadgeClass", "initFirestore", "formatDateInputValue", "normalizeDateInputValue", "customerOrderDateInputValue", "saveNew", "saveEdit", "delCust", "chargeRemain", "togglePause", "openPauseModal", "confirmPause", "resumeCustomer", "autoApplyPendingSchedules", "cancelPendingSchedule", "autoResumePausedCustomers"],
-      "requiredDefinitions": ["doLogin", "doLogout", "initFirestore", "saveNew", "saveEdit", "delCust"],
-      "globalsConsumed": ["DELIVERY_ADMIN_EMAIL", "firebase", "todayStr", "addDays", "updateHDate", "updateDashDisp", "updateTodayDisp", "initReport", "refreshAll", "renderCancelLogs", "selectedLogenShipmentsForChange", "normalizeOrderAmount", "orderSalesRootNumber", "orderSalesGroupKey", "g", "openM", "closeM", "toast"],
-      "globalState": ["AUTH_ADMIN_EMAIL", "loginAttempts", "MAX_ATTEMPTS", "APP_BOOTED", "_customersUnsub", "_cancelLogsUnsub", "_cancelLogsReady", "cancelLogsError", "PRODUCTS", "SCH", "DAYS", "SL", "custs", "cancelLogs", "editId", "orderType", "parsedData", "xlData", "reportView", "reportOffset", "_fbInitDone", "pauseTargetId", "_autoScheduleInFlight", "_autoResumeInFlight"],
+      "metrics": {
+        "bytes": 29143,
+        "lines": 842,
+        "functionDeclarations": 25,
+        "asyncFunctions": 13
+      },
+      "globalsDefined": [
+        "showLoginScreen",
+        "showAppScreen",
+        "bootAppOnce",
+        "stopFirestore",
+        "setCancelLogs",
+        "loadCancelLogsOnce",
+        "doLogin",
+        "doLogout",
+        "productLabel",
+        "productBadgeClass",
+        "initFirestore",
+        "formatDateInputValue",
+        "normalizeDateInputValue",
+        "customerOrderDateInputValue",
+        "saveNew",
+        "saveEdit",
+        "delCust",
+        "chargeRemain",
+        "togglePause",
+        "openPauseModal",
+        "confirmPause",
+        "resumeCustomer",
+        "autoApplyPendingSchedules",
+        "cancelPendingSchedule",
+        "autoResumePausedCustomers"
+      ],
+      "requiredDefinitions": [
+        "doLogin",
+        "doLogout",
+        "initFirestore",
+        "saveNew",
+        "saveEdit",
+        "delCust"
+      ],
+      "globalsConsumed": [
+        "DELIVERY_ADMIN_EMAIL",
+        "firebase",
+        "todayStr",
+        "addDays",
+        "updateHDate",
+        "updateDashDisp",
+        "updateTodayDisp",
+        "initReport",
+        "refreshAll",
+        "renderCancelLogs",
+        "selectedLogenShipmentsForChange",
+        "normalizeOrderAmount",
+        "orderSalesRootNumber",
+        "orderSalesGroupKey",
+        "g",
+        "openM",
+        "closeM",
+        "toast"
+      ],
+      "globalState": [
+        "AUTH_ADMIN_EMAIL",
+        "loginAttempts",
+        "MAX_ATTEMPTS",
+        "APP_BOOTED",
+        "_customersUnsub",
+        "_cancelLogsUnsub",
+        "_cancelLogsReady",
+        "cancelLogsError",
+        "PRODUCTS",
+        "SCH",
+        "DAYS",
+        "SL",
+        "custs",
+        "cancelLogs",
+        "editId",
+        "orderType",
+        "parsedData",
+        "xlData",
+        "reportView",
+        "reportOffset",
+        "_fbInitDone",
+        "pauseTargetId",
+        "_autoScheduleInFlight",
+        "_autoResumeInFlight"
+      ],
       "windowExports": [],
-      "domIds": ["loading", "loginScreen", "app", "emailInput", "pwInput", "loginErr", "loginAttempts", "dashDate", "todayDate", "routeDate", "expDate", "asd", "aod", "themeBtn", "fbDot", "fbTxt", "ach", "aqty", "a-direct", "a-ordernum", "a-amount", "e-freq", "e-sched", "e-direct", "e-ordernum", "e-amount", "pauseM-name", "pauseM-resume"],
-      "firestoreCollections": ["customers", "imwebCancelLogs"],
-      "externalApis": ["Firebase Auth", "Firestore"],
-      "crossFileCalls": { "schedule-report.js": ["todayStr", "addDays", "updateDashDisp", "updateTodayDisp", "initReport"], "rendering.js": ["refreshAll", "renderCancelLogs"], "logen.js": ["selectedLogenShipmentsForChange"], "order-settlement.js": ["normalizeOrderAmount", "orderSalesRootNumber", "orderSalesGroupKey"], "ui.js": ["g", "updateHDate", "openEditSchedule", "sameNumberArray", "clearAdd", "openM", "closeM", "toast"] },
-      "topLevelBehavior": ["registers DOMContentLoaded authentication bootstrap", "schedules one delayed auth compatibility check"],
-      "eventsAndListeners": ["DOMContentLoaded", "Firebase Auth onAuthStateChanged", "customers onSnapshot", "imwebCancelLogs onSnapshot"],
+      "domIds": [
+        "loading",
+        "loginScreen",
+        "app",
+        "emailInput",
+        "pwInput",
+        "loginErr",
+        "loginAttempts",
+        "dashDate",
+        "todayDate",
+        "routeDate",
+        "expDate",
+        "asd",
+        "aod",
+        "themeBtn",
+        "fbDot",
+        "fbTxt",
+        "ach",
+        "aqty",
+        "a-direct",
+        "a-ordernum",
+        "a-amount",
+        "e-freq",
+        "e-sched",
+        "e-direct",
+        "e-ordernum",
+        "e-amount",
+        "pauseM-name",
+        "pauseM-resume"
+      ],
+      "firestoreCollections": [
+        "customers",
+        "imwebCancelLogs"
+      ],
+      "externalApis": [
+        "Firebase Auth",
+        "Firestore"
+      ],
+      "crossFileCalls": {
+        "schedule-report.js": [
+          "todayStr",
+          "addDays",
+          "updateDashDisp",
+          "updateTodayDisp",
+          "initReport"
+        ],
+        "rendering.js": [
+          "refreshAll",
+          "renderCancelLogs"
+        ],
+        "logen.js": [
+          "selectedLogenShipmentsForChange"
+        ],
+        "order-settlement.js": [
+          "normalizeOrderAmount",
+          "orderSalesRootNumber",
+          "orderSalesGroupKey"
+        ],
+        "ui.js": [
+          "g",
+          "updateHDate",
+          "openEditSchedule",
+          "sameNumberArray",
+          "clearAdd",
+          "openM",
+          "closeM",
+          "toast"
+        ]
+      },
+      "topLevelBehavior": [
+        "registers DOMContentLoaded authentication bootstrap",
+        "schedules one delayed auth compatibility check"
+      ],
+      "eventsAndListeners": [
+        "DOMContentLoaded",
+        "Firebase Auth onAuthStateChanged",
+        "customers onSnapshot",
+        "imwebCancelLogs onSnapshot"
+      ],
       "recommendedOwnership": "authentication, shared customer state and customer CRUD",
       "risk": "high"
     },
     {
       "path": "assets/js/delivery-transaction.js",
-      "metrics": { "bytes": 2962, "lines": 78, "functionDeclarations": 3, "asyncFunctions": 1 },
-      "globalsDefined": ["deliveryStatePatch", "runDeliveryTransaction"],
-      "internalFunctions": ["cleanDeliveryDates"],
-      "requiredDefinitions": ["deliveryStatePatch", "runDeliveryTransaction"],
+      "metrics": {
+        "bytes": 2962,
+        "lines": 78,
+        "functionDeclarations": 3,
+        "asyncFunctions": 1
+      },
+      "globalsDefined": [
+        "deliveryStatePatch",
+        "runDeliveryTransaction"
+      ],
+      "internalFunctions": [
+        "cleanDeliveryDates"
+      ],
+      "requiredDefinitions": [
+        "deliveryStatePatch",
+        "runDeliveryTransaction"
+      ],
       "globalsConsumed": [],
       "globalState": [],
-      "windowExports": ["deliveryStatePatch", "runDeliveryTransaction"],
+      "windowExports": [
+        "deliveryStatePatch",
+        "runDeliveryTransaction"
+      ],
       "domIds": [],
-      "firestoreCollections": ["customers"],
-      "externalApis": ["Firestore transaction API"],
+      "firestoreCollections": [
+        "customers"
+      ],
+      "externalApis": [
+        "Firestore transaction API"
+      ],
       "crossFileCalls": {},
-      "topLevelBehavior": ["UMD factory executes immediately and exports two transaction helpers"],
+      "topLevelBehavior": [
+        "UMD factory executes immediately and exports two transaction helpers"
+      ],
       "eventsAndListeners": [],
       "recommendedOwnership": "delivery transaction policy",
       "risk": "low"
     },
     {
       "path": "assets/js/imweb.js",
-      "metrics": { "bytes": 35296, "lines": 867, "functionDeclarations": 48, "asyncFunctions": 11 },
-      "globalsDefined": ["imwebNormalizeStatus", "imwebIsCancelStatus", "imwebOrderStatuses", "imwebCancelStatusForOrder", "imwebAddCancelInfoText", "imwebAddCancelInfoTime", "imwebCollectCancelInfo", "imwebCancelInfoForOrder", "imwebCreateCancelLog", "imwebDeleteLocalOrder", "imwebSaveKeys", "imwebLoadKeys", "imwebClearKeys", "imwebToggleShow", "imwebTestConn", "setConnStatus", "imwebGetToken", "imwebFetch", "parseImwebProduct", "renderImwebOrders", "iwRemoveRow", "imwebToggleAll", "imwebRegAll", "imwebReset", "initImwebTab", "iwExtractDoor", "iwDzOver", "iwDzLeave", "iwDzDrop", "iwReadXl", "iwProcXl", "iwParseDateKo", "iwMatchSch", "iwParseRow", "iwRenderXl", "iwXlUpdSch", "iwXlRemove", "iwResetXl", "iwRegXl", "showAddrModal", "copyField", "copyAllAddr", "exportCSV", "exportPhoneExcel", "quickDelete", "markDone", "undoMarkDone", "markAll"],
-      "requiredDefinitions": ["imwebFetch", "imwebRegAll", "iwRegXl", "markDone", "undoMarkDone", "markAll"],
-      "globalsConsumed": ["window.__DB", "productLabel", "runDeliveryTransaction", "todayStr", "listFor", "addDays", "escHtml", "imwebOrderAmount", "normalizeOrderAmount", "copyLozen", "goTab", "openM", "toast", "XLSX"],
-      "globalState": ["IW_KEY_STORE", "iwOrders", "IW_CANCEL_STATUSES", "iwXlData", "IW_PROD_OPTIONS"],
+      "metrics": {
+        "bytes": 35296,
+        "lines": 867,
+        "functionDeclarations": 48,
+        "asyncFunctions": 11
+      },
+      "globalsDefined": [
+        "imwebNormalizeStatus",
+        "imwebIsCancelStatus",
+        "imwebOrderStatuses",
+        "imwebCancelStatusForOrder",
+        "imwebAddCancelInfoText",
+        "imwebAddCancelInfoTime",
+        "imwebCollectCancelInfo",
+        "imwebCancelInfoForOrder",
+        "imwebCreateCancelLog",
+        "imwebDeleteLocalOrder",
+        "imwebSaveKeys",
+        "imwebLoadKeys",
+        "imwebClearKeys",
+        "imwebToggleShow",
+        "imwebTestConn",
+        "setConnStatus",
+        "imwebGetToken",
+        "imwebFetch",
+        "parseImwebProduct",
+        "renderImwebOrders",
+        "iwRemoveRow",
+        "imwebToggleAll",
+        "imwebRegAll",
+        "imwebReset",
+        "initImwebTab",
+        "iwExtractDoor",
+        "iwDzOver",
+        "iwDzLeave",
+        "iwDzDrop",
+        "iwReadXl",
+        "iwProcXl",
+        "iwParseDateKo",
+        "iwMatchSch",
+        "iwParseRow",
+        "iwRenderXl",
+        "iwXlUpdSch",
+        "iwXlRemove",
+        "iwResetXl",
+        "iwRegXl",
+        "showAddrModal",
+        "copyField",
+        "copyAllAddr",
+        "exportCSV",
+        "exportPhoneExcel",
+        "quickDelete",
+        "markDone",
+        "undoMarkDone",
+        "markAll"
+      ],
+      "requiredDefinitions": [
+        "imwebFetch",
+        "imwebRegAll",
+        "iwRegXl",
+        "markDone",
+        "undoMarkDone",
+        "markAll"
+      ],
+      "globalsConsumed": [
+        "window.__DB",
+        "productLabel",
+        "runDeliveryTransaction",
+        "todayStr",
+        "listFor",
+        "addDays",
+        "escHtml",
+        "imwebOrderAmount",
+        "normalizeOrderAmount",
+        "copyLozen",
+        "goTab",
+        "openM",
+        "toast",
+        "XLSX"
+      ],
+      "globalState": [
+        "IW_KEY_STORE",
+        "iwOrders",
+        "IW_CANCEL_STATUSES",
+        "iwXlData",
+        "IW_PROD_OPTIONS"
+      ],
       "windowExports": [],
-      "domIds": ["iw-apikey", "iw-secret", "iw-from", "iw-to", "iw-fetch-btn", "iw-loading", "iw-status", "iw-result-wrap", "iw-tbody", "iw-cnt", "iw-dz", "iw-xlf", "iw-xl-wrap", "iw-xl-tbody", "iw-xl-cnt", "addrM", "am-name", "am-phone", "am-addr", "am-door", "am-req", "lozenCopyBtn", "todayDate"],
-      "firestoreCollections": ["customers", "imwebCancelLogs"],
-      "externalApis": ["https://api.imweb.me/v2/auth", "https://api.imweb.me/v2/shop/orders", "Firestore", "XLSX"],
-      "crossFileCalls": { "auth-core.js": ["productLabel"], "delivery-transaction.js": ["runDeliveryTransaction"], "schedule-report.js": ["todayStr", "listFor", "addDays"], "rendering-formatters.js": ["escHtml"], "order-settlement.js": ["imwebOrderAmount", "normalizeOrderAmount"], "ui.js": ["copyLozen", "goTab", "openM", "toast"] },
-      "topLevelBehavior": ["defines Imweb and spreadsheet handlers; no immediate network request"],
+      "domIds": [
+        "iw-apikey",
+        "iw-secret",
+        "iw-from",
+        "iw-to",
+        "iw-fetch-btn",
+        "iw-loading",
+        "iw-status",
+        "iw-result-wrap",
+        "iw-tbody",
+        "iw-cnt",
+        "iw-dz",
+        "iw-xlf",
+        "iw-xl-wrap",
+        "iw-xl-tbody",
+        "iw-xl-cnt",
+        "addrM",
+        "am-name",
+        "am-phone",
+        "am-addr",
+        "am-door",
+        "am-req",
+        "lozenCopyBtn",
+        "todayDate"
+      ],
+      "firestoreCollections": [
+        "customers",
+        "imwebCancelLogs"
+      ],
+      "externalApis": [
+        "https://api.imweb.me/v2/auth",
+        "https://api.imweb.me/v2/shop/orders",
+        "Firestore",
+        "XLSX"
+      ],
+      "crossFileCalls": {
+        "auth-core.js": [
+          "productLabel"
+        ],
+        "delivery-transaction.js": [
+          "runDeliveryTransaction"
+        ],
+        "schedule-report.js": [
+          "todayStr",
+          "listFor",
+          "addDays"
+        ],
+        "rendering-formatters.js": [
+          "escHtml"
+        ],
+        "order-settlement.js": [
+          "imwebOrderAmount",
+          "normalizeOrderAmount"
+        ],
+        "ui.js": [
+          "copyLozen",
+          "goTab",
+          "openM",
+          "toast"
+        ]
+      },
+      "topLevelBehavior": [
+        "defines Imweb and spreadsheet handlers; no immediate network request"
+      ],
       "eventsAndListeners": [],
       "recommendedOwnership": "Imweb integration, Imweb spreadsheet import and legacy delivery handlers",
       "risk": "high"
     },
     {
       "path": "assets/js/schedule-report.js",
-      "metrics": { "bytes": 17588, "lines": 382, "functionDeclarations": 38, "asyncFunctions": 3 },
-      "globalsDefined": ["todayStr", "dow", "wasDeliveredOn", "isActiveOn", "isDelivSub", "isDelivOnce", "isDeliv", "listFor", "todayList", "addDays", "dateLabel", "moveDashDate", "resetDashDate", "updateDashDisp", "moveTodayDate", "resetTodayDate", "updateTodayDisp", "initReport", "setView", "moveReport", "resetReport", "getWeekRange", "getMonthRange", "dateToStr", "renderReport", "renderWeek", "renderMonth", "renderReportList", "jumpToDate", "markDone", "undoMarkDone", "markAll", "markAllDirect", "markAllCourier"],
-      "internalFunctions": ["deliveryToast", "selectedDeliveryDate", "cleanDates", "rerenderDeliveryScreens", "patchLocalCustomer", "stableMarkDone", "stableUndoMarkDone", "markMany", "installStableDeliveryHandlers"],
-      "requiredDefinitions": ["todayStr", "isDelivSub", "isDelivOnce", "listFor", "renderReport", "stableMarkDone", "stableUndoMarkDone"],
-      "globalsConsumed": ["custs", "DAYS", "reportView", "reportOffset", "productLabel", "productBadgeClass", "runDeliveryTransaction", "renderDash", "renderToday", "renderCust", "goTab", "toast", "window.__DB"],
+      "metrics": {
+        "bytes": 17588,
+        "lines": 382,
+        "functionDeclarations": 38,
+        "asyncFunctions": 3
+      },
+      "globalsDefined": [
+        "todayStr",
+        "dow",
+        "wasDeliveredOn",
+        "isActiveOn",
+        "isDelivSub",
+        "isDelivOnce",
+        "isDeliv",
+        "listFor",
+        "todayList",
+        "addDays",
+        "dateLabel",
+        "moveDashDate",
+        "resetDashDate",
+        "updateDashDisp",
+        "moveTodayDate",
+        "resetTodayDate",
+        "updateTodayDisp",
+        "initReport",
+        "setView",
+        "moveReport",
+        "resetReport",
+        "getWeekRange",
+        "getMonthRange",
+        "dateToStr",
+        "renderReport",
+        "renderWeek",
+        "renderMonth",
+        "renderReportList",
+        "jumpToDate",
+        "markDone",
+        "undoMarkDone",
+        "markAll",
+        "markAllDirect",
+        "markAllCourier"
+      ],
+      "internalFunctions": [
+        "deliveryToast",
+        "selectedDeliveryDate",
+        "cleanDates",
+        "rerenderDeliveryScreens",
+        "patchLocalCustomer",
+        "stableMarkDone",
+        "stableUndoMarkDone",
+        "markMany",
+        "installStableDeliveryHandlers"
+      ],
+      "requiredDefinitions": [
+        "todayStr",
+        "isDelivSub",
+        "isDelivOnce",
+        "listFor",
+        "renderReport",
+        "stableMarkDone",
+        "stableUndoMarkDone"
+      ],
+      "globalsConsumed": [
+        "custs",
+        "DAYS",
+        "reportView",
+        "reportOffset",
+        "productLabel",
+        "productBadgeClass",
+        "runDeliveryTransaction",
+        "renderDash",
+        "renderToday",
+        "renderCust",
+        "goTab",
+        "toast",
+        "window.__DB"
+      ],
       "globalState": [],
-      "windowExports": ["markDone", "undoMarkDone", "markAll", "markAllDirect", "markAllCourier"],
-      "domIds": ["dashDate", "dashDateDisp", "dash-date-lbl", "dash-list-title", "todayDate", "todayDateDisp", "reportDisp", "reportSummary", "reportCalendar", "reportList", "reportListTitle", "vt-week", "vt-month"],
+      "windowExports": [
+        "markDone",
+        "undoMarkDone",
+        "markAll",
+        "markAllDirect",
+        "markAllCourier"
+      ],
+      "domIds": [
+        "dashDate",
+        "dashDateDisp",
+        "dash-date-lbl",
+        "dash-list-title",
+        "todayDate",
+        "todayDateDisp",
+        "reportDisp",
+        "reportSummary",
+        "reportCalendar",
+        "reportList",
+        "reportListTitle",
+        "vt-week",
+        "vt-month"
+      ],
       "firestoreCollections": [],
-      "externalApis": ["runDeliveryTransaction abstraction"],
-      "crossFileCalls": { "auth-core.js": ["productLabel", "productBadgeClass"], "delivery-transaction.js": ["runDeliveryTransaction"], "rendering.js": ["renderDash", "renderToday", "renderCust"], "ui.js": ["goTab", "toast"] },
-      "topLevelBehavior": ["installs stable delivery handlers immediately, on DOMContentLoaded, on load and after 500 ms"],
-      "eventsAndListeners": ["DOMContentLoaded", "window load", "setTimeout 500 ms"],
+      "externalApis": [
+        "runDeliveryTransaction abstraction"
+      ],
+      "crossFileCalls": {
+        "auth-core.js": [
+          "productLabel",
+          "productBadgeClass"
+        ],
+        "delivery-transaction.js": [
+          "runDeliveryTransaction"
+        ],
+        "rendering.js": [
+          "renderDash",
+          "renderToday",
+          "renderCust"
+        ],
+        "ui.js": [
+          "goTab",
+          "toast"
+        ]
+      },
+      "topLevelBehavior": [
+        "installs stable delivery handlers immediately, on DOMContentLoaded, on load and after 500 ms"
+      ],
+      "eventsAndListeners": [
+        "DOMContentLoaded",
+        "window load",
+        "setTimeout 500 ms"
+      ],
       "recommendedOwnership": "date/schedule/report calculation and final employee delivery-handler policy",
       "risk": "high"
     },
     {
       "path": "assets/js/manual-delivery-dates.js",
-      "metrics": { "bytes": 11910, "lines": 274, "functionDeclarations": 22, "asyncFunctions": 0 },
-      "globalsDefined": ["validManualDeliveryDate", "normalizeManualDeliveryDates", "isManualDeliverySchedule", "manualScheduleIncludes", "manualScheduledFutureDates", "manualUpcomingDeliveryDates", "manualScheduleSelectionValid", "manualDeliveryOrderNumber", "manualDeliveryOrderLabel", "loadManualScheduleEditor", "resetManualScheduleEditor", "syncManualScheduleMode", "renderManualScheduleEditor", "manualScheduleDatesForSave"],
-      "internalFunctions": ["localToday", "monthKey", "shiftMonth", "editorRequiredCount", "editorFutureDates", "formatCalendarDate", "handleManualScheduleClick", "initManualScheduleEditor"],
-      "requiredDefinitions": ["normalizeManualDeliveryDates", "isManualDeliverySchedule", "manualScheduleIncludes", "manualUpcomingDeliveryDates", "manualScheduleSelectionValid", "manualDeliveryOrderNumber", "manualDeliveryOrderLabel", "manualScheduleDatesForSave"],
-      "globalsConsumed": ["todayStr", "toast", "document"],
+      "metrics": {
+        "bytes": 13996,
+        "lines": 314,
+        "functionDeclarations": 25,
+        "asyncFunctions": 0
+      },
+      "globalsDefined": [
+        "validManualDeliveryDate",
+        "normalizeManualDeliveryDates",
+        "isManualDeliverySchedule",
+        "manualScheduleIncludes",
+        "manualScheduledFutureDates",
+        "manualUpcomingDeliveryDates",
+        "manualScheduleSelectionValid",
+        "manualDeliveryOrderNumber",
+        "manualDeliveryOrderLabel",
+        "loadManualScheduleEditor",
+        "resetManualScheduleEditor",
+        "syncManualScheduleMode",
+        "renderManualScheduleEditor",
+        "manualScheduleDatesForSave"
+      ],
+      "internalFunctions": [
+        "localToday",
+        "monthKey",
+        "shiftMonth",
+        "editorRequiredCount",
+        "editorFutureDates",
+        "formatCalendarDate",
+        "handleManualScheduleClick",
+        "initManualScheduleEditor"
+      ],
+      "requiredDefinitions": [
+        "normalizeManualDeliveryDates",
+        "isManualDeliverySchedule",
+        "manualScheduleIncludes",
+        "manualUpcomingDeliveryDates",
+        "manualScheduleSelectionValid",
+        "manualDeliveryOrderNumber",
+        "manualDeliveryOrderLabel",
+        "manualScheduleDatesForSave"
+      ],
+      "globalsConsumed": [
+        "todayStr",
+        "toast",
+        "document"
+      ],
       "globalState": [],
-      "privateState": ["editorStates", "editorConfig"],
-      "windowExports": ["validManualDeliveryDate", "normalizeManualDeliveryDates", "isManualDeliverySchedule", "manualScheduleIncludes", "manualScheduledFutureDates", "manualUpcomingDeliveryDates", "manualScheduleSelectionValid", "manualDeliveryOrderNumber", "manualDeliveryOrderLabel", "loadManualScheduleEditor", "resetManualScheduleEditor", "syncManualScheduleMode", "renderManualScheduleEditor", "manualScheduleDatesForSave"],
-      "domIds": ["af-manual-dates", "a-manual-month-label", "a-manual-calendar", "a-manual-summary", "ato", "af-sched", "af-start", "ef-manual-dates", "e-manual-month-label", "e-manual-calendar", "e-manual-summary", "erem", "ef-sched-sel", "ef-start-wrap", "ef-sched-from-wrap"],
+      "privateState": [
+        "editorStates",
+        "editorConfig"
+      ],
+      "windowExports": [
+        "validManualDeliveryDate",
+        "normalizeManualDeliveryDates",
+        "isManualDeliverySchedule",
+        "manualScheduleIncludes",
+        "manualScheduledFutureDates",
+        "manualUpcomingDeliveryDates",
+        "manualScheduleSelectionValid",
+        "manualDeliveryOrderNumber",
+        "manualDeliveryOrderLabel",
+        "loadManualScheduleEditor",
+        "resetManualScheduleEditor",
+        "syncManualScheduleMode",
+        "renderManualScheduleEditor",
+        "manualScheduleDatesForSave"
+      ],
+      "domIds": [
+        "af-manual-dates",
+        "a-manual-month-label",
+        "a-manual-calendar",
+        "a-manual-summary",
+        "ato",
+        "af-sched",
+        "af-start",
+        "ef-manual-dates",
+        "e-manual-month-label",
+        "e-manual-calendar",
+        "e-manual-summary",
+        "erem",
+        "ef-sched-sel",
+        "ef-start-wrap",
+        "ef-sched-from-wrap"
+      ],
       "firestoreCollections": [],
       "externalApis": [],
-      "crossFileCalls": { "schedule-report.js": ["todayStr"], "ui.js": ["toast"] },
-      "topLevelBehavior": ["UMD factory exports manual schedule calculation and calendar editor helpers"],
-      "eventsAndListeners": ["manual calendar click", "remaining-count input"],
+      "crossFileCalls": {
+        "schedule-report.js": [
+          "todayStr"
+        ],
+        "ui.js": [
+          "toast"
+        ]
+      },
+      "topLevelBehavior": [
+        "UMD factory exports manual schedule calculation and calendar editor helpers"
+      ],
+      "eventsAndListeners": [
+        "manual calendar click",
+        "remaining-count input"
+      ],
       "recommendedOwnership": "manual delivery date calculation and calendar editor",
       "risk": "medium"
     },
     {
       "path": "assets/js/rendering-formatters.js",
-      "metrics": { "bytes": 1736, "lines": 55, "functionDeclarations": 10, "asyncFunctions": 0 },
-      "globalsDefined": ["escHtml", "firstOrderBadgeHtml", "customerText", "customerJsArg", "customerPhoneDigits", "customerTimestampMs", "customerNewBadgeHtml", "customerProductKey", "customerOrderTypeLabel", "customerOrderTypeBadge"],
-      "requiredDefinitions": ["escHtml", "firstOrderBadgeHtml", "customerText", "customerJsArg", "customerPhoneDigits", "customerTimestampMs", "customerNewBadgeHtml", "customerProductKey", "customerOrderTypeLabel", "customerOrderTypeBadge"],
+      "metrics": {
+        "bytes": 1736,
+        "lines": 55,
+        "functionDeclarations": 10,
+        "asyncFunctions": 0
+      },
+      "globalsDefined": [
+        "escHtml",
+        "firstOrderBadgeHtml",
+        "customerText",
+        "customerJsArg",
+        "customerPhoneDigits",
+        "customerTimestampMs",
+        "customerNewBadgeHtml",
+        "customerProductKey",
+        "customerOrderTypeLabel",
+        "customerOrderTypeBadge"
+      ],
+      "requiredDefinitions": [
+        "escHtml",
+        "firstOrderBadgeHtml",
+        "customerText",
+        "customerJsArg",
+        "customerPhoneDigits",
+        "customerTimestampMs",
+        "customerNewBadgeHtml",
+        "customerProductKey",
+        "customerOrderTypeLabel",
+        "customerOrderTypeBadge"
+      ],
       "globalsConsumed": [],
       "globalState": [],
       "windowExports": [],
@@ -140,189 +690,1384 @@
     },
     {
       "path": "assets/js/rendering.js",
-      "metrics": { "bytes": 88724, "lines": 1767, "functionDeclarations": 90, "asyncFunctions": 5 },
-      "globalsDefined": ["refreshAll", "renderDash", "renderToday", "renderCust", "renderCancelLogs", "toggleCancelPopover", "closeCancelPopover", "printCourierList", "printDirectList", "printAllDeliveryList", "markAllDirect", "markAllCourier", "showDet", "showCustomerGroup", "customerGroupOrderSummary", "editOnceDate", "resetCustomerFilters", "setCustomerQuickFilter", "showMoreCustomers", "customerCopyText", "closeCustomerDetail", "customerGroupQuickMatches", "customerGroupCounts", "updateCustomerOverview"],
-      "requiredDefinitions": ["refreshAll", "renderDash", "renderToday", "renderCust", "renderCancelLogs", "printAllDeliveryList", "markAllDirect", "markAllCourier", "showCustomerGroup"],
-      "globalsConsumed": ["custs", "cancelLogs", "escHtml", "firstOrderBadgeHtml", "customerText", "customerJsArg", "customerPhoneDigits", "customerTimestampMs", "customerNewBadgeHtml", "customerProductKey", "customerOrderTypeLabel", "customerOrderTypeBadge", "productLabel", "productBadgeClass", "customerOrderDateInputValue", "chargeRemain", "togglePause", "cancelPendingSchedule", "runDeliveryTransaction", "showAddrModal", "quickDelete", "markDone", "undoMarkDone", "todayStr", "isDeliv", "listFor", "addDays", "updateDashDisp", "updateTodayDisp", "renderRouteMap", "renderOrderSettlement", "logenStatusBadgeHtml", "logenSlipNoHtml", "logenActionHtml", "logenCourierSummaryHtml", "gauge", "scheduleDisp", "copyLozen", "statusLabel", "shortDate", "s", "openEdit", "copyOrder", "goTab", "toast"],
-      "globalState": ["_resizeTimer", "SINGLE_PRODUCT_IDS", "__customerGroups", "__selectedCustomerGroupKey", "__expandedCustomerOrderId", "CUSTOMER_NEW_BADGE_MS", "CUSTOMER_PAGE_SIZE", "__customerQuickFilter", "__customerVisibleLimit", "__customerFilterSignature", "RISK_ORDER_DISMISS_KEY", "__riskOrderAlertOpen", "__riskOrderSessionHidden"],
-      "windowExports": ["renderCancelLogs", "toggleCancelPopover", "closeCancelPopover"],
-      "domIds": ["dashDate", "todayDate", "page-dash", "directList", "courierList", "today-direct-section", "custList", "custDetail", "custDetailBackdrop", "custSummaryTotal", "custSummaryActive", "custSummaryPause", "custSummaryRisk", "custQuickFilters", "custResultText", "custListMore", "cancelNotice", "cancelPopover", "cancelLogBody", "cancelLogCards", "riskOrderAlert", "riskOrderList", "srchQ", "srchSt", "srchSet", "srchType", "srchDirect", "srchRemain", "srchSort", "logen-courier-summary"],
-      "firestoreCollections": ["customers", "imwebCancelLogs"],
-      "externalApis": ["Firestore"],
-      "crossFileCalls": { "rendering-formatters.js": ["escHtml", "firstOrderBadgeHtml", "customerText", "customerJsArg", "customerPhoneDigits", "customerTimestampMs", "customerNewBadgeHtml", "customerProductKey", "customerOrderTypeLabel", "customerOrderTypeBadge"], "auth-core.js": ["productLabel", "productBadgeClass", "customerOrderDateInputValue", "chargeRemain", "togglePause", "cancelPendingSchedule"], "delivery-transaction.js": ["runDeliveryTransaction"], "imweb.js": ["showAddrModal", "quickDelete", "markDone", "undoMarkDone"], "schedule-report.js": ["todayStr", "isDeliv", "listFor", "addDays", "updateDashDisp", "updateTodayDisp"], "route-map.js": ["renderRouteMap"], "order-settlement.js": ["renderOrderSettlement"], "logen.js": ["logenStatusBadgeHtml", "logenSlipNoHtml", "logenActionHtml", "logenCourierSummaryHtml"], "ui.js": ["gauge", "scheduleDisp", "copyLozen", "statusLabel", "shortDate", "s", "openEdit", "copyOrder", "goTab", "toast"] },
-      "topLevelBehavior": ["registers resize handler", "registers cancel-popover document click and DOMContentLoaded handlers"],
-      "eventsAndListeners": ["window resize", "document click", "DOMContentLoaded", "setTimeout debounce"],
+      "metrics": {
+        "bytes": 88724,
+        "lines": 1767,
+        "functionDeclarations": 90,
+        "asyncFunctions": 5
+      },
+      "globalsDefined": [
+        "refreshAll",
+        "renderDash",
+        "renderToday",
+        "renderCust",
+        "renderCancelLogs",
+        "toggleCancelPopover",
+        "closeCancelPopover",
+        "printCourierList",
+        "printDirectList",
+        "printAllDeliveryList",
+        "markAllDirect",
+        "markAllCourier",
+        "showDet",
+        "showCustomerGroup",
+        "customerGroupOrderSummary",
+        "editOnceDate",
+        "resetCustomerFilters",
+        "setCustomerQuickFilter",
+        "showMoreCustomers",
+        "customerCopyText",
+        "closeCustomerDetail",
+        "customerGroupQuickMatches",
+        "customerGroupCounts",
+        "updateCustomerOverview"
+      ],
+      "requiredDefinitions": [
+        "refreshAll",
+        "renderDash",
+        "renderToday",
+        "renderCust",
+        "renderCancelLogs",
+        "printAllDeliveryList",
+        "markAllDirect",
+        "markAllCourier",
+        "showCustomerGroup"
+      ],
+      "globalsConsumed": [
+        "custs",
+        "cancelLogs",
+        "escHtml",
+        "firstOrderBadgeHtml",
+        "customerText",
+        "customerJsArg",
+        "customerPhoneDigits",
+        "customerTimestampMs",
+        "customerNewBadgeHtml",
+        "customerProductKey",
+        "customerOrderTypeLabel",
+        "customerOrderTypeBadge",
+        "productLabel",
+        "productBadgeClass",
+        "customerOrderDateInputValue",
+        "chargeRemain",
+        "togglePause",
+        "cancelPendingSchedule",
+        "runDeliveryTransaction",
+        "showAddrModal",
+        "quickDelete",
+        "markDone",
+        "undoMarkDone",
+        "todayStr",
+        "isDeliv",
+        "listFor",
+        "addDays",
+        "updateDashDisp",
+        "updateTodayDisp",
+        "renderRouteMap",
+        "renderOrderSettlement",
+        "logenStatusBadgeHtml",
+        "logenSlipNoHtml",
+        "logenActionHtml",
+        "logenCourierSummaryHtml",
+        "gauge",
+        "scheduleDisp",
+        "copyLozen",
+        "statusLabel",
+        "shortDate",
+        "s",
+        "openEdit",
+        "copyOrder",
+        "goTab",
+        "toast"
+      ],
+      "globalState": [
+        "_resizeTimer",
+        "SINGLE_PRODUCT_IDS",
+        "__customerGroups",
+        "__selectedCustomerGroupKey",
+        "__expandedCustomerOrderId",
+        "CUSTOMER_NEW_BADGE_MS",
+        "CUSTOMER_PAGE_SIZE",
+        "__customerQuickFilter",
+        "__customerVisibleLimit",
+        "__customerFilterSignature",
+        "RISK_ORDER_DISMISS_KEY",
+        "__riskOrderAlertOpen",
+        "__riskOrderSessionHidden"
+      ],
+      "windowExports": [
+        "renderCancelLogs",
+        "toggleCancelPopover",
+        "closeCancelPopover"
+      ],
+      "domIds": [
+        "dashDate",
+        "todayDate",
+        "page-dash",
+        "directList",
+        "courierList",
+        "today-direct-section",
+        "custList",
+        "custDetail",
+        "custDetailBackdrop",
+        "custSummaryTotal",
+        "custSummaryActive",
+        "custSummaryPause",
+        "custSummaryRisk",
+        "custQuickFilters",
+        "custResultText",
+        "custListMore",
+        "cancelNotice",
+        "cancelPopover",
+        "cancelLogBody",
+        "cancelLogCards",
+        "riskOrderAlert",
+        "riskOrderList",
+        "srchQ",
+        "srchSt",
+        "srchSet",
+        "srchType",
+        "srchDirect",
+        "srchRemain",
+        "srchSort",
+        "logen-courier-summary"
+      ],
+      "firestoreCollections": [
+        "customers",
+        "imwebCancelLogs"
+      ],
+      "externalApis": [
+        "Firestore"
+      ],
+      "crossFileCalls": {
+        "rendering-formatters.js": [
+          "escHtml",
+          "firstOrderBadgeHtml",
+          "customerText",
+          "customerJsArg",
+          "customerPhoneDigits",
+          "customerTimestampMs",
+          "customerNewBadgeHtml",
+          "customerProductKey",
+          "customerOrderTypeLabel",
+          "customerOrderTypeBadge"
+        ],
+        "auth-core.js": [
+          "productLabel",
+          "productBadgeClass",
+          "customerOrderDateInputValue",
+          "chargeRemain",
+          "togglePause",
+          "cancelPendingSchedule"
+        ],
+        "delivery-transaction.js": [
+          "runDeliveryTransaction"
+        ],
+        "imweb.js": [
+          "showAddrModal",
+          "quickDelete",
+          "markDone",
+          "undoMarkDone"
+        ],
+        "schedule-report.js": [
+          "todayStr",
+          "isDeliv",
+          "listFor",
+          "addDays",
+          "updateDashDisp",
+          "updateTodayDisp"
+        ],
+        "route-map.js": [
+          "renderRouteMap"
+        ],
+        "order-settlement.js": [
+          "renderOrderSettlement"
+        ],
+        "logen.js": [
+          "logenStatusBadgeHtml",
+          "logenSlipNoHtml",
+          "logenActionHtml",
+          "logenCourierSummaryHtml"
+        ],
+        "ui.js": [
+          "gauge",
+          "scheduleDisp",
+          "copyLozen",
+          "statusLabel",
+          "shortDate",
+          "s",
+          "openEdit",
+          "copyOrder",
+          "goTab",
+          "toast"
+        ]
+      },
+      "topLevelBehavior": [
+        "registers resize handler",
+        "registers cancel-popover document click and DOMContentLoaded handlers"
+      ],
+      "eventsAndListeners": [
+        "window resize",
+        "document click",
+        "DOMContentLoaded",
+        "setTimeout debounce"
+      ],
       "recommendedOwnership": "page rendering only; split by dashboard, delivery and customer rendering in a later PR",
       "risk": "high"
     },
     {
       "path": "assets/js/order-settlement.js",
-      "metrics": { "bytes": 10733, "lines": 245, "functionDeclarations": 16, "asyncFunctions": 0 },
-      "globalsDefined": ["normalizeOrderAmount", "imwebOrderAmount", "orderAmountValue", "orderSalesDateValue", "orderSalesRootNumber", "orderSalesGroupKey", "orderSalesSource", "orderSalesSourceGroup", "buildOrderSalesRows", "summarizeOrderSales", "orderSalesWon", "orderSalesSourceLabel", "moveOrderSettlementMonth", "resetOrderSettlementMonth", "resetOrderSettlementFilters", "renderOrderSettlement"],
-      "requiredDefinitions": ["normalizeOrderAmount", "imwebOrderAmount", "buildOrderSalesRows", "summarizeOrderSales", "renderOrderSettlement"],
-      "globalsConsumed": ["custs", "productLabel", "customerOrderDateInputValue", "todayStr", "escHtml", "customerJsArg", "statusLabel", "openEdit"],
-      "globalState": ["ORDER_SOURCE_LABELS"],
+      "metrics": {
+        "bytes": 10733,
+        "lines": 245,
+        "functionDeclarations": 16,
+        "asyncFunctions": 0
+      },
+      "globalsDefined": [
+        "normalizeOrderAmount",
+        "imwebOrderAmount",
+        "orderAmountValue",
+        "orderSalesDateValue",
+        "orderSalesRootNumber",
+        "orderSalesGroupKey",
+        "orderSalesSource",
+        "orderSalesSourceGroup",
+        "buildOrderSalesRows",
+        "summarizeOrderSales",
+        "orderSalesWon",
+        "orderSalesSourceLabel",
+        "moveOrderSettlementMonth",
+        "resetOrderSettlementMonth",
+        "resetOrderSettlementFilters",
+        "renderOrderSettlement"
+      ],
+      "requiredDefinitions": [
+        "normalizeOrderAmount",
+        "imwebOrderAmount",
+        "buildOrderSalesRows",
+        "summarizeOrderSales",
+        "renderOrderSettlement"
+      ],
+      "globalsConsumed": [
+        "custs",
+        "productLabel",
+        "customerOrderDateInputValue",
+        "todayStr",
+        "escHtml",
+        "customerJsArg",
+        "statusLabel",
+        "openEdit"
+      ],
+      "globalState": [
+        "ORDER_SOURCE_LABELS"
+      ],
       "windowExports": [],
-      "domIds": ["salesMonth", "salesSource", "salesAmountState", "salesSort", "salesQuery", "salesList", "salesSummary", "salesCount"],
+      "domIds": [
+        "salesMonth",
+        "salesSource",
+        "salesAmountState",
+        "salesSort",
+        "salesQuery",
+        "salesList",
+        "salesSummary",
+        "salesCount"
+      ],
       "firestoreCollections": [],
       "externalApis": [],
-      "crossFileCalls": { "auth-core.js": ["productLabel", "customerOrderDateInputValue"], "schedule-report.js": ["todayStr"], "rendering-formatters.js": ["escHtml", "customerJsArg"], "ui.js": ["statusLabel", "openEdit"] },
-      "topLevelBehavior": ["declares amount normalization and settlement rendering helpers; no immediate data access"],
+      "crossFileCalls": {
+        "auth-core.js": [
+          "productLabel",
+          "customerOrderDateInputValue"
+        ],
+        "schedule-report.js": [
+          "todayStr"
+        ],
+        "rendering-formatters.js": [
+          "escHtml",
+          "customerJsArg"
+        ],
+        "ui.js": [
+          "statusLabel",
+          "openEdit"
+        ]
+      },
+      "topLevelBehavior": [
+        "declares amount normalization and settlement rendering helpers; no immediate data access"
+      ],
       "eventsAndListeners": [],
       "recommendedOwnership": "order amount normalization, order-level sales grouping and monthly settlement presentation",
       "risk": "medium"
     },
     {
       "path": "assets/js/route-map.js",
-      "metrics": { "bytes": 28321, "lines": 762, "functionDeclarations": 43, "asyncFunctions": 10 },
-      "globalsDefined": ["routeEsc", "routePhoneDigits", "routeDateValue", "updateRouteDateDisp", "moveRouteDate", "resetRouteDate", "routeIsDone", "routeDirectList", "routeQtyLabel", "routeNaverSearchUrl", "routeKakaoSearchUrl", "routeApiBase", "routeIdToken", "postRouteApi", "routeDurationLabel", "routeDistanceLabel", "routeDistanceKm", "routeRoundTripDistance", "routeImproveStraightRoundTripOrder", "routeApplyOptimizedOrder", "routeNearestOrder", "setRouteMapTouchEnabled", "enableRouteMapTouch", "copyRouteText", "copyRouteAddress", "copyRouteAddresses", "routeToggleDone", "focusRouteCard", "routeCardHtml", "renderRouteList", "renderRouteSummary", "optimizeRouteOrder", "loadRouteNaverScript", "loadRouteKakaoScript", "routeGeocode", "routeKakaoGeocode", "routeGeocodeWithFallback", "routeCoordsForAddress", "routeCoordsFor", "renderRouteNaverMap", "renderRouteKakaoMap", "renderRouteMapFallback", "renderRouteMap"],
-      "requiredDefinitions": ["moveRouteDate", "resetRouteDate", "routeToggleDone", "optimizeRouteOrder", "renderRouteMap"],
-      "globalsConsumed": ["custs", "window.__AUTH", "window.__DB", "firebase", "productLabel", "markDone", "undoMarkDone", "todayStr", "listFor", "addDays", "dateLabel", "deliveryProductBadgeHtml", "lastBoxDeliveryBadge", "scheduleDisp", "toast"],
-      "globalState": ["ROUTE_NAVER_CLIENT_ID", "ROUTE_KAKAO_JS_KEY", "ROUTE_ORIGIN_ADDRESS", "ROUTE_DEFAULT_API_BASE", "routeNaverLoaded", "routeNaverLoading", "routeKakaoLoaded", "routeKakaoLoading", "routeMapInstance", "routeMapMarkers", "routeKakaoMapInstance", "routeKakaoMarkers", "routeMapToken", "routeMapTouchTimer", "routeOptimizedDate", "routeOptimizedIds"],
-      "windowExports": ["__gjsRouteNaverReady", "navermap_authFailure"],
-      "domIds": ["routeDate", "routeDateDisp", "routeHideDone", "routeList", "routeSummary", "routeMap", "routeMapShell", "routeMapStatus", "routeMapTouchBtn", "route-naver-map-sdk", "route-kakao-map-sdk"],
-      "firestoreCollections": ["deliveryCoords"],
-      "externalApis": ["Firebase Functions route proxy", "Naver Maps JavaScript API", "Kakao Maps JavaScript API", "Naver/Kakao map search links"],
-      "crossFileCalls": { "auth-core.js": ["productLabel"], "imweb.js": ["markDone", "undoMarkDone"], "schedule-report.js": ["todayStr", "listFor", "addDays", "dateLabel"], "rendering.js": ["deliveryProductBadgeHtml", "lastBoxDeliveryBadge"], "ui.js": ["scheduleDisp", "toast"] },
-      "topLevelBehavior": ["defines lazy map SDK loaders; no map SDK request until called"],
-      "eventsAndListeners": ["dynamic Naver/Kakao SDK callbacks", "map marker click listeners", "20-second map touch timer"],
+      "metrics": {
+        "bytes": 28321,
+        "lines": 762,
+        "functionDeclarations": 43,
+        "asyncFunctions": 10
+      },
+      "globalsDefined": [
+        "routeEsc",
+        "routePhoneDigits",
+        "routeDateValue",
+        "updateRouteDateDisp",
+        "moveRouteDate",
+        "resetRouteDate",
+        "routeIsDone",
+        "routeDirectList",
+        "routeQtyLabel",
+        "routeNaverSearchUrl",
+        "routeKakaoSearchUrl",
+        "routeApiBase",
+        "routeIdToken",
+        "postRouteApi",
+        "routeDurationLabel",
+        "routeDistanceLabel",
+        "routeDistanceKm",
+        "routeRoundTripDistance",
+        "routeImproveStraightRoundTripOrder",
+        "routeApplyOptimizedOrder",
+        "routeNearestOrder",
+        "setRouteMapTouchEnabled",
+        "enableRouteMapTouch",
+        "copyRouteText",
+        "copyRouteAddress",
+        "copyRouteAddresses",
+        "routeToggleDone",
+        "focusRouteCard",
+        "routeCardHtml",
+        "renderRouteList",
+        "renderRouteSummary",
+        "optimizeRouteOrder",
+        "loadRouteNaverScript",
+        "loadRouteKakaoScript",
+        "routeGeocode",
+        "routeKakaoGeocode",
+        "routeGeocodeWithFallback",
+        "routeCoordsForAddress",
+        "routeCoordsFor",
+        "renderRouteNaverMap",
+        "renderRouteKakaoMap",
+        "renderRouteMapFallback",
+        "renderRouteMap"
+      ],
+      "requiredDefinitions": [
+        "moveRouteDate",
+        "resetRouteDate",
+        "routeToggleDone",
+        "optimizeRouteOrder",
+        "renderRouteMap"
+      ],
+      "globalsConsumed": [
+        "custs",
+        "window.__AUTH",
+        "window.__DB",
+        "firebase",
+        "productLabel",
+        "markDone",
+        "undoMarkDone",
+        "todayStr",
+        "listFor",
+        "addDays",
+        "dateLabel",
+        "deliveryProductBadgeHtml",
+        "lastBoxDeliveryBadge",
+        "scheduleDisp",
+        "toast"
+      ],
+      "globalState": [
+        "ROUTE_NAVER_CLIENT_ID",
+        "ROUTE_KAKAO_JS_KEY",
+        "ROUTE_ORIGIN_ADDRESS",
+        "ROUTE_DEFAULT_API_BASE",
+        "routeNaverLoaded",
+        "routeNaverLoading",
+        "routeKakaoLoaded",
+        "routeKakaoLoading",
+        "routeMapInstance",
+        "routeMapMarkers",
+        "routeKakaoMapInstance",
+        "routeKakaoMarkers",
+        "routeMapToken",
+        "routeMapTouchTimer",
+        "routeOptimizedDate",
+        "routeOptimizedIds"
+      ],
+      "windowExports": [
+        "__gjsRouteNaverReady",
+        "navermap_authFailure"
+      ],
+      "domIds": [
+        "routeDate",
+        "routeDateDisp",
+        "routeHideDone",
+        "routeList",
+        "routeSummary",
+        "routeMap",
+        "routeMapShell",
+        "routeMapStatus",
+        "routeMapTouchBtn",
+        "route-naver-map-sdk",
+        "route-kakao-map-sdk"
+      ],
+      "firestoreCollections": [
+        "deliveryCoords"
+      ],
+      "externalApis": [
+        "Firebase Functions route proxy",
+        "Naver Maps JavaScript API",
+        "Kakao Maps JavaScript API",
+        "Naver/Kakao map search links"
+      ],
+      "crossFileCalls": {
+        "auth-core.js": [
+          "productLabel"
+        ],
+        "imweb.js": [
+          "markDone",
+          "undoMarkDone"
+        ],
+        "schedule-report.js": [
+          "todayStr",
+          "listFor",
+          "addDays",
+          "dateLabel"
+        ],
+        "rendering.js": [
+          "deliveryProductBadgeHtml",
+          "lastBoxDeliveryBadge"
+        ],
+        "ui.js": [
+          "scheduleDisp",
+          "toast"
+        ]
+      },
+      "topLevelBehavior": [
+        "defines lazy map SDK loaders; no map SDK request until called"
+      ],
+      "eventsAndListeners": [
+        "dynamic Naver/Kakao SDK callbacks",
+        "map marker click listeners",
+        "20-second map touch timer"
+      ],
       "recommendedOwnership": "route page, geocoding cache and route proxy",
       "risk": "medium"
     },
     {
       "path": "assets/js/import-export.js",
-      "metrics": { "bytes": 44121, "lines": 915, "functionDeclarations": 39, "asyncFunctions": 2 },
-      "globalsDefined": ["genExport", "copyExp", "dlExp", "openImwebPasteTool", "parseText", "cleanParsedValue", "stripFieldLabel", "normalizeDoorValue", "explicitField", "phoneDigits", "findExistingCustomerByNamePhone", "fmtDate", "sameDay", "daysFromText", "sameDays", "parseScheduleOption", "nextScheduleDate", "parseOrderBaseDate", "parseHopeDateValue", "parseDateKo", "parseProduct", "regParsed", "renderPmOrderList", "pmRemoveOrder", "pmAddOrder", "pmSetOrderType", "pmChangeQty", "pmUpdSch", "saveParsed", "clearParse", "parseXlRow", "dzOver", "dzLeave", "dzDrop", "readXl", "procXl", "renderXlPreview", "regXl", "resetXl"],
-      "requiredDefinitions": ["genExport", "parseText", "saveParsed", "regXl"],
-      "globalsConsumed": ["custs", "parsedData", "xlData", "PRODUCTS", "SCH", "DAYS", "window.__DB", "productLabel", "productBadgeClass", "normalizeDateInputValue", "todayStr", "dow", "listFor", "escHtml", "normalizeOrderAmount", "orderSalesWon", "goTab", "openM", "closeM", "toast", "XLSX"],
+      "metrics": {
+        "bytes": 44121,
+        "lines": 915,
+        "functionDeclarations": 39,
+        "asyncFunctions": 2
+      },
+      "globalsDefined": [
+        "genExport",
+        "copyExp",
+        "dlExp",
+        "openImwebPasteTool",
+        "parseText",
+        "cleanParsedValue",
+        "stripFieldLabel",
+        "normalizeDoorValue",
+        "explicitField",
+        "phoneDigits",
+        "findExistingCustomerByNamePhone",
+        "fmtDate",
+        "sameDay",
+        "daysFromText",
+        "sameDays",
+        "parseScheduleOption",
+        "nextScheduleDate",
+        "parseOrderBaseDate",
+        "parseHopeDateValue",
+        "parseDateKo",
+        "parseProduct",
+        "regParsed",
+        "renderPmOrderList",
+        "pmRemoveOrder",
+        "pmAddOrder",
+        "pmSetOrderType",
+        "pmChangeQty",
+        "pmUpdSch",
+        "saveParsed",
+        "clearParse",
+        "parseXlRow",
+        "dzOver",
+        "dzLeave",
+        "dzDrop",
+        "readXl",
+        "procXl",
+        "renderXlPreview",
+        "regXl",
+        "resetXl"
+      ],
+      "requiredDefinitions": [
+        "genExport",
+        "parseText",
+        "saveParsed",
+        "regXl"
+      ],
+      "globalsConsumed": [
+        "custs",
+        "parsedData",
+        "xlData",
+        "PRODUCTS",
+        "SCH",
+        "DAYS",
+        "window.__DB",
+        "productLabel",
+        "productBadgeClass",
+        "normalizeDateInputValue",
+        "todayStr",
+        "dow",
+        "listFor",
+        "escHtml",
+        "normalizeOrderAmount",
+        "orderSalesWon",
+        "goTab",
+        "openM",
+        "closeM",
+        "toast",
+        "XLSX"
+      ],
       "globalState": [],
       "windowExports": [],
-      "domIds": ["expDate", "expSet", "expType", "expTbl", "expTxt", "pasteArea", "parseResult", "parseMTitle", "parseRows", "pm-name", "pm-phone", "pm-addr", "pm-door", "pm-req", "pm-memo", "pm-amount", "pm-order-list", "dz", "xlf", "xlWrap", "xlPrev", "xlCnt"],
-      "firestoreCollections": ["customers"],
-      "externalApis": ["Firestore", "XLSX", "Clipboard", "Blob download"],
-      "crossFileCalls": { "auth-core.js": ["productLabel", "productBadgeClass", "normalizeDateInputValue"], "schedule-report.js": ["todayStr", "dow", "listFor"], "rendering-formatters.js": ["escHtml"], "order-settlement.js": ["normalizeOrderAmount", "orderSalesWon"], "ui.js": ["goTab", "openM", "closeM", "toast"] },
-      "topLevelBehavior": ["defines export, text parser and spreadsheet import handlers"],
+      "domIds": [
+        "expDate",
+        "expSet",
+        "expType",
+        "expTbl",
+        "expTxt",
+        "pasteArea",
+        "parseResult",
+        "parseMTitle",
+        "parseRows",
+        "pm-name",
+        "pm-phone",
+        "pm-addr",
+        "pm-door",
+        "pm-req",
+        "pm-memo",
+        "pm-amount",
+        "pm-order-list",
+        "dz",
+        "xlf",
+        "xlWrap",
+        "xlPrev",
+        "xlCnt"
+      ],
+      "firestoreCollections": [
+        "customers"
+      ],
+      "externalApis": [
+        "Firestore",
+        "XLSX",
+        "Clipboard",
+        "Blob download"
+      ],
+      "crossFileCalls": {
+        "auth-core.js": [
+          "productLabel",
+          "productBadgeClass",
+          "normalizeDateInputValue"
+        ],
+        "schedule-report.js": [
+          "todayStr",
+          "dow",
+          "listFor"
+        ],
+        "rendering-formatters.js": [
+          "escHtml"
+        ],
+        "order-settlement.js": [
+          "normalizeOrderAmount",
+          "orderSalesWon"
+        ],
+        "ui.js": [
+          "goTab",
+          "openM",
+          "closeM",
+          "toast"
+        ]
+      },
+      "topLevelBehavior": [
+        "defines export, text parser and spreadsheet import handlers"
+      ],
       "eventsAndListeners": [],
       "recommendedOwnership": "split text import, spreadsheet import and export while preserving public globals",
       "risk": "medium"
     },
     {
       "path": "assets/js/logen.js",
-      "metrics": { "bytes": 16872, "lines": 394, "functionDeclarations": 33, "asyncFunctions": 10 },
-      "globalsDefined": ["logenApiBase", "logenShipment", "logenStatus", "logenDigits", "logenComparableSnapshot", "logenSnapshotChanged", "logenNeedsChange", "logenStatusBadgeHtml", "logenSlipNoHtml", "logenShipDate", "checkedCourierCustomerIds", "filteredCourierForShipDate", "isLogenResendable", "unsentCourierCustomerIds", "logenIdToken", "postLogenApi", "summarizeLogenResult", "logenActionHtml", "logenCourierSummaryHtml", "selectedLogenShipmentsForChange", "sendSelectedLogenOrders", "sendSingleLogenOrder", "sendUnsentLogenOrders", "inquireLogenSlipNos", "inquireSingleLogenSlipNo", "ackLogenChange", "logenTracking", "logenTrackingBadgeHtml", "formatScanTime", "showLogenTracking", "trackLogenCargo", "resetLogenShipment", "copyLogenSlipNo"],
-      "requiredDefinitions": ["sendSelectedLogenOrders", "sendUnsentLogenOrders", "inquireLogenSlipNos", "ackLogenChange"],
-      "globalsConsumed": ["custs", "window.__AUTH", "window.__DB", "productLabel", "todayStr", "listFor", "filterDeliveryByProduct", "renderToday", "toast"],
-      "globalState": ["LOGEN_DEFAULT_API_BASE", "LOGEN_STATUS_LABELS", "LOGEN_SENT_STATUSES"],
+      "metrics": {
+        "bytes": 16872,
+        "lines": 394,
+        "functionDeclarations": 33,
+        "asyncFunctions": 10
+      },
+      "globalsDefined": [
+        "logenApiBase",
+        "logenShipment",
+        "logenStatus",
+        "logenDigits",
+        "logenComparableSnapshot",
+        "logenSnapshotChanged",
+        "logenNeedsChange",
+        "logenStatusBadgeHtml",
+        "logenSlipNoHtml",
+        "logenShipDate",
+        "checkedCourierCustomerIds",
+        "filteredCourierForShipDate",
+        "isLogenResendable",
+        "unsentCourierCustomerIds",
+        "logenIdToken",
+        "postLogenApi",
+        "summarizeLogenResult",
+        "logenActionHtml",
+        "logenCourierSummaryHtml",
+        "selectedLogenShipmentsForChange",
+        "sendSelectedLogenOrders",
+        "sendSingleLogenOrder",
+        "sendUnsentLogenOrders",
+        "inquireLogenSlipNos",
+        "inquireSingleLogenSlipNo",
+        "ackLogenChange",
+        "logenTracking",
+        "logenTrackingBadgeHtml",
+        "formatScanTime",
+        "showLogenTracking",
+        "trackLogenCargo",
+        "resetLogenShipment",
+        "copyLogenSlipNo"
+      ],
+      "requiredDefinitions": [
+        "sendSelectedLogenOrders",
+        "sendUnsentLogenOrders",
+        "inquireLogenSlipNos",
+        "ackLogenChange"
+      ],
+      "globalsConsumed": [
+        "custs",
+        "window.__AUTH",
+        "window.__DB",
+        "productLabel",
+        "todayStr",
+        "listFor",
+        "filterDeliveryByProduct",
+        "renderToday",
+        "toast"
+      ],
+      "globalState": [
+        "LOGEN_DEFAULT_API_BASE",
+        "LOGEN_STATUS_LABELS",
+        "LOGEN_SENT_STATUSES"
+      ],
       "windowExports": [],
-      "domIds": ["todayDate"],
-      "firestoreCollections": ["customers"],
-      "externalApis": ["Firebase Functions Logen proxy", "Firebase Auth ID token", "Clipboard"],
-      "crossFileCalls": { "auth-core.js": ["productLabel"], "schedule-report.js": ["todayStr", "listFor"], "rendering.js": ["filterDeliveryByProduct", "renderToday"], "ui.js": ["toast"] },
-      "topLevelBehavior": ["defines Logen request and presentation helpers; no immediate request"],
+      "domIds": [
+        "todayDate"
+      ],
+      "firestoreCollections": [
+        "customers"
+      ],
+      "externalApis": [
+        "Firebase Functions Logen proxy",
+        "Firebase Auth ID token",
+        "Clipboard"
+      ],
+      "crossFileCalls": {
+        "auth-core.js": [
+          "productLabel"
+        ],
+        "schedule-report.js": [
+          "todayStr",
+          "listFor"
+        ],
+        "rendering.js": [
+          "filterDeliveryByProduct",
+          "renderToday"
+        ],
+        "ui.js": [
+          "toast"
+        ]
+      },
+      "topLevelBehavior": [
+        "defines Logen request and presentation helpers; no immediate request"
+      ],
       "eventsAndListeners": [],
       "recommendedOwnership": "Logen integration",
       "risk": "low"
     },
     {
       "path": "assets/js/ui.js",
-      "metrics": { "bytes": 19093, "lines": 454, "functionDeclarations": 37, "asyncFunctions": 0 },
-      "globalsDefined": ["gauge", "scheduleDisp", "copyLozen", "statusLabel", "shortDate", "s", "g", "g2", "updateHDate", "toggleTheme", "setTypeTab", "updSch", "openEdit", "syncEditResumeField", "openEditSchedule", "goPausedCustomers", "sameNumberArray", "scheduleIndexForOrder", "copyOrder", "editUpdSch", "changeQty", "clearAdd", "goTab", "openM", "closeM", "toggleAll", "toast", "isDeliveredOnDate", "completedDeliveryListFor", "applyCompletedDeliveryRows", "installCompletedDeliveryVisibilityPatch", "dashProductKey", "isDashAbcSet", "isActiveSubscription", "isPendingAbcDelivery", "applyDashboardActiveSetStats", "installDashboardActiveSetStatsPatch"],
-      "requiredDefinitions": ["toggleTheme", "openEdit", "goTab", "openM", "closeM", "toast"],
-      "globalsConsumed": ["custs", "editId", "orderType", "PRODUCTS", "SCH", "DAYS", "SL", "customerOrderDateInputValue", "orderAmountValue", "todayStr", "isDeliv", "addDays", "renderReport", "renderCancelLogs", "renderDash", "renderCust", "renderRouteMap", "renderOrderSettlement", "renderNoticeMemos"],
+      "metrics": {
+        "bytes": 19093,
+        "lines": 454,
+        "functionDeclarations": 37,
+        "asyncFunctions": 0
+      },
+      "globalsDefined": [
+        "gauge",
+        "scheduleDisp",
+        "copyLozen",
+        "statusLabel",
+        "shortDate",
+        "s",
+        "g",
+        "g2",
+        "updateHDate",
+        "toggleTheme",
+        "setTypeTab",
+        "updSch",
+        "openEdit",
+        "syncEditResumeField",
+        "openEditSchedule",
+        "goPausedCustomers",
+        "sameNumberArray",
+        "scheduleIndexForOrder",
+        "copyOrder",
+        "editUpdSch",
+        "changeQty",
+        "clearAdd",
+        "goTab",
+        "openM",
+        "closeM",
+        "toggleAll",
+        "toast",
+        "isDeliveredOnDate",
+        "completedDeliveryListFor",
+        "applyCompletedDeliveryRows",
+        "installCompletedDeliveryVisibilityPatch",
+        "dashProductKey",
+        "isDashAbcSet",
+        "isActiveSubscription",
+        "isPendingAbcDelivery",
+        "applyDashboardActiveSetStats",
+        "installDashboardActiveSetStatsPatch"
+      ],
+      "requiredDefinitions": [
+        "toggleTheme",
+        "openEdit",
+        "goTab",
+        "openM",
+        "closeM",
+        "toast"
+      ],
+      "globalsConsumed": [
+        "custs",
+        "editId",
+        "orderType",
+        "PRODUCTS",
+        "SCH",
+        "DAYS",
+        "SL",
+        "customerOrderDateInputValue",
+        "orderAmountValue",
+        "todayStr",
+        "isDeliv",
+        "addDays",
+        "renderReport",
+        "renderCancelLogs",
+        "renderDash",
+        "renderCust",
+        "renderRouteMap",
+        "renderOrderSettlement",
+        "renderNoticeMemos"
+      ],
       "globalState": [],
-      "windowExports": ["listFor", "renderDash"],
-      "domIds": ["hDate", "themeBtn", "dashDate", "todayDate", "tw", "ach", "aqty", "a-direct", "aod", "aprod", "as", "asd", "at", "ato", "a-amount", "e-freq", "e-sched", "e-resume", "e-direct", "e-amount", "srchSt"],
+      "windowExports": [
+        "listFor",
+        "renderDash"
+      ],
+      "domIds": [
+        "hDate",
+        "themeBtn",
+        "dashDate",
+        "todayDate",
+        "tw",
+        "ach",
+        "aqty",
+        "a-direct",
+        "aod",
+        "aprod",
+        "as",
+        "asd",
+        "at",
+        "ato",
+        "a-amount",
+        "e-freq",
+        "e-sched",
+        "e-resume",
+        "e-direct",
+        "e-amount",
+        "srchSt"
+      ],
       "firestoreCollections": [],
-      "externalApis": ["Clipboard", "localStorage"],
-      "crossFileCalls": { "auth-core.js": ["customerOrderDateInputValue"], "schedule-report.js": ["todayStr", "isDeliv", "addDays", "renderReport"], "rendering.js": ["renderCancelLogs", "renderDash", "renderCust"], "order-settlement.js": ["orderAmountValue", "renderOrderSettlement"], "route-map.js": ["renderRouteMap"], "notice-memos.js": ["renderNoticeMemos"] },
-      "topLevelBehavior": ["immediately wraps listFor and renderDash", "retries patches up to 20 times", "registers DOMContentLoaded and load patch installers"],
-      "eventsAndListeners": ["DOMContentLoaded", "window load", "50 ms retry timers", "toast removal timer"],
+      "externalApis": [
+        "Clipboard",
+        "localStorage"
+      ],
+      "crossFileCalls": {
+        "auth-core.js": [
+          "customerOrderDateInputValue"
+        ],
+        "schedule-report.js": [
+          "todayStr",
+          "isDeliv",
+          "addDays",
+          "renderReport"
+        ],
+        "rendering.js": [
+          "renderCancelLogs",
+          "renderDash",
+          "renderCust"
+        ],
+        "order-settlement.js": [
+          "orderAmountValue",
+          "renderOrderSettlement"
+        ],
+        "route-map.js": [
+          "renderRouteMap"
+        ],
+        "notice-memos.js": [
+          "renderNoticeMemos"
+        ]
+      },
+      "topLevelBehavior": [
+        "immediately wraps listFor and renderDash",
+        "retries patches up to 20 times",
+        "registers DOMContentLoaded and load patch installers"
+      ],
+      "eventsAndListeners": [
+        "DOMContentLoaded",
+        "window load",
+        "50 ms retry timers",
+        "toast removal timer"
+      ],
       "recommendedOwnership": "navigation, modals, common presentation helpers and documented compatibility patches",
       "risk": "high"
     },
     {
       "path": "assets/js/notice-memos.js",
-      "metrics": { "bytes": 11509, "lines": 315, "functionDeclarations": 23, "asyncFunctions": 3 },
-      "globalsDefined": ["renderNoticeMemos", "resetNoticeMemoForm", "saveNoticeMemo", "editNoticeMemo", "toggleNoticeMemoActive", "deleteNoticeMemo", "closeNoticeMemoPopup", "openNoticeMemoTabFromPopup"],
-      "internalFunctions": ["$", "esc", "tsMs", "formatDateTime", "sortedMemos", "activeMemos", "renderNoticeBadge", "renderNoticeCard", "renderNoticePopup", "maybeShowNoticePopup", "subscribeNoticeMemos", "stopNoticeMemos", "isAllowedUser", "bindAuth", "bindDashboardLinks"],
-      "requiredDefinitions": ["renderNoticeMemos", "saveNoticeMemo", "deleteNoticeMemo", "openNoticeMemoTabFromPopup"],
-      "globalsConsumed": ["window.__AUTH", "window.__DB", "DELIVERY_ADMIN_EMAIL", "firebase", "goTab", "openM", "closeM", "toast"],
+      "metrics": {
+        "bytes": 11509,
+        "lines": 315,
+        "functionDeclarations": 23,
+        "asyncFunctions": 3
+      },
+      "globalsDefined": [
+        "renderNoticeMemos",
+        "resetNoticeMemoForm",
+        "saveNoticeMemo",
+        "editNoticeMemo",
+        "toggleNoticeMemoActive",
+        "deleteNoticeMemo",
+        "closeNoticeMemoPopup",
+        "openNoticeMemoTabFromPopup"
+      ],
+      "internalFunctions": [
+        "$",
+        "esc",
+        "tsMs",
+        "formatDateTime",
+        "sortedMemos",
+        "activeMemos",
+        "renderNoticeBadge",
+        "renderNoticeCard",
+        "renderNoticePopup",
+        "maybeShowNoticePopup",
+        "subscribeNoticeMemos",
+        "stopNoticeMemos",
+        "isAllowedUser",
+        "bindAuth",
+        "bindDashboardLinks"
+      ],
+      "requiredDefinitions": [
+        "renderNoticeMemos",
+        "saveNoticeMemo",
+        "deleteNoticeMemo",
+        "openNoticeMemoTabFromPopup"
+      ],
+      "globalsConsumed": [
+        "window.__AUTH",
+        "window.__DB",
+        "DELIVERY_ADMIN_EMAIL",
+        "firebase",
+        "goTab",
+        "openM",
+        "closeM",
+        "toast"
+      ],
       "globalState": [],
-      "privateState": ["noticeMemos", "noticeUnsub", "noticePopupShown"],
-      "windowExports": ["renderNoticeMemos", "resetNoticeMemoForm", "saveNoticeMemo", "editNoticeMemo", "toggleNoticeMemoActive", "deleteNoticeMemo", "closeNoticeMemoPopup", "openNoticeMemoTabFromPopup"],
-      "domIds": ["noticeMemoBadge", "noticeMemoList", "noticePopupM", "noticePopupList", "notice-id", "notice-category", "notice-title", "notice-date", "notice-message", "notice-active"],
-      "firestoreCollections": ["deliveryNoticeMemos"],
-      "externalApis": ["Firebase Auth", "Firestore"],
-      "crossFileCalls": { "ui.js": ["goTab", "openM", "closeM", "toast"] },
-      "topLevelBehavior": ["IIFE binds dashboard notice navigation, registers auth binding and exports eight public handlers"],
-      "eventsAndListeners": ["DOMContentLoaded", "dashboard notice link clicks", "Firebase Auth onAuthStateChanged", "deliveryNoticeMemos onSnapshot", "popup delay timer"],
+      "privateState": [
+        "noticeMemos",
+        "noticeUnsub",
+        "noticePopupShown"
+      ],
+      "windowExports": [
+        "renderNoticeMemos",
+        "resetNoticeMemoForm",
+        "saveNoticeMemo",
+        "editNoticeMemo",
+        "toggleNoticeMemoActive",
+        "deleteNoticeMemo",
+        "closeNoticeMemoPopup",
+        "openNoticeMemoTabFromPopup"
+      ],
+      "domIds": [
+        "noticeMemoBadge",
+        "noticeMemoList",
+        "noticePopupM",
+        "noticePopupList",
+        "notice-id",
+        "notice-category",
+        "notice-title",
+        "notice-date",
+        "notice-message",
+        "notice-active"
+      ],
+      "firestoreCollections": [
+        "deliveryNoticeMemos"
+      ],
+      "externalApis": [
+        "Firebase Auth",
+        "Firestore"
+      ],
+      "crossFileCalls": {
+        "ui.js": [
+          "goTab",
+          "openM",
+          "closeM",
+          "toast"
+        ]
+      },
+      "topLevelBehavior": [
+        "IIFE binds dashboard notice navigation, registers auth binding and exports eight public handlers"
+      ],
+      "eventsAndListeners": [
+        "DOMContentLoaded",
+        "dashboard notice link clicks",
+        "Firebase Auth onAuthStateChanged",
+        "deliveryNoticeMemos onSnapshot",
+        "popup delay timer"
+      ],
       "recommendedOwnership": "delivery notice memo feature",
       "risk": "low"
     }
   ],
-  "explicitWindowExports": ["deliveryStatePatch", "runDeliveryTransaction", "markDone", "undoMarkDone", "markAll", "markAllDirect", "markAllCourier", "validManualDeliveryDate", "normalizeManualDeliveryDates", "isManualDeliverySchedule", "manualScheduleIncludes", "manualScheduledFutureDates", "manualUpcomingDeliveryDates", "manualScheduleSelectionValid", "manualDeliveryOrderNumber", "manualDeliveryOrderLabel", "loadManualScheduleEditor", "resetManualScheduleEditor", "syncManualScheduleMode", "renderManualScheduleEditor", "manualScheduleDatesForSave", "renderCancelLogs", "toggleCancelPopover", "closeCancelPopover", "__gjsRouteNaverReady", "navermap_authFailure", "listFor", "renderDash", "renderNoticeMemos", "resetNoticeMemoForm", "saveNoticeMemo", "editNoticeMemo", "toggleNoticeMemoActive", "deleteNoticeMemo", "closeNoticeMemoPopup", "openNoticeMemoTabFromPopup"],
-  "extractedFormatterFunctions": [
-    { "name": "escHtml", "normalizedBodySha256": "452e2a58932e988ceb3bdcd01d6926ddab9dd64d8b35d090ed2b9aee36d8f914" },
-    { "name": "firstOrderBadgeHtml", "normalizedBodySha256": "d8a49dde5c5d36fbe55176e96c82a183e837561a6ea138ad8299402fac5630cb" },
-    { "name": "customerText", "normalizedBodySha256": "0bcc24988e351ba82d57e06bacfcf39ea8f207e8b6b54f76d5036b3d793e138f" },
-    { "name": "customerJsArg", "normalizedBodySha256": "1acf5b61302d3cce92ae2221175f48e72f0c57ec699af96d7c041d38045e5b26" },
-    { "name": "customerPhoneDigits", "normalizedBodySha256": "d07d985a342051e7de3fff5ac547b1d3cfbddb7d37140f956f393b30611dab15" },
-    { "name": "customerTimestampMs", "normalizedBodySha256": "0bc4872ea23b7b420492d1e881bd3954a689aeffe20ec995cad8295cdee895d6" },
-    { "name": "customerNewBadgeHtml", "normalizedBodySha256": "7946bde1d40cb356acb90aee71b881d5c3627ef026d234a3c512ad8755e235f7" },
-    { "name": "customerProductKey", "normalizedBodySha256": "bc8ea718bc8e7293d40b399c3378b8bd2c3639e4639609a337f0a78c38f8d41f" },
-    { "name": "customerOrderTypeLabel", "normalizedBodySha256": "09e170f12c211aae70652b5e5e9ae9d76cd8cd6faf151061b0af1041af1a7eeb" },
-    { "name": "customerOrderTypeBadge", "normalizedBodySha256": "5720ae22153390cba7b08fa107d53df1e6268155fa4fb3ed79ef4addeabaaba9" }
+  "explicitWindowExports": [
+    "deliveryStatePatch",
+    "runDeliveryTransaction",
+    "markDone",
+    "undoMarkDone",
+    "markAll",
+    "markAllDirect",
+    "markAllCourier",
+    "validManualDeliveryDate",
+    "normalizeManualDeliveryDates",
+    "isManualDeliverySchedule",
+    "manualScheduleIncludes",
+    "manualScheduledFutureDates",
+    "manualUpcomingDeliveryDates",
+    "manualScheduleSelectionValid",
+    "manualDeliveryOrderNumber",
+    "manualDeliveryOrderLabel",
+    "loadManualScheduleEditor",
+    "resetManualScheduleEditor",
+    "syncManualScheduleMode",
+    "renderManualScheduleEditor",
+    "manualScheduleDatesForSave",
+    "renderCancelLogs",
+    "toggleCancelPopover",
+    "closeCancelPopover",
+    "__gjsRouteNaverReady",
+    "navermap_authFailure",
+    "listFor",
+    "renderDash",
+    "renderNoticeMemos",
+    "resetNoticeMemoForm",
+    "saveNoticeMemo",
+    "editNoticeMemo",
+    "toggleNoticeMemoActive",
+    "deleteNoticeMemo",
+    "closeNoticeMemoPopup",
+    "openNoticeMemoTabFromPopup"
   ],
-  "requiredInlineGlobals": ["doLogin", "doLogout", "goTab", "toggleTheme", "openM", "closeM", "saveNew", "saveEdit", "delCust", "confirmPause", "moveDashDate", "resetDashDate", "moveTodayDate", "resetTodayDate", "setView", "moveReport", "resetReport", "renderDash", "renderToday", "renderCust", "renderRouteMap", "moveOrderSettlementMonth", "renderOrderSettlement", "resetOrderSettlementMonth", "resetOrderSettlementFilters", "genExport", "parseText", "saveParsed", "regXl", "sendSelectedLogenOrders", "sendUnsentLogenOrders", "inquireLogenSlipNos", "saveNoticeMemo"],
+  "extractedFormatterFunctions": [
+    {
+      "name": "escHtml",
+      "normalizedBodySha256": "452e2a58932e988ceb3bdcd01d6926ddab9dd64d8b35d090ed2b9aee36d8f914"
+    },
+    {
+      "name": "firstOrderBadgeHtml",
+      "normalizedBodySha256": "d8a49dde5c5d36fbe55176e96c82a183e837561a6ea138ad8299402fac5630cb"
+    },
+    {
+      "name": "customerText",
+      "normalizedBodySha256": "0bcc24988e351ba82d57e06bacfcf39ea8f207e8b6b54f76d5036b3d793e138f"
+    },
+    {
+      "name": "customerJsArg",
+      "normalizedBodySha256": "1acf5b61302d3cce92ae2221175f48e72f0c57ec699af96d7c041d38045e5b26"
+    },
+    {
+      "name": "customerPhoneDigits",
+      "normalizedBodySha256": "d07d985a342051e7de3fff5ac547b1d3cfbddb7d37140f956f393b30611dab15"
+    },
+    {
+      "name": "customerTimestampMs",
+      "normalizedBodySha256": "0bc4872ea23b7b420492d1e881bd3954a689aeffe20ec995cad8295cdee895d6"
+    },
+    {
+      "name": "customerNewBadgeHtml",
+      "normalizedBodySha256": "7946bde1d40cb356acb90aee71b881d5c3627ef026d234a3c512ad8755e235f7"
+    },
+    {
+      "name": "customerProductKey",
+      "normalizedBodySha256": "bc8ea718bc8e7293d40b399c3378b8bd2c3639e4639609a337f0a78c38f8d41f"
+    },
+    {
+      "name": "customerOrderTypeLabel",
+      "normalizedBodySha256": "09e170f12c211aae70652b5e5e9ae9d76cd8cd6faf151061b0af1041af1a7eeb"
+    },
+    {
+      "name": "customerOrderTypeBadge",
+      "normalizedBodySha256": "5720ae22153390cba7b08fa107d53df1e6268155fa4fb3ed79ef4addeabaaba9"
+    }
+  ],
+  "requiredInlineGlobals": [
+    "doLogin",
+    "doLogout",
+    "goTab",
+    "toggleTheme",
+    "openM",
+    "closeM",
+    "saveNew",
+    "saveEdit",
+    "delCust",
+    "confirmPause",
+    "moveDashDate",
+    "resetDashDate",
+    "moveTodayDate",
+    "resetTodayDate",
+    "setView",
+    "moveReport",
+    "resetReport",
+    "renderDash",
+    "renderToday",
+    "renderCust",
+    "renderRouteMap",
+    "moveOrderSettlementMonth",
+    "renderOrderSettlement",
+    "resetOrderSettlementMonth",
+    "resetOrderSettlementFilters",
+    "genExport",
+    "parseText",
+    "saveParsed",
+    "regXl",
+    "sendSelectedLogenOrders",
+    "sendUnsentLogenOrders",
+    "inquireLogenSlipNos",
+    "saveNoticeMemo"
+  ],
   "duplicateDefinitions": [
-    { "name": "renderCust", "file": "assets/js/rendering.js", "declarations": 3, "effective": "last declaration" },
-    { "name": "showCustomerGroup", "file": "assets/js/rendering.js", "declarations": 2, "effective": "last declaration" },
-    { "name": "customerGroupOrderSummary", "file": "assets/js/rendering.js", "declarations": 2, "effective": "last declaration" }
+    {
+      "name": "renderCust",
+      "file": "assets/js/rendering.js",
+      "declarations": 3,
+      "effective": "last declaration"
+    },
+    {
+      "name": "showCustomerGroup",
+      "file": "assets/js/rendering.js",
+      "declarations": 2,
+      "effective": "last declaration"
+    },
+    {
+      "name": "customerGroupOrderSummary",
+      "file": "assets/js/rendering.js",
+      "declarations": 2,
+      "effective": "last declaration"
+    }
   ],
   "overwriteRelationships": [
-    { "target": "markDone", "file": "assets/js/schedule-report.js", "previousOwner": "assets/js/imweb.js", "requiredSnippet": "window.markDone = stableMarkDone" },
-    { "target": "undoMarkDone", "file": "assets/js/schedule-report.js", "previousOwner": "assets/js/imweb.js", "requiredSnippet": "window.undoMarkDone = stableUndoMarkDone" },
-    { "target": "markAll", "file": "assets/js/schedule-report.js", "previousOwner": "assets/js/imweb.js", "requiredSnippet": "window.markAll = function()" },
-    { "target": "markAllDirect", "file": "assets/js/schedule-report.js", "previousOwner": "assets/js/rendering.js", "requiredSnippet": "window.markAllDirect = function()" },
-    { "target": "markAllCourier", "file": "assets/js/schedule-report.js", "previousOwner": "assets/js/rendering.js", "requiredSnippet": "window.markAllCourier = function()" },
-    { "target": "listFor", "file": "assets/js/ui.js", "previousOwner": "assets/js/schedule-report.js", "requiredSnippet": "window.listFor = function(ds)" },
-    { "target": "renderDash.completedStyle", "file": "assets/js/ui.js", "previousOwner": "assets/js/rendering.js", "requiredSnippet": "window.renderDash.__completedStylePatch = true" },
-    { "target": "renderDash.activeSetStats", "file": "assets/js/ui.js", "previousOwner": "assets/js/ui.js completedStyle wrapper", "requiredSnippet": "window.renderDash.__activeSetStatsPatch = true" }
+    {
+      "target": "markDone",
+      "file": "assets/js/schedule-report.js",
+      "previousOwner": "assets/js/imweb.js",
+      "requiredSnippet": "window.markDone = stableMarkDone"
+    },
+    {
+      "target": "undoMarkDone",
+      "file": "assets/js/schedule-report.js",
+      "previousOwner": "assets/js/imweb.js",
+      "requiredSnippet": "window.undoMarkDone = stableUndoMarkDone"
+    },
+    {
+      "target": "markAll",
+      "file": "assets/js/schedule-report.js",
+      "previousOwner": "assets/js/imweb.js",
+      "requiredSnippet": "window.markAll = function()"
+    },
+    {
+      "target": "markAllDirect",
+      "file": "assets/js/schedule-report.js",
+      "previousOwner": "assets/js/rendering.js",
+      "requiredSnippet": "window.markAllDirect = function()"
+    },
+    {
+      "target": "markAllCourier",
+      "file": "assets/js/schedule-report.js",
+      "previousOwner": "assets/js/rendering.js",
+      "requiredSnippet": "window.markAllCourier = function()"
+    },
+    {
+      "target": "listFor",
+      "file": "assets/js/ui.js",
+      "previousOwner": "assets/js/schedule-report.js",
+      "requiredSnippet": "window.listFor = function(ds)"
+    },
+    {
+      "target": "renderDash.completedStyle",
+      "file": "assets/js/ui.js",
+      "previousOwner": "assets/js/rendering.js",
+      "requiredSnippet": "window.renderDash.__completedStylePatch = true"
+    },
+    {
+      "target": "renderDash.activeSetStats",
+      "file": "assets/js/ui.js",
+      "previousOwner": "assets/js/ui.js completedStyle wrapper",
+      "requiredSnippet": "window.renderDash.__activeSetStatsPatch = true"
+    }
   ],
   "firestoreAccess": [
-    { "file": "assets/js/auth-core.js", "function": "loadCancelLogsOnce", "collection": "imwebCancelLogs", "operation": "read once", "transaction": false },
-    { "file": "assets/js/auth-core.js", "function": "initFirestore", "collection": "customers", "operation": "onSnapshot read", "transaction": false },
-    { "file": "assets/js/auth-core.js", "function": "initFirestore", "collection": "imwebCancelLogs", "operation": "onSnapshot read", "transaction": false },
-    { "file": "assets/js/auth-core.js", "function": "saveNew", "collection": "customers", "operation": "create", "transaction": false },
-    { "file": "assets/js/auth-core.js", "function": "saveEdit", "collection": "customers", "operation": "update or same-order batch update", "transaction": false },
-    { "file": "assets/js/auth-core.js", "function": "delCust", "collection": "customers", "operation": "delete", "transaction": false },
-    { "file": "assets/js/auth-core.js", "function": "chargeRemain", "collection": "customers", "operation": "update", "transaction": false },
-    { "file": "assets/js/auth-core.js", "function": "confirmPause", "collection": "customers", "operation": "update", "transaction": false },
-    { "file": "assets/js/auth-core.js", "function": "resumeCustomer", "collection": "customers", "operation": "update", "transaction": false },
-    { "file": "assets/js/auth-core.js", "function": "autoApplyPendingSchedules", "collection": "customers", "operation": "batch update", "transaction": false },
-    { "file": "assets/js/auth-core.js", "function": "cancelPendingSchedule", "collection": "customers", "operation": "update", "transaction": false },
-    { "file": "assets/js/auth-core.js", "function": "autoResumePausedCustomers", "collection": "customers", "operation": "batch update", "transaction": false },
-    { "file": "assets/js/delivery-transaction.js", "function": "runDeliveryTransaction", "collection": "customers", "operation": "read/update", "transaction": true },
-    { "file": "assets/js/imweb.js", "function": "imwebCreateCancelLog", "collection": "imwebCancelLogs", "operation": "create", "transaction": false },
-    { "file": "assets/js/imweb.js", "function": "imwebDeleteLocalOrder", "collection": "customers", "operation": "delete", "transaction": false },
-    { "file": "assets/js/imweb.js", "function": "imwebRegAll", "collection": "customers", "operation": "create", "transaction": false },
-    { "file": "assets/js/imweb.js", "function": "iwRegXl", "collection": "customers", "operation": "create", "transaction": false },
-    { "file": "assets/js/imweb.js", "function": "quickDelete", "collection": "customers", "operation": "delete", "transaction": false },
-    { "file": "assets/js/imweb.js", "function": "markDone/undoMarkDone/markAll", "collection": "customers", "operation": "delivery transaction", "transaction": true },
-    { "file": "assets/js/schedule-report.js", "function": "stableMarkDone/stableUndoMarkDone/markMany", "collection": "customers", "operation": "delivery transaction", "transaction": true },
-    { "file": "assets/js/rendering.js", "function": "ackCancelLogs", "collection": "imwebCancelLogs", "operation": "batch update", "transaction": false },
-    { "file": "assets/js/rendering.js", "function": "editOnceDate", "collection": "customers", "operation": "update", "transaction": false },
-    { "file": "assets/js/route-map.js", "function": "routeCoordsForAddress", "collection": "deliveryCoords", "operation": "read", "transaction": false },
-    { "file": "assets/js/route-map.js", "function": "routeCoordsForAddress", "collection": "deliveryCoords", "operation": "merge write", "transaction": false },
-    { "file": "assets/js/import-export.js", "function": "saveParsed", "collection": "customers", "operation": "create", "transaction": false },
-    { "file": "assets/js/import-export.js", "function": "regXl", "collection": "customers", "operation": "create", "transaction": false },
-    { "file": "assets/js/logen.js", "function": "ackLogenChange", "collection": "customers", "operation": "update nested Logen fields", "transaction": false },
-    { "file": "assets/js/notice-memos.js", "function": "subscribeNoticeMemos", "collection": "deliveryNoticeMemos", "operation": "onSnapshot read", "transaction": false },
-    { "file": "assets/js/notice-memos.js", "function": "saveNoticeMemo", "collection": "deliveryNoticeMemos", "operation": "create/update", "transaction": false },
-    { "file": "assets/js/notice-memos.js", "function": "toggleNoticeMemoActive", "collection": "deliveryNoticeMemos", "operation": "update", "transaction": false },
-    { "file": "assets/js/notice-memos.js", "function": "deleteNoticeMemo", "collection": "deliveryNoticeMemos", "operation": "delete", "transaction": false }
+    {
+      "file": "assets/js/auth-core.js",
+      "function": "loadCancelLogsOnce",
+      "collection": "imwebCancelLogs",
+      "operation": "read once",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/auth-core.js",
+      "function": "initFirestore",
+      "collection": "customers",
+      "operation": "onSnapshot read",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/auth-core.js",
+      "function": "initFirestore",
+      "collection": "imwebCancelLogs",
+      "operation": "onSnapshot read",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/auth-core.js",
+      "function": "saveNew",
+      "collection": "customers",
+      "operation": "create",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/auth-core.js",
+      "function": "saveEdit",
+      "collection": "customers",
+      "operation": "update or same-order batch update",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/auth-core.js",
+      "function": "delCust",
+      "collection": "customers",
+      "operation": "delete",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/auth-core.js",
+      "function": "chargeRemain",
+      "collection": "customers",
+      "operation": "update",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/auth-core.js",
+      "function": "confirmPause",
+      "collection": "customers",
+      "operation": "update",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/auth-core.js",
+      "function": "resumeCustomer",
+      "collection": "customers",
+      "operation": "update",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/auth-core.js",
+      "function": "autoApplyPendingSchedules",
+      "collection": "customers",
+      "operation": "batch update",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/auth-core.js",
+      "function": "cancelPendingSchedule",
+      "collection": "customers",
+      "operation": "update",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/auth-core.js",
+      "function": "autoResumePausedCustomers",
+      "collection": "customers",
+      "operation": "batch update",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/delivery-transaction.js",
+      "function": "runDeliveryTransaction",
+      "collection": "customers",
+      "operation": "read/update",
+      "transaction": true
+    },
+    {
+      "file": "assets/js/imweb.js",
+      "function": "imwebCreateCancelLog",
+      "collection": "imwebCancelLogs",
+      "operation": "create",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/imweb.js",
+      "function": "imwebDeleteLocalOrder",
+      "collection": "customers",
+      "operation": "delete",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/imweb.js",
+      "function": "imwebRegAll",
+      "collection": "customers",
+      "operation": "create",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/imweb.js",
+      "function": "iwRegXl",
+      "collection": "customers",
+      "operation": "create",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/imweb.js",
+      "function": "quickDelete",
+      "collection": "customers",
+      "operation": "delete",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/imweb.js",
+      "function": "markDone/undoMarkDone/markAll",
+      "collection": "customers",
+      "operation": "delivery transaction",
+      "transaction": true
+    },
+    {
+      "file": "assets/js/schedule-report.js",
+      "function": "stableMarkDone/stableUndoMarkDone/markMany",
+      "collection": "customers",
+      "operation": "delivery transaction",
+      "transaction": true
+    },
+    {
+      "file": "assets/js/rendering.js",
+      "function": "ackCancelLogs",
+      "collection": "imwebCancelLogs",
+      "operation": "batch update",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/rendering.js",
+      "function": "editOnceDate",
+      "collection": "customers",
+      "operation": "update",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/route-map.js",
+      "function": "routeCoordsForAddress",
+      "collection": "deliveryCoords",
+      "operation": "read",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/route-map.js",
+      "function": "routeCoordsForAddress",
+      "collection": "deliveryCoords",
+      "operation": "merge write",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/import-export.js",
+      "function": "saveParsed",
+      "collection": "customers",
+      "operation": "create",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/import-export.js",
+      "function": "regXl",
+      "collection": "customers",
+      "operation": "create",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/logen.js",
+      "function": "ackLogenChange",
+      "collection": "customers",
+      "operation": "update nested Logen fields",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/notice-memos.js",
+      "function": "subscribeNoticeMemos",
+      "collection": "deliveryNoticeMemos",
+      "operation": "onSnapshot read",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/notice-memos.js",
+      "function": "saveNoticeMemo",
+      "collection": "deliveryNoticeMemos",
+      "operation": "create/update",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/notice-memos.js",
+      "function": "toggleNoticeMemoActive",
+      "collection": "deliveryNoticeMemos",
+      "operation": "update",
+      "transaction": false
+    },
+    {
+      "file": "assets/js/notice-memos.js",
+      "function": "deleteNoticeMemo",
+      "collection": "deliveryNoticeMemos",
+      "operation": "delete",
+      "transaction": false
+    }
   ],
-  "collectionsNotUsedByEmployeeIndexScripts": ["users", "userPrivate", "settlements", "eventOrders", "changeRequests", "adminPushTokens", "chatbotSessions"],
+  "collectionsNotUsedByEmployeeIndexScripts": [
+    "users",
+    "userPrivate",
+    "settlements",
+    "eventOrders",
+    "changeRequests",
+    "adminPushTokens",
+    "chatbotSessions"
+  ],
   "preservedDeliveryPolicies": [
     "employee one-time completion uses completeAllForOnce and ends remaining deliveries",
     "route-map and Imweb one-time completion decrement one delivery",

@@ -144,7 +144,7 @@ function validateGenerated(buffer) {
   }
 
   const ids = [...source.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
-  if (ids.length !== 253) fail(`DOM id count is ${ids.length}; expected 253`);
+  if (ids.length !== 255) fail(`DOM id count is ${ids.length}; expected 255`);
   const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
   if (duplicates.length) fail(`duplicate DOM ids: ${[...new Set(duplicates)].join(', ')}`);
 
