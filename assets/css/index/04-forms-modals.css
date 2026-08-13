@@ -87,6 +87,9 @@ textarea.inp{resize:vertical;min-height:80px;line-height:1.6;}
 .manual-calendar-selected{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:7px;font-size:12px;line-height:1.5;color:var(--text2);overflow-wrap:anywhere;}
 .manual-calendar-summary-item{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
 .manual-calendar-summary-order{color:var(--accent);font-size:17px;font-weight:800;line-height:1;}
+.manual-calendar-hint{margin:-2px 0 8px;font-size:11px;line-height:1.5;color:var(--text3);}
+.manual-calendar-arrive b{color:var(--text);font-weight:800;}
+.manual-calendar-day.is-rest{color:var(--text3);background:repeating-linear-gradient(135deg,transparent,transparent 4px,rgba(0,0,0,.04) 4px,rgba(0,0,0,.04) 8px);}
 
 /* ── 그리드 ── */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}

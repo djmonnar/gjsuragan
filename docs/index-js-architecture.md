@@ -21,7 +21,7 @@ The current order is part of the application contract.
 | 2 | `delivery-transaction.js` | 78 | 2,962 | 3 | Atomic delivery state transitions |
 | 3 | `imweb.js` | 867 | 35,296 | 48 | Imweb integration, spreadsheet import, legacy completion handlers |
 | 4 | `schedule-report.js` | 374 | 17,189 | 37 | Date/schedule/report calculation and final delivery policy |
-| 5 | `manual-delivery-dates.js` | 274 | 11,910 | 22 | Manual delivery-date calculation and calendar editor |
+| 5 | `manual-delivery-dates.js` | 320 | 14,156 | 25 | Manual delivery-date calculation and calendar editor |
 | 6 | `rendering-formatters.js` | 55 | 1,736 | 10 | Pure text, badge and order-label formatters |
 | 7 | `rendering.js` | 1,767 | 88,724 | 90 | Dashboard, delivery, customer and modal rendering |
 | 8 | `order-settlement.js` | 245 | 10,733 | 16 | Order amount normalization, grouping and monthly sales rendering |
