@@ -18,8 +18,8 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 320094,
-    "lines": 7390,
+    "normalizedBytes": 320254,
+    "lines": 7396,
     "functionDeclarations": 430,
     "uniqueCallableGlobals": 391,
     "explicitWindowExports": 36,
@@ -540,8 +540,8 @@
     {
       "path": "assets/js/manual-delivery-dates.js",
       "metrics": {
-        "bytes": 13996,
-        "lines": 314,
+        "bytes": 14156,
+        "lines": 320,
         "functionDeclarations": 25,
         "asyncFunctions": 0
       },

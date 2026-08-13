@@ -117,10 +117,12 @@
     return `${arrival.getFullYear()}-${String(arrival.getMonth() + 1).padStart(2, '0')}-${String(arrival.getDate()).padStart(2, '0')}`;
   }
 
-  function isSundayDate(dateStr){
+  // 궁중수라간은 토·일 휴무라 주말에는 조리·출고를 하지 않는다.
+  function isRestDay(dateStr){
     if(!validManualDeliveryDate(dateStr)) return false;
     const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day).getDay() === 0;
+    const weekday = new Date(year, month - 1, day).getDay();
+    return weekday === 0 || weekday === 6;
   }
 
   function editorIsDirect(mode){
@@ -165,15 +167,19 @@
       const orderNumber = (isSelected || isDelivered) ? manualDeliveryOrderNumber(state.dates, dateStr) : 0;
       const orderLabel = manualDeliveryOrderLabel(orderNumber);
       const isPast = dateStr < today;
-      const disabled = isDelivered || (isPast && !isSelected);
+      const isRest = isRestDay(dateStr);
+      const disabled = isDelivered || (isPast && !isSelected) || (isRest && !isSelected);
       const classes = [
         'manual-calendar-day',
         isSelected ? 'is-selected' : '',
         isDelivered ? 'is-complete' : '',
         dateStr === today ? 'is-today' : '',
+        isRest ? 'is-rest' : '',
         disabled ? 'is-disabled' : ''
       ].filter(Boolean).join(' ');
-      const status = isDelivered ? `, ${orderNumber}회차 배송완료` : (isSelected ? `, ${orderNumber}회차 선택됨` : '');
+      const status = isDelivered
+        ? `, ${orderNumber}회차 배송완료`
+        : (isSelected ? `, ${orderNumber}회차 선택됨` : (isRest ? ', 휴무일' : ''));
       cells.push(`<button type="button" class="${classes}" data-manual-date="${dateStr}" aria-label="${year}년 ${month}월 ${day}일${status}" aria-pressed="${isSelected}"${disabled ? ' disabled' : ''}><span class="manual-calendar-date">${day}</span>${orderLabel ? `<span class="manual-calendar-order" aria-hidden="true">${orderLabel}</span>` : ''}</button>`);
     }
 
@@ -190,7 +196,7 @@
         const order = manualDeliveryOrderLabel(manualDeliveryOrderNumber(state.dates, date));
         const detail = direct
           ? `<span class="manual-calendar-arrive">${formatCalendarDate(date)} 배송</span>`
-          : `<span class="manual-calendar-arrive">${formatCalendarDate(date)} 출고 → <b>${formatCalendarDate(manualArrivalDate(date))} 도착</b>${isSundayDate(manualArrivalDate(date)) ? '<span class="manual-calendar-warn" title="일요일은 택배 배송이 없을 수 있습니다">!</span>' : ''}</span>`;
+          : `<span class="manual-calendar-arrive">${formatCalendarDate(date)} 출고 → <b>${formatCalendarDate(manualArrivalDate(date))} 도착</b></span>`;
         return `<span class="manual-calendar-summary-item"><span class="manual-calendar-summary-order">${order}</span>${detail}</span>`;
       }).join('')
       : '선택된 출고일 없음';
@@ -199,8 +205,8 @@
     const hint = config.hint && root.document.getElementById(config.hint);
     if(hint){
       hint.textContent = direct
-        ? '직배송 고객입니다. 선택한 날짜에 조리해서 그날 바로 배달합니다.'
-        : '택배 고객입니다. 선택한 날짜는 조리·발송일이며, 고객은 다음날 받습니다.';
+        ? '직배송 고객입니다. 선택한 날짜에 조리해서 그날 바로 배달합니다. (토·일 휴무)'
+        : '택배 고객입니다. 선택한 날짜는 조리·발송일이며, 고객은 다음날 받습니다. (토·일 휴무)';
     }
   }
 
