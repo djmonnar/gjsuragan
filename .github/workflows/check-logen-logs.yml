@@ -1,0 +1,72 @@
+name: Check Logen Logs
+
+# 입력값이 없다. 모바일 GitHub 앱에서 버튼만 눌러 실행할 수 있게 만든 진단용 워크플로.
+# 로젠 전송이 성공으로 뜨는데 실제 로젠에 안 잡힐 때, 로젠이 무엇을 돌려줬는지 본다.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-logen-logs
+  cancel-in-progress: false
+
+env:
+  FIREBASE_PROJECT_ID: gjsuragan-60505
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Write service account key
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT 시크릿이 없습니다."
+            exit 1
+          fi
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service-account.json" >> "$GITHUB_ENV"
+
+      # 이 저장소는 공개라 로그도 공개된다.
+      # 고객 주소·연락처가 섞일 수 있는 필드는 절대 출력하지 않고,
+      # 어느 서버로 갔는지와 로젠이 돌려준 처리 코드·사유만 뽑는다.
+      - name: Read recent Logen API responses
+        run: |
+          gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+          gcloud config set project "$FIREBASE_PROJECT_ID"
+          gcloud logging read \
+            'jsonPayload.message="Logen API response" OR textPayload:"Logen API response"' \
+            --freshness=7d --limit=30 --format=json > raw.json || echo '[]' > raw.json
+          python3 - <<'PY'
+          import json
+          entries = json.load(open('raw.json'))
+          if not entries:
+              print('최근 7일 안에 로젠 응답 로그가 없습니다.')
+              print('→ 전송이 함수까지 도달하지 않았거나, 로그 보존 기간이 지났습니다.')
+              raise SystemExit(0)
+          print(f'로젠 응답 로그 {len(entries)}건 (최신순)\n')
+          for entry in entries:
+              payload = entry.get('jsonPayload') or {}
+              when = (entry.get('timestamp') or '')[:19]
+              env = payload.get('env', '?')
+              path = payload.get('path', '?')
+              stts = payload.get('sttsCd', '')
+              msg = str(payload.get('sttsMsg', ''))[:120]
+              print(f'[{when}] env={env} path={path} sttsCd={stts} sttsMsg={msg}')
+              for row in (payload.get('rows') or [])[:10]:
+                  # 고객 식별 정보가 들어갈 수 있는 fixTakeNo/slipSample 은 출력하지 않는다.
+                  code = row.get('resultCd', '')
+                  reason = str(row.get('resultMsg', ''))[:120]
+                  has_slip = 'Y' if row.get('slipNo') else 'N'
+                  rows_cnt = row.get('slipRows', 0)
+                  print(f'    resultCd={code} 송장있음={has_slip} 송장행수={rows_cnt} 사유={reason}')
+              print()
+          PY
+
+      - name: Remove service account key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/service-account.json" raw.json
