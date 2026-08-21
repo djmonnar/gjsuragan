@@ -39,31 +39,40 @@ jobs:
           gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
           gcloud config set project "$FIREBASE_PROJECT_ID"
           gcloud logging read \
-            'jsonPayload.message="Logen API response" OR textPayload:"Logen API response"' \
-            --freshness=7d --limit=30 --format=json > raw.json || echo '[]' > raw.json
+            'jsonPayload.message="Logen API response" OR jsonPayload.message="Logen API request"' \
+            --freshness=30d --limit=200 --format=json > raw.json || echo '[]' > raw.json
           python3 - <<'PY'
           import json
           entries = json.load(open('raw.json'))
           if not entries:
-              print('최근 7일 안에 로젠 응답 로그가 없습니다.')
+              print('최근 30일 안에 로젠 로그가 없습니다.')
               print('→ 전송이 함수까지 도달하지 않았거나, 로그 보존 기간이 지났습니다.')
               raise SystemExit(0)
-          print(f'로젠 응답 로그 {len(entries)}건 (최신순)\n')
+          print(f'로젠 로그 {len(entries)}건 (최신순, 최대 30일)\n')
           for entry in entries:
               payload = entry.get('jsonPayload') or {}
+              kind = payload.get('message', '')
               when = (entry.get('timestamp') or '')[:19]
               env = payload.get('env', '?')
               path = payload.get('path', '?')
-              stts = payload.get('sttsCd', '')
-              msg = str(payload.get('sttsMsg', ''))[:120]
-              print(f'[{when}] env={env} path={path} sttsCd={stts} sttsMsg={msg}')
-              for row in (payload.get('rows') or [])[:10]:
-                  # 고객 식별 정보가 들어갈 수 있는 fixTakeNo/slipSample 은 출력하지 않는다.
-                  code = row.get('resultCd', '')
-                  reason = str(row.get('resultMsg', ''))[:120]
-                  has_slip = 'Y' if row.get('slipNo') else 'N'
-                  rows_cnt = row.get('slipRows', 0)
-                  print(f'    resultCd={code} 송장있음={has_slip} 송장행수={rows_cnt} 사유={reason}')
+              if kind == 'Logen API request':
+                  print(f'[{when}] 보냄 env={env} path={path} userId={payload.get("userId", "")}')
+                  for row in (payload.get('rows') or [])[:10]:
+                      # 수령인 이름·주소·연락처는 애초에 기록되지 않는다.
+                      # fixTakeNo 는 고객 식별에 쓰일 수 있어 출력하지 않는다.
+                      print('    custCd={} takeDt={} qty={} inQty={} fareTy={} dlvFare={} boxTyCd={} goodsAmt={}'.format(
+                          row.get('custCd', ''), row.get('takeDt', ''), row.get('qty', ''),
+                          row.get('inQty', ''), row.get('fareTy', ''), row.get('dlvFare', ''),
+                          row.get('boxTyCd', ''), row.get('goodsAmt', '')))
+              else:
+                  stts = payload.get('sttsCd', '')
+                  msg = str(payload.get('sttsMsg', ''))[:120]
+                  print(f'[{when}] 받음 env={env} path={path} sttsCd={stts} sttsMsg={msg}')
+                  for row in (payload.get('rows') or [])[:10]:
+                      code = row.get('resultCd', '')
+                      reason = str(row.get('resultMsg', ''))[:120]
+                      has_slip = 'Y' if row.get('slipNo') else 'N'
+                      print(f'    resultCd={code} 송장있음={has_slip} 사유={reason}')
               print()
           PY
 
