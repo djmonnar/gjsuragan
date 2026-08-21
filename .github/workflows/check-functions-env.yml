@@ -1,0 +1,49 @@
+name: Check Functions Env
+
+# 입력값이 없다. 모바일 GitHub 앱에서 버튼만 눌러 실행할 수 있게 따로 뒀다.
+# 배포하지 않고, 운영 중인 함수에 어떤 환경변수가 설정돼 있는지 이름만 확인한다.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-functions-env
+  cancel-in-progress: false
+
+env:
+  FIREBASE_PROJECT_ID: gjsuragan-60505
+  FUNCTIONS_REGION: asia-northeast3
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Write service account key
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT 시크릿이 없습니다."
+            exit 1
+          fi
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service-account.json" >> "$GITHUB_ENV"
+
+      # 값은 절대 출력하지 않는다. 이 저장소는 공개라 Actions 로그도 공개된다.
+      - name: List runtime env var names
+        run: |
+          gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+          gcloud config set project "$FIREBASE_PROJECT_ID"
+          for name in $(gcloud functions list --format='value(name)'); do
+            echo "── $name"
+            gcloud functions describe "$name" --region="$FUNCTIONS_REGION" --gen2 \
+              --format='value(serviceConfig.environmentVariables)' 2>/dev/null \
+              | tr ';' '\n' | sed 's/=.*/=<설정됨>/' | sed 's/^/    /' || echo "    (조회 실패)"
+          done
+
+      - name: Remove service account key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/service-account.json"
