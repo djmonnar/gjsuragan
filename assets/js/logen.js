@@ -30,7 +30,10 @@ function logenDigits(value){
 
 function logenComparableSnapshot(c){
   const prod = c?.productId || c?.set || '';
-  const qty = Math.max(1, Number(c?.qty || c?.total || c?.quantity || 1) || 1);
+  // 실제 전송 수량(logenMapper.orderQuantity)과 계산을 똑같이 맞춘다.
+  // total(총 구독 횟수)을 섞어 쓰면 배송할 때마다 잔여가 줄어 매번 '변경필요'가 뜬다.
+  const explicitQty = Number(c?.qty ?? c?.quantity);
+  const qty = Number.isFinite(explicitQty) && explicitQty >= 1 ? Math.floor(explicitQty) : 1;
   return {
     orderNum: String(c?.orderNum || c?.syncKey || c?.id || ''),
     receiverName: String(c?.name || c?.businessName || ''),

@@ -18,9 +18,9 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 320254,
-    "lines": 7396,
-    "functionDeclarations": 430,
+    "normalizedBytes": 321494,
+    "lines": 7419,
+    "functionDeclarations": 432,
     "uniqueCallableGlobals": 391,
     "explicitWindowExports": 36,
     "globalStateDeclarations": 62,
@@ -35,9 +35,9 @@
     {
       "path": "assets/js/auth-core.js",
       "metrics": {
-        "bytes": 29143,
-        "lines": 842,
-        "functionDeclarations": 25,
+        "bytes": 30112,
+        "lines": 862,
+        "functionDeclarations": 27,
         "asyncFunctions": 13
       },
       "globalsDefined": [
@@ -1301,8 +1301,8 @@
     {
       "path": "assets/js/logen.js",
       "metrics": {
-        "bytes": 16872,
-        "lines": 394,
+        "bytes": 17143,
+        "lines": 397,
         "functionDeclarations": 33,
         "asyncFunctions": 10
       },

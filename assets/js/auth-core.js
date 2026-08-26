@@ -399,6 +399,24 @@ function customerOrderDateInputValue(c){
     || normalizeDateInputValue(c.onceDate || c.startDate);
 }
 
+// 사천·진주는 직배송 권역이다. 택배로 등록하면 배송비가 더 들고 당일 배달도 안 되므로
+// 저장 전에 한 번 확인한다. 실제로 택배가 맞는 경우도 있어 막지는 않는다.
+const DIRECT_AREA_PATTERN = /진주|사천/;
+
+function isDirectDeliveryArea(address){
+  return DIRECT_AREA_PATTERN.test(String(address || ''));
+}
+
+function confirmCourierForDirectArea(address, isDirect){
+  if(isDirect || !isDirectDeliveryArea(address)) return true;
+  return confirm(
+    '배송지가 사천·진주 지역으로 보입니다.\n\n'
+    + `${String(address || '').trim()}\n\n`
+    + '지금은 택배배송으로 등록됩니다. 직배송이 아니라 택배가 맞나요?\n'
+    + '(직배송으로 하려면 취소를 누르고 직배송에 체크해주세요)'
+  );
+}
+
 async function saveNew(){
   const n = g('an');
   const ph = g('ap');
@@ -413,6 +431,7 @@ async function saveNew(){
   if(!a){ toast('배송지 주소를 입력하세요','er'); return; }
 
   const isDirect = document.getElementById('a-direct').checked;
+  if(!confirmCourierForDirectArea(a, isDirect)) return;
   const orderNum = document.getElementById('a-ordernum').value.trim();
   const orderDate = normalizeDateInputValue(orderNum) || formatDateInputValue(new Date());
   const orderAmountRaw = document.getElementById('a-amount')?.value.trim() || '';
@@ -529,6 +548,7 @@ async function saveEdit(){
   if(orderAmountRaw !== '' && orderAmount === null){ toast('총 주문금액을 숫자로 입력하세요','er'); return; }
 
   const statusVal = g('est');
+  if(!confirmCourierForDirectArea(g('ea'), document.getElementById('e-direct').checked)) return;
   const upd = {
     name:g('en'),
     phone:g('ep'),
