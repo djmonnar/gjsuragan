@@ -996,6 +996,13 @@ function customerRiskReasons(c){
     }
   }
   if(!customerProductKey(c)) reasons.push('상품/세트 확인 필요');
+  // 사천·진주는 직배송 권역이라 택배로 잡혀 있으면 배송비가 더 들고 당일 배달도 안 된다.
+  // isDirectDeliveryArea 는 auth-core.js 에서 먼저 정의된다.
+  if(c?.status !== 'end' && !c?.isDirect
+    && typeof isDirectDeliveryArea === 'function'
+    && isDirectDeliveryArea(c?.addr || c?.address || '')){
+    reasons.push('사천·진주 지역인데 택배배송입니다');
+  }
   return customerUniqueBy(reasons.map(reason => ({ reason })), item => item.reason).map(item => item.reason);
 }
 
