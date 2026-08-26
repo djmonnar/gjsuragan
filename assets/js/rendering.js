@@ -1046,6 +1046,11 @@ function ensureRiskOrderAlertShell(){
         <div class="ibox" style="margin-bottom:12px;border-color:#fecdd3;background:#fff1f2;color:#881337;">
           배송일정이나 상품 정보가 이상하게 들어온 주문입니다. 고객에게 확인이 필요하면 행을 눌러 고객관리 상세로 이동하세요.
         </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:9px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;font-size:13px;font-weight:800;color:#374151;cursor:pointer;">
+          <input type="checkbox" id="riskOrderSelectAll" onchange="toggleAllRiskOrderDismiss(this.checked)">
+          <span>전체 선택</span>
+          <span id="riskOrderSelectedCount" style="margin-left:auto;font-weight:700;color:#6b7280;"></span>
+        </label>
         <div id="riskOrderList" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
       <div class="mf">
@@ -1055,6 +1060,28 @@ function ensureRiskOrderAlertShell(){
     </div>`;
   document.body.appendChild(shell);
   return shell;
+}
+
+function riskOrderDismissBoxes(){
+  return Array.from(document.querySelectorAll('#riskOrderList .risk-order-dismiss'));
+}
+
+function toggleAllRiskOrderDismiss(checked){
+  riskOrderDismissBoxes().forEach(box => { box.checked = checked; });
+  syncRiskOrderSelectAll();
+}
+
+// 전체 선택 체크박스는 일부만 골랐을 때 중간 상태로 둔다.
+function syncRiskOrderSelectAll(){
+  const boxes = riskOrderDismissBoxes();
+  const checked = boxes.filter(box => box.checked).length;
+  const all = document.getElementById('riskOrderSelectAll');
+  if(all){
+    all.checked = boxes.length > 0 && checked === boxes.length;
+    all.indeterminate = checked > 0 && checked < boxes.length;
+  }
+  const label = document.getElementById('riskOrderSelectedCount');
+  if(label) label.textContent = `${checked} / ${boxes.length}건 선택`;
 }
 
 function checkRiskOrderAlert(){
@@ -1082,7 +1109,7 @@ function checkRiskOrderAlert(){
             <div style="font-size:12px;color:#6b7280;margin-top:4px;">${orderNo ? '#' + customerText(orderNo) + ' · ' : ''}${customerText(c.phone || '-')}</div>
           </div>
           <label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#6b7280;white-space:nowrap;">
-            <input type="checkbox" class="risk-order-dismiss" value="${customerText(key)}"> 다시 안 보기
+            <input type="checkbox" class="risk-order-dismiss" value="${customerText(key)}" onchange="syncRiskOrderSelectAll()"> 다시 안 보기
           </label>
         </div>
         <div style="display:grid;grid-template-columns:76px 1fr;gap:5px 8px;font-size:12px;margin-top:10px;">
@@ -1092,6 +1119,9 @@ function checkRiskOrderAlert(){
         </div>
       </div>`;
   }).join('');
+  const selectAll = document.getElementById('riskOrderSelectAll');
+  if(selectAll){ selectAll.checked = false; selectAll.indeterminate = false; }
+  syncRiskOrderSelectAll();
   shell.classList.add('on');
   __riskOrderAlertOpen = true;
 }
