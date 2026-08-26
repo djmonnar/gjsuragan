@@ -18,8 +18,8 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 321494,
-    "lines": 7419,
+    "normalizedBytes": 321916,
+    "lines": 7426,
     "functionDeclarations": 432,
     "uniqueCallableGlobals": 391,
     "explicitWindowExports": 36,
@@ -691,8 +691,8 @@
     {
       "path": "assets/js/rendering.js",
       "metrics": {
-        "bytes": 88724,
-        "lines": 1767,
+        "bytes": 89146,
+        "lines": 1774,
         "functionDeclarations": 90,
         "asyncFunctions": 5
       },
