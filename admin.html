@@ -5440,7 +5440,9 @@ async function loadOrders() {
         const tr = document.createElement('tr');
         const isZeroHoliday = Boolean(o.zeroQuantityHoliday || o.source === 'zeroHoliday' || o.source === 'zeroDefault');
         const isSelfHoliday = Boolean(o.selfHoliday);
-        const disabledAttr = isSelfHoliday ? 'disabled' : '';
+        // 휴무로 잡힌 업체도 전화로 추가 주문이 들어온다. 수량은 고칠 수 있어야 한다.
+        // 배송완료 체크만 잠가서 실수로 배송 대상에 들어가는 것을 막는다.
+        const disabledAttr = '';
         const noteHtml = orderNoteHtml(o);
         const statusHtml = isZeroHoliday
           ? '<span class="delivery-status" style="background:#f1f5f9;color:#64748b;border-color:#cbd5e1">0(휴무)</span>'
@@ -5467,7 +5469,7 @@ async function loadOrders() {
           ? `${cateringSummary.items.length > 1 ? `${escapeHtml(cateringSummary.items[0].name)} 외 ${cateringSummary.items.length - 1}종` : escapeHtml(cateringSummary.items[0].name)}<br>${cateringSummary.totalQty}개`
           : '추가';
         tr.innerHTML = `
-          <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${(!o.delivered && !isSelfHoliday) ? 'checked' : ''} ${disabledAttr}></td>
+          <td style="text-align:center"><input class="order-check" type="checkbox" value="${o.uid}" ${(!o.delivered && !isSelfHoliday) ? 'checked' : ''} ${isSelfHoliday ? 'disabled' : ''}></td>
           <td style="color:var(--sub);font-size:13px">${i + 1}</td>
           <td class="biz-name">${orderBizNameButtonHtml(o)}</td>
           <td class="qty-cell">
@@ -5757,7 +5759,7 @@ function refreshOrderSummaryFromInputs() {
 function openOrderQtyModal(uid) {
   const rowEl = orderRowElementByUid(uid);
   const row = currentOrderRows.find(item => item.uid === uid) || {};
-  if (!rowEl || row.selfHoliday) return;
+  if (!rowEl) return;
   const values = orderQtyValuesFromRow(rowEl);
   document.getElementById('order-qty-uid').value = uid;
   document.getElementById('order-qty-name').textContent = row.businessName || allUsers[uid]?.businessName || '업체명';
@@ -5811,7 +5813,8 @@ function adminCateringDraftQty(menuId) {
 
 function openAdminCateringOrderModal(uid) {
   const row = currentOrderRows.find(item => item.uid === uid) || {};
-  if (!uid || row.selfHoliday) return;
+  // 휴무 업체도 전화로 행사도시락을 추가할 수 있어야 한다. 저장하면 휴무가 풀린다.
+  if (!uid) return;
   currentAdminCateringUid = uid;
   adminCateringDraft = window.GJS_CATERING.summarize(row.cateringItems || [], {
     preserveSnapshot: true
@@ -5965,6 +5968,10 @@ async function saveInlineQty(uid) {
     eventLunchPrice,
     cateringItems
   });
+  // 휴무로 잡힌 업체도 전화로 추가 주문이 들어온다.
+  // 수량을 1개 이상 넣어 저장하면 자체휴무 표시를 반드시 함께 풀어야 한다.
+  // 안 그러면 mergeOrdersWithDefaults 의 selfHoliday 분기가 수량을 다시 0으로 만든다.
+  const savedTotalQty = values.lunch + values.salad + values.event + cateringSummary.totalQty;
   try {
     await db.collection('orders').doc(currentDateStr).collection('items').doc(uid).set({
       uid,
@@ -5974,6 +5981,7 @@ async function saveInlineQty(uid) {
       eventLunchCount: values.event,
       cateringItems: window.GJS_CATERING.normalizeItems(cateringItems),
       disposableLunch: isDisposableLunchUser(user),
+      selfHoliday: savedTotalQty > 0 ? false : Boolean(row.selfHoliday),
       adminInput: true,
       adminAdjusted: true,
       source: row.source === 'manual' ? 'adminManual' : (row.source === 'default' ? 'adminDefault' : 'order'),
