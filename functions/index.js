@@ -9,9 +9,12 @@ const logenClient = require('./logenClient');
 const { mapCustomerToLogenOrder, orderNumber } = require('./logenMapper');
 const { parseMealPlanOcr } = require('./mealPlanParser');
 const kakaoAuth = require('./kakaoAuth');
+const imwebSync = require('./imwebSync');
 
 const logenSecretKey = defineSecret('LOGEN_SECRET_KEY');
 const logenHealthToken = defineSecret('LOGEN_HEALTH_TOKEN');
+const imwebApiKey = defineSecret('IMWEB_API_KEY');
+const imwebSecretKey = defineSecret('IMWEB_SECRET_KEY');
 
 admin.initializeApp();
 
@@ -206,6 +209,24 @@ exports.flushPendingChangeRequestNotifications = onSchedule({
   if (normal.length) {
     await sendGroupedNotification(normal);
   }
+});
+
+// 아임웹 주문 자동 동기화. 예전에는 구글 앱스스크립트가 5분마다 돌렸다.
+// config/imwebSync 문서의 enabled 가 true 가 되기 전까지는 아무것도 하지 않는다.
+// 앱스스크립트 트리거(pauseImwebSyncTrigger)를 먼저 끄고 켜야 같은 주문이 두 번 등록되지 않는다.
+exports.syncImwebOrders = onSchedule({
+  schedule: 'every 5 minutes',
+  timeZone: TIMEZONE,
+  region: 'asia-northeast3',
+  timeoutSeconds: 540,
+  secrets: [imwebApiKey, imwebSecretKey]
+}, async () => {
+  if (!await imwebSync.loadSyncEnabled(db, process.env)) return;
+  const result = await imwebSync.syncImwebOrders({
+    db,
+    log: message => logger.info('Imweb sync', { message })
+  });
+  logger.info('Imweb sync finished', result);
 });
 
 exports.api = onRequest({
