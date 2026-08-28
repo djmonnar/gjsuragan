@@ -280,44 +280,84 @@ function syncImwebOrders() {
       });
       if (!allItems.length) { skipped++; continue; }
 
-      const firstProdName = allItems[0].prod_name || '';
-      const firstOptVals  = getOptionValues(allItems[0]);
-      const firstOptText  = firstOptVals.join(' ');
-      const isSub = /정기구독|정기배송/.test(firstProdName + ' ' + firstOptText);
-
-      if (isSub) {
-        const syncKey = orderNo;
-        if (existingMap[syncKey]) {
-          Logger.log('⏭ 이미등록(정기): ' + syncKey);
-          skipped++; continue;
-        }
-        const parsed = parseSubOrder(order, allItems, orderNo, syncKey);
-        if (!parsed) { skipped++; continue; }
-        saveToFirestore(parsed);
-        saved++;
-        Logger.log('✅ 정기 등록: ' + parsed.name + ' / ' + syncKey + ' / ' + parsed.scheduleName);
-      } else {
-        let itemIdx = 0;
-        for (var ii = 0; ii < allItems.length; ii++) {
-          const item = allItems[ii];
-          itemIdx++;
-          const syncKey = buildSyncKey(orderNo, itemIdx);
-          if (existingMap[syncKey]) {
-            Logger.log('⏭ 이미등록(선택): ' + syncKey);
-            skipped++; continue;
-          }
-
-          const parsed = parseOnceItem(order, item, itemIdx, orderNo, syncKey);
-          if (!parsed) { skipped++; continue; }
-
-          saveToFirestore(parsed);
-          saved++;
-          Logger.log('✅ 선택 등록: ' + parsed.name + ' / ' + syncKey + ' / ' + parsed.scheduleName);
-        }
-      }
+      const result = registerOrderItems_(order, orderNo, allItems, existingMap);
+      saved += result.saved;
+      skipped += result.skipped;
     }
 
     Logger.log('=== 완료: 등록 ' + saved + '건 / 삭제 ' + deleted + '건 / 건너뜀 ' + skipped + '건 ===');
+  } catch(e) {
+    Logger.log('❌ 오류: ' + e.message);
+  }
+}
+
+// 한 주문에 상품 줄이 여러 개일 때 줄마다 따로 등록한다.
+// 예전에는 첫 줄이 정기구독이면 나머지 줄을 전부 첫 줄에 합쳐서 한 건만 등록했다.
+// 그래서 '반찬 정기구독' 두 줄(예: 월·수·금 + 화·목)이 한 주문으로 들어오면
+// 앞에 있는 일정 하나만 배송관리에 잡히고 뒤에 있는 일정은 통째로 사라졌다.
+// 정기/선택 판단도 줄마다 따로 해서 섞여 들어온 주문도 각각 등록되게 한다.
+function registerOrderItems_(order, orderNo, allItems, existingMap) {
+  let saved = 0, skipped = 0;
+
+  for (var ii = 0; ii < allItems.length; ii++) {
+    const item = allItems[ii];
+    const itemIdx = ii + 1;
+    // buildSyncKey 는 첫 줄에 대해 주문번호를 그대로 돌려준다.
+    // 그래서 예전에 등록된 건은 그대로 인식돼 중복 등록되지 않는다.
+    const syncKey = buildSyncKey(orderNo, itemIdx);
+    if (existingMap[syncKey]) {
+      Logger.log('⏭ 이미등록: ' + syncKey);
+      skipped++; continue;
+    }
+
+    const optText = getOptionValues(item).join(' ');
+    const isSub = /정기구독|정기배송/.test((item.prod_name || '') + ' ' + optText);
+    const parsed = isSub
+      ? parseSubOrder(order, [item], orderNo, syncKey)
+      : parseOnceItem(order, item, itemIdx, orderNo, syncKey);
+    if (!parsed) { skipped++; continue; }
+
+    saveToFirestore(parsed);
+    saved++;
+    Logger.log((isSub ? '✅ 정기 등록: ' : '✅ 선택 등록: ') + parsed.name + ' / ' + syncKey + ' / ' + parsed.scheduleName);
+  }
+
+  return { saved: saved, skipped: skipped };
+}
+
+// syncImwebOrders 는 API 호출을 아끼려고 이미 등록된 주문번호를 통째로 건너뛴다.
+// 그래서 상품 줄이 여러 개인데 일부만 등록된 예전 주문은 자동으로는 채워지지 않는다.
+// 그런 주문 하나를 지정해서 빠진 줄만 추가 등록한다.
+// Apps Script 편집기에서 아래처럼 주문번호를 넣고 실행하면 된다.
+//   resyncImwebOrder('202608240989736')
+function resyncImwebOrder(orderNo) {
+  const no = String(orderNo || '').trim();
+  if (!no) {
+    Logger.log('주문번호를 넣어주세요. 예: resyncImwebOrder("202608240989736")');
+    return;
+  }
+  try {
+    Logger.log('=== 주문 재동기화 시작: ' + no + ' ===');
+    const token = getImwebToken();
+    if (!token) { Logger.log('토큰 발급 실패'); return; }
+
+    const orders = getImwebOrders(token);
+    let target = null;
+    for (var i = 0; i < orders.length; i++) {
+      if (String(orders[i].order_no || '') === no) { target = orders[i]; break; }
+    }
+    if (!target) { Logger.log('❌ 주문을 찾지 못했습니다: ' + no); return; }
+
+    const prodOrders = getOrderProdOrders(token, no);
+    const allItems = [];
+    (prodOrders || []).forEach(function(po) {
+      (po.items || []).forEach(function(item) { allItems.push(item); });
+    });
+    if (!allItems.length) { Logger.log('❌ 상품 정보가 없습니다: ' + no); return; }
+    Logger.log('상품 줄: ' + allItems.length + '건');
+
+    const result = registerOrderItems_(target, no, allItems, getExistingOrders());
+    Logger.log('=== 완료: 등록 ' + result.saved + '건 / 건너뜀 ' + result.skipped + '건 ===');
   } catch(e) {
     Logger.log('❌ 오류: ' + e.message);
   }

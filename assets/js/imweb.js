@@ -3,6 +3,7 @@
 // ════════════════════════════════════════
 const IW_KEY_STORE = 'iw_keys';
 let iwOrders = []; // 불러온 주문 목록
+let iwRows = [];   // 주문을 상품 줄 단위로 펼친 목록 (한 주문에 상품이 여러 줄일 수 있다)
 
 const IW_CANCEL_STATUSES = [
   'order_cancel', 'pay_cancel', 'refund_req', 'refund_done',
@@ -279,26 +280,62 @@ function parseImwebProduct(prodName){
   return '';
 }
 
+// 한 주문에 상품이 여러 줄 들어오는 경우가 있다.
+// 예전에는 첫 줄만 읽어서 나머지 줄이 통째로 사라졌다. 줄마다 한 행으로 펼친다.
+function iwOrderItemRows(){
+  const rows = [];
+  iwOrders.forEach(order => {
+    const items = order.product_list || [];
+    const list = items.length ? items : [{}];
+    list.forEach((item, idx) => {
+      rows.push({ order, item, itemIdx: idx + 1, itemCount: list.length });
+    });
+  });
+  return rows;
+}
+
+function iwSyncKey(orderNo, itemIdx){
+  return itemIdx <= 1 ? String(orderNo || '') : String(orderNo || '') + '-' + itemIdx;
+}
+
+// 상품 줄 하나의 결제금액. 아임웹이 필드명을 여러 가지로 내려줘서 순서대로 훑는다.
+function iwItemAmount(item){
+  const candidates = [
+    item?.payment_price, item?.pay_price, item?.total_price,
+    item?.price, item?.prod_price, item?.amount,
+  ];
+  for(const candidate of candidates){
+    const amount = normalizeOrderAmount(candidate);
+    if(amount !== null) return amount;
+  }
+  return null;
+}
+
 function renderImwebOrders(){
   const tbody = document.getElementById('iw-tbody');
-  if(!iwOrders.length){
+  iwRows = iwOrderItemRows();
+  if(!iwRows.length){
     tbody.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="ei">📭</div><div>불러온 주문 없음</div></div></td></tr>`;
     return;
   }
-  tbody.innerHTML = iwOrders.map((o,i)=>{
+  tbody.innerHTML = iwRows.map((row,i)=>{
+    const o      = row.order;
     const recv   = o.order_info?.recv || {};
-    const items  = o.product_list || [];
-    const prod0  = items[0] || {};
-    const prodName = (prod0.prod_name||'')+(prod0.opt_name?' / '+prod0.opt_name:'');
+    const item   = row.item;
+    const prodName = (item.prod_name||'')+(item.opt_name?' / '+item.opt_name:'');
     const autoProd = parseImwebProduct(prodName);
     const addr   = (recv.addr||'')+(recv.addr_detail?' '+recv.addr_detail:'');
     const date   = String(o.order_date||'').slice(0,8);
     const dateStr= date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : '';
+    // 같은 주문번호가 여러 줄로 보이면 헷갈리니 몇 번째 상품인지 같이 적는다.
+    const orderNoLabel = row.itemCount > 1
+      ? `${o.order_no||''} (${row.itemIdx}/${row.itemCount})`
+      : String(o.order_no||'');
 
     return `<tr id="iw-row-${i}">
       <td><input type="checkbox" class="iw-ck" data-idx="${i}" checked></td>
       <td style="color:var(--text3);">${i+1}</td>
-      <td style="font-size:11px;font-family:monospace;">${escHtml(o.order_no||'')}</td>
+      <td style="font-size:11px;font-family:monospace;">${escHtml(orderNoLabel)}</td>
       <td><strong>${escHtml(recv.name||o.member_id||'')}</strong></td>
       <td style="white-space:nowrap;">${escHtml(recv.phone||'')}</td>
       <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(addr)}">${escHtml(addr)}</td>
@@ -348,19 +385,22 @@ async function imwebRegAll(){
   const t = todayStr(); let ok=0;
   for(const ck of checked){
     const i   = parseInt(ck.dataset.idx);
-    const o   = iwOrders[i];
+    const entry = iwRows[i];
     const row = document.getElementById('iw-row-'+i);
-    if(!o || !row) continue;
+    if(!entry || !row) continue;
 
+    const o        = entry.order;
     const recv     = o.order_info?.recv || {};
-    const items    = o.product_list || [];
-    const prod0    = items[0] || {};
     const prod     = document.getElementById('iw-prod-'+i)?.value || '';
-    const qty      = parseInt(prod0.ea)||1;
+    const qty      = parseInt(entry.item.ea)||1;
     const addr     = (recv.addr||'')+(recv.addr_detail?' '+recv.addr_detail:'');
     const date     = String(o.order_date||'').slice(0,8);
     const dateStr  = date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : t;
-    const orderAmount = imwebOrderAmount(o);
+    // 주문 단위 결제금액을 상품 줄마다 그대로 넣으면 매출이 줄 수만큼 부풀려진다.
+    // 줄이 여러 개면 그 줄의 금액만 쓰고, 못 찾으면 금액을 아예 넣지 않는다.
+    const orderAmount = entry.itemCount > 1
+      ? iwItemAmount(entry.item)
+      : imwebOrderAmount(o);
 
     const data = {
       name:     recv.name||'',
@@ -372,6 +412,8 @@ async function imwebRegAll(){
       set:      prod,
       productId:prod,
       orderNum: String(o.order_no||''),
+      // 앱스스크립트 자동연동과 같은 규칙. 첫 줄은 주문번호 그대로라 기존 건과 충돌하지 않는다.
+      syncKey:  iwSyncKey(o.order_no, entry.itemIdx),
       orderDate:dateStr,
       orderSource:'imweb_api',
       orderType:'once',

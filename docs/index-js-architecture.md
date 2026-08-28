@@ -19,7 +19,7 @@ The current order is part of the application contract.
 | ---: | --- | ---: | ---: | ---: | ---: | --- |
 | 1 | `auth-core.js` | 862 | 30,112 | 27 | 13 | Authentication, shared customer state, customer CRUD |
 | 2 | `delivery-transaction.js` | 78 | 2,962 | 3 | Atomic delivery state transitions |
-| 3 | `imweb.js` | 867 | 35,296 | 48 | Imweb integration, spreadsheet import, legacy completion handlers |
+| 3 | `imweb.js` | 909 | 37,154 | 51 | Imweb integration, spreadsheet import, legacy completion handlers |
 | 4 | `schedule-report.js` | 382 | 17,588 | 38 | Date/schedule/report calculation and final delivery policy |
 | 5 | `manual-delivery-dates.js` | 320 | 14,156 | 25 | Manual delivery-date calculation and calendar editor |
 | 6 | `rendering-formatters.js` | 55 | 1,736 | 10 | Pure text, badge and order-label formatters |

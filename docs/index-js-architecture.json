@@ -18,9 +18,9 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 323453,
-    "lines": 7456,
-    "functionDeclarations": 435,
+    "normalizedBytes": 325311,
+    "lines": 7498,
+    "functionDeclarations": 438,
     "uniqueCallableGlobals": 391,
     "explicitWindowExports": 36,
     "globalStateDeclarations": 62,
@@ -247,9 +247,9 @@
     {
       "path": "assets/js/imweb.js",
       "metrics": {
-        "bytes": 35296,
-        "lines": 867,
-        "functionDeclarations": 48,
+        "bytes": 37154,
+        "lines": 909,
+        "functionDeclarations": 51,
         "asyncFunctions": 11
       },
       "globalsDefined": [
@@ -272,6 +272,9 @@
         "imwebGetToken",
         "imwebFetch",
         "parseImwebProduct",
+        "iwOrderItemRows",
+        "iwSyncKey",
+        "iwItemAmount",
         "renderImwebOrders",
         "iwRemoveRow",
         "imwebToggleAll",
