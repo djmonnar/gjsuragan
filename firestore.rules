@@ -557,6 +557,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // 관리자 문서에서 옮겨낸 오래된 배송기록. 업체 정보가 들어 있어 관리자만 본다.
+    match /deliveryRecordArchive/{dateId} {
+      allow read, write: if isAdmin();
+    }
+
     match /eventOrders/{orderId} {
       allow create: if validPublicEventOrder();
       allow read, update, delete: if isAdmin();

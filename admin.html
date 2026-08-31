@@ -1845,6 +1845,21 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <button onclick="migrateLegacySettlementsToNewPath()"
         style="background:#fff;color:var(--primary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">legacy 정산 복사</button>
       <div id="settlement-migration-result" style="font-size:12px;color:var(--text-secondary);margin-top:8px"></div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px">배송기록 용량 정리</div>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px">
+        배송기록이 관리자 문서 한 곳에 계속 쌓여 Firestore 한도(1MB)를 넘으면 배송 완료 처리가 막힙니다.
+        이번 달과 지난달은 그대로 두고, 그보다 오래된 날짜를 deliveryRecordArchive 로 옮긴 뒤 관리자 문서에서 지웁니다.
+        옮긴 기록도 정산 화면에서 그대로 보입니다. 먼저 <b>검사</b>로 얼마나 줄어드는지 확인하세요.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="inspectDeliveryRecordStorage()"
+          style="background:#fff;color:var(--primary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">검사</button>
+        <button onclick="archiveOldDeliveryRecords()"
+          style="background:var(--primary);color:#fff;border:1px solid var(--primary);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">오래된 기록 정리</button>
+      </div>
+      <div id="delivery-archive-result" style="font-size:12px;color:var(--text-secondary);margin-top:8px;line-height:1.7"></div>
     </div>
   </div>
 
@@ -3805,7 +3820,8 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
     loadSettlementItems(month).catch(() => ({}))
   ]);
   const adminData = adminDoc.exists ? adminDoc.data() : {};
-  const deliveryRecords = deliveryRecordsFromData(adminData);
+  // 오래된 달은 관리자 문서에 없고 보관소에 있다.
+  const deliveryRecords = await loadDeliveryRecordsForDates(monthDates(month), adminData);
   let billed = 0;
   let skipped = 0;
 
@@ -3936,6 +3952,198 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
 
 function nestedDeliveryUpdate(date, uid, value) {
   return { deliveryRecords: { [date]: { [uid]: value } } };
+}
+
+// ── 배송기록 보관소 ─────────────────────────────────────────────
+// 배송기록은 원래 관리자 문서(users/{adminUid}) 안에 날짜별로 계속 쌓였다.
+// Firestore 문서 한도는 1MB 라, 한도를 넘으면 배송 완료 처리 자체가 막힌다.
+// 오래된 날짜는 deliveryRecordArchive/{날짜} 문서로 옮기고 관리자 문서에서 지운다.
+// 옮긴 날짜는 아래 loadDeliveryRecordsForDates 가 보관소에서 읽어오므로
+// 지난달 정산 화면도 그대로 보인다.
+const DELIVERY_ARCHIVE_COLLECTION = 'deliveryRecordArchive';
+const deliveryArchiveCache = new Map();
+
+function deliveryArchiveRef(date) {
+  return db.collection(DELIVERY_ARCHIVE_COLLECTION).doc(date);
+}
+
+// 관리자 문서에 없는 날짜만 보관소에서 채워 넣는다.
+async function loadDeliveryRecordsForDates(dates, adminData) {
+  const records = deliveryRecordsFromData(adminData || {});
+  const missing = (dates || []).filter(ds => ds && !records[ds]);
+  if (missing.length === 0) return records;
+
+  const fetched = await Promise.all(missing.map(async ds => {
+    if (deliveryArchiveCache.has(ds)) return [ds, deliveryArchiveCache.get(ds)];
+    try {
+      const snap = await deliveryArchiveRef(ds).get();
+      const rows = snap.exists ? (snap.data() || {}).records || {} : {};
+      deliveryArchiveCache.set(ds, rows);
+      return [ds, rows];
+    } catch (e) {
+      // 보관소를 못 읽어도 이번 달 정산은 계속 그려져야 한다.
+      console.warn('배송기록 보관소 읽기 실패', ds, e);
+      return [ds, {}];
+    }
+  }));
+
+  fetched.forEach(([ds, rows]) => {
+    if (rows && Object.keys(rows).length > 0) records[ds] = rows;
+  });
+  return records;
+}
+
+// 관리자 문서에는 같은 기록이 두 벌 들어간다.
+// set({merge:true}) 로 'deliveryRecords.날짜.uid' 를 쓰면 점이 그대로 이름인 필드가 되고,
+// 중첩 맵으로 쓴 것과 별개로 저장돼 용량을 두 배로 먹는다.
+function dottedDeliveryKeysByDate(adminData = {}) {
+  const byDate = {};
+  Object.keys(adminData).forEach(key => {
+    if (!key.startsWith('deliveryRecords.')) return;
+    const rest = key.slice('deliveryRecords.'.length);
+    const date = rest.slice(0, 10);
+    if (!date || !rest.slice(11)) return;
+    (byDate[date] = byDate[date] || []).push(key);
+  });
+  return byDate;
+}
+
+function approximateFieldBytes(value) {
+  try {
+    return new Blob([JSON.stringify(value ?? null)]).size;
+  } catch {
+    return 0;
+  }
+}
+
+// 이번 달과 지난달은 건드리지 않는다. 그보다 오래된 날짜만 정리 대상이다.
+function deliveryArchiveCutoff() {
+  const today = getKST();
+  const cutoff = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  return dateStr(cutoff);
+}
+
+function summarizeDeliveryStorage(adminData = {}) {
+  const cutoff = deliveryArchiveCutoff();
+  const nested = adminData.deliveryRecords || {};
+  const dotted = dottedDeliveryKeysByDate(adminData);
+  const allDates = [...new Set([...Object.keys(nested), ...Object.keys(dotted)])].sort();
+  const oldDates = allDates.filter(ds => ds < cutoff);
+
+  let totalBytes = 0;
+  let oldBytes = 0;
+  let duplicateBytes = 0;
+  allDates.forEach(ds => {
+    const nestedBytes = approximateFieldBytes(nested[ds]);
+    const dottedBytes = (dotted[ds] || []).reduce((sum, key) => sum + approximateFieldBytes(adminData[key]), 0);
+    totalBytes += nestedBytes + dottedBytes;
+    if (ds < cutoff) oldBytes += nestedBytes + dottedBytes;
+    // 중첩 맵과 점 표기가 같은 날짜에 함께 있으면 한쪽은 군더더기다.
+    else if (nestedBytes > 0 && dottedBytes > 0) duplicateBytes += dottedBytes;
+  });
+
+  return { cutoff, allDates, oldDates, totalBytes, oldBytes, duplicateBytes, dotted, nested };
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (value < 1024) return `${value}B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)}KB`;
+  return `${(value / (1024 * 1024)).toFixed(2)}MB`;
+}
+
+async function inspectDeliveryRecordStorage() {
+  const box = document.getElementById('delivery-archive-result');
+  if (box) box.textContent = '검사 중…';
+  try {
+    const adminDoc = await db.collection('users').doc(adminUid).get();
+    const adminData = adminDoc.exists ? adminDoc.data() : {};
+    const docBytes = approximateFieldBytes(adminData);
+    const info = summarizeDeliveryStorage(adminData);
+    const freeable = info.oldBytes + info.duplicateBytes;
+    if (box) {
+      box.innerHTML = [
+        `관리자 문서 전체 약 <b>${formatBytes(docBytes)}</b> (한도 1MB)`,
+        `배송기록 ${info.allDates.length}일치 약 ${formatBytes(info.totalBytes)}`,
+        `정리 대상: <b>${info.cutoff} 이전 ${info.oldDates.length}일</b> 약 ${formatBytes(info.oldBytes)}`,
+        `중복 저장된 점 표기 필드 약 ${formatBytes(info.duplicateBytes)}`,
+        `→ 정리하면 약 <b>${formatBytes(freeable)}</b> 줄어듭니다.`
+      ].join('<br>');
+    }
+  } catch (e) {
+    if (box) box.textContent = '검사 실패: ' + e.message;
+  }
+}
+
+async function archiveOldDeliveryRecords() {
+  const box = document.getElementById('delivery-archive-result');
+  try {
+    const adminDoc = await db.collection('users').doc(adminUid).get();
+    const adminData = adminDoc.exists ? adminDoc.data() : {};
+    const info = summarizeDeliveryStorage(adminData);
+    const merged = deliveryRecordsFromData(adminData);
+
+    if (info.oldDates.length === 0 && info.duplicateBytes === 0) {
+      if (box) box.textContent = '정리할 기록이 없습니다.';
+      return;
+    }
+    if (!confirm(`${info.cutoff} 이전 ${info.oldDates.length}일치를 보관소로 옮기고 중복 필드를 정리합니다.\n약 ${formatBytes(info.oldBytes + info.duplicateBytes)} 줄어듭니다. 계속할까요?`)) return;
+
+    if (box) box.textContent = '보관소에 저장 중…';
+    // 1) 먼저 보관소에 저장한다. 저장이 끝난 날짜만 관리자 문서에서 지운다.
+    const archived = [];
+    for (const ds of info.oldDates) {
+      const rows = merged[ds] || {};
+      if (Object.keys(rows).length > 0) {
+        await deliveryArchiveRef(ds).set({
+          date: ds,
+          records: rows,
+          archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          archivedBy: adminUid
+        });
+        deliveryArchiveCache.set(ds, rows);
+      }
+      archived.push(ds);
+    }
+
+    if (box) box.textContent = '관리자 문서에서 지우는 중…';
+    // 2) 지울 필드를 모은다. 오래된 날짜는 통째로, 최근 날짜는 중복된 점 표기만.
+    const deletions = [];
+    archived.forEach(ds => {
+      if (info.nested[ds] !== undefined) deletions.push(new firebase.firestore.FieldPath('deliveryRecords', ds));
+      (info.dotted[ds] || []).forEach(key => deletions.push(new firebase.firestore.FieldPath(key)));
+    });
+    Object.entries(info.dotted).forEach(([ds, keys]) => {
+      if (ds < info.cutoff) return;
+      // 중첩 맵에 같은 날짜가 있을 때만 점 표기를 지운다. 아니면 기록이 사라진다.
+      if (info.nested[ds] === undefined) return;
+      keys.forEach(key => deletions.push(new firebase.firestore.FieldPath(key)));
+    });
+
+    const ref = db.collection('users').doc(adminUid);
+    const CHUNK = 100;
+    for (let i = 0; i < deletions.length; i += CHUNK) {
+      const args = [];
+      deletions.slice(i, i + CHUNK).forEach(path => {
+        args.push(path, firebase.firestore.FieldValue.delete());
+      });
+      await ref.update(...args);
+    }
+
+    const after = await ref.get();
+    const afterBytes = approximateFieldBytes(after.exists ? after.data() : {});
+    if (box) {
+      box.innerHTML = [
+        `✅ ${archived.length}일치를 보관소로 옮기고 ${deletions.length}개 필드를 정리했습니다.`,
+        `관리자 문서 현재 약 <b>${formatBytes(afterBytes)}</b> (한도 1MB)`
+      ].join('<br>');
+    }
+    showToast(`✅ 배송기록 ${archived.length}일치 정리 완료`);
+    if (activeAdminTab === 'settlements') loadSettlements();
+  } catch (e) {
+    if (box) box.textContent = '정리 실패: ' + e.message;
+    showToast('정리 실패: ' + e.message, 'error');
+  }
 }
 
 function normalizeBizId(month, index) {
@@ -6159,7 +6367,8 @@ async function rebuildSettlementsForUids(month, uids) {
     loadSettlementItems(month).catch(() => ({}))
   ]);
   const adminData = adminDoc.exists ? adminDoc.data() : {};
-  const deliveryRecords = deliveryRecordsFromData(adminData);
+  // 오래된 달은 관리자 문서에 없고 보관소에 있다.
+  const deliveryRecords = await loadDeliveryRecordsForDates(monthDates(month), adminData);
 
   for (const uid of targetUids) {
     const registeredUser = allUsers[uid] || deletedUsers[uid] || null;
@@ -10471,7 +10680,7 @@ async function loadSettlements() {
     const dates = monthDates(month);
     const adminDoc = await db.collection('users').doc(adminUid).get();
     const adminData = adminDoc.exists ? adminDoc.data() : {};
-    cachedDeliveryRecords = deliveryRecordsFromData(adminData);
+    cachedDeliveryRecords = await loadDeliveryRecordsForDates(monthDates(month), adminData);
     const deliveryRecords = cachedDeliveryRecords;
     const legacyManualSettlements = manualMonthlySettlementsFromData(adminData)[month] || {};
     const newManualSettlements = Object.fromEntries(
