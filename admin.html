@@ -10664,7 +10664,7 @@ async function loadSettlements() {
   try {
     const byUser = {};
     const settlementItems = await loadSettlementItems(month);
-    Object.entries(allUsers).forEach(([uid, user]) => {
+    const buildRegisteredRow = (uid, user) => {
       // TODO: legacy users.settlements fallback은 데이터 마이그레이션 후 제거
       const saved = settlementItems[uid] || user.settlements?.[month] || {};
       const lunchPrice = Number(saved.lunchPrice ?? saved.priceLunch ?? userLunchPrice(user) ?? 0) || 0;
@@ -10675,7 +10675,9 @@ async function loadSettlements() {
         payments = [{ amount: saved.paidAmount, date: saved.paidDate || '', note: '(이전 기록)', recordedAt: saved.updatedAt || '' }];
       }
       byUser[uid] = { uid, user, lunch: 0, salad: 0, eventLunch: 0, catering: 0, cateringAmount: 0, cateringItems: [], lunchPrice, saladPrice, eventPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, invoiceNo: saved.invoiceNo || '', dueDate: saved.dueDate || '', payments, dateBreakdown: {} };
-    });
+      return byUser[uid];
+    };
+    Object.entries(allUsers).forEach(([uid, user]) => buildRegisteredRow(uid, user));
 
     const dates = monthDates(month);
     const adminDoc = await db.collection('users').doc(adminUid).get();
@@ -10692,9 +10694,19 @@ async function loadSettlements() {
         if (data?.deleted || data?.orderDeleted) return;
         if (!data?.delivered) return;
         if (!allUsers[uid]) {
-          if (!isManualDeliveryRecord(uid, data, Boolean(deletedUsers[uid]))) return;
-          const saved = settlementItems[uid] || {};
-          if (!byUser[uid]) byUser[uid] = manualDeliverySettlementRow(uid, data, saved);
+          // 탈퇴는 users 문서에 deleted 표시만 하는 것이라 배송기록과 정산은 그대로 남는다.
+          // 예전에는 여기서 통째로 걸러져, 탈퇴한 업체의 지난 정산이 사라진 것처럼 보였다.
+          const removed = deletedUsers[uid];
+          if (removed) {
+            if (!byUser[uid]) {
+              buildRegisteredRow(uid, removed);
+              byUser[uid].removedUser = true;
+            }
+          } else {
+            if (!isManualDeliveryRecord(uid, data, false)) return;
+            const saved = settlementItems[uid] || {};
+            if (!byUser[uid]) byUser[uid] = manualDeliverySettlementRow(uid, data, saved);
+          }
         }
         const user = allUsers[uid] || byUser[uid]?.user || {};
         if (!byUser[uid]) byUser[uid] = { uid, user: { businessName: data.businessName || uid }, lunch: 0, salad: 0, eventLunch: 0, catering: 0, cateringAmount: 0, cateringItems: [], lunchPrice: 0, saladPrice: 0, eventPrice: 0, amount: 0, status: '미정산', note: '', adjust: 0, invoiceNo: '', dueDate: '', payments: [], dateBreakdown: {} };
@@ -11065,7 +11077,7 @@ function renderSettlements() {
         return `
         <tr>
           <td style="text-align:center"><input class="settle-check" type="checkbox" value="${escapeHtml(row.uid)}" onchange="syncSettlementChecks(this.value,this.checked)"></td>
-          <td class="biz-name">${escapeHtml(row.user.businessName || '-')}</td>
+          <td class="biz-name">${escapeHtml(row.user.businessName || '-')}${row.removedUser ? ' <span class="source-badge holiday" title="삭제된 업체입니다. 지난 배송기록은 그대로 남아 있습니다">탈퇴</span>' : ''}</td>
           <td class="qty-cell">${row.lunch}<button class="breakdown-btn" onclick="toggleBreakdown('${escapeHtml(row.uid)}')">📋 일별▼</button></td>
           <td class="qty-cell">${row.salad}</td>
           <td class="qty-cell">${settlementEventQty(row)}</td>
