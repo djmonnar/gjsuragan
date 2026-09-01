@@ -1273,6 +1273,37 @@ function kakaoDeliveryRecordsFromData(data = {}) {
   return records;
 }
 
+// 배송기록은 날짜별 문서(deliveryRecords/{날짜})로 옮겨가는 중이다.
+// 옮기기 전 기록은 관리자 문서와 보관소에 남아 있으므로 세 곳을 합쳐서 읽는다.
+async function kakaoReadDeliveryDate(collection, dateStr) {
+  try {
+    const snap = await db.collection(collection).doc(dateStr).get();
+    return snap.exists ? (snap.data() || {}).records || {} : {};
+  } catch (err) {
+    logger.warn('Delivery record read failed', { collection, dateStr, message: err?.message });
+    return {};
+  }
+}
+
+async function kakaoDeliveredRecordsForDate(adminData, dateStr) {
+  const legacy = kakaoDeliveryRecordsFromData(adminData)[dateStr] || {};
+  const [fresh, archived] = await Promise.all([
+    kakaoReadDeliveryDate('deliveryRecords', dateStr),
+    Object.keys(legacy).length > 0 ? Promise.resolve({}) : kakaoReadDeliveryDate('deliveryRecordArchive', dateStr)
+  ]);
+
+  const merged = { ...legacy };
+  [archived, fresh].forEach(source => {
+    Object.entries(source || {}).forEach(([uid, value]) => {
+      merged[uid] = kakaoMergeDeliveryRecord(merged[uid], value);
+    });
+  });
+  Object.entries(merged).forEach(([uid, value]) => {
+    if (value?.deleted) delete merged[uid];
+  });
+  return merged;
+}
+
 function kakaoHolidayName(dateStr, customHolidays = {}) {
   return KAKAO_KOREA_HOLIDAYS[dateStr] || KAKAO_FIXED_KOREA_HOLIDAYS[dateStr ? dateStr.slice(5) : ''] || customHolidays[dateStr] || '';
 }
@@ -1323,7 +1354,7 @@ async function kakaoFetchMonthlyMealSummary(dateStr) {
       users[doc.id] = data;
     });
 
-    const deliveredRecords = kakaoDeliveryRecordsFromData(adminData)[dateStr] || {};
+    const deliveredRecords = await kakaoDeliveredRecordsForDate(adminData, dateStr);
     const useSnapshots = Boolean(lockDoc?.exists && defaultSnap);
     const rowsByUid = {};
     const addRow = (uid, row) => {
@@ -1447,7 +1478,7 @@ async function kakaoFetchMonthlyMealRows(dateStr) {
       users[doc.id] = data;
     });
 
-    const deliveredRecords = kakaoDeliveryRecordsFromData(adminData)[dateStr] || {};
+    const deliveredRecords = await kakaoDeliveredRecordsForDate(adminData, dateStr);
     const useSnapshots = Boolean(lockDoc?.exists && defaultSnap);
     const rowsByUid = {};
     const addRow = (uid, row = {}) => {

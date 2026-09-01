@@ -557,7 +557,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // 관리자 문서에서 옮겨낸 오래된 배송기록. 업체 정보가 들어 있어 관리자만 본다.
+    // 날짜별 배송기록. 관리자 문서 한 곳에 몰아넣던 것을 날짜당 문서 하나로 나눴다.
+    // 업체명·연락처가 들어 있어 관리자만 본다.
+    match /deliveryRecords/{dateId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 용량 정리로 먼저 빼뒀던 옛 기록. 이관이 끝나면 비게 된다.
     match /deliveryRecordArchive/{dateId} {
       allow read, write: if isAdmin();
     }

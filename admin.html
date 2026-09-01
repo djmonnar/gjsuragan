@@ -1847,17 +1847,20 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div id="settlement-migration-result" style="font-size:12px;color:var(--text-secondary);margin-top:8px"></div>
 
       <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
-      <div style="font-size:14px;font-weight:700;margin-bottom:10px">배송기록 용량 정리</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px">배송기록 구조 이관</div>
       <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px">
-        배송기록이 관리자 문서 한 곳에 계속 쌓여 Firestore 한도(1MB)를 넘으면 배송 완료 처리가 막힙니다.
-        이번 달과 지난달은 그대로 두고, 그보다 오래된 날짜를 deliveryRecordArchive 로 옮긴 뒤 관리자 문서에서 지웁니다.
-        옮긴 기록도 정산 화면에서 그대로 보입니다. 먼저 <b>검사</b>로 얼마나 줄어드는지 확인하세요.
+        배송기록이 관리자 문서 한 곳에 쌓여 Firestore 한도(1MB)를 넘으면 배송 완료 처리가 막힙니다.
+        이제 새 기록은 날짜별 문서(deliveryRecords/날짜)에 저장되므로 다시 한도에 걸리지 않습니다.
+        아래는 예전에 쌓인 기록을 옮기는 도구입니다. <b>①검사 → ②이관 → 며칠 확인 → ③지우기</b> 순서로 하세요.
+        ②는 복사만 하고 원본을 남기므로, 중간에 멈춰도 기록이 사라지지 않습니다.
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button onclick="inspectDeliveryRecordStorage()"
-          style="background:#fff;color:var(--primary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">검사</button>
+          style="background:#fff;color:var(--primary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">① 검사</button>
+        <button onclick="migrateDeliveryRecordsToCollection()"
+          style="background:var(--primary);color:#fff;border:1px solid var(--primary);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">② 새 구조로 이관</button>
         <button onclick="archiveOldDeliveryRecords()"
-          style="background:var(--primary);color:#fff;border:1px solid var(--primary);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">오래된 기록 정리</button>
+          style="background:#fff;color:#b91c1c;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">③ 옛 기록 지우기</button>
       </div>
       <div id="delivery-archive-result" style="font-size:12px;color:var(--text-secondary);margin-top:8px;line-height:1.7"></div>
     </div>
@@ -3967,30 +3970,144 @@ function deliveryArchiveRef(date) {
   return db.collection(DELIVERY_ARCHIVE_COLLECTION).doc(date);
 }
 
-// 관리자 문서에 없는 날짜만 보관소에서 채워 넣는다.
-async function loadDeliveryRecordsForDates(dates, adminData) {
-  const records = deliveryRecordsFromData(adminData || {});
-  const missing = (dates || []).filter(ds => ds && !records[ds]);
-  if (missing.length === 0) return records;
+// ── 배송기록 저장소 ───────────────────────────────────────────
+// 새 구조는 날짜 하나가 문서 하나다: deliveryRecords/{날짜} = { records: { uid: {...} } }
+// 관리자 문서 한 곳에 몰아넣던 옛 구조는 1MB 한도에 걸려 배송완료가 막혔다.
+// 옮기는 중에는 세 곳에 데이터가 흩어져 있으므로 읽을 때 전부 합친다.
+//   1) deliveryRecords/{날짜}      ← 새로 쓰는 곳
+//   2) users/{adminUid}            ← 옛 구조. 아직 안 옮긴 날짜
+//   3) deliveryRecordArchive/{날짜} ← 용량 정리로 먼저 빼둔 날짜
+// 우선순위는 새 구조가 가장 높다. 같은 uid 가 겹치면 mergeDeliveryRecord 로 합친다.
+const DELIVERY_COLLECTION = 'deliveryRecords';
+const deliveryDateCache = new Map();
 
-  const fetched = await Promise.all(missing.map(async ds => {
-    if (deliveryArchiveCache.has(ds)) return [ds, deliveryArchiveCache.get(ds)];
-    try {
-      const snap = await deliveryArchiveRef(ds).get();
-      const rows = snap.exists ? (snap.data() || {}).records || {} : {};
-      deliveryArchiveCache.set(ds, rows);
-      return [ds, rows];
-    } catch (e) {
-      // 보관소를 못 읽어도 이번 달 정산은 계속 그려져야 한다.
-      console.warn('배송기록 보관소 읽기 실패', ds, e);
-      return [ds, {}];
-    }
+function deliveryDateRef(date) {
+  return db.collection(DELIVERY_COLLECTION).doc(date);
+}
+
+function invalidateDeliveryDateCache(date) {
+  if (date) {
+    deliveryDateCache.delete(date);
+    deliveryArchiveCache.delete(date);
+  } else {
+    deliveryDateCache.clear();
+    deliveryArchiveCache.clear();
+  }
+}
+
+function mergeRecordMaps(base = {}, extra = {}) {
+  const out = { ...base };
+  Object.entries(extra || {}).forEach(([uid, value]) => {
+    out[uid] = mergeDeliveryRecord(out[uid], value);
+  });
+  return out;
+}
+
+async function readDeliveryDateDoc(date, ref, cache, label) {
+  if (cache.has(date)) return cache.get(date);
+  try {
+    const snap = await ref(date).get();
+    const rows = snap.exists ? (snap.data() || {}).records || {} : {};
+    cache.set(date, rows);
+    return rows;
+  } catch (e) {
+    // 한 곳을 못 읽어도 나머지로 화면은 계속 그려야 한다.
+    console.warn(`배송기록 ${label} 읽기 실패`, date, e);
+    return {};
+  }
+}
+
+// 옛 구조(관리자 문서)와 새 구조를 합쳐서 돌려준다.
+// adminData 를 넘기면 관리자 문서를 다시 읽지 않는다.
+async function loadDeliveryRecordsForDates(dates, adminData) {
+  const legacy = deliveryRecordsFromData(adminData || {});
+  const wanted = [...new Set((dates || []).filter(Boolean))];
+  if (wanted.length === 0) return legacy;
+
+  const fetched = await Promise.all(wanted.map(async ds => {
+    const fresh = await readDeliveryDateDoc(ds, deliveryDateRef, deliveryDateCache, '신규');
+    // 옛 구조에도 새 구조에도 없으면 보관소를 본다.
+    const needArchive = Object.keys(fresh).length === 0 && !legacy[ds];
+    const archived = needArchive
+      ? await readDeliveryDateDoc(ds, deliveryArchiveRef, deliveryArchiveCache, '보관소')
+      : {};
+    return [ds, fresh, archived];
   }));
 
-  fetched.forEach(([ds, rows]) => {
-    if (rows && Object.keys(rows).length > 0) records[ds] = rows;
+  const records = { ...legacy };
+  fetched.forEach(([ds, fresh, archived]) => {
+    let rows = records[ds] || {};
+    if (Object.keys(archived).length > 0) rows = mergeRecordMaps(rows, archived);
+    if (Object.keys(fresh).length > 0) rows = mergeRecordMaps(rows, fresh);
+    if (Object.keys(rows).length > 0) records[ds] = rows;
+  });
+
+  // 삭제 표시된 기록은 화면에 올리지 않는다. deliveryRecordsFromData 와 같은 규칙이다.
+  Object.entries(records).forEach(([ds, rows]) => {
+    Object.entries(rows || {}).forEach(([uid, value]) => {
+      if (value?.deleted) delete records[ds][uid];
+    });
   });
   return records;
+}
+
+// 관리자 문서를 직접 읽던 자리를 대신한다.
+async function loadDeliveryRecordsWithAdminDoc(dates) {
+  const adminDoc = await db.collection('users').doc(adminUid).get();
+  const adminData = adminDoc.exists ? adminDoc.data() : {};
+  return loadDeliveryRecordsForDates(dates, adminData);
+}
+
+function datesBetween(start, end) {
+  const out = [];
+  if (!start || !end || start > end) return out;
+  const cursor = new Date(start + 'T00:00:00');
+  const last = new Date(end + 'T00:00:00');
+  while (cursor <= last) {
+    out.push(dateStr(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return out;
+}
+
+async function loadDeliveryRecordsForDate(date) {
+  return (await loadDeliveryRecordsWithAdminDoc([date]))[date] || {};
+}
+
+// 쓰기는 전부 새 구조로만 간다. 관리자 문서는 더 이상 커지지 않는다.
+async function saveDeliveryRecords(date, recordsByUid) {
+  const entries = Object.entries(recordsByUid || {});
+  if (!date || entries.length === 0) return;
+  await deliveryDateRef(date).set({
+    date,
+    records: Object.fromEntries(entries),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+  invalidateDeliveryDateCache(date);
+}
+
+async function saveDeliveryRecord(date, uid, value) {
+  if (!date || !uid) return;
+  await saveDeliveryRecords(date, { [uid]: value });
+}
+
+// 옛 구조에 남아 있을 수 있으므로 양쪽에서 지운다.
+// 옛 구조에는 중첩 맵과 점 표기 두 가지 형태가 있어 둘 다 지운다.
+async function removeDeliveryRecord(date, uid) {
+  if (!date || !uid) return;
+  await deliveryDateRef(date).set({
+    records: { [uid]: firebase.firestore.FieldValue.delete() }
+  }, { merge: true });
+  try {
+    await db.collection('users').doc(adminUid).update(
+      new firebase.firestore.FieldPath('deliveryRecords', date, uid), firebase.firestore.FieldValue.delete(),
+      new firebase.firestore.FieldPath(`deliveryRecords.${date}.${uid}`), firebase.firestore.FieldValue.delete()
+    );
+  } catch (e) {
+    // 옛 구조에 그 필드가 없으면 실패한다. 새 구조에서 지웠으면 그것으로 충분하다.
+    console.warn('옛 배송기록 삭제 건너뜀', date, uid, e?.message || e);
+  }
+  invalidateDeliveryDateCache(date);
 }
 
 // 관리자 문서에는 같은 기록이 두 벌 들어간다.
@@ -4072,6 +4189,66 @@ async function inspectDeliveryRecordStorage() {
     }
   } catch (e) {
     if (box) box.textContent = '검사 실패: ' + e.message;
+  }
+}
+
+// 옛 구조(관리자 문서)와 보관소에 남은 기록을 새 구조로 옮긴다.
+// 복사만 하고 원본은 그대로 둔다. 지우는 것은 '옛 기록 지우기'가 따로 한다.
+// 여러 번 눌러도 결과가 같다. 이미 옮긴 날짜는 건너뛴다.
+async function migrateDeliveryRecordsToCollection() {
+  const box = document.getElementById('delivery-archive-result');
+  try {
+    if (box) box.textContent = '옮길 날짜를 확인하는 중…';
+    const adminDoc = await db.collection('users').doc(adminUid).get();
+    const adminData = adminDoc.exists ? adminDoc.data() : {};
+    const legacy = deliveryRecordsFromData(adminData);
+
+    let archiveDates = [];
+    try {
+      const archiveSnap = await db.collection(DELIVERY_ARCHIVE_COLLECTION).get();
+      archiveSnap.forEach(doc => archiveDates.push(doc.id));
+    } catch (e) {
+      console.warn('보관소 목록 읽기 실패', e);
+    }
+
+    const dates = [...new Set([...Object.keys(legacy), ...archiveDates])].sort();
+    if (dates.length === 0) {
+      if (box) box.textContent = '옮길 기록이 없습니다. 이미 모두 새 구조입니다.';
+      return;
+    }
+    if (!confirm(`${dates.length}일치를 새 구조(deliveryRecords)로 복사합니다.\n원본은 지우지 않습니다. 계속할까요?`)) return;
+
+    let moved = 0;
+    let skipped = 0;
+    for (let i = 0; i < dates.length; i++) {
+      const ds = dates[i];
+      if (box && i % 10 === 0) box.textContent = `옮기는 중… ${i}/${dates.length}일`;
+
+      // 이미 새 구조에 있으면 덮어쓰지 않는다. 그쪽이 더 최신이다.
+      const current = await readDeliveryDateDoc(ds, deliveryDateRef, new Map(), '신규');
+      const archived = archiveDates.includes(ds)
+        ? await readDeliveryDateDoc(ds, deliveryArchiveRef, new Map(), '보관소')
+        : {};
+      let rows = mergeRecordMaps(archived, legacy[ds] || {});
+      // 새 구조에 이미 있는 uid 는 건드리지 않는다.
+      Object.keys(current).forEach(uid => { delete rows[uid]; });
+
+      if (Object.keys(rows).length === 0) { skipped++; continue; }
+      await saveDeliveryRecords(ds, rows);
+      moved++;
+    }
+
+    invalidateDeliveryDateCache();
+    if (box) {
+      box.innerHTML = [
+        `✅ ${moved}일치를 새 구조로 옮겼습니다. (이미 옮겨져 있던 ${skipped}일은 건너뜀)`,
+        '원본은 그대로 두었습니다. 화면에서 정산·통계가 정상인지 확인한 뒤 <b>옛 기록 지우기</b>를 누르세요.'
+      ].join('<br>');
+    }
+    showToast(`✅ 배송기록 ${moved}일치 이관 완료`);
+  } catch (e) {
+    if (box) box.textContent = '이관 실패: ' + e.message;
+    showToast('이관 실패: ' + e.message, 'error');
   }
 }
 
@@ -5304,7 +5481,7 @@ async function checkPreviousIncompleteDeliveries() {
       db.collection('users').doc(adminUid).get()
     ]);
     const adminData = adminDoc.exists ? adminDoc.data() : {};
-    const deliveredRecords = deliveryRecordsFromData(adminData)[previousDate] || {};
+    const deliveredRecords = (await loadDeliveryRecordsForDates([previousDate], adminData))[previousDate] || {};
     const rows = mergeOrdersWithDefaults(previousDate, snap, deliveredRecords)
       .filter(row => {
         if (!row || row.selfHoliday || row.deleted || row.orderDeleted) return false;
@@ -5616,7 +5793,7 @@ async function loadOrders() {
     currentOrderLocked = !!lockDoc?.exists;
     updateOrderLockButton();
     const adminData = adminDoc.exists ? adminDoc.data() : {};
-    const deliveredRecords = deliveryRecordsFromData(adminData)[currentDateStr] || {};
+    const deliveredRecords = (await loadDeliveryRecordsForDates([currentDateStr], adminData))[currentDateStr] || {};
     currentOrderEventRows = orderTabEventRowsFromSources(adminData, publicEventSnap, currentDateStr);
     renderOrderEventLunches();
     const defaultSnapshots = currentOrderLocked && defaultSnap
@@ -6198,9 +6375,7 @@ async function saveInlineQty(uid) {
     }, { merge: true });
 
     if (row.delivered) {
-      await db.collection('users').doc(adminUid).set({
-        deliveryRecords: {
-          [currentDateStr]: {
+      await saveDeliveryRecords(currentDateStr, {
             [uid]: {
               ...(cachedDeliveryRecords[currentDateStr]?.[uid] || {}),
               uid,
@@ -6231,9 +6406,7 @@ async function saveInlineQty(uid) {
               source: row.source === 'manual' ? 'adminManual' : (row.source === 'default' ? 'adminDefault' : 'order'),
               updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }
-          }
-        }
-      }, { merge: true });
+      });
       const result = await autoBillCompletedDeliveries(currentDateStr, [uid]);
       const skippedText = result.skipped ? ' / 보류 상태라 정산 제외' : '';
       showToast(`✅ ${user.businessName || row.businessName || '주문'} 수량 저장 · 정산 ${result.billed ? '반영됨' : '유지됨'}${skippedText}`);
@@ -6274,7 +6447,7 @@ async function completeSelectedDeliveries() {
     showToast('배송 완료할 업체를 체크해주세요.');
     return;
   }
-  const updates = { deliveryRecords: { [currentDateStr]: {} } };
+  const dayRecords = {};
   const completedUids = [];
   checked.forEach(cb => {
     const uid = cb.value;
@@ -6309,7 +6482,7 @@ async function completeSelectedDeliveries() {
       eventLunchPrice,
       cateringItems
     });
-    updates.deliveryRecords[currentDateStr][uid] = {
+    dayRecords[uid] = {
       uid,
       businessName: user.businessName || row.businessName || '-',
       lunchCount: lunch,
@@ -6343,7 +6516,7 @@ async function completeSelectedDeliveries() {
     completedUids.push(uid);
   });
   try {
-    await db.collection('users').doc(adminUid).set(updates, { merge: true });
+    await saveDeliveryRecords(currentDateStr, dayRecords);
     try {
       const result = await autoBillCompletedDeliveries(currentDateStr, completedUids);
       const skippedText = result.skipped ? ` / 보류 ${result.skipped}곳 제외` : '';
@@ -6489,13 +6662,6 @@ async function rebuildSettlementsForUids(month, uids) {
   }
 }
 
-function deliveryRecordDeleteArgs(date, uid) {
-  return [
-    new firebase.firestore.FieldPath('deliveryRecords', date, uid), firebase.firestore.FieldValue.delete(),
-    new firebase.firestore.FieldPath(`deliveryRecords.${date}.${uid}`), firebase.firestore.FieldValue.delete()
-  ];
-}
-
 async function cancelDeliveryRecord(uid, date = currentDateStr) {
   if (!uid || !date) return;
   const row = currentOrderRows.find(item => item.uid === uid) || {};
@@ -6503,7 +6669,7 @@ async function cancelDeliveryRecord(uid, date = currentDateStr) {
   const name = row.businessName || rec.businessName || uid;
   if (!confirm(`${name}의 ${formatDateKR(date)} 배송 완료를 취소할까요?\n해당 일자 금액이 정산에서 제외됩니다.`)) return;
   try {
-    await db.collection('users').doc(adminUid).update(...deliveryRecordDeleteArgs(date, uid));
+    await removeDeliveryRecord(date, uid);
     if (cachedDeliveryRecords[date]) delete cachedDeliveryRecords[date][uid];
     await rebuildSettlementsForUids(date.slice(0, 7), [uid]);
     showToast(`${name} 배송 완료를 취소했습니다.`);
@@ -6518,9 +6684,7 @@ async function cancelDeliveryRecord(uid, date = currentDateStr) {
 async function cancelAllDeliveriesForDate(date = currentDateStr) {
   if (!date) return;
   try {
-    const adminDoc = await db.collection('users').doc(adminUid).get();
-    const records = adminDoc.exists ? deliveryRecordsFromData(adminDoc.data()) : {};
-    const dayRecords = records[date] || {};
+    const dayRecords = await loadDeliveryRecordsForDate(date);
     const uids = Object.entries(dayRecords)
       .filter(([uid, rec]) => rec && rec.delivered && !String(uid).startsWith('event_'))
       .map(([uid]) => uid);
@@ -6529,8 +6693,7 @@ async function cancelAllDeliveriesForDate(date = currentDateStr) {
       return;
     }
     if (!confirm(`${formatDateKR(date)} 배송 완료 ${uids.length}건을 모두 취소할까요?\n해당 일자 금액이 정산에서 제외됩니다.\n(날짜를 잘못 눌러 완료 처리한 경우 사용하세요)`)) return;
-    const args = uids.flatMap(uid => deliveryRecordDeleteArgs(date, uid));
-    await db.collection('users').doc(adminUid).update(...args);
+    for (const uid of uids) await removeDeliveryRecord(date, uid);
     uids.forEach(uid => { if (cachedDeliveryRecords[date]) delete cachedDeliveryRecords[date][uid]; });
     await rebuildSettlementsForUids(date.slice(0, 7), uids);
     showToast(`${formatDateKR(date)} 배송 완료 ${uids.length}건을 취소했습니다.`);
@@ -8001,8 +8164,6 @@ async function openBatchEntry() {
   document.getElementById('batch-modal').classList.add('open');
   document.getElementById('batch-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--sub)">불러오는 중...</div>';
   try {
-    const adminDoc = await db.collection('users').doc(adminUid).get();
-    cachedDeliveryRecords = adminDoc.exists ? deliveryRecordsFromData(adminDoc.data()) : {};
   } catch(e) {}
   renderBatchList();
 }
@@ -8012,7 +8173,7 @@ function closeBatchModal(e) {
   document.getElementById('batch-modal').classList.remove('open');
 }
 
-function renderBatchList() {
+async function renderBatchList() {
   const date = document.getElementById('batch-date').value;
   if (!date) return;
 
@@ -8025,7 +8186,7 @@ function renderBatchList() {
     warn.style.display = 'none';
   }
 
-  const existing = cachedDeliveryRecords[date] || {};
+  const existing = await loadDeliveryRecordsForDate(date);
   const customers = Object.entries(allUsers)
     .filter(([, u]) => !ADMIN_EMAILS.includes(u.email) && u.businessName)
     .sort((a, b) => (a[1].businessName || '').localeCompare(b[1].businessName || '', 'ko'));
@@ -8099,7 +8260,9 @@ async function saveBatchEntry() {
   const customers = Object.entries(allUsers)
     .filter(([, u]) => !ADMIN_EMAILS.includes(u.email) && u.businessName);
 
-  const updates = {};
+  const existingBatchRecords = await loadDeliveryRecordsForDate(date);
+  const batchRecords = {};
+  const batchRemovedUids = [];
   let savedCount = 0;
   const batchSavedUids = [];
   customers.forEach(([uid, u]) => {
@@ -8107,7 +8270,7 @@ async function saveBatchEntry() {
     const salad = parseInt(document.getElementById(`b-salad-${uid}`)?.value, 10) || 0;
     const values = normalizeQtyValuesForUser(u, { lunch, salad, event: 0 });
     if (lunch > 0 || salad > 0) {
-      updates[`deliveryRecords.${date}.${uid}`] = {
+      batchRecords[uid] = {
         uid, businessName: u.businessName,
         lunchCount: values.lunch, saladCount: values.salad,
         lunchQty: values.lunch, saladQty: values.salad,
@@ -8124,15 +8287,17 @@ async function saveBatchEntry() {
       };
       savedCount++;
       batchSavedUids.push(uid);
-    } else if ((cachedDeliveryRecords[date] || {})[uid]) {
-      updates[`deliveryRecords.${date}.${uid}`] = firebase.firestore.FieldValue.delete();
+    } else {
+      batchRemovedUids.push(uid);
     }
   });
 
   const errEl = document.getElementById('batch-error');
   try {
-    if (Object.keys(updates).length > 0) {
-      await db.collection('users').doc(adminUid).update(updates);
+    await saveDeliveryRecords(date, batchRecords);
+    // 수량을 0으로 지운 업체는 기록을 없앤다. 없던 업체를 지워도 문제되지 않는다.
+    for (const uid of batchRemovedUids) {
+      if (existingBatchRecords[uid]) await removeDeliveryRecord(date, uid);
     }
     if (!cachedDeliveryRecords[date]) cachedDeliveryRecords[date] = {};
     customers.forEach(([uid]) => {
@@ -8413,10 +8578,7 @@ async function deleteOrderItem(uid = '') {
             deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
             deletedBy: adminUid
           };
-      await db.collection('users').doc(adminUid).set({
-        deliveryRecords: { [currentDateStr]: { [targetUid]: tombstone } },
-        [`deliveryRecords.${currentDateStr}.${targetUid}`]: tombstone
-      }, { merge: true });
+      await saveDeliveryRecord(currentDateStr, targetUid, tombstone);
       if (!cachedDeliveryRecords[currentDateStr]) cachedDeliveryRecords[currentDateStr] = {};
       cachedDeliveryRecords[currentDateStr][targetUid] = tombstone;
     }
@@ -11594,7 +11756,7 @@ async function exportKakaoSummary() {
       db.collection('users').doc(adminUid).get()
     ]);
     const adminData = adminDoc.exists ? adminDoc.data() : {};
-    const deliveredRecords = deliveryRecordsFromData(adminData)[currentDateStr] || {};
+    const deliveredRecords = (await loadDeliveryRecordsForDates([currentDateStr], adminData))[currentDateStr] || {};
     const rows = mergeOrdersWithDefaults(currentDateStr, snap, deliveredRecords);
     const groups = {};
     let totalLunch = 0;
@@ -13002,8 +13164,11 @@ function setStatsPeriod(months) {
 
 async function loadOrderStats() {
   try {
-    const snap = await db.collection('users').doc(adminUid).get();
-    cachedDeliveryRecords = snap.exists ? deliveryRecordsFromData(snap.data()) : {};
+    const today = dateStr(getKST());
+    const start = new Date(today + 'T00:00:00');
+    start.setMonth(start.getMonth() - currentStatsPeriod + 1);
+    start.setDate(1);
+    cachedDeliveryRecords = await loadDeliveryRecordsWithAdminDoc(datesBetween(dateStr(start), today));
   } catch(e) { /* ignore */ }
   renderOrderStats();
 }
@@ -13207,7 +13372,8 @@ async function saveBreakdownEdits(uid) {
         eventLunchPrice,
         cateringItems
       });
-      updates[`deliveryRecords.${ds}.${uid}`] = {
+      updates[ds] = {
+        [uid]: {
         ...existing,
         lunchCount: newLunch,
         saladCount: newSalad,
@@ -13227,6 +13393,7 @@ async function saveBreakdownEdits(uid) {
         items,
         delivered: newLunch > 0 || newSalad > 0 || newEventLunch > 0 || storedCatering.totalQty > 0,
         updatedAt: new Date().toISOString()
+        }
       };
     }
   }
@@ -13254,7 +13421,7 @@ async function saveBreakdownEdits(uid) {
         manualOverride: false
       });
     } else {
-      await db.collection('users').doc(adminUid).update(updates);
+      for (const [ds, rows] of Object.entries(updates)) await saveDeliveryRecords(ds, rows);
       await autoBillCompletedDeliveries(dates[0] || `${month}-01`, [uid]);
     }
     showToast('✅ 배송 내역과 정산이 저장되었습니다. 정산을 다시 불러옵니다...');
@@ -13361,16 +13528,13 @@ async function mergeManualSettlementRow(sourceUid) {
       deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
       deletedBy: adminUid
     };
-    const payload = { deliveryRecords: {} };
+    const payload = {};
     moves.forEach(({ date, record }) => {
       const existing = (cachedDeliveryRecords[date] || {})[targetRow.uid];
       const merged = mergedDeliveryRecordFor(targetRow.uid, user, existing, record);
-      payload.deliveryRecords[date] = { [targetRow.uid]: merged, [sourceUid]: tombstone };
-      // deliveryRecordsFromData 가 중첩 맵과 점 표기 키를 모두 읽으므로 양쪽에 쓴다.
-      payload[`deliveryRecords.${date}.${targetRow.uid}`] = merged;
-      payload[`deliveryRecords.${date}.${sourceUid}`] = tombstone;
+      payload[date] = { [targetRow.uid]: merged, [sourceUid]: tombstone };
     });
-    await db.collection('users').doc(adminUid).set(payload, { merge: true });
+    for (const [date, rows] of Object.entries(payload)) await saveDeliveryRecords(date, rows);
 
     // 수동 uid로 저장돼 있던 정산 문서도 지운다. (남겨두면 빈 줄로 다시 뜬다)
     const month = document.getElementById('settle-month').value || currentMonthStr();
@@ -13403,9 +13567,7 @@ async function deleteSettlementRow(uid, fromModal = false) {
         updatedAt: new Date().toISOString()
       }, { merge: true });
     } else {
-      const ref = db.collection('users').doc(adminUid);
-      const doc = await ref.get();
-      const records = doc.exists ? deliveryRecordsFromData(doc.data()) : {};
+      const records = await loadDeliveryRecordsWithAdminDoc(monthDates(month));
       const deliveryUpdates = {};
       const tombstone = {
         deleted: true,
@@ -13417,11 +13579,7 @@ async function deleteSettlementRow(uid, fromModal = false) {
         if (!deliveryUpdates[ds]) deliveryUpdates[ds] = {};
         deliveryUpdates[ds][uid] = tombstone;
       });
-      const payload = { deliveryRecords: {} };
-      Object.entries(deliveryUpdates).forEach(([key, value]) => {
-        payload.deliveryRecords[key] = value;
-      });
-      if (Object.keys(payload.deliveryRecords).length > 0) await ref.set(payload, { merge: true });
+      for (const [ds, rows] of Object.entries(deliveryUpdates)) await saveDeliveryRecords(ds, rows);
       await settlementItemRef(month, uid).delete().catch(() => {});
       if (allUsers[uid]?.settlements) delete allUsers[uid].settlements[month];
     }
