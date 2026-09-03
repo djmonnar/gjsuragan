@@ -141,6 +141,11 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .settle-tab-btn:hover{border-color:var(--primary);color:var(--primary)}
 .settle-tab-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 .settle-tab-btn.unpaid-tab.active{background:#c0392b;border-color:#c0392b}
+.settle-sort-tabs{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.settle-sort-label{font-size:12px;font-weight:700;color:var(--sub);margin-right:2px}
+.settle-sort-btn{border:1.5px solid var(--border);background:#fff;color:var(--sub);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.settle-sort-btn:hover{border-color:var(--primary);color:var(--primary)}
+.settle-sort-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 .settle-tab-btn.overdue-tab.active{background:#c0392b;border-color:#c0392b}
 .settle-dashboard{display:grid;grid-template-columns:auto 1fr;gap:16px;margin-bottom:16px;align-items:start}
 .settle-kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;min-width:280px}
@@ -501,6 +506,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .settle-chart-card.donut-card{flex:none}
   .settle-header-bar{flex-direction:column;align-items:flex-start}
   .settle-filter-tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;width:100%}
+  .settle-sort-tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;width:100%}
   .settlement-section>.panel{padding:12px}
   .settle-month-picker{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
   .settle-month-picker>div{min-width:0}
@@ -2007,6 +2013,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <button class="settle-tab-btn" data-filter="입금완료" onclick="setSettleFilter('입금완료')">입금완료</button>
           <button class="settle-tab-btn" data-filter="보류" onclick="setSettleFilter('보류')">보류</button>
         </div>
+        <div class="settle-sort-tabs">
+          <span class="settle-sort-label">정렬</span>
+          <button class="settle-sort-btn active" data-sort="unpaid" onclick="setSettleSort('unpaid')" title="연체 → 입금대기 → 보류 → 완납 순으로 올립니다">받을 곳 먼저</button>
+          <button class="settle-sort-btn" data-sort="name" onclick="setSettleSort('name')">업체명순</button>
+        </div>
       </div>
       <div style="font-size:12px;color:var(--sub)">정산은 주문 탭에서 배송완료한 결과를 월말에 확인하는 화면입니다. 평소 직원 업무는 주문 탭에서 끝납니다.<span id="settle-last-loaded"></span></div>
       <!-- 엑셀 가져오기 (접기 가능) -->
@@ -2804,6 +2815,8 @@ let sheetTargetUid = '';
 let settlementChartBar = null;
 let settlementChartDonut = null;
 let currentSettleFilter = 'all';
+// 정산 정렬. 기본은 돈 받을 곳을 위로 올린다. 'name' 이면 업체명 가나다순.
+let currentSettleSort = 'unpaid';
 let settlementChartMode = 'billing';
 let changeRequests = [];
 let recentOrderLogs = [];
@@ -3258,6 +3271,37 @@ function settlementStatusLabel(status) {
     '보류': '보류'
   })[status] || status || '-';
 }
+// 위에서부터 처리해야 할 순서대로 등급을 매긴다.
+// 0 연체 → 1 입금대기(잔액 있음) → 2 보류 → 3 완납
+function settlementActionRank(row = {}) {
+  if (row.status === '보류') return 2;
+  if (!isSettlementUnpaid(row)) return 3;
+  return calcOverdue(row.dueDate) > 0 ? 0 : 1;
+}
+
+function settlementSortComparator(a, b) {
+  const nameA = a?.user?.businessName || '';
+  const nameB = b?.user?.businessName || '';
+  if (currentSettleSort === 'name') return nameA.localeCompare(nameB, 'ko');
+
+  const rankDiff = settlementActionRank(a) - settlementActionRank(b);
+  if (rankDiff !== 0) return rankDiff;
+  // 같은 등급 안에서는 오래 밀린 것, 그다음 금액 큰 것부터 본다.
+  const overdueDiff = calcOverdue(b.dueDate) - calcOverdue(a.dueDate);
+  if (overdueDiff !== 0) return overdueDiff;
+  const balanceDiff = settlementOutstandingBalance(b) - settlementOutstandingBalance(a);
+  if (balanceDiff !== 0) return balanceDiff;
+  return nameA.localeCompare(nameB, 'ko');
+}
+
+function setSettleSort(sort) {
+  currentSettleSort = sort === 'name' ? 'name' : 'unpaid';
+  document.querySelectorAll('.settle-sort-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sort === currentSettleSort);
+  });
+  renderSettlements();
+}
+
 function filterMatchesRow(row) {
   if (currentSettleFilter === 'all') return true;
   if (currentSettleFilter === '미입금') return isSettlementUnpaid(row);
@@ -11223,7 +11267,7 @@ function renderSettlements() {
     tbody.innerHTML = '<tr class="no-order-row"><td colspan="14">선택한 월의 업체 주문이 없습니다.</td></tr>';
     mobileList.innerHTML = '<div class="settlement-mobile-empty">선택한 월의 업체 주문이 없습니다.</div>';
   } else {
-    const filtered = settlementRows.filter(row => filterMatchesRow(row));
+    const filtered = settlementRows.filter(row => filterMatchesRow(row)).sort(settlementSortComparator);
     if (filtered.length === 0) {
       tbody.innerHTML = `<tr class="no-order-row"><td colspan="14">해당 조건의 업체가 없습니다.</td></tr>`;
       mobileList.innerHTML = '<div class="settlement-mobile-empty">해당 조건의 업체가 없습니다.</div>';
@@ -11276,7 +11320,8 @@ function renderSettlements() {
   } else {
     const eventItems = settlementEvents
       .map(item => ({ item, row: eventSettlementRow(item) }))
-      .filter(({ row }) => filterMatchesRow(row));
+      .filter(({ row }) => filterMatchesRow(row))
+      .sort((a, b) => settlementSortComparator(a.row, b.row));
     if (eventItems.length === 0) {
       eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">해당 조건의 행사도시락이 없습니다.</td></tr>';
       eventMobileList.innerHTML = '<div class="settlement-mobile-empty">해당 조건의 행사도시락이 없습니다.</div>';
