@@ -6,8 +6,10 @@
   'use strict';
 
   const LARGE_LUNCH_MENU_ID = 'large-lunch-10000';
+  const RICE_MENU_ID = 'rice-1000';
 
   const catalog = Object.freeze([
+    { id: RICE_MENU_ID, name: '공기밥', category: '추가', unitPrice: 1000 },
     { id: LARGE_LUNCH_MENU_ID, name: '곱빼기 도시락', category: '도시락', unitPrice: 10000 },
     { id: 'pork-set-9000', name: '제육 한상 (간장, 양념)', category: '한상 도시락', unitPrice: 9000 },
     { id: 'chicken-set-9500', name: '순살닭구이 한상', category: '한상 도시락', unitPrice: 9500 },
@@ -93,12 +95,25 @@
     };
   }
 
+  function isRiceItem(item) {
+    return String(item?.menuId || '') === RICE_MENU_ID;
+  }
+
+  // 곱빼기 도시락과 공기밥은 행사도시락이 아니다.
+  // 주방이 따로 세어야 해서 총 행사도시락 수량에 섞이지 않게 갈라 놓는다.
   function splitLargeLunch(summary) {
     const items = Array.isArray(summary?.items) ? summary.items : [];
     return {
       largeLunch: totalsOf(items.filter(isLargeLunchItem)),
-      catering: totalsOf(items.filter(item => !isLargeLunchItem(item)))
+      rice: totalsOf(items.filter(isRiceItem)),
+      catering: totalsOf(items.filter(item => !isLargeLunchItem(item) && !isRiceItem(item)))
     };
+  }
+
+  function qtyOf(items, menuId) {
+    return (Array.isArray(items) ? items : [])
+      .filter(item => String(item?.menuId || '') === menuId)
+      .reduce((sum, item) => sum + (Number(item?.qty) || 0), 0);
   }
 
   return Object.freeze({
@@ -107,6 +122,8 @@
     normalizeItems,
     summarize,
     splitLargeLunch,
-    LARGE_LUNCH_MENU_ID
+    qtyOf,
+    LARGE_LUNCH_MENU_ID,
+    RICE_MENU_ID
   });
 });

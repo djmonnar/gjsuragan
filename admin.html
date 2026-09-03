@@ -1304,6 +1304,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-lunch"></use></svg><span>총 곱빼기도시락</span></div>
       <div class="summary-value" id="sum-large-lunch">0<span class="summary-unit">개</span></div>
     </div>
+    <div class="summary-card">
+      <div class="summary-label"><svg class="admin-icon"><use href="#admin-i-lunch"></use></svg><span>총 공기밥</span></div>
+      <div class="summary-value" id="sum-rice">0<span class="summary-unit">개</span></div>
+    </div>
   </div>
 
   <div class="table-section admin-tab-panel" data-tab="orders" id="order-event-summary-section" style="display:none">
@@ -5635,7 +5639,7 @@ function orderNoteHtml(order = {}) {
   return `${badge}${notePart || defaultPart || ''}`;
 }
 
-function setOrderSummaryValues(count, lunch, salad, eventLunch, catering = 0, largeLunch = 0) {
+function setOrderSummaryValues(count, lunch, salad, eventLunch, catering = 0, largeLunch = 0, rice = 0) {
   document.getElementById('sum-count').innerHTML = `${count}<span class="summary-unit">곳</span>`;
   document.getElementById('sum-lunch').innerHTML = `${lunch}<span class="summary-unit">개</span>`;
   document.getElementById('sum-salad').innerHTML = `${salad}<span class="summary-unit">개</span>`;
@@ -5645,9 +5649,11 @@ function setOrderSummaryValues(count, lunch, salad, eventLunch, catering = 0, la
   if (cateringEl) cateringEl.innerHTML = `${catering}<span class="summary-unit">개</span>`;
   const largeEl = document.getElementById('sum-large-lunch');
   if (largeEl) largeEl.innerHTML = `${largeLunch}<span class="summary-unit">개</span>`;
+  const riceEl = document.getElementById('sum-rice');
+  if (riceEl) riceEl.innerHTML = `${rice}<span class="summary-unit">개</span>`;
 }
 
-// 곱빼기 도시락은 행사도시락 카탈로그로 주문받지만 요약에서는 따로 센다.
+// 곱빼기 도시락과 공기밥은 행사도시락 카탈로그로 주문받지만 요약에서는 따로 센다.
 function orderCateringSplit(order = {}) {
   return window.GJS_CATERING.splitLargeLunch(orderCateringSummary(order, { preserveSnapshot: true }));
 }
@@ -5848,7 +5854,7 @@ async function loadOrders() {
     currentOrderReferenceItems = orderReferenceItemsForDate(currentDateStr, snap, orders);
     renderOrderReferencePanel();
 
-    let totalLunch = 0, totalSalad = 0, totalEventLunch = 0, totalCatering = 0, totalLargeLunch = 0;
+    let totalLunch = 0, totalSalad = 0, totalEventLunch = 0, totalCatering = 0, totalLargeLunch = 0, totalRice = 0;
     const tbody = document.getElementById('order-tbody');
 
     if (orders.length === 0) {
@@ -5864,6 +5870,7 @@ async function loadOrders() {
         totalEventLunch += eventLunch;
         totalCatering += cateringSplit.catering.totalQty;
         totalLargeLunch += cateringSplit.largeLunch.totalQty;
+        totalRice += cateringSplit.rice.totalQty;
         const totalQty = orderTotalQty(o);
         const totalAmount = orderTotalAmount(o, allUsers[o.uid] || {});
         const tr = document.createElement('tr');
@@ -5944,7 +5951,7 @@ async function loadOrders() {
       if (checkAll) checkAll.checked = orders.some(o => !o.delivered && !o.selfHoliday);
     }
 
-    setOrderSummaryValues(orders.length, totalLunch, totalSalad, totalEventLunch, totalCatering + currentEventLunchOrderTotal(), totalLargeLunch);
+    setOrderSummaryValues(orders.length, totalLunch, totalSalad, totalEventLunch, totalCatering + currentEventLunchOrderTotal(), totalLargeLunch, totalRice);
     renderNotSubmitted(orders);
     renderOrderMobileSearchResults();
     checkPreviousIncompleteDeliveries();
@@ -6168,6 +6175,7 @@ function refreshOrderSummaryFromInputs() {
   let totalEventLunch = 0;
   let totalCatering = 0;
   let totalLargeLunch = 0;
+  let totalRice = 0;
   let count = 0;
   document.querySelectorAll('#order-tbody tr').forEach(rowEl => {
     if (!rowEl.querySelector('.order-check')) return;
@@ -6179,10 +6187,11 @@ function refreshOrderSummaryFromInputs() {
     totalEventLunch += values.event;
     totalCatering += split.catering.totalQty;
     totalLargeLunch += split.largeLunch.totalQty;
+    totalRice += split.rice.totalQty;
     count += 1;
   });
   totalCatering += currentEventLunchOrderTotal();
-  setOrderSummaryValues(count, totalLunch, totalSalad, totalEventLunch, totalCatering, totalLargeLunch);
+  setOrderSummaryValues(count, totalLunch, totalSalad, totalEventLunch, totalCatering, totalLargeLunch, totalRice);
 }
 
 function openOrderQtyModal(uid) {

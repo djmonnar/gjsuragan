@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const catering = require('../../../assets/js/catering-catalog.js');
 
 test('catering catalog exposes stable menu IDs and prices', () => {
-  assert.equal(catering.catalog.length, 12);
+  assert.equal(catering.catalog.length, 13);
   assert.deepEqual(catering.getItem('pork-set-9000'), {
     id: 'pork-set-9000',
     name: '제육 한상 (간장, 양념)',
@@ -18,7 +18,35 @@ test('catering catalog exposes stable menu IDs and prices', () => {
     category: '도시락',
     unitPrice: 10000
   });
+  assert.deepEqual(catering.getItem('rice-1000'), {
+    id: 'rice-1000',
+    name: '공기밥',
+    category: '추가',
+    unitPrice: 1000
+  });
   assert.equal(catering.getItem('unknown-menu'), null);
+});
+
+test('공기밥과 곱빼기는 총 행사도시락 수량에서 갈라진다', () => {
+  const summary = catering.summarize([
+    { menuId: 'rice-1000', qty: 3 },
+    { menuId: 'large-lunch-10000', qty: 1 },
+    { menuId: 'pork-set-9000', qty: 2 }
+  ]);
+  const split = catering.splitLargeLunch(summary);
+  assert.equal(split.rice.totalQty, 3);
+  assert.equal(split.rice.totalAmount, 3000);
+  assert.equal(split.largeLunch.totalQty, 1);
+  assert.equal(split.catering.totalQty, 2, '행사도시락 수량에 공기밥·곱빼기가 섞이지 않는다');
+  assert.equal(split.catering.totalAmount, 18000);
+});
+
+test('qtyOf 는 특정 메뉴의 수량만 센다', () => {
+  const items = [{ menuId: 'rice-1000', qty: 4 }, { menuId: 'pork-set-9000', qty: 2 }];
+  assert.equal(catering.qtyOf(items, catering.RICE_MENU_ID), 4);
+  assert.equal(catering.qtyOf(items, catering.LARGE_LUNCH_MENU_ID), 0);
+  assert.equal(catering.qtyOf([], catering.RICE_MENU_ID), 0);
+  assert.equal(catering.qtyOf(null, catering.RICE_MENU_ID), 0);
 });
 
 test('catering items normalize known menus and merge duplicate quantities', () => {
