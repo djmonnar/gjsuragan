@@ -2106,18 +2106,32 @@
           <button class="qty-btn" id="salad-plus" onclick="changeQty('salad', 1)">+</button>
         </div>
       </div>
+      <div class="qty-row">
+        <div class="qty-label">
+          <div class="qty-icon"><svg class="gj-icon"><use href="#gj-meal"></use></svg></div>
+          <div>
+            <div class="qty-name">공기밥</div>
+            <div class="qty-unit">개 · 1,000원</div>
+          </div>
+        </div>
+        <div class="qty-control">
+          <button class="qty-btn" id="rice-minus" onclick="changeRiceQty(-1)">−</button>
+          <div class="qty-value" id="rice-value">0</div>
+          <button class="qty-btn" id="rice-plus" onclick="changeRiceQty(1)">+</button>
+        </div>
+      </div>
 
       <div class="note-label"><svg class="gj-icon"><use href="#gj-note"></use></svg>특이사항 <span style="font-weight:400;color:var(--text-sub)">(선택)</span></div>
       <textarea class="note-area" id="today-note" placeholder="요청사항이나 특이사항을 입력하세요..."></textarea>
       <div class="catering-order-panel">
         <div class="catering-order-head">
           <div>
-            <div class="catering-order-title">행사도시락 추가</div>
-            <div class="catering-order-help">월식과 함께 받을 행사도시락을 고르고 수량을 정해주세요.</div>
+            <div class="catering-order-title">추가 주문</div>
+            <div class="catering-order-help">월식과 함께 받을 행사도시락·공기밥을 고르고 수량을 정해주세요.</div>
           </div>
         </div>
-        <div class="catering-order-summary empty" id="catering-order-summary">선택한 행사도시락이 없습니다.</div>
-        <button type="button" class="catering-order-action" id="catering-order-btn" onclick="openCateringOrderModal()">행사도시락 고르기</button>
+        <div class="catering-order-summary empty" id="catering-order-summary">추가로 담은 메뉴가 없습니다.</div>
+        <button type="button" class="catering-order-action" id="catering-order-btn" onclick="openCateringOrderModal()">메뉴 고르기</button>
       </div>
 
       <button class="submit-btn" id="submit-btn" onclick="submitOrder('today')">
@@ -4609,13 +4623,34 @@ function setQtyDisabled(disabled) {
   if (cateringBtn) cateringBtn.disabled = disabled;
 }
 
+// 공기밥은 행사도시락 카탈로그의 한 항목이라 cateringItems 에 함께 담긴다.
+// 주문 화면 앞쪽 +/- 와 '행사도시락 고르기' 모달이 같은 값을 보게 한다.
+function todayRiceQty() {
+  return GJS_CATERING.qtyOf(todayCateringItems, GJS_CATERING.RICE_MENU_ID);
+}
+
+function renderTodayRiceQty() {
+  const el = document.getElementById('rice-value');
+  if (el) el.textContent = todayRiceQty();
+}
+
+function changeRiceQty(delta) {
+  const next = Math.max(0, Math.min(50, todayRiceQty() + delta));
+  const rest = todayCateringItems.filter(item => item.menuId !== GJS_CATERING.RICE_MENU_ID);
+  if (next > 0) rest.push({ menuId: GJS_CATERING.RICE_MENU_ID, qty: next });
+  todayCateringItems = GJS_CATERING.normalizeItems(rest);
+  renderTodayCateringSummary();
+  captureActiveOrderDraft();
+}
+
 function renderTodayCateringSummary() {
+  renderTodayRiceQty();
   const el = document.getElementById('catering-order-summary');
   if (!el) return;
   const summary = GJS_CATERING.summarize(todayCateringItems);
   el.classList.toggle('empty', summary.totalQty === 0);
   if (!summary.totalQty) {
-    el.textContent = '선택한 행사도시락이 없습니다.';
+    el.textContent = '추가로 담은 메뉴가 없습니다.';
     return;
   }
   el.innerHTML = summary.items
