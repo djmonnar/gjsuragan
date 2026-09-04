@@ -11634,11 +11634,16 @@ function productionOrderRowsForPrint() {
       const values = rowEl
         ? orderQtyValuesFromRow(rowEl)
         : { lunch: orderLunchQty(row), salad: orderSaladQty(row), event: orderEventLunchQty(row) };
-      const catering = orderCateringQty(row);
+      const cateringSummary = orderCateringSummary(row, { preserveSnapshot: true });
+      const catering = cateringSummary.totalQty;
       const user = allUsers[row.uid] || deletedUsers[row.uid] || {};
       const total = values.lunch + values.salad + values.event + catering;
       if (total <= 0) return null;
       const note = row.note && row.note !== '요일 기본값' ? row.note : '';
+      // 숫자만으로는 주방이 무엇을 만들지 모른다. 메뉴 이름과 수량을 함께 적는다.
+      const cateringLabel = cateringSummary.items
+        .map(item => `${item.name} ${item.qty}개`)
+        .join(' · ');
       return {
         name: user.businessName || row.businessName || '-',
         adminMemo: orderAdminMemo(row),
@@ -11650,6 +11655,7 @@ function productionOrderRowsForPrint() {
         time: user.mealTime || (row.source === 'default' ? '기본수량' : formatTime(row.submittedAt)),
         source: orderSourceMeta(row).label,
         status: row.delivered ? '완료' : '대기',
+        cateringLabel,
         note
       };
     })
@@ -11698,7 +11704,7 @@ function printTodayProductionSheet() {
             <td class="num">${row.catering || ''}</td>
             <td class="num">${row.total}</td>
             <td class="time">${escapeHtml(row.time || '')}</td>
-            <td class="memo">${escapeHtml(row.note || '')}</td>
+            <td class="memo">${row.cateringLabel ? `<div class="memo-catering">${escapeHtml(row.cateringLabel)}</div>` : ''}${escapeHtml(row.note || '')}</td>
           </tr>
         `).join('')}
       </tbody>
@@ -11755,7 +11761,8 @@ function printTodayProductionSheet() {
       .event-table-print th:nth-child(2),.event-table-print td:nth-child(2){width:24%}
       .event-table-print th:nth-child(3),.event-table-print td:nth-child(3){width:60px}
       .event-table-print th:nth-child(5),.event-table-print td:nth-child(5){width:45px;text-align:center}
-      .memo{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .memo{white-space:normal;overflow:visible;text-overflow:clip;word-break:break-word}
+      .memo-catering{font-weight:800}
       .event-table-print .memo{white-space:normal;overflow:visible;text-overflow:clip}
       .empty{border:1px dashed #d1d5db;border-radius:5px;padding:6px;color:#6b7280}
       @media print{body{margin:0}.no-print{display:none}}
