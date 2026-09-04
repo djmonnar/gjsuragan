@@ -2782,6 +2782,35 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   </div>
 </div>
 
+<div class="modal-overlay" id="settlement-merge-modal" aria-hidden="true" onclick="if(event.target===this) closeSettlementMergeModal()">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="settlement-merge-title">
+    <div class="modal-header">
+      <div class="modal-title" id="settlement-merge-title">정산 행 합치기</div>
+      <button class="modal-close" type="button" aria-label="닫기" onclick="closeSettlementMergeModal()">✕</button>
+    </div>
+    <div class="bulk-confirm-summary">
+      <div class="bulk-confirm-summary-row"><span>합칠 행</span><strong id="settlement-merge-source">-</strong></div>
+      <div class="bulk-confirm-summary-row"><span>옮길 배송</span><strong id="settlement-merge-count">-</strong></div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label class="form-label" for="settlement-merge-target">어느 업체로 합칠까요?</label>
+      <select class="form-input" id="settlement-merge-target"></select>
+      <div style="font-size:12px;color:var(--sub);margin-top:6px;line-height:1.6">
+        업체명이 달라도 됩니다. 업체명을 바꾼 뒤라면 바뀐 이름을 고르세요.<br>
+        배송 기록이 고른 업체로 옮겨지고, 이 행은 정산에서 사라집니다. 되돌리기 어렵습니다.
+      </div>
+    </div>
+    <div class="bulk-confirm-targets">
+      <span>옮길 날짜</span>
+      <p id="settlement-merge-dates">-</p>
+    </div>
+    <div class="modal-actions bulk-confirm-actions">
+      <button class="secondary-btn" type="button" onclick="closeSettlementMergeModal()">취소</button>
+      <button class="save-btn" type="button" onclick="confirmSettlementMerge()">합치기</button>
+    </div>
+  </div>
+</div>
+
 <div class="admin-inpage-alert" id="admin-inpage-alert" onclick="switchAdminTab('changeRequests')">
   <strong id="admin-inpage-alert-title">변경요청</strong>
   <span id="admin-inpage-alert-body">새 요청이 접수되었습니다.</span>
@@ -11307,7 +11336,7 @@ function renderSettlements() {
           <td>
             <div class="inline-actions">
               ${balance > 0 ? `<button class="quick-pay-btn transfer" onclick="quickSettlePayment('${escapeHtml(row.uid)}','이체')">이체입금</button><button class="quick-pay-btn card" onclick="quickSettlePayment('${escapeHtml(row.uid)}','카드')">카드입금</button>` : ''}
-              ${row.manualOrder ? `<button class="mini-btn" onclick="mergeManualSettlementRow('${row.uid}')" title="같은 업체의 등록 계정으로 합칩니다">합치기</button>` : ''}
+              ${(row.manualOrder || row.removedUser) ? `<button class="mini-btn" onclick="openSettlementMergeModal('${row.uid}')" title="이 행의 배송 기록을 다른 등록 업체로 옮깁니다">합치기</button>` : ''}
               <button class="mini-btn" onclick="openSettlementEdit('${row.uid}')">수정</button>
               <button class="mini-btn" onclick="openSheetModal('${row.uid}')">정산표</button>
               <button class="kakao-mini-btn" onclick="copySettlementKakao('${row.uid}')">💬</button>
@@ -13545,15 +13574,37 @@ function mergedDeliveryRecordFor(targetUid, user, existing, incoming) {
   };
 }
 
-async function mergeManualSettlementRow(sourceUid) {
+// 합칠 수 있는 대상은 지금 살아 있는 등록 업체뿐이다.
+// 수동 행이나 탈퇴한 계정으로 배송 기록을 옮기면 또 갈라진다.
+function settlementMergeCandidates(sourceRow) {
+  return settlementRows
+    .filter(row => row.uid !== sourceRow.uid
+      && !row.manualOrder
+      && !row.removedUser
+      && row.type !== 'event'
+      && Boolean(allUsers[row.uid]))
+    .sort((a, b) => (a.user.businessName || '').localeCompare(b.user.businessName || '', 'ko'));
+}
+
+function settlementMergeMoves(sourceUid) {
+  return Object.entries(cachedDeliveryRecords)
+    .map(([date, rows]) => ({ date, record: (rows || {})[sourceUid] }))
+    .filter(item => item.record)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+let settlementMergeSourceUid = '';
+
+function closeSettlementMergeModal() {
+  settlementMergeSourceUid = '';
+  document.getElementById('settlement-merge-modal')?.classList.remove('open');
+}
+
+// 업체명이 바뀌면 이름으로는 짝을 못 찾는다. 그래서 대상을 직접 고르게 한다.
+function openSettlementMergeModal(sourceUid) {
   const sourceRow = settlementRows.find(row => row.uid === sourceUid);
-  if (!sourceRow || !sourceRow.manualOrder) {
-    showToast('수동 주문으로 생긴 행에서만 합칠 수 있습니다.');
-    return;
-  }
-  const targetRow = settlementMergeTargetFor(sourceRow);
-  if (!targetRow) {
-    showToast('업체명이 똑같은 등록 업체를 한 곳만 찾을 수 있어야 합칩니다. 먼저 업체명을 맞춰주세요.');
+  if (!sourceRow || !(sourceRow.manualOrder || sourceRow.removedUser)) {
+    showToast('수동 주문 행이나 탈퇴한 업체 행에서만 합칠 수 있습니다.');
     return;
   }
   // 입금이 잡힌 행은 결제 이력이 얽혀 있어 자동으로 옮기지 않는다.
@@ -13561,26 +13612,48 @@ async function mergeManualSettlementRow(sourceUid) {
     showToast('입금 기록이 있는 행은 자동으로 합칠 수 없습니다. 입금을 먼저 정리해주세요.');
     return;
   }
-
-  const moves = Object.entries(cachedDeliveryRecords)
-    .map(([date, rows]) => ({ date, record: (rows || {})[sourceUid] }))
-    .filter(item => item.record)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const moves = settlementMergeMoves(sourceUid);
   if (!moves.length) {
     showToast('옮길 배송 기록이 없습니다.');
     return;
   }
+  const candidates = settlementMergeCandidates(sourceRow);
+  if (!candidates.length) {
+    showToast('합칠 등록 업체가 없습니다. 이번 달에 배송이 있는 업체만 고를 수 있습니다.');
+    return;
+  }
 
+  settlementMergeSourceUid = sourceUid;
   const totalQty = moves.reduce((sum, item) => sum + orderTotalQty(item.record), 0);
-  const preview = moves.slice(0, 5).map(item => formatDateKR(item.date)).join('\n');
-  const approved = confirm(
-    `${sourceRow.user.businessName}\n\n`
-    + `수동 주문으로 따로 잡힌 배송 ${moves.length}일(${totalQty}개)을\n`
-    + `등록 업체 "${targetRow.user.businessName}" 쪽으로 합칩니다.\n\n`
-    + `${preview}${moves.length > 5 ? `\n... 외 ${moves.length - 5}일` : ''}\n\n`
-    + '되돌리기 어려운 작업입니다. 계속할까요?'
-  );
-  if (!approved) return;
+  document.getElementById('settlement-merge-source').textContent =
+    `${sourceRow.user.businessName || sourceUid}${sourceRow.removedUser ? ' (탈퇴)' : ' (수동 입력)'}`;
+  document.getElementById('settlement-merge-count').textContent = `${moves.length}일 · ${totalQty}개`;
+  document.getElementById('settlement-merge-dates').textContent =
+    moves.map(item => formatDateKR(item.date)).join(', ');
+
+  const auto = settlementMergeTargetFor(sourceRow);
+  const select = document.getElementById('settlement-merge-target');
+  select.innerHTML = candidates
+    .map(row => `<option value="${escapeHtml(row.uid)}"${auto && auto.uid === row.uid ? ' selected' : ''}>${escapeHtml(row.user.businessName || row.uid)}</option>`)
+    .join('');
+  document.getElementById('settlement-merge-modal').classList.add('open');
+}
+
+async function confirmSettlementMerge() {
+  const sourceUid = settlementMergeSourceUid;
+  const sourceRow = settlementRows.find(row => row.uid === sourceUid);
+  const targetUid = document.getElementById('settlement-merge-target')?.value || '';
+  const targetRow = settlementRows.find(row => row.uid === targetUid);
+  if (!sourceRow || !targetRow) {
+    showToast('합칠 업체를 고르지 못했습니다.');
+    return;
+  }
+  const moves = settlementMergeMoves(sourceUid);
+  if (!moves.length) {
+    showToast('옮길 배송 기록이 없습니다.');
+    return;
+  }
+  closeSettlementMergeModal();
 
   try {
     const user = allUsers[targetRow.uid] || {};
@@ -13597,7 +13670,7 @@ async function mergeManualSettlementRow(sourceUid) {
     });
     for (const [date, rows] of Object.entries(payload)) await saveDeliveryRecords(date, rows);
 
-    // 수동 uid로 저장돼 있던 정산 문서도 지운다. (남겨두면 빈 줄로 다시 뜬다)
+    // 옮긴 쪽 uid로 저장돼 있던 정산 문서도 지운다. (남겨두면 빈 줄로 다시 뜬다)
     const month = document.getElementById('settle-month').value || currentMonthStr();
     await settlementItemRef(month, sourceUid).delete().catch(() => {});
 
