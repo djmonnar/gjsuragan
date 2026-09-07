@@ -3894,6 +3894,8 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
   const month = String(deliveryDate || currentDateStr).slice(0, 7);
   const targetUids = [...new Set((uids || []).filter(Boolean))];
   if (!month || targetUids.length === 0) return { billed: 0, skipped: 0 };
+  // 정산 문서에 저장되는 월 합계는 다른 기기의 완료 처리까지 포함해야 한다.
+  invalidateDeliveryDateCache();
 
   const [adminDoc, settlementItems] = await Promise.all([
     db.collection('users').doc(adminUid).get(),
@@ -4057,6 +4059,25 @@ function deliveryArchiveRef(date) {
 // 우선순위는 새 구조가 가장 높다. 같은 uid 가 겹치면 mergeDeliveryRecord 로 합친다.
 const DELIVERY_COLLECTION = 'deliveryRecords';
 const deliveryDateCache = new Map();
+// 캐시는 한 화면을 그리는 동안 같은 날짜 문서를 여러 번 읽지 않으려는 용도다.
+// 직원이 다른 기기에서 배송완료를 눌러도 이 화면이 그걸 놓치지 않도록 잠깐만 기억한다.
+// 예전에는 페이지를 닫기 전까지 지워지지 않아, 사장님 폰의 정산 불러오기가
+// 직원 PC에서 완료 처리한 날짜를 계속 빠뜨렸다.
+const DELIVERY_CACHE_TTL_MS = 15 * 1000;
+
+function cacheDeliveryRows(cache, date, rows, now = Date.now()) {
+  cache.set(date, { rows, at: now });
+}
+
+function cachedDeliveryRows(cache, date, now = Date.now()) {
+  const entry = cache.get(date);
+  if (!entry) return null;
+  if (now - entry.at > DELIVERY_CACHE_TTL_MS) {
+    cache.delete(date);
+    return null;
+  }
+  return entry.rows;
+}
 
 function deliveryDateRef(date) {
   return db.collection(DELIVERY_COLLECTION).doc(date);
@@ -4081,11 +4102,12 @@ function mergeRecordMaps(base = {}, extra = {}) {
 }
 
 async function readDeliveryDateDoc(date, ref, cache, label) {
-  if (cache.has(date)) return cache.get(date);
+  const remembered = cachedDeliveryRows(cache, date);
+  if (remembered) return remembered;
   try {
     const snap = await ref(date).get();
     const rows = snap.exists ? (snap.data() || {}).records || {} : {};
-    cache.set(date, rows);
+    cacheDeliveryRows(cache, date, rows);
     return rows;
   } catch (e) {
     // 한 곳을 못 읽어도 나머지로 화면은 계속 그려야 한다.
@@ -4355,7 +4377,7 @@ async function archiveOldDeliveryRecords() {
           archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
           archivedBy: adminUid
         });
-        deliveryArchiveCache.set(ds, rows);
+        cacheDeliveryRows(deliveryArchiveCache, ds, rows);
       }
       archived.push(ds);
     }
@@ -5872,6 +5894,8 @@ async function loadOrders() {
     currentOrderLocked = !!lockDoc?.exists;
     updateOrderLockButton();
     const adminData = adminDoc.exists ? adminDoc.data() : {};
+    // 다른 기기에서 완료 처리한 결과가 바로 보이도록 오늘 날짜는 캐시를 쓰지 않는다.
+    invalidateDeliveryDateCache(currentDateStr);
     const deliveredRecords = (await loadDeliveryRecordsForDates([currentDateStr], adminData))[currentDateStr] || {};
     currentOrderEventRows = orderTabEventRowsFromSources(adminData, publicEventSnap, currentDateStr);
     renderOrderEventLunches();
@@ -6617,6 +6641,7 @@ async function completeSelectedDeliveries() {
 async function rebuildSettlementsForUids(month, uids) {
   const targetUids = [...new Set((uids || []).filter(Boolean))];
   if (!month || targetUids.length === 0) return;
+  invalidateDeliveryDateCache();
   const [adminDoc, settlementItems] = await Promise.all([
     db.collection('users').doc(adminUid).get(),
     loadSettlementItems(month).catch(() => ({}))
@@ -10924,9 +10949,12 @@ async function loadSettlements() {
     Object.entries(allUsers).forEach(([uid, user]) => buildRegisteredRow(uid, user));
 
     const dates = monthDates(month);
+    // 불러오기·탭 진입·자동 새로고침은 항상 서버 기록으로 다시 집계한다.
+    // 다른 기기에서 배송완료한 날짜가 이 화면의 캐시 때문에 빠지면 안 된다.
+    invalidateDeliveryDateCache();
     const adminDoc = await db.collection('users').doc(adminUid).get();
     const adminData = adminDoc.exists ? adminDoc.data() : {};
-    cachedDeliveryRecords = await loadDeliveryRecordsForDates(monthDates(month), adminData);
+    cachedDeliveryRecords = await loadDeliveryRecordsForDates(dates, adminData);
     const deliveryRecords = cachedDeliveryRecords;
     const legacyManualSettlements = manualMonthlySettlementsFromData(adminData)[month] || {};
     const newManualSettlements = Object.fromEntries(
