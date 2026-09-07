@@ -119,6 +119,15 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .settle-status-badge.청구완료{background:#e3f2fd;color:#1565c0}
 .settle-status-badge.입금완료{background:#e8f5e9;color:#1e6e40}
 .settle-status-badge.보류{background:#f3e5f5;color:#6a1b9a}
+.settle-status-badge.이월{background:#e0f2f1;color:#00695c}
+.carryover-label{display:block;font-size:11px;color:#00695c;font-weight:700;white-space:nowrap}
+.carryover-table{width:100%;border-collapse:collapse;font-size:13px}
+.carryover-table th,.carryover-table td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:center;white-space:nowrap}
+.carryover-table th{background:#f8f5f0;color:var(--sub);font-size:12px}
+.carryover-table td.left,.carryover-table th.left{text-align:left}
+.carryover-table td.num{text-align:right;font-variant-numeric:tabular-nums}
+.carryover-table tr.done td{color:var(--sub);background:#fafafa}
+.carryover-summary{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding:10px 12px;background:#e0f2f1;border-radius:10px;font-size:13px;font-weight:700;color:#00695c}
 .settle-pay-method{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;background:#eef1f4;color:#3d4852}
 .quick-pay-btn{border:0;border-radius:8px;padding:8px 8px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap}
 .quick-pay-btn.transfer{background:#e8f5e9;color:#1e6e40}
@@ -524,6 +533,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .settle-month-picker>div{min-width:0}
   .settle-month-picker .form-input{width:100%;min-height:44px}
   .settle-month-picker .save-btn{min-height:44px;margin:0;padding-left:16px;padding-right:16px}
+  .settle-month-picker .settle-carryover-btn{grid-column:1/-1;min-height:44px}
   .settle-filter-tabs{margin-left:-2px;margin-right:-2px;scrollbar-width:none}
   .settle-filter-tabs::-webkit-scrollbar{display:none}
   .settle-tab-btn{flex:0 0 auto;min-height:39px;padding:8px 13px}
@@ -1944,6 +1954,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <li>월말에 사장님이 정산월을 선택하고 <b>불러오기</b>를 누릅니다.</li>
           <li>주문 탭에서 배송완료한 도시락, 샐러드, 일회용 수량과 행사도시락 금액만 확인합니다.</li>
           <li>정산 탭에서는 입금완료, 보류, 조정금액처럼 예외만 수정합니다.</li>
+          <li>전월에 못 받은 잔액은 <b>전월 미수금 이월</b>을 눌러 이번 달 청구액에 합칩니다. 전월 건은 <b>이월됨</b>으로 바뀌고 잔액이 0이 됩니다.</li>
           <li>필요하면 정산표, 카톡 내보내기, 영수증을 사용합니다.</li>
         </ol>
       </div>
@@ -2027,6 +2038,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
             <input class="form-input" type="month" id="settle-month" style="margin-bottom:0">
           </div>
           <button class="save-btn" style="width:auto" onclick="loadSettlements()">불러오기</button>
+          <button class="manual-btn settle-carryover-btn" type="button" style="white-space:nowrap" onclick="openCarryoverModal()">↩️ 전월 미수금 이월</button>
         </div>
         <div class="settle-filter-tabs">
           <button class="settle-tab-btn active" data-filter="all" onclick="setSettleFilter('all')">전체</button>
@@ -2036,6 +2048,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <button class="settle-tab-btn" data-filter="청구완료" onclick="setSettleFilter('청구완료')">입금대기</button>
           <button class="settle-tab-btn" data-filter="입금완료" onclick="setSettleFilter('입금완료')">입금완료</button>
           <button class="settle-tab-btn" data-filter="보류" onclick="setSettleFilter('보류')">보류</button>
+          <button class="settle-tab-btn" data-filter="이월" onclick="setSettleFilter('이월')">이월</button>
         </div>
         <div class="settle-sort-tabs">
           <span class="settle-sort-label">정렬</span>
@@ -2090,6 +2103,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <span class="summary-value" id="settle-unpaid-company-count">0<span class="summary-unit">곳</span></span>
           <span class="summary-detail" id="settle-unpaid-company-detail">부분입금 0곳 · 연체 0곳</span>
         </button>
+        <div class="summary-card" style="border-color:#80cbc4">
+          <div class="summary-label" style="color:#00695c">↩️ 전월 이월 미수금</div>
+          <div class="summary-value" id="settle-carryover-total" style="color:#00695c">0<span class="summary-unit">원</span></div>
+          <div class="summary-detail" id="settle-carryover-count">0곳</div>
+        </div>
         <div class="summary-card">
           <div class="summary-label">🍱 일반도시락</div>
           <div class="summary-value" id="settle-lunch-total">0<span class="summary-unit">개</span></div>
@@ -2135,7 +2153,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <label><input type="checkbox" id="settle-check-all" onchange="toggleAllSettlements(this.checked,'standard')"> 일반 업체 전체 선택</label>
       <select class="batch-status-select" id="batch-status-select">
         <option value="">일반 업체 상태 선택</option>
-        <option value="청구완료">입금대기 (청구서 발송)</option><option value="입금완료:이체">입금완료 · 이체</option><option value="입금완료:카드">입금완료 · 카드</option><option value="입금완료">입금완료 (입금 기록 없음)</option><option>보류</option><option value="미정산">확인필요</option>
+        <option value="청구완료">입금대기 (청구서 발송)</option><option value="입금완료:이체">입금완료 · 이체</option><option value="입금완료:카드">입금완료 · 카드</option><option value="입금완료">입금완료 (입금 기록 없음)</option><option>보류</option><option value="미정산">확인필요</option><option value="이월">이월됨</option>
       </select>
       <button class="batch-apply-btn" type="button" onclick="bulkUpdateSettlement('standard')">일반 업체 일괄 변경</button>
       <button class="export-btn" onclick="exportSettlementCSV()">📊 엑셀 내보내기</button>
@@ -2688,7 +2706,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <div>
         <label class="form-label">월말 확인 상태</label>
         <select class="form-input" id="settle-edit-status" onchange="updatePaymentSummary()">
-          <option value="청구완료">입금대기 (청구서 발송)</option><option>입금완료</option><option>보류</option><option value="미정산">확인필요</option>
+          <option value="청구완료">입금대기 (청구서 발송)</option><option>입금완료</option><option>보류</option><option value="미정산">확인필요</option><option value="이월">이월됨</option>
         </select>
       </div>
       <div>
@@ -2711,6 +2729,17 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <label class="form-label">조정금액 <span style="font-weight:400;color:var(--sub)">(+추가 / -할인)</span></label>
         <input class="form-input" type="number" id="settle-edit-adjust" placeholder="0" value="0" oninput="updatePaymentSummary()">
       </div>
+    </div>
+
+    <!-- 전월 이월 미수금 -->
+    <div id="settle-carryover-block" style="margin-top:10px">
+      <label class="form-label">전월 이월 미수금 <span id="settle-edit-carryover-from" style="font-weight:400;color:var(--sub)"></span></label>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <input class="form-input" type="number" id="settle-edit-carryover" min="0" value="0" placeholder="0" style="flex:1;min-width:120px;margin-bottom:0" oninput="updatePaymentSummary()">
+        <button class="secondary-btn" type="button" style="white-space:nowrap;height:48px" onclick="fillCarryoverFromPrevMonth()">전월 잔액 조회</button>
+        <button class="secondary-btn" type="button" style="white-space:nowrap;height:48px" onclick="clearCarryoverField()">이월 취소</button>
+      </div>
+      <div id="settle-edit-carryover-hint" style="font-size:12px;color:var(--sub);margin-top:4px;line-height:1.5"></div>
     </div>
 
     <!-- 메모 -->
@@ -2779,6 +2808,43 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <div class="modal-actions" style="margin-top:16px">
       <button class="save-btn" onclick="saveSettlementEdit()">저장하기</button>
       <button class="danger-btn" onclick="deleteSettlement()">정산삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- 전월 미수금 이월 모달 -->
+<div class="modal-overlay" id="carryover-modal">
+  <div class="modal-box" style="max-width:760px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title" id="carryover-modal-title">↩️ 전월 미수금 이월</div>
+      <button class="modal-close" onclick="closeCarryoverModal()">✕</button>
+    </div>
+    <div id="carryover-modal-desc" style="font-size:13px;color:var(--sub);line-height:1.6;margin-bottom:10px"></div>
+    <div style="overflow-x:auto">
+      <table class="carryover-table">
+        <thead>
+          <tr>
+            <th style="width:36px"><input type="checkbox" id="carryover-check-all" onchange="toggleAllCarryover(this.checked)"></th>
+            <th class="left">업체명</th>
+            <th>전월 상태</th>
+            <th>전월 청구액</th>
+            <th>입금</th>
+            <th>이월액</th>
+          </tr>
+        </thead>
+        <tbody id="carryover-tbody">
+          <tr><td colspan="6" style="padding:18px;color:var(--sub)">불러오는 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="carryover-summary">
+      <span id="carryover-selected-summary">선택 0곳 · 0원</span>
+      <span style="font-weight:400;color:var(--sub);font-size:12px">이월하면 전월 건은 "이월됨" 상태로 바뀌고, 이번 달 청구액에 잔액이 더해집니다.</span>
+    </div>
+    <div class="error-msg" id="carryover-error"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="save-btn" id="carryover-apply-btn" onclick="applyCarryover()">이월 적용</button>
+      <button class="secondary-btn" onclick="closeCarryoverModal()">닫기</button>
     </div>
   </div>
 </div>
@@ -2858,6 +2924,8 @@ let pendingPublicEventOrder = null;
 let adminEventDraftItems = [];
 let settlementRows = [];
 let settlementEvents = [];
+let settlementLoadedMonth = '';
+let carryoverCandidates = [];
 let currentOrderRows = [];
 let currentAdminCateringUid = '';
 let adminCateringDraft = [];
@@ -3302,6 +3370,20 @@ function defaultDueDate(month) {
   const nm = mon === 12 ? 1 : mon + 1;
   return `${ny}-${String(nm).padStart(2,'0')}-10`;
 }
+function shiftMonthStr(month, delta) {
+  const [year, mon] = String(month || currentMonthStr()).split('-').map(Number);
+  const d = new Date(year, (mon - 1) + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function prevMonthStr(month) { return shiftMonthStr(month, -1); }
+function monthLabelKR(month) {
+  const [year, mon] = String(month || '').split('-');
+  return year && mon ? `${year}년 ${parseInt(mon, 10)}월` : (month || '');
+}
+function monthShortKR(month) {
+  const mon = String(month || '').split('-')[1];
+  return mon ? `${parseInt(mon, 10)}월` : (month || '');
+}
 function calcOverdue(dueDate) {
   if (!dueDate) return 0;
   const today = new Date(dateStr(getKST()) + 'T00:00:00');
@@ -3310,6 +3392,9 @@ function calcOverdue(dueDate) {
   return diff > 0 ? diff : 0;
 }
 function dueDateBadgeHtml(row) {
+  if (isCarriedOverRow(row)) {
+    return `<span style="color:#00695c;font-size:12px">${row.carriedOverTo ? escapeHtml(monthShortKR(row.carriedOverTo)) + ' ' : ''}이월됨</span>`;
+  }
   if (!row.dueDate) return '<span style="color:var(--sub);font-size:12px">-</span>';
   if (row.status === '입금완료') {
     const paidTotal = settlementPaidTotal(row);
@@ -3329,8 +3414,13 @@ function settlementStatusLabel(status) {
     '미정산': '확인필요',
     '청구완료': '입금대기',
     '입금완료': '입금완료',
-    '보류': '보류'
+    '보류': '보류',
+    '이월': '이월됨'
   })[status] || status || '-';
+}
+// 다음 달로 잔액을 넘긴 행인지
+function isCarriedOverRow(row = {}) {
+  return row.status === '이월' || Boolean(row.carriedOverTo);
 }
 // 위에서부터 처리해야 할 순서대로 등급을 매긴다.
 // 0 연체 → 1 입금대기(잔액 있음) → 2 보류 → 3 완납
@@ -3408,6 +3498,9 @@ function filterMatchesRow(row) {
   if (currentSettleFilter === '연체') {
     return isSettlementUnpaid(row) && calcOverdue(row.dueDate) > 0;
   }
+  if (currentSettleFilter === '이월') {
+    return isCarriedOverRow(row) || settlementCarryover(row) > 0;
+  }
   return row.status === currentSettleFilter;
 }
 function setSettleFilter(filter) {
@@ -3423,8 +3516,21 @@ function setSettleFilter(filter) {
   }
   renderSettlements();
 }
-function settlementBilledTotal(row = {}) {
+// 당월 발생 청구액 (수량×단가 + 조정금액). 차트처럼 월별 매출을 볼 때 사용
+function settlementSalesTotal(row = {}) {
   return (Number(row.amount || 0) || 0) + (Number(row.adjust || 0) || 0);
+}
+// 전월에서 이월된 미수금
+function settlementCarryover(row = {}) {
+  return Math.max(0, Number(row.carryover || 0) || 0);
+}
+// 다음 달로 넘긴 금액 (이 행의 잔액에서 제외)
+function settlementCarriedOverAmount(row = {}) {
+  return Math.max(0, Number(row.carriedOverAmount || 0) || 0);
+}
+// 고객에게 실제 청구하는 금액 = 당월 발생분 + 전월 이월
+function settlementBilledTotal(row = {}) {
+  return settlementSalesTotal(row) + settlementCarryover(row);
 }
 function settlementPaidTotal(row = {}) {
   const payments = row.payments || [];
@@ -3434,8 +3540,16 @@ function settlementPaidTotal(row = {}) {
   if (legacyPaid > 0) return legacyPaid;
   return row.status === '입금완료' ? settlementBilledTotal(row) : 0;
 }
+// 이 행에서 아직 받아야 할 잔액 (다음 달로 이월한 금액은 제외, 음수 가능)
+function settlementBalance(row = {}) {
+  return settlementBilledTotal(row) - settlementPaidTotal(row) - settlementCarriedOverAmount(row);
+}
+// 이월 후보 계산용: 다음 달로 넘기지 않았다고 가정했을 때의 잔액
+function settlementOpenBalance(row = {}) {
+  return settlementBilledTotal(row) - settlementPaidTotal(row);
+}
 function settlementOutstandingBalance(row = {}) {
-  return Math.max(0, settlementBilledTotal(row) - settlementPaidTotal(row));
+  return Math.max(0, settlementBalance(row));
 }
 function isSettlementUnpaid(row = {}) {
   return settlementOutstandingBalance(row) > 0;
@@ -3856,6 +3970,51 @@ function mergedManualMonthlySettlements(month, stored = {}) {
 function settlementItemRef(month, uid) {
   return db.collection('settlements').doc(month).collection('items').doc(uid);
 }
+// ── 정산 이월 필드 ──
+// carryover/carryoverFrom/carryoverAt: 이월받은 달에 기록. carriedOverTo/carriedOverAmount/carriedOverAt/statusBeforeCarryover: 넘긴 달에 기록.
+const SETTLEMENT_CARRYOVER_FIELDS = ['carryover', 'carryoverFrom', 'carryoverAt', 'carriedOverTo', 'carriedOverAmount', 'carriedOverAt', 'statusBeforeCarryover'];
+function settlementCarryoverFields(saved = {}) {
+  return {
+    carryover: Math.max(0, Number(saved.carryover || 0) || 0),
+    carryoverFrom: saved.carryoverFrom || '',
+    carryoverAt: saved.carryoverAt || '',
+    carriedOverTo: saved.carriedOverTo || '',
+    carriedOverAmount: Math.max(0, Number(saved.carriedOverAmount || 0) || 0),
+    carriedOverAt: saved.carriedOverAt || '',
+    statusBeforeCarryover: saved.statusBeforeCarryover || ''
+  };
+}
+// 화면 행(row)을 그대로 settlements 문서로 저장할 때 쓰는 공통 데이터
+function settlementRowSaveData(row = {}, overrides = {}) {
+  const isEvent = row.type === 'event';
+  return {
+    status: row.status || '미정산',
+    note: row.note || '',
+    amount: Number(row.amount || 0) || 0,
+    adjust: Number(row.adjust || 0) || 0,
+    invoiceNo: row.invoiceNo || '',
+    dueDate: row.dueDate || '',
+    payments: row.payments || [],
+    paidDate: row.paidDate || '',
+    paidAmount: Number(row.paidAmount || 0) || 0,
+    lunchTotal: row.lunch || 0,
+    saladTotal: row.salad || 0,
+    eventLunchTotal: settlementEventQty(row),
+    cateringTotal: isEvent ? 0 : settlementCateringQty(row),
+    lunch: row.lunch || 0,
+    salad: row.salad || 0,
+    eventLunch: settlementEventQty(row),
+    catering: isEvent ? 0 : settlementCateringQty(row),
+    cateringAmount: isEvent ? 0 : settlementCateringAmount(row),
+    cateringItems: isEvent ? [] : settlementCateringSummary(row).items,
+    lunchPrice: row.lunchPrice || 0,
+    saladPrice: row.saladPrice || 0,
+    eventPrice: settlementEventUnitPrice(row),
+    ...(isEvent ? {} : settlementCarryoverFields(row)),
+    ...overrides,
+    updatedAt: new Date().toISOString()
+  };
+}
 async function loadSettlementItems(month) {
   const byUid = {};
   const snap = await db.collection('settlements').doc(month).collection('items').get();
@@ -3888,6 +4047,11 @@ function settlementDocData(row, data = {}) {
     daily: data.daily || row.daily || row.dateBreakdown || {},
     updatedAt: new Date().toISOString()
   };
+  // 이월 필드는 값이 있을 때만 기록 (배송완료 자동 반영처럼 이월 정보를 모르는 저장이 기존 값을 지우지 않도록)
+  SETTLEMENT_CARRYOVER_FIELDS.forEach(field => {
+    const value = data[field] !== undefined ? data[field] : row[field];
+    if (value !== undefined) base[field] = value;
+  });
   if (row.type === 'manualMonthly') {
     base.type = 'manualMonthly';
     base.manualMonthly = true;
@@ -3953,7 +4117,8 @@ function manualDeliverySettlementRow(uid, data = {}, saved = {}) {
     invoiceNo: saved.invoiceNo || '',
     dueDate: saved.dueDate || '',
     payments: savedSettlementPayments(saved),
-    dateBreakdown: {}
+    dateBreakdown: {},
+    ...settlementCarryoverFields(saved)
   };
 }
 
@@ -4042,7 +4207,10 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
     const adjust = parseInt(saved.adjust, 10) || 0;
     const payments = saved.payments || [];
     const paidTotal = settlementPaidTotal(saved);
-    const status = paidTotal > 0 && paidTotal >= (amount + adjust) ? '입금완료' : '청구완료';
+    // 이미 다음 달로 이월된 정산은 상태를 유지한다
+    const status = saved.status === '이월'
+      ? '이월'
+      : (paidTotal > 0 && paidTotal >= (amount + adjust + settlementCarryover(saved)) ? '입금완료' : '청구완료');
     const invoiceNo = saved.invoiceNo || await generateInvoiceNo(month);
     const dueDate = saved.dueDate || defaultDueDate(month);
     const settlementUser = registeredUser || { businessName: manualBusinessName || uid, phone: manualPhone, email: '' };
@@ -6778,8 +6946,10 @@ async function rebuildSettlementsForUids(month, uids) {
     });
 
     const paidTotal = settlementPaidTotal(saved);
+    // 이월 정보가 있는 정산 문서는 배송이 0이 되어도 지우지 않는다 (이월액·이월 상태가 사라지면 안 됨)
+    const hasCarryoverInfo = settlementCarryover(saved) > 0 || Boolean(saved.carriedOverTo);
     if ((lunch + salad + eventLunch + catering) <= 0) {
-      if (settlementItems[uid] && paidTotal <= 0) {
+      if (settlementItems[uid] && paidTotal <= 0 && !hasCarryoverInfo) {
         await settlementItemRef(month, uid).delete();
         applySettlementToUserCache(uid, month, null);
       }
@@ -6794,7 +6964,10 @@ async function rebuildSettlementsForUids(month, uids) {
     const cateringItems = Array.from(cateringById.values());
     const adjust = parseInt(saved.adjust, 10) || 0;
     const payments = saved.payments || [];
-    const status = paidTotal > 0 && paidTotal >= (amount + adjust) ? '입금완료' : '청구완료';
+    // 이미 다음 달로 이월된 정산은 상태를 유지한다 (금액이 바뀌면 정산 탭에서 이월액을 다시 확인해야 함)
+    const status = saved.status === '이월'
+      ? '이월'
+      : (paidTotal > 0 && paidTotal >= (amount + adjust + settlementCarryover(saved)) ? '입금완료' : '청구완료');
     const invoiceNo = saved.invoiceNo || await generateInvoiceNo(month);
     const dueDate = saved.dueDate || defaultDueDate(month);
     const settlementUser = registeredUser || { businessName: manualBusinessName || uid, phone: manualPhone, email: '' };
@@ -10990,14 +11163,9 @@ function getSettlementRow(ref) {
   return settlementRows.find(r => r.uid === ref) || null;
 }
 
-async function loadSettlements() {
-  const month = document.getElementById('settle-month').value || currentMonthStr();
-  const tbody = document.getElementById('settlement-tbody');
-  const eventTbody = document.getElementById('settlement-event-tbody');
-  tbody.innerHTML = '<tr class="no-order-row"><td colspan="14">정산 내역을 계산하는 중...</td></tr>';
-  eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">행사도시락을 불러오는 중...</td></tr>';
-
-  try {
+// 특정 월의 업체별 정산 행과 행사도시락 목록을 계산한다.
+// 정산 탭 불러오기와 전월 미수금 이월 후보 계산에서 함께 쓴다.
+async function computeMonthlySettlementRows(month) {
     const byUser = {};
     const settlementItems = await loadSettlementItems(month);
     const buildRegisteredRow = (uid, user) => {
@@ -11010,7 +11178,7 @@ async function loadSettlements() {
       if (payments.length === 0 && saved.paidAmount > 0) {
         payments = [{ amount: saved.paidAmount, date: saved.paidDate || '', note: '(이전 기록)', recordedAt: saved.updatedAt || '' }];
       }
-      byUser[uid] = { uid, user, lunch: 0, salad: 0, eventLunch: 0, catering: 0, cateringAmount: 0, cateringItems: [], lunchPrice, saladPrice, eventPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, invoiceNo: saved.invoiceNo || '', dueDate: saved.dueDate || '', payments, dateBreakdown: {} };
+      byUser[uid] = { uid, user, lunch: 0, salad: 0, eventLunch: 0, catering: 0, cateringAmount: 0, cateringItems: [], lunchPrice, saladPrice, eventPrice, amount: 0, status: saved.status || '미정산', note: saved.note || '', adjust: saved.adjust || 0, invoiceNo: saved.invoiceNo || '', dueDate: saved.dueDate || '', payments, dateBreakdown: {}, ...settlementCarryoverFields(saved) };
       return byUser[uid];
     };
     Object.entries(allUsers).forEach(([uid, user]) => buildRegisteredRow(uid, user));
@@ -11021,8 +11189,7 @@ async function loadSettlements() {
     invalidateDeliveryDateCache();
     const adminDoc = await db.collection('users').doc(adminUid).get();
     const adminData = adminDoc.exists ? adminDoc.data() : {};
-    cachedDeliveryRecords = await loadDeliveryRecordsForDates(dates, adminData);
-    const deliveryRecords = cachedDeliveryRecords;
+    const deliveryRecords = await loadDeliveryRecordsForDates(dates, adminData);
     const legacyManualSettlements = manualMonthlySettlementsFromData(adminData)[month] || {};
     const newManualSettlements = Object.fromEntries(
       Object.entries(settlementItems).filter(([, row]) => row?.type === 'manualMonthly' || row?.manualMonthly)
@@ -11121,23 +11288,40 @@ async function loadSettlements() {
           daily: row.daily || {},
           manualOverride: !!row.manualOverride,
           manualMonthly: true,
-          source: row.source || 'excelSettlement'
+          source: row.source || 'excelSettlement',
+          ...settlementCarryoverFields(row)
         };
       });
 
+    // 이월액만 있는 업체(이번 달 주문 없음)도 정산 행으로 보여준다.
     const rows = Object.values(byUser)
       .map(row => ({ ...row, amount: settlementLunchAmount(row) + settlementSaladAmount(row) + settlementEventAmount(row) + settlementCateringAmount(row) }))
       .concat(manualRows)
-      .filter(row => row.lunch > 0 || row.salad > 0 || row.eventLunch > 0 || settlementCateringQty(row) > 0)
+      .filter(row => row.lunch > 0 || row.salad > 0 || row.eventLunch > 0 || settlementCateringQty(row) > 0 || settlementCarryover(row) > 0)
       .sort((a, b) => (a.user.businessName || '').localeCompare(b.user.businessName || '', 'ko'));
 
     const adminEvents = adminEventsFromData(adminData);
-    settlementEvents = Object.entries(adminEvents)
+    const events = Object.entries(adminEvents)
       .map(([id, item]) => ({ id, ...item }))
       .filter(item => (item.eventDate || '').slice(0, 7) === month && item.delivered === true);
-    settlementEvents.sort((a, b) => `${a.eventDate || ''} ${a.eventTime || ''}`.localeCompare(`${b.eventDate || ''} ${b.eventTime || ''}`));
+    events.sort((a, b) => `${a.eventDate || ''} ${a.eventTime || ''}`.localeCompare(`${b.eventDate || ''} ${b.eventTime || ''}`));
 
-    settlementRows = rows;
+    return { month, rows, events, deliveryRecords, adminData };
+}
+
+async function loadSettlements() {
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  const tbody = document.getElementById('settlement-tbody');
+  const eventTbody = document.getElementById('settlement-event-tbody');
+  tbody.innerHTML = '<tr class="no-order-row"><td colspan="14">정산 내역을 계산하는 중...</td></tr>';
+  eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">행사도시락을 불러오는 중...</td></tr>';
+
+  try {
+    const result = await computeMonthlySettlementRows(month);
+    cachedDeliveryRecords = result.deliveryRecords;
+    settlementEvents = result.events;
+    settlementRows = result.rows;
+    settlementLoadedMonth = month;
     renderSettlements();
     renderSettlementCharts().catch(() => {});
     settlementLastLoadedAt = Date.now();
@@ -11188,7 +11372,7 @@ function syncSettlementChecks(value, checked) {
 
 function settlementMobileActionsHtml(uid, row) {
   const safeUid = escapeHtml(uid);
-  const balance = row ? settlementBilledTotal(row) - settlementPaidTotal(row) : 0;
+  const balance = row ? settlementBalance(row) : 0;
   const quickPay = balance > 0
     ? `<button class="quick-pay-btn transfer" onclick="quickSettlePayment('${safeUid}','이체')">이체입금</button>
     <button class="quick-pay-btn card" onclick="quickSettlePayment('${safeUid}','카드')">카드입금</button>`
@@ -11207,12 +11391,16 @@ function settlementMobileActionsHtml(uid, row) {
 function settlementMobileCardHtml(row) {
   const billed = settlementBilledTotal(row);
   const paidTotal = settlementPaidTotal(row);
-  const balance = billed - paidTotal;
+  const balance = settlementBalance(row);
   const balanceSettled = balance <= 0;
   const uid = row.uid;
   const eventQty = settlementEventQty(row);
   const cateringQty = settlementCateringQty(row);
-  const adjustText = row.adjust ? ` · 조정 ${row.adjust > 0 ? '+' : ''}${formatMoney(row.adjust)}` : '';
+  const carryover = settlementCarryover(row);
+  const carriedText = row.carriedOverTo ? ` · ${monthShortKR(row.carriedOverTo)}로 ${formatMoney(settlementCarriedOverAmount(row))} 이월` : '';
+  const adjustText = (row.adjust ? ` · 조정 ${row.adjust > 0 ? '+' : ''}${formatMoney(row.adjust)}` : '')
+    + (carryover > 0 ? ` · ${monthShortKR(row.carryoverFrom)}이월 +${formatMoney(carryover)}` : '')
+    + carriedText;
   const note = row.note
     ? `<div class="settlement-mobile-note">메모 · ${escapeHtml(row.note)}</div>`
     : '<div class="settlement-mobile-note empty">등록된 메모가 없습니다.</div>';
@@ -11224,7 +11412,7 @@ function settlementMobileCardHtml(row) {
       <input class="settle-check" type="checkbox" value="${escapeHtml(uid)}" aria-label="${escapeHtml(row.user.businessName || '업체')} 선택" onchange="syncSettlementChecks(this.value,this.checked)">
       <div class="settlement-mobile-card-title">
         <div class="settlement-mobile-card-name">${escapeHtml(row.user.businessName || '-')}${nameChip}</div>
-        <div class="settlement-mobile-card-summary"><span>청구 ${formatMoney(billed)}</span><span class="balance${balanceSettled ? ' settled' : ''}">${balanceSettled ? '완납' : `잔액 ${formatMoney(balance)}`}</span></div>
+        <div class="settlement-mobile-card-summary"><span>청구 ${formatMoney(billed)}</span><span class="balance${balanceSettled ? ' settled' : ''}">${row.carriedOverTo ? '이월됨' : balanceSettled ? '완납' : `잔액 ${formatMoney(balance)}`}</span></div>
         <div class="settlement-mobile-card-sub">${escapeHtml(row.invoiceNo ? `청구서 ${row.invoiceNo}` : '청구서번호 미등록')}${escapeHtml(adjustText)}</div>
       </div>
       <span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span>
@@ -11355,6 +11543,8 @@ function renderSettlements() {
   const totalBilled = allRows.reduce((sum, row) => sum + settlementBilledTotal(row), 0);
   const totalPaid = allRows.reduce((sum, r) => sum + settlementPaidTotal(r), 0);
   const totalUnpaid = allRows.reduce((sum, row) => sum + settlementOutstandingBalance(row), 0);
+  const carryoverRows = settlementRows.filter(row => settlementCarryover(row) > 0);
+  const totalCarryover = carryoverRows.reduce((sum, row) => sum + settlementCarryover(row), 0);
   const payMethodTotals = { '이체': 0, '카드': 0, '미지정': 0 };
   allRows.forEach(r => {
     let methodSum = 0;
@@ -11394,6 +11584,8 @@ function renderSettlements() {
   document.getElementById('settle-catering-amount-total').textContent = formatMoney(productAmounts.catering);
   document.getElementById('settle-unpaid-company-count').innerHTML = `${unpaidCompanyCount}<span class="summary-unit">곳</span>`;
   document.getElementById('settle-unpaid-company-detail').textContent = `부분입금 ${partialPaymentCount}곳 · 연체 ${overdueCount}곳`;
+  document.getElementById('settle-carryover-total').innerHTML = `${totalCarryover.toLocaleString('ko-KR')}<span class="summary-unit">원</span>`;
+  document.getElementById('settle-carryover-count').textContent = `${settlementCompanyCount(carryoverRows)}곳`;
   document.getElementById('settlement-standard-mobile-count').textContent = standardMobileCount;
   document.getElementById('settlement-event-mobile-count').textContent = eventMobileCount;
 
@@ -11417,9 +11609,11 @@ function renderSettlements() {
       tbody.innerHTML = filtered.map(row => {
         const billed = settlementBilledTotal(row);
         const adjustLabel = row.adjust ? `<span style="font-size:11px;color:var(--sub);display:block">${row.adjust > 0 ? '+' : ''}${row.adjust.toLocaleString()}</span>` : '';
+        const carryover = settlementCarryover(row);
+        const carryoverLabel = carryover > 0 ? `<span class="carryover-label">${escapeHtml(monthShortKR(row.carryoverFrom))}이월 +${carryover.toLocaleString()}</span>` : '';
+        const carriedLabel = row.carriedOverTo ? `<span class="carryover-label">→ ${escapeHtml(monthShortKR(row.carriedOverTo))} 이월 ${settlementCarriedOverAmount(row).toLocaleString()}</span>` : '';
         const safeUid = row.uid.replace(/[^a-zA-Z0-9_-]/g, '_');
-        const paidTotal = settlementPaidTotal(row);
-        const balance = billed - paidTotal;
+        const balance = settlementBalance(row);
         const balanceClass = balance <= 0 ? 'balance-zero' : 'balance-positive';
         return `
         <tr>
@@ -11430,10 +11624,10 @@ function renderSettlements() {
           <td class="qty-cell">${settlementEventQty(row)}</td>
           <td class="qty-cell" title="${escapeHtml(settlementCateringLabel(row))}">${settlementCateringQty(row)}</td>
           <td style="font-size:12px;line-height:1.55">${settlementProductBreakdownHtml(row)}</td>
-          <td>${formatMoney(billed)}${adjustLabel}</td>
+          <td>${formatMoney(billed)}${adjustLabel}${carryoverLabel}</td>
           <td>${row.invoiceNo ? `<span class="invoice-no">${escapeHtml(row.invoiceNo)}</span>` : '<span style="color:var(--sub);font-size:12px">-</span>'}</td>
           <td>${dueDateBadgeHtml(row)}</td>
-          <td class="${balanceClass}">${formatMoney(balance)}</td>
+          <td class="${balanceClass}">${formatMoney(balance)}${carriedLabel}</td>
           <td><span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span>${settlementPayMethodChipHtml(row)}</td>
           <td class="note-cell">${row.note ? escapeHtml(row.note) : '<span style="color:var(--sub)">-</span>'}</td>
           <td>
@@ -11540,7 +11734,8 @@ function makeSettlementReceipt(uid) {
           name: `${month} ${item.name}`,
           count: item.qty,
           price: item.unitPrice
-        }))
+        })),
+        { name: `${monthShortKR(row.carryoverFrom) || '전월'} 이월 미수금`, count: settlementCarryover(row) > 0 ? 1 : 0, price: settlementCarryover(row) }
       ];
   setReceiptItems(receiptItems.filter(item => item.count > 0));
   if (row.type === 'event') {
@@ -12057,10 +12252,10 @@ function bulkUpdateSettlement(scope = 'standard') {
   }
 
   const additionalPayment = payMethod
-    ? rows.reduce((sum, row) => sum + Math.max(0, settlementBilledTotal(row) - settlementPaidTotal(row)), 0)
+    ? rows.reduce((sum, row) => sum + settlementOutstandingBalance(row), 0)
     : 0;
   const paymentTargetCount = payMethod
-    ? rows.filter(row => settlementBilledTotal(row) - settlementPaidTotal(row) > 0).length
+    ? rows.filter(row => settlementBalance(row) > 0).length
     : 0;
   const names = rows.map(row => row.user?.businessName || row.eventName || '-');
   const visibleNames = names.slice(0, 6);
@@ -12149,7 +12344,7 @@ async function applyBulkSettlementUpdate({ scope, month, rawStatus, uids }) {
       let payments = row.payments || [];
       let paidDate = row.paidDate || '';
       if (payMethod) {
-        const balance = settlementBilledTotal(row) - settlementPaidTotal(row);
+        const balance = settlementBalance(row);
         if (balance > 0) {
           paidDate = dateStr(getKST());
           payments = [...payments, { date: paidDate, amount: balance, note: '', method: payMethod, recordedAt: now }];
@@ -12223,9 +12418,8 @@ async function quickSettlePayment(uid, method) {
   const month = document.getElementById('settle-month').value || currentMonthStr();
   const row = getSettlementRow(uid);
   if (!row) return;
-  const billed = settlementBilledTotal(row);
-  const balance = billed - settlementPaidTotal(row);
-  if (balance <= 0) { showToast('남은 잔액이 없습니다.'); return; }
+  const balance = settlementBalance(row);
+  if (balance <= 0) { showToast(row.carriedOverTo ? `잔액이 ${monthShortKR(row.carriedOverTo)} 정산으로 이월되어 있습니다.` : '남은 잔액이 없습니다.'); return; }
   const name = row.user.businessName || '-';
   if (!confirm(`${name}\n잔액 ${balance.toLocaleString()}원을 ${method}입금으로 처리하고 입금완료로 변경할까요?`)) return;
   const now = new Date().toISOString();
@@ -12270,7 +12464,7 @@ function exportSettlementCSV() {
   const rows = [...settlementRows, ...settlementEvents.map(eventSettlementRow)];
   if (rows.length === 0) { showToast('정산 데이터가 없습니다.'); return; }
   const month = document.getElementById('settle-month').value || currentMonthStr();
-  const headers = ['업체명', '일반도시락(개)', '샐러드(개)', '일회용/행사도시락(개)', '월식 행사도시락(개)', '월식 행사도시락 메뉴', '일반도시락 금액', '샐러드 금액', '일회용/행사도시락 금액', '월식 행사도시락 금액', '청구액(원)', '조정금액', '청구서번호', '납부기한', '입금합계', '잔액', '상태', '결제수단', '메모'];
+  const headers = ['업체명', '일반도시락(개)', '샐러드(개)', '일회용/행사도시락(개)', '월식 행사도시락(개)', '월식 행사도시락 메뉴', '일반도시락 금액', '샐러드 금액', '일회용/행사도시락 금액', '월식 행사도시락 금액', '청구액(원)', '조정금액', '전월이월', '청구서번호', '납부기한', '입금합계', '잔액', '상태', '결제수단', '메모'];
   const dataRows = rows.map(row => {
     const billed = settlementBilledTotal(row);
     const paidTotal = settlementPaidTotal(row);
@@ -12281,9 +12475,9 @@ function exportSettlementCSV() {
       row.user.businessName || '-', row.lunch, row.salad, settlementEventQty(row), catering.totalQty,
       catering.items.map(item => `${item.name} ${item.qty}개`).join(' / ') || '-',
       settlementLunchAmount(row), settlementSaladAmount(row), settlementEventAmount(row), catering.totalAmount,
-      billed, row.adjust || 0,
+      billed, row.adjust || 0, settlementCarryover(row),
       row.invoiceNo || '-', row.dueDate || '-',
-      paidTotal, billed - paidTotal, settlementStatusLabel(row.status), settlementPayMethodLabel(row) || '-', row.note
+      paidTotal, settlementBalance(row), settlementStatusLabel(row.status), settlementPayMethodLabel(row) || '-', row.note
     ];
   });
   const totalLunch = rows.reduce((s, r) => s + r.lunch, 0);
@@ -12292,7 +12486,8 @@ function exportSettlementCSV() {
   const totalCatering = rows.reduce((s, r) => s + (r.type === 'event' ? 0 : settlementCateringQty(r)), 0);
   const totalCateringAmount = rows.reduce((s, r) => s + (r.type === 'event' ? 0 : settlementCateringAmount(r)), 0);
   const totalAmount = rows.reduce((s, r) => s + settlementBilledTotal(r), 0);
-  dataRows.push(['합계', totalLunch, totalSalad, totalEventLunch, totalCatering, '', '', '', '', totalCateringAmount, totalAmount, '', '', '', '', '', '', '', '']);
+  const totalCarryover = rows.reduce((s, r) => s + settlementCarryover(r), 0);
+  dataRows.push(['합계', totalLunch, totalSalad, totalEventLunch, totalCatering, '', '', '', '', totalCateringAmount, totalAmount, '', totalCarryover, '', '', '', '', '', '', '']);
   const csv = [headers, ...dataRows]
     .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     .join('\n');
@@ -12327,7 +12522,8 @@ function copySettlementKakao(uid) {
   }
   const billed = settlementBilledTotal(row);
   const paidTotal = settlementPaidTotal(row);
-  const balance = billed - paidTotal;
+  const balance = settlementBalance(row);
+  if (settlementCarryover(row) > 0) lines.push(`${monthShortKR(row.carryoverFrom)} 이월 미수금 ${settlementCarryover(row).toLocaleString()}원`);
   lines.push('', `청구액: ${billed.toLocaleString()}원`);
   if (row.dueDate) lines.push(`납부기한: ${row.dueDate}`);
   if (paidTotal > 0) lines.push(`기입금: ${paidTotal.toLocaleString()}원`);
@@ -12358,6 +12554,7 @@ async function copyAllSettlementKakao() {
         lines.push(`  ${item.name} ${item.qty}개 × ${item.unitPrice.toLocaleString()}원`);
       });
     }
+    if (settlementCarryover(row) > 0) lines.push(`  ${monthShortKR(row.carryoverFrom)} 이월 미수금 ${settlementCarryover(row).toLocaleString()}원`);
     lines.push(`  청구액: ${settlementBilledTotal(row).toLocaleString()}원`);
     lines.push('');
   });
@@ -12522,7 +12719,8 @@ function buildSheetHTML(uid, forPrint) {
   }
 
   const adjustment = parseInt(row.adjust, 10) || 0;
-  const billedTotal = subtotal + adjustment;
+  const carryover = settlementCarryover(row);
+  const billedTotal = subtotal + adjustment + carryover;
   const detailHtml = detailRows.length
     ? detailRows.map(item => `<tr>
         <td>${escapeHtml(item.date)}</td>
@@ -12538,6 +12736,10 @@ function buildSheetHTML(uid, forPrint) {
   const adjustRow = adjustment ? `<tr>
     <td colspan="7" style="text-align:right;font-weight:800">조정금액</td>
     <td class="num" style="font-weight:800">${adjustment > 0 ? '+' : ''}${money(adjustment)}원</td>
+  </tr>` : '';
+  const carryoverRow = carryover ? `<tr>
+    <td colspan="7" style="text-align:right;font-weight:800">전월 이월 미수금${row.carryoverFrom ? ` (${escapeHtml(monthLabelKR(row.carryoverFrom))})` : ''}</td>
+    <td class="num" style="font-weight:800">+${money(carryover)}원</td>
   </tr>` : '';
   const cateringPriceLabel = settlementCateringSummary(row).items
     .map(item => `${item.name} ${money(item.unitPrice)}원`)
@@ -12567,6 +12769,7 @@ function buildSheetHTML(uid, forPrint) {
       <tfoot>
         <tr class="sh-total-row"><td colspan="2" style="text-align:right">합계</td><td>${totalLunch}</td><td>${totalSalad}</td><td>${totalEventLunch}</td><td>${totalCatering}</td><td></td><td class="num">${money(subtotal)}원</td></tr>
         ${adjustRow}
+        ${carryoverRow}
         <tr class="sh-total-row"><td colspan="7" style="text-align:right">최종 청구액</td><td class="num" style="color:#c0392b">${money(billedTotal)}원</td></tr>
       </tfoot>
     </table>
@@ -12622,6 +12825,10 @@ function openSettlementEdit(uid) {
   document.getElementById('settle-edit-invoice-no').value = row.invoiceNo || '';
   const month = document.getElementById('settle-month').value || currentMonthStr();
   document.getElementById('settle-edit-due-date').value = row.dueDate || defaultDueDate(month);
+  const carryoverBlock = document.getElementById('settle-carryover-block');
+  if (carryoverBlock) carryoverBlock.style.display = row.type === 'event' ? 'none' : '';
+  document.getElementById('settle-edit-carryover').value = settlementCarryover(row);
+  renderCarryoverHint(row, month);
   renderPaymentList(row.payments || []);
   const errEl = document.getElementById('settle-edit-error');
   errEl.textContent = '';
@@ -12651,8 +12858,17 @@ async function saveSettlementEdit() {
   const payments = collectPaymentsFromModal();
   const paidTotal = payments.reduce((s,p)=>s+(parseInt(p.amount,10)||0),0);
   const paidDate = payments.length ? payments[payments.length - 1].date : '';
+  // 전월 이월 미수금 (행사도시락은 건별 정산이라 없음)
+  const prevCarryover = settlementCarryover(row);
+  const prevCarryoverFrom = row.carryoverFrom || '';
+  const carryover = row.type === 'event' ? 0 : Math.max(0, parseInt(document.getElementById('settle-edit-carryover').value, 10) || 0);
+  const carryoverFrom = carryover > 0 ? (prevCarryoverFrom || prevMonthStr(month)) : '';
+  const carryoverChanged = carryover !== prevCarryover || carryoverFrom !== prevCarryoverFrom;
   try {
     let data = { status, note, amount: row.amount, adjust, invoiceNo, dueDate, payments, paidDate, paidAmount: paidTotal, lunchTotal: row.lunch || 0, saladTotal: row.salad || 0, eventLunchTotal: settlementEventQty(row), updatedAt: new Date().toISOString() };
+    if (row.type !== 'event') {
+      data = { ...data, carryover, carryoverFrom, carryoverAt: carryover > 0 ? (carryoverChanged || !row.carryoverAt ? new Date().toISOString() : row.carryoverAt) : '' };
+    }
     if (row.type === 'event') {
       const eventName = document.getElementById('settle-edit-event-name').value.trim() || '행사도시락';
       const eventCount = parseDeliveryCount(document.getElementById('settle-edit-event-count').value, 1);
@@ -12711,9 +12927,15 @@ async function saveSettlementEdit() {
       await saveSettlementItem(month, uid, row, data);
     }
     Object.assign(row, { status, note, adjust, invoiceNo, dueDate, payments, paidDate, paidAmount: paidTotal });
+    if (row.type !== 'event') {
+      Object.assign(row, { carryover, carryoverFrom, carryoverAt: data.carryoverAt });
+      if (carryoverChanged) {
+        await syncCarryoverSource({ month, uid, amount: carryover, fromMonth: carryoverFrom, previousFrom: prevCarryoverFrom });
+      }
+    }
     document.getElementById('settlement-modal').classList.remove('open');
     renderSettlements();
-    showToast('✅ 정산이 저장되었습니다.');
+    showToast(carryoverChanged ? '✅ 정산과 전월 이월 상태가 저장되었습니다.' : '✅ 정산이 저장되었습니다.');
   } catch(e) {
     const errEl = document.getElementById('settle-edit-error');
     errEl.textContent = '저장 실패: ' + e.message;
@@ -12823,10 +13045,12 @@ function updatePaymentSummary() {
   const row = getSettlementRow(uid);
   if (!row) return;
   const adjust = parseInt(document.getElementById('settle-edit-adjust')?.value, 10) || 0;
-  const billed = settlementModalBaseAmount(row) + adjust;
+  const carryover = row.type === 'event' ? 0 : Math.max(0, parseInt(document.getElementById('settle-edit-carryover')?.value, 10) || 0);
+  const billed = settlementModalBaseAmount(row) + adjust + carryover;
   const paidTotal = Array.from(document.querySelectorAll('#payment-list .payment-row'))
     .reduce((s, r) => s + (parseInt(r.querySelector('[data-field="amount"]').value, 10) || 0), 0);
-  const balance = billed - paidTotal;
+  // 다음 달로 이월한 금액은 이 달 잔액에서 뺀다 (테이블 잔액과 같은 기준)
+  const balance = billed - paidTotal - (row.type === 'event' ? 0 : settlementCarriedOverAmount(row));
   const billedEl = document.getElementById('sem-billed');
   const paidEl = document.getElementById('sem-paid');
   const balEl = document.getElementById('sem-balance');
@@ -12893,6 +13117,262 @@ async function deleteSettlement() {
   await deleteSettlementRow(uid, true);
 }
 
+// ── 정산 이월 (전월 미수금 → 당월 청구) ──
+function renderCarryoverHint(row, month) {
+  const fromEl = document.getElementById('settle-edit-carryover-from');
+  const hintEl = document.getElementById('settle-edit-carryover-hint');
+  if (!fromEl || !hintEl) return;
+  const from = row.carryoverFrom || prevMonthStr(month);
+  fromEl.textContent = `(${monthLabelKR(from)} 잔액)`;
+  const parts = [];
+  if (row.carriedOverTo) {
+    parts.push(`이 정산의 잔액 ${settlementCarriedOverAmount(row).toLocaleString()}원은 ${monthLabelKR(row.carriedOverTo)} 정산으로 이월되었습니다. 되돌리려면 ${monthShortKR(row.carriedOverTo)} 정산에서 "이월 취소"를 누르세요.`);
+  }
+  if (settlementCarryover(row) > 0) {
+    parts.push(`${monthLabelKR(from)} 미수금 ${settlementCarryover(row).toLocaleString()}원이 이번 달 청구액에 포함되어 있습니다. 0으로 바꾸고 저장하면 전월 정산 상태가 원래대로 돌아갑니다.`);
+  } else {
+    parts.push('전월 잔액 조회로 금액을 넣고 저장하면 전월 정산은 "이월됨"으로 바뀌고 잔액이 0으로 정리됩니다.');
+  }
+  hintEl.textContent = parts.join(' ');
+}
+
+async function fillCarryoverFromPrevMonth() {
+  const uid = document.getElementById('settle-edit-uid').value;
+  const row = getSettlementRow(uid);
+  if (!row || row.type === 'event') return;
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  const fromMonth = row.carryoverFrom || prevMonthStr(month);
+  const hintEl = document.getElementById('settle-edit-carryover-hint');
+  if (hintEl) hintEl.textContent = `${monthLabelKR(fromMonth)} 정산을 계산하는 중...`;
+  try {
+    const { rows } = await computeMonthlySettlementRows(fromMonth);
+    const prevRow = rows.find(r => r.uid === uid);
+    if (!prevRow) {
+      showToast(`${monthLabelKR(fromMonth)} 정산 내역이 없습니다.`);
+      renderCarryoverHint(row, month);
+      return;
+    }
+    if (prevRow.carriedOverTo && prevRow.carriedOverTo !== month) {
+      showToast(`${monthLabelKR(fromMonth)} 잔액은 이미 ${monthLabelKR(prevRow.carriedOverTo)} 정산으로 이월되었습니다.`);
+      renderCarryoverHint(row, month);
+      return;
+    }
+    const balance = prevRow.carriedOverTo === month ? settlementOpenBalance(prevRow) : settlementBalance(prevRow);
+    if (balance <= 0) {
+      showToast(`${monthLabelKR(fromMonth)} 잔액이 없습니다. (${settlementStatusLabel(prevRow.status)})`);
+      renderCarryoverHint(row, month);
+      return;
+    }
+    document.getElementById('settle-edit-carryover').value = balance;
+    updatePaymentSummary();
+    if (hintEl) hintEl.textContent = `${monthLabelKR(fromMonth)} 청구 ${formatMoney(settlementBilledTotal(prevRow))} · 입금 ${formatMoney(settlementPaidTotal(prevRow))} · 잔액 ${formatMoney(balance)} (${settlementStatusLabel(prevRow.status)}) — 저장하면 이월이 적용됩니다.`;
+  } catch(e) {
+    showToast('전월 잔액 조회 실패: ' + e.message);
+    renderCarryoverHint(row, month);
+  }
+}
+
+function clearCarryoverField() {
+  const input = document.getElementById('settle-edit-carryover');
+  if (!input) return;
+  input.value = 0;
+  updatePaymentSummary();
+  const hintEl = document.getElementById('settle-edit-carryover-hint');
+  if (hintEl) hintEl.textContent = '저장하면 이월이 취소되고 전월 정산 상태가 원래대로 돌아갑니다.';
+}
+
+// 이월받는 달(month)의 이월액이 바뀌면 원천 달 정산의 상태/이월액을 함께 맞춘다
+async function syncCarryoverSource({ month, uid, amount, fromMonth, previousFrom }) {
+  const targets = [...new Set([fromMonth, previousFrom].filter(Boolean))];
+  for (const srcMonth of targets) {
+    const { rows } = await computeMonthlySettlementRows(srcMonth);
+    const srcRow = rows.find(r => r.uid === uid);
+    if (!srcRow) continue;
+    const active = srcMonth === fromMonth && amount > 0;
+    if (active) {
+      const keepStamp = srcRow.carriedOverTo === month && srcRow.carriedOverAt;
+      await saveSettlementItem(srcMonth, uid, srcRow, settlementRowSaveData(srcRow, {
+        status: '이월',
+        statusBeforeCarryover: srcRow.status === '이월' ? (srcRow.statusBeforeCarryover || '청구완료') : srcRow.status,
+        carriedOverTo: month,
+        carriedOverAmount: amount,
+        carriedOverAt: keepStamp ? srcRow.carriedOverAt : new Date().toISOString()
+      }));
+    } else if (srcRow.carriedOverTo === month) {
+      await saveSettlementItem(srcMonth, uid, srcRow, settlementRowSaveData(srcRow, {
+        status: srcRow.status === '이월' ? (srcRow.statusBeforeCarryover || '청구완료') : srcRow.status,
+        statusBeforeCarryover: '',
+        carriedOverTo: '',
+        carriedOverAmount: 0,
+        carriedOverAt: ''
+      }));
+    }
+  }
+}
+
+// 이번 달 주문이 없는 업체에 이월액만 넣을 때 쓰는 빈 행
+function newCarryoverTargetRow(prevRow) {
+  const type = prevRow.type === 'manualMonthly' ? 'manualMonthly'
+    : prevRow.type === 'manualOrderMonthly' ? 'manualOrderMonthly'
+    : 'customerMonthly';
+  return {
+    uid: prevRow.uid,
+    type,
+    manualOrder: Boolean(prevRow.manualOrder),
+    removedUser: Boolean(prevRow.removedUser),
+    user: prevRow.user || {},
+    businessName: prevRow.user?.businessName || '',
+    phone: prevRow.user?.phone || '',
+    lunch: 0, salad: 0, eventLunch: 0, catering: 0, cateringAmount: 0, cateringItems: [],
+    lunchPrice: prevRow.lunchPrice || 0,
+    saladPrice: prevRow.saladPrice || 0,
+    eventPrice: prevRow.eventPrice || prevRow.lunchPrice || 0,
+    amount: 0, status: '미정산', note: '', adjust: 0, invoiceNo: '', dueDate: '',
+    payments: [], dateBreakdown: {},
+    source: prevRow.source,
+    manualMonthly: type === 'manualMonthly'
+  };
+}
+
+async function openCarryoverModal() {
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  const fromMonth = prevMonthStr(month);
+  const modal = document.getElementById('carryover-modal');
+  const tbody = document.getElementById('carryover-tbody');
+  const errEl = document.getElementById('carryover-error');
+  document.getElementById('carryover-modal-title').textContent = `↩️ ${monthLabelKR(fromMonth)} 미수금 → ${monthLabelKR(month)} 이월`;
+  document.getElementById('carryover-modal-desc').textContent = `${monthLabelKR(fromMonth)} 정산에서 아직 입금되지 않은 잔액을 ${monthLabelKR(month)} 청구액에 더합니다. 행사도시락은 건별 정산이라 제외됩니다.`;
+  tbody.innerHTML = '<tr><td colspan="6" style="padding:18px;color:var(--sub)">전월 정산을 계산하는 중...</td></tr>';
+  document.getElementById('carryover-check-all').checked = true;
+  errEl.textContent = '';
+  errEl.classList.remove('show');
+  carryoverCandidates = [];
+  updateCarryoverSummary();
+  modal.classList.add('open');
+  try {
+    if (settlementLoadedMonth !== month) await loadSettlements();
+    const { rows: prevRows } = await computeMonthlySettlementRows(fromMonth);
+    carryoverCandidates = prevRows
+      .map(prevRow => {
+        const alreadyHere = prevRow.carriedOverTo === month;
+        const carriedElsewhere = Boolean(prevRow.carriedOverTo) && !alreadyHere;
+        const balance = alreadyHere ? settlementOpenBalance(prevRow) : settlementBalance(prevRow);
+        return {
+          uid: prevRow.uid,
+          prevRow,
+          current: settlementRows.find(r => r.uid === prevRow.uid) || null,
+          balance,
+          alreadyHere,
+          carriedElsewhere
+        };
+      })
+      .filter(c => c.balance > 0 && !c.carriedElsewhere && c.prevRow.status !== '입금완료' && (c.prevRow.status !== '이월' || c.alreadyHere))
+      .sort((a, b) => (a.prevRow.user?.businessName || '').localeCompare(b.prevRow.user?.businessName || '', 'ko'));
+    renderCarryoverTable();
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:18px;color:#c0392b">전월 정산 계산 실패: ${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+function renderCarryoverTable() {
+  const tbody = document.getElementById('carryover-tbody');
+  if (!carryoverCandidates.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:18px;color:var(--sub)">이월할 전월 미수금이 없습니다. 🎉</td></tr>';
+    updateCarryoverSummary();
+    return;
+  }
+  tbody.innerHTML = carryoverCandidates.map((c, i) => {
+    const prevRow = c.prevRow;
+    const name = prevRow.user?.businessName || c.uid;
+    const noOrder = c.current ? '' : ' <span style="font-size:11px;color:var(--sub)">(이번 달 주문 없음)</span>';
+    return `<tr class="${c.alreadyHere ? 'done' : ''}">
+      <td><input type="checkbox" class="carryover-check" data-idx="${i}" ${c.alreadyHere ? 'disabled' : 'checked'} onchange="updateCarryoverSummary()"></td>
+      <td class="left">${escapeHtml(name)}${noOrder}</td>
+      <td><span class="settle-status-badge ${escapeHtml(prevRow.status)}">${escapeHtml(settlementStatusLabel(prevRow.status))}</span></td>
+      <td class="num">${formatMoney(settlementBilledTotal(prevRow))}</td>
+      <td class="num">${formatMoney(settlementPaidTotal(prevRow))}</td>
+      <td class="num" style="font-weight:800;color:${c.alreadyHere ? 'var(--sub)' : '#c0392b'}">${formatMoney(c.balance)}${c.alreadyHere ? '<span class="carryover-label">이미 이월됨</span>' : ''}</td>
+    </tr>`;
+  }).join('');
+  updateCarryoverSummary();
+}
+
+function selectedCarryoverCandidates() {
+  return Array.from(document.querySelectorAll('.carryover-check:checked'))
+    .map(el => carryoverCandidates[Number(el.dataset.idx)])
+    .filter(c => c && !c.alreadyHere);
+}
+
+function toggleAllCarryover(checked) {
+  document.querySelectorAll('.carryover-check:not(:disabled)').forEach(el => { el.checked = checked; });
+  updateCarryoverSummary();
+}
+
+function updateCarryoverSummary() {
+  const selected = selectedCarryoverCandidates();
+  const total = selected.reduce((sum, c) => sum + c.balance, 0);
+  const el = document.getElementById('carryover-selected-summary');
+  if (el) el.textContent = `선택 ${selected.length}곳 · ${total.toLocaleString('ko-KR')}원`;
+  const btn = document.getElementById('carryover-apply-btn');
+  if (btn) btn.disabled = selected.length === 0;
+}
+
+function closeCarryoverModal() {
+  document.getElementById('carryover-modal').classList.remove('open');
+}
+
+async function applyCarryover() {
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  const fromMonth = prevMonthStr(month);
+  const selected = selectedCarryoverCandidates();
+  if (!selected.length) { showToast('이월할 업체를 선택해주세요.'); return; }
+  const total = selected.reduce((sum, c) => sum + c.balance, 0);
+  if (!confirm(`${selected.length}곳의 ${monthShortKR(fromMonth)} 미수금 ${total.toLocaleString('ko-KR')}원을 ${monthShortKR(month)} 정산으로 이월할까요?\n\n전월 건은 "이월됨" 상태로 바뀌고 잔액이 0으로 정리됩니다.`)) return;
+  const btn = document.getElementById('carryover-apply-btn');
+  const errEl = document.getElementById('carryover-error');
+  btn.disabled = true;
+  errEl.textContent = '';
+  errEl.classList.remove('show');
+  try {
+    const now = new Date().toISOString();
+    let batch = db.batch();
+    let pending = 0;
+    for (const c of selected) {
+      const prevRow = c.prevRow;
+      const currentRow = c.current || newCarryoverTargetRow(prevRow);
+      saveSettlementItem(month, c.uid, currentRow, settlementRowSaveData(currentRow, {
+        carryover: c.balance,
+        carryoverFrom: fromMonth,
+        carryoverAt: now,
+        updatedAt: now
+      }), { batch });
+      saveSettlementItem(fromMonth, c.uid, prevRow, settlementRowSaveData(prevRow, {
+        status: '이월',
+        statusBeforeCarryover: prevRow.status === '이월' ? (prevRow.statusBeforeCarryover || '청구완료') : prevRow.status,
+        carriedOverTo: month,
+        carriedOverAmount: c.balance,
+        carriedOverAt: now,
+        updatedAt: now
+      }), { batch });
+      pending += 2;
+      if (pending >= 400) {
+        await batch.commit();
+        batch = db.batch();
+        pending = 0;
+      }
+    }
+    if (pending > 0) await batch.commit();
+    closeCarryoverModal();
+    await loadSettlements();
+    showToast(`✅ ${selected.length}곳 · ${total.toLocaleString('ko-KR')}원을 ${monthShortKR(month)} 정산으로 이월했습니다.`);
+  } catch(e) {
+    errEl.textContent = '이월 실패: ' + e.message;
+    errEl.classList.add('show');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ── 정산 차트 ──
 function setSettlementChartMode(mode) {
   settlementChartMode = mode === 'product' ? 'product' : 'billing';
@@ -12919,9 +13399,10 @@ async function loadSettlementChartData() {
     let billed = 0, paid = 0;
     const products = { lunch: 0, salad: 0, event: 0 };
     const settlementItems = await loadSettlementItems(m);
+    // 차트는 월별 발생 매출 기준 (전월 이월분은 이미 전월 청구액에 포함되어 있으므로 제외)
     Object.entries(settlementItems).forEach(([uid, s]) => {
       if (!s || s.deleted || s.type === 'manualMonthly' || s.manualMonthly) return;
-      billed += settlementBilledTotal(s);
+      billed += settlementSalesTotal(s);
       paid += settlementPaidTotal(s);
       addSettlementProductAmounts(products, s);
     });
@@ -12929,7 +13410,7 @@ async function loadSettlementChartData() {
       // TODO: legacy users.settlements fallback은 데이터 마이그레이션 후 제거
       const s = user.settlements?.[m];
       if (!s) return;
-      billed += settlementBilledTotal(s);
+      billed += settlementSalesTotal(s);
       paid += settlementPaidTotal(s);
       addSettlementProductAmounts(products, s);
     });
@@ -12937,7 +13418,7 @@ async function loadSettlementChartData() {
     const manualRows = mergedManualMonthlySettlements(m, { ...(manualMonthlySettlementsFromData(adminData)[m] || {}), ...newManualRows });
     Object.values(manualRows).forEach(row => {
       if (!row || row.deleted) return;
-      billed += settlementBilledTotal(row);
+      billed += settlementSalesTotal(row);
       paid += settlementPaidTotal(row);
       addSettlementProductAmounts(products, row);
     });
@@ -12945,7 +13426,7 @@ async function loadSettlementChartData() {
     Object.values(events).forEach(item => {
       if ((item.eventDate || '').slice(0, 7) !== m) return;
       const row = eventSettlementRow({ id: item.id || '', ...item });
-      billed += settlementBilledTotal(row);
+      billed += settlementSalesTotal(row);
       paid += settlementPaidTotal(row);
       addSettlementProductAmounts(products, row);
     });
@@ -12996,13 +13477,13 @@ async function renderSettlementCharts() {
   if (!donutCtx) return;
   if (settlementChartDonut) { settlementChartDonut.destroy(); settlementChartDonut = null; }
   const allRows = [...settlementRows, ...settlementEvents.map(eventSettlementRow)];
-  const counts = { '미정산': 0, '청구완료': 0, '입금완료': 0, '보류': 0 };
+  const counts = { '미정산': 0, '청구완료': 0, '입금완료': 0, '보류': 0, '이월': 0 };
   allRows.forEach(r => { if (r.status in counts) counts[r.status]++; });
   settlementChartDonut = new Chart(donutCtx, {
     type: 'doughnut',
     data: {
       labels: Object.keys(counts).map(settlementStatusLabel),
-      datasets: [{ data: Object.values(counts), backgroundColor: ['#fff3e0','#e3f2fd','#e8f5e9','#f3e5f5'], borderColor: ['#e65100','#1565c0','#1e6e40','#6a1b9a'], borderWidth: 2 }]
+      datasets: [{ data: Object.values(counts), backgroundColor: ['#fff3e0','#e3f2fd','#e8f5e9','#f3e5f5','#e0f2f1'], borderColor: ['#e65100','#1565c0','#1e6e40','#6a1b9a','#00695c'], borderWidth: 2 }]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 12 } } } }
   });
@@ -13283,12 +13764,17 @@ async function migrateLegacySettlementsToNewPath() {
     let batch = db.batch();
     let pending = 0;
     let copied = 0;
+    let skipped = 0;
     const months = new Set();
+    // 새 경로에 이미 문서가 있는 월은 건너뜀 (새 경로 쪽이 최신이므로 legacy로 덮어쓰면 안 됨)
+    const existingByMonth = {};
     for (const doc of usersSnap.docs) {
       const user = doc.data() || {};
       const settlements = user.settlements || {};
       for (const [month, data] of Object.entries(settlements)) {
         if (!data || typeof data !== 'object') continue;
+        if (!existingByMonth[month]) existingByMonth[month] = await loadSettlementItems(month).catch(() => ({}));
+        if (existingByMonth[month][doc.id]) { skipped += 1; continue; }
         const payload = {
           ...data,
           uid: doc.id,
@@ -13308,10 +13794,10 @@ async function migrateLegacySettlementsToNewPath() {
       }
     }
     if (pending > 0) await batch.commit();
-    const message = `복사 완료: ${copied}건 / 월 ${Array.from(months).sort().join(', ') || '없음'}`;
+    const message = `복사 완료: ${copied}건 (이미 새 경로에 있어 건너뜀 ${skipped}건) / 월 ${Array.from(months).sort().join(', ') || '없음'}`;
     console.log('[settlement migration]', message);
     if (resultEl) resultEl.textContent = message;
-    showToast(`✅ legacy 정산 ${copied}건을 복사했습니다.`);
+    showToast(`✅ legacy 정산 ${copied}건을 복사했습니다. (건너뜀 ${skipped}건)`);
   } catch (e) {
     console.error('정산 마이그레이션 실패:', e);
     if (resultEl) resultEl.textContent = '실패: ' + e.message;
@@ -13795,6 +14281,10 @@ async function deleteSettlementRow(uid, fromModal = false) {
   if (!confirm(message)) return;
   const month = document.getElementById('settle-month').value || currentMonthStr();
   try {
+    // 이월받은 행을 지우면 전월 정산의 "이월됨" 표시도 되돌린다 (잔액이 사라지지 않도록)
+    if (row && row.type !== 'event' && settlementCarryover(row) > 0 && row.carryoverFrom) {
+      await syncCarryoverSource({ month, uid, amount: 0, fromMonth: '', previousFrom: row.carryoverFrom });
+    }
     if (row?.type === 'event') {
       await deleteEventLunch(row.eventId, true);
     } else if (row?.type === 'manualMonthly') {
