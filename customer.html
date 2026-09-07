@@ -4177,16 +4177,16 @@ function renderCustomerSettlementDailyDetail(s) {
     </div>`;
 }
 
-function renderCustomerSettlementDetail(s) {
-  const billed = (s.amount || 0) + (s.adjust || 0);
-  let payments = s.payments || [];
-  if (payments.length === 0 && s.paidAmount > 0) {
-    payments = [{ amount: s.paidAmount, date: s.paidDate || '', note: '(이전 기록)' }];
-  }
-  const paidTotal = payments.reduce((sum, p) => sum + (parseInt(p.amount, 10) || 0), 0);
-  const balance = billed - paidTotal;
+function customerMonthShort(month) {
+  const mon = String(month || '').split('-')[1];
+  return mon ? `${parseInt(mon, 10)}월` : (month || '');
+}
 
-  const statusMap = { '입금완료':'입금완료', '미정산':'미정산', '부분입금':'부분입금', '청구완료':'청구완료', '연체':'연체', '보류':'보류', '정산완료':'정산완료' };
+function renderCustomerSettlementDetail(s) {
+  const { billed, payments, balance, carryover, carriedOverAmount } = customerSettlementSummary(s);
+  const carried = Boolean(s.carriedOverTo);
+
+  const statusMap = { '입금완료':'입금완료', '미정산':'미정산', '부분입금':'부분입금', '청구완료':'청구완료', '연체':'연체', '보류':'보류', '정산완료':'정산완료', '이월':'이월됨' };
   const statusLabel = statusMap[s.status] || s.status || '-';
 
   const invoiceHtml = s.invoiceNo
@@ -4211,6 +4211,12 @@ function renderCustomerSettlementDetail(s) {
   const noteHtml = s.note
     ? `<div class="cust-meta-row" style="margin-top:8px">메모 <span>${escapeHtml(s.note)}</span></div>`
     : '';
+  const carryoverHtml = carryover > 0
+    ? `<div class="cust-meta-row" style="margin-top:8px">${customerMonthShort(s.carryoverFrom) || '전월'} 이월 미수금 <span>+${carryover.toLocaleString()}원</span> <span style="font-weight:400;color:#6b5b4a">(이번 달 청구액에 포함)</span></div>`
+    : '';
+  const carriedHtml = carried
+    ? `<div class="cust-meta-row" style="margin-top:8px">이월 <span>잔액 ${carriedOverAmount.toLocaleString()}원 → ${customerMonthShort(s.carriedOverTo)} 정산으로 이월</span></div>`
+    : '';
   const totalLunch = customerSettlementQty(s, 'lunchTotal', 'lunch');
   const totalSalad = customerSettlementQty(s, 'saladTotal', 'salad');
   const totalEventLunch = customerSettlementQty(s, 'eventLunchTotal', 'eventLunch');
@@ -4231,11 +4237,13 @@ function renderCustomerSettlementDetail(s) {
           <div class="value">${billed.toLocaleString()}원</div>
         </div>
         <div class="cust-amount-item balance${balance <= 0 ? ' paid' : ''}">
-          <div class="label">${balance <= 0 ? iconSvg('check') + ' 완납' : '잔액'}</div>
-          <div class="value">${balance <= 0 ? '없음' : balance.toLocaleString() + '원'}</div>
+          <div class="label">${carried ? '이월됨' : balance <= 0 ? iconSvg('check') + ' 완납' : '잔액'}</div>
+          <div class="value">${carried ? `${customerMonthShort(s.carriedOverTo)} 청구` : balance <= 0 ? '없음' : balance.toLocaleString() + '원'}</div>
         </div>
       </div>
       <div class="cust-meta-row">${iconSvg('lunch')} 도시락 <span>${totalLunch}개</span>&emsp;${iconSvg('salad')} 샐러드 <span>${totalSalad}개</span>${eventSummary}${cateringSummary}${s.adjust ? `&emsp;조정 <span>${s.adjust > 0 ? '+' : ''}${s.adjust.toLocaleString()}원</span>` : ''}</div>
+      ${carryoverHtml}
+      ${carriedHtml}
       ${renderCustomerSettlementDailyDetail(s)}
       ${paymentRows}
       ${noteHtml}
@@ -4243,13 +4251,16 @@ function renderCustomerSettlementDetail(s) {
 }
 
 function customerSettlementSummary(s) {
-  const billed = (parseInt(s.amount, 10) || 0) + (parseInt(s.adjust, 10) || 0);
+  // 청구액 = 당월 발생분 + 조정 + 전월 이월 미수금. 다음 달로 이월한 금액은 이 달 잔액에서 제외
+  const carryover = Math.max(0, parseInt(s.carryover, 10) || 0);
+  const carriedOverAmount = Math.max(0, parseInt(s.carriedOverAmount, 10) || 0);
+  const billed = (parseInt(s.amount, 10) || 0) + (parseInt(s.adjust, 10) || 0) + carryover;
   let payments = s.payments || [];
   if (payments.length === 0 && s.paidAmount > 0) {
     payments = [{ amount: s.paidAmount, date: s.paidDate || '', note: '(이전 기록)' }];
   }
   const paidTotal = payments.reduce((sum, p) => sum + (parseInt(p.amount, 10) || 0), 0);
-  return { billed, payments, paidTotal, balance: billed - paidTotal };
+  return { billed, payments, paidTotal, balance: billed - paidTotal - carriedOverAmount, carryover, carriedOverAmount };
 }
 
 function customerPrintRow(label, value) {
@@ -4257,7 +4268,10 @@ function customerPrintRow(label, value) {
 }
 
 function customerSettlementPrintHtml(s, month) {
-  const { billed, payments, paidTotal, balance } = customerSettlementSummary(s);
+  const { billed, payments, paidTotal, balance, carryover, carriedOverAmount } = customerSettlementSummary(s);
+  const printStatus = s.status === '이월' ? '이월됨' : (s.status || '-');
+  const carryoverRow = carryover > 0 ? customerPrintRow(`${customerMonthShort(s.carryoverFrom) || '전월'} 이월 미수금`, `+${carryover.toLocaleString()}원`) : '';
+  const carriedRow = s.carriedOverTo ? customerPrintRow('이월', `잔액 ${carriedOverAmount.toLocaleString()}원 → ${customerMonthShort(s.carriedOverTo)} 정산으로 이월`) : '';
   const [year, mon] = String(month || '').split('-');
   const titleMonth = year && mon ? `${year}년 ${parseInt(mon, 10)}월` : month;
   const customerName = userProfile?.businessName || currentUser?.email || '';
@@ -4348,13 +4362,15 @@ function customerSettlementPrintHtml(s, month) {
     <table>
       <tbody>
         ${customerPrintRow('정산월', titleMonth || '-')}
-        ${customerPrintRow('정산 상태', s.status || '-')}
+        ${customerPrintRow('정산 상태', printStatus)}
         ${customerPrintRow('납부기한', s.dueDate || '-')}
         ${customerPrintRow('도시락', `${totalLunch}개 · 단가 ${prices.lunch.toLocaleString()}원`)}
         ${customerPrintRow('샐러드', `${totalSalad}개 · 단가 ${prices.salad.toLocaleString()}원`)}
         ${hasEventLunch ? customerPrintRow('일회용도시락', `${totalEventLunch}개 · 단가 ${prices.eventLunch.toLocaleString()}원`) : ''}
         ${hasCatering ? customerPrintRow('행사도시락', `${totalCatering}개 · ${topCatering.totalAmount.toLocaleString()}원`) : ''}
         ${s.adjust ? customerPrintRow('조정금액', `${s.adjust > 0 ? '+' : ''}${s.adjust.toLocaleString()}원`) : ''}
+        ${carryoverRow}
+        ${carriedRow}
         ${noteRow}
       </tbody>
     </table>

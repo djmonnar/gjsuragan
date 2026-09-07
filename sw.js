@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v60-admin-business-register';
+const CACHE = 'gjsuragan-v61-settlement-carryover';
 const PRECACHE = [
   './customer.html',
   './admin.html',

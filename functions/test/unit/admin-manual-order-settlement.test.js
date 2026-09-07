@@ -39,6 +39,7 @@ function extractFunction(name) {
 const manualSettlement = vm.runInNewContext(`(() => {
   ${extractFunction('isManualDeliveryRecord')}
   ${extractFunction('savedSettlementPayments')}
+  ${extractFunction('settlementCarryoverFields')}
   ${extractFunction('manualDeliverySettlementRow')}
   return { isManualDeliveryRecord, manualDeliverySettlementRow };
 })()`);
@@ -86,11 +87,14 @@ test('기존 비회원 정산의 입금 기록을 그대로 이어받는다', ()
 });
 
 test('정산 불러오기와 자동 재계산이 비회원 수기 배송을 포함한다', () => {
+  // 월별 정산 집계는 computeMonthlySettlementRows 로 옮겨졌고, loadSettlements 는 그 결과를 화면에 올린다.
   const loadSettlementsSource = extractFunction('loadSettlements');
+  const computeSource = extractFunction('computeMonthlySettlementRows');
   const autoBillSource = extractFunction('autoBillCompletedDeliveries');
   const rebuildSource = extractFunction('rebuildSettlementsForUids');
-  assert.doesNotMatch(loadSettlementsSource, /if \(!allUsers\[uid\]\) return;/);
-  assert.match(loadSettlementsSource, /manualDeliverySettlementRow\(uid, data, saved\)/);
+  assert.match(loadSettlementsSource, /computeMonthlySettlementRows\(month\)/);
+  assert.doesNotMatch(computeSource, /if \(!allUsers\[uid\]\) return;/);
+  assert.match(computeSource, /manualDeliverySettlementRow\(uid, data, saved\)/);
   assert.match(autoBillSource, /manualOrderMonthly/);
   assert.match(rebuildSource, /manualOrderMonthly/);
 });
