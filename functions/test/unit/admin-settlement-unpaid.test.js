@@ -75,3 +75,41 @@ test('관리자 정산 화면에 미입금 업체 카드와 필터가 연결되�
   assert.match(adminSource, /data-filter="미입금"/);
   assert.match(extractFunction('filterMatchesRow'), /isSettlementUnpaid\(row\)/);
 });
+
+const search = vm.runInNewContext(`(() => {
+  let currentSettleFilter = 'all';
+  let settlementSearchQuery = '';
+  const eventCustomerName = item => item.businessName || item.customerName || '행사도시락';
+  const calcOverdue = () => 0;
+  const isSettlementUnpaid = () => false;
+  ${extractFunction('normalizedBusinessKey')}
+  ${extractFunction('settlementSearchMatches')}
+  ${extractFunction('settlementRowVisible')}
+  ${extractFunction('filterMatchesRow')}
+  return {
+    setQuery(value) { settlementSearchQuery = normalizedBusinessKey(value); },
+    settlementRowVisible
+  };
+})()`, {});
+
+test('업체명 검색은 띄어쓰기와 대소문자를 무시하고 일부만 맞아도 찾는다', () => {
+  search.setQuery('우미린');
+  assert.equal(search.settlementRowVisible({ user: { businessName: '다함께 우미린 돌봄' } }), true);
+  assert.equal(search.settlementRowVisible({ user: { businessName: '다도OA' } }), false);
+  search.setQuery('dado oa');
+  assert.equal(search.settlementRowVisible({ user: { businessName: 'DadoOA' } }), true);
+});
+
+test('행사도시락 행은 주문 업체명으로도 검색된다', () => {
+  search.setQuery('농수산');
+  assert.equal(search.settlementRowVisible({ type: 'event', user: { businessName: '행사도시락' }, event: { businessName: '대한민국농수산' } }), true);
+  search.setQuery('');
+  assert.equal(search.settlementRowVisible({ user: { businessName: '아무 업체' } }), true);
+});
+
+test('정산 화면에 업체명 검색칸이 있고 표와 모바일 카드 모두 검색을 거친다', () => {
+  assert.match(adminSource, /id="settle-search"/);
+  const render = extractFunction('renderSettlements');
+  assert.match(render, /settlementRows\.filter\(row => settlementRowVisible\(row\)\)/);
+  assert.match(render, /\.filter\(\(\{ row \}\) => settlementRowVisible\(row\)\)/);
+});

@@ -208,6 +208,18 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .settlement-desktop-table{overflow-x:auto}
 .settlement-mobile-list{display:none}
 .settlement-mobile-switch{display:none}
+.settle-search-bar{display:flex;align-items:center;gap:8px;margin:0 0 14px}
+.settle-search-bar .form-input{flex:1;min-width:0;max-width:360px;margin:0;min-height:42px}
+.settle-search-clear{flex:0 0 auto;min-height:42px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--sub);font:inherit;font-size:13px;font-weight:700;padding:0 12px;cursor:pointer}
+.batch-toolbar-toggle{display:none}
+.settlement-mobile-card-head{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.settlement-mobile-card-summary{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:4px;font-size:13px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}
+.settlement-mobile-card-summary .balance{color:#c0392b}
+.settlement-mobile-card-summary .balance.settled{color:#1e6e40}
+.settlement-mobile-card-chevron{flex:0 0 auto;align-self:center;color:var(--sub);font-size:12px;transition:transform .15s}
+.settlement-mobile-card.open .settlement-mobile-card-chevron{transform:rotate(180deg)}
+.settlement-mobile-card:not(.open) .settlement-mobile-card-head{border-bottom:0}
+.settlement-mobile-card:not(.open) .settlement-mobile-card-body{display:none}
 .settlement-mobile-card{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
 .settlement-mobile-card-head{display:flex;align-items:flex-start;gap:10px;padding:14px 14px 12px;border-bottom:1px solid var(--border)}
 .settlement-mobile-card-head .settle-check{flex:0 0 auto;margin-top:3px;width:19px;height:19px}
@@ -515,7 +527,15 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .settle-filter-tabs{margin-left:-2px;margin-right:-2px;scrollbar-width:none}
   .settle-filter-tabs::-webkit-scrollbar{display:none}
   .settle-tab-btn{flex:0 0 auto;min-height:39px;padding:8px 13px}
-  .settlement-mobile-switch{display:grid;grid-template-columns:1fr 1fr;gap:6px;position:sticky;top:106px;z-index:21;margin:0 0 12px;padding:6px;background:rgba(255,255,255,.96);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+  .settlement-mobile-sticky{position:sticky;top:106px;z-index:21;margin:0 0 12px;padding:6px;background:rgba(255,255,255,.96);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+  .settlement-mobile-switch{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 0 6px}
+  .settle-search-bar{margin:0}
+  .settle-search-bar .form-input{max-width:none;min-height:40px}
+  .settle-search-clear{min-height:40px}
+  .batch-toolbar-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;min-height:40px;border:0;border-radius:8px;background:transparent;color:var(--text);font:inherit;font-size:13px;font-weight:800;padding:0 4px;cursor:pointer;text-align:left}
+  .batch-toolbar-toggle span{color:var(--primary);font-size:12px}
+  .settlement-section .batch-toolbar:not(.expanded)>*:not(.batch-toolbar-toggle){display:none}
+  .settlement-section .batch-toolbar:not(.expanded){padding:4px 8px}
   .settlement-mobile-switch button{min-width:0;min-height:42px;border:0;border-radius:8px;background:transparent;color:var(--sub);font:inherit;font-size:14px;font-weight:800;cursor:pointer}
   .settlement-mobile-switch button.active{background:var(--primary);color:#fff;box-shadow:0 3px 10px rgba(24,77,55,.18)}
   .settlement-mobile-switch-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;margin-left:4px;padding:0 6px;border-radius:999px;background:rgba(0,0,0,.06);font-size:11px;font-weight:900}
@@ -536,7 +556,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .settle-chart-heading{align-items:flex-start}
   .settle-chart-modes{width:100%;flex-wrap:nowrap;overflow-x:auto}
   .batch-toolbar{position:sticky;top:106px;z-index:20;align-items:stretch;padding:10px}
-  .settlement-section .batch-toolbar{top:160px}
+  .settlement-section .batch-toolbar{position:static;top:auto}
   .batch-toolbar label{width:100%}
   .batch-status-select{flex:1;min-width:0;min-height:42px}
   .batch-apply-btn,.export-btn,.kakao-btn{min-height:42px;flex:1 1 calc(50% - 5px)}
@@ -2038,9 +2058,15 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       </details>
     </div>
 
-    <div class="settlement-mobile-switch" role="tablist" aria-label="모바일 정산 보기">
-      <button class="active" id="settlement-mobile-tab-standard" type="button" role="tab" aria-selected="true" onclick="setSettlementMobileView('standard')">업체별 <span class="settlement-mobile-switch-count" id="settlement-standard-mobile-count">0</span></button>
-      <button id="settlement-mobile-tab-event" type="button" role="tab" aria-selected="false" onclick="setSettlementMobileView('event')">행사도시락 <span class="settlement-mobile-switch-count" id="settlement-event-mobile-count">0</span></button>
+    <div class="settlement-mobile-sticky">
+      <div class="settlement-mobile-switch" role="tablist" aria-label="모바일 정산 보기">
+        <button class="active" id="settlement-mobile-tab-standard" type="button" role="tab" aria-selected="true" onclick="setSettlementMobileView('standard')">업체별 <span class="settlement-mobile-switch-count" id="settlement-standard-mobile-count">0</span></button>
+        <button id="settlement-mobile-tab-event" type="button" role="tab" aria-selected="false" onclick="setSettlementMobileView('event')">행사도시락 <span class="settlement-mobile-switch-count" id="settlement-event-mobile-count">0</span></button>
+      </div>
+      <div class="settle-search-bar">
+        <input class="form-input" type="search" id="settle-search" placeholder="🔍 업체명 검색" autocomplete="off" enterkeyhint="search" oninput="setSettleSearch(this.value)">
+        <button type="button" class="settle-search-clear" id="settle-search-clear" onclick="clearSettleSearch()" style="display:none">지우기</button>
+      </div>
     </div>
 
     <!-- 대시보드: KPI 카드 + 차트 -->
@@ -2105,6 +2131,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 
     <!-- 일괄 처리 툴바 -->
     <div class="batch-toolbar" id="settle-batch-toolbar" style="display:none">
+      <button type="button" class="batch-toolbar-toggle" onclick="toggleBatchToolbar(this)" aria-expanded="false">☑ 일괄 변경 · 엑셀 · 전체 카톡 <span>펼치기</span></button>
       <label><input type="checkbox" id="settle-check-all" onchange="toggleAllSettlements(this.checked,'standard')"> 일반 업체 전체 선택</label>
       <select class="batch-status-select" id="batch-status-select">
         <option value="">일반 업체 상태 선택</option>
@@ -2149,6 +2176,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <!-- 행사도시락 정산 테이블 -->
     <div class="section-title settlement-event-heading" style="margin-top:18px">🎉 행사도시락 정산 내역</div>
     <div class="batch-toolbar" id="settle-event-batch-toolbar" style="display:none">
+      <button type="button" class="batch-toolbar-toggle" onclick="toggleBatchToolbar(this)" aria-expanded="false">☑ 행사도시락 일괄 변경 <span>펼치기</span></button>
       <label><input type="checkbox" id="settle-event-check-all" onchange="toggleAllSettlements(this.checked,'event')"> 행사도시락 전체 선택</label>
       <select class="batch-status-select" id="batch-event-status-select">
         <option value="">행사도시락 상태 선택</option>
@@ -3335,6 +3363,45 @@ function setSettleSort(sort) {
   renderSettlements();
 }
 
+let settlementSearchQuery = '';
+function settlementSearchMatches(row) {
+  if (!settlementSearchQuery) return true;
+  const names = [
+    row.user?.businessName,
+    row.event ? eventCustomerName(row.event) : '',
+    row.event?.name,
+    row.eventName
+  ];
+  return names.some(name => normalizedBusinessKey(name).includes(settlementSearchQuery));
+}
+// 상태 필터와 업체명 검색을 둘 다 통과한 행만 보여준다.
+function settlementRowVisible(row) {
+  return filterMatchesRow(row) && settlementSearchMatches(row);
+}
+function setSettleSearch(value) {
+  settlementSearchQuery = normalizedBusinessKey(value);
+  const clear = document.getElementById('settle-search-clear');
+  if (clear) clear.style.display = settlementSearchQuery ? '' : 'none';
+  renderSettlements();
+}
+function clearSettleSearch() {
+  const input = document.getElementById('settle-search');
+  if (input) input.value = '';
+  setSettleSearch('');
+  input?.focus();
+}
+function toggleBatchToolbar(button) {
+  const bar = button.closest('.batch-toolbar');
+  if (!bar) return;
+  const open = bar.classList.toggle('expanded');
+  button.setAttribute('aria-expanded', String(open));
+  const label = button.querySelector('span');
+  if (label) label.textContent = open ? '접기' : '펼치기';
+}
+function toggleSettlementCard(event, head) {
+  if (event.target.closest('input,button,a,select,label')) return;
+  head.closest('.settlement-mobile-card')?.classList.toggle('open');
+}
 function filterMatchesRow(row) {
   if (currentSettleFilter === 'all') return true;
   if (currentSettleFilter === '미입금') return isSettlementUnpaid(row);
@@ -11130,6 +11197,7 @@ function settlementMobileActionsHtml(uid, row) {
     ${quickPay}
     <button class="mini-btn" onclick="openSheetModal('${safeUid}')">정산표 보기</button>
     <button class="mini-btn" onclick="openSettlementEdit('${safeUid}')">정산 수정</button>
+    ${(row && (row.manualOrder || row.removedUser)) ? `<button class="mini-btn" onclick="openSettlementMergeModal('${safeUid}')">다른 업체와 합치기</button>` : ''}
     <button class="kakao-mini-btn" onclick="copySettlementKakao('${safeUid}')">카톡 복사</button>
     <button class="mini-btn" onclick="makeSettlementReceipt('${safeUid}')">영수증</button>
     <button class="danger-btn" onclick="deleteSettlementRow('${safeUid}')">삭제</button>
@@ -11148,14 +11216,19 @@ function settlementMobileCardHtml(row) {
   const note = row.note
     ? `<div class="settlement-mobile-note">메모 · ${escapeHtml(row.note)}</div>`
     : '<div class="settlement-mobile-note empty">등록된 메모가 없습니다.</div>';
+  const nameChip = row.removedUser
+    ? ' <span class="source-badge holiday" title="삭제된 업체입니다. 지난 배송기록은 그대로 남아 있습니다">탈퇴</span>'
+    : (row.manualOrder ? ' <span class="admin-memo-chip" title="수동 입력 업체">수동</span>' : '');
   return `<article class="settlement-mobile-card">
-    <div class="settlement-mobile-card-head">
+    <div class="settlement-mobile-card-head" onclick="toggleSettlementCard(event,this)">
       <input class="settle-check" type="checkbox" value="${escapeHtml(uid)}" aria-label="${escapeHtml(row.user.businessName || '업체')} 선택" onchange="syncSettlementChecks(this.value,this.checked)">
       <div class="settlement-mobile-card-title">
-        <div class="settlement-mobile-card-name">${escapeHtml(row.user.businessName || '-')}</div>
+        <div class="settlement-mobile-card-name">${escapeHtml(row.user.businessName || '-')}${nameChip}</div>
+        <div class="settlement-mobile-card-summary"><span>청구 ${formatMoney(billed)}</span><span class="balance${balanceSettled ? ' settled' : ''}">${balanceSettled ? '완납' : `잔액 ${formatMoney(balance)}`}</span></div>
         <div class="settlement-mobile-card-sub">${escapeHtml(row.invoiceNo ? `청구서 ${row.invoiceNo}` : '청구서번호 미등록')}${escapeHtml(adjustText)}</div>
       </div>
       <span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span>
+      <span class="settlement-mobile-card-chevron" aria-hidden="true">▼</span>
     </div>
     <div class="settlement-mobile-card-body">
       <div class="settlement-mobile-money">
@@ -11204,13 +11277,15 @@ function settlementEventMobileCardHtml(item, row) {
     ? `<div class="settlement-mobile-note">메모 · ${escapeHtml(row.note)}</div>`
     : '<div class="settlement-mobile-note empty">등록된 메모가 없습니다.</div>';
   return `<article class="settlement-mobile-card">
-    <div class="settlement-mobile-card-head">
+    <div class="settlement-mobile-card-head" onclick="toggleSettlementCard(event,this)">
       <input class="settle-check" type="checkbox" value="${escapeHtml(uid)}" aria-label="${escapeHtml(eventCustomerName(item) || '행사도시락')} 선택" onchange="syncSettlementChecks(this.value,this.checked)">
       <div class="settlement-mobile-card-title">
         <div class="settlement-mobile-card-name">${escapeHtml(eventCustomerName(item) || '-')}</div>
-        <div class="settlement-mobile-card-sub">${escapeHtml(item.name || '행사도시락')}</div>
+        <div class="settlement-mobile-card-summary"><span>청구 ${formatMoney(billed)}</span><span class="balance${balanceSettled ? ' settled' : ''}">${balanceSettled ? '완납' : `잔액 ${formatMoney(balance)}`}</span></div>
+        <div class="settlement-mobile-card-sub">${escapeHtml(item.eventDate || '')}${item.eventDate ? ' · ' : ''}${escapeHtml(item.name || '행사도시락')}</div>
       </div>
       <span class="settle-status-badge ${escapeHtml(row.status)}">${escapeHtml(settlementStatusLabel(row.status))}</span>
+      <span class="settlement-mobile-card-chevron" aria-hidden="true">▼</span>
     </div>
     <div class="settlement-mobile-card-body">
       <div class="settlement-mobile-money">
@@ -11273,8 +11348,8 @@ function renderSettlements() {
   const totalSalad = settlementRows.reduce((sum, row) => sum + row.salad, 0);
   const totalCatering = settlementRows.reduce((sum, row) => sum + settlementCateringQty(row), 0);
   const eventRows = settlementEvents.map(eventSettlementRow);
-  const standardMobileCount = settlementRows.filter(row => filterMatchesRow(row)).length;
-  const eventMobileCount = eventRows.filter(row => filterMatchesRow(row)).length;
+  const standardMobileCount = settlementRows.filter(row => settlementRowVisible(row)).length;
+  const eventMobileCount = eventRows.filter(row => settlementRowVisible(row)).length;
   const allRows = [...settlementRows, ...eventRows];
   const totalEventLunch = allRows.reduce((sum, row) => sum + settlementEventQty(row), 0);
   const totalBilled = allRows.reduce((sum, row) => sum + settlementBilledTotal(row), 0);
@@ -11333,7 +11408,7 @@ function renderSettlements() {
     tbody.innerHTML = '<tr class="no-order-row"><td colspan="14">선택한 월의 업체 주문이 없습니다.</td></tr>';
     mobileList.innerHTML = '<div class="settlement-mobile-empty">선택한 월의 업체 주문이 없습니다.</div>';
   } else {
-    const filtered = settlementRows.filter(row => filterMatchesRow(row)).sort(settlementSortComparator);
+    const filtered = settlementRows.filter(row => settlementRowVisible(row)).sort(settlementSortComparator);
     if (filtered.length === 0) {
       tbody.innerHTML = `<tr class="no-order-row"><td colspan="14">해당 조건의 업체가 없습니다.</td></tr>`;
       mobileList.innerHTML = '<div class="settlement-mobile-empty">해당 조건의 업체가 없습니다.</div>';
@@ -11386,7 +11461,7 @@ function renderSettlements() {
   } else {
     const eventItems = settlementEvents
       .map(item => ({ item, row: eventSettlementRow(item) }))
-      .filter(({ row }) => filterMatchesRow(row))
+      .filter(({ row }) => settlementRowVisible(row))
       .sort((a, b) => settlementSortComparator(a.row, b.row));
     if (eventItems.length === 0) {
       eventTbody.innerHTML = '<tr class="no-order-row"><td colspan="13">해당 조건의 행사도시락이 없습니다.</td></tr>';
