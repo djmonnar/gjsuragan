@@ -90,9 +90,12 @@ test('캐시를 비우면 유효시간이 남았어도 서버 기록을 다시 �
 });
 
 test('정산 불러오기와 주문 탭은 배송기록 캐시를 비운 뒤 집계한다', () => {
+  // 월별 집계 본문은 computeMonthlySettlementRows 에 있고 loadSettlements 가 이를 호출한다.
   const loadSettlements = extractFunction('loadSettlements');
-  const invalidateAt = loadSettlements.indexOf('invalidateDeliveryDateCache()');
-  const loadAt = loadSettlements.indexOf('loadDeliveryRecordsForDates(');
+  assert.match(loadSettlements, /computeMonthlySettlementRows\(month\)/);
+  const computeRows = extractFunction('computeMonthlySettlementRows');
+  const invalidateAt = computeRows.indexOf('invalidateDeliveryDateCache()');
+  const loadAt = computeRows.indexOf('loadDeliveryRecordsForDates(');
   assert.notEqual(invalidateAt, -1);
   assert.ok(invalidateAt < loadAt, '정산은 캐시를 비운 뒤에 배송기록을 읽어야 한다');
 

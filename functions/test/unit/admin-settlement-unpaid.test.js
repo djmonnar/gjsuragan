@@ -40,8 +40,12 @@ function extractFunction(name) {
 
 const settlement = vm.runInNewContext(`(() => {
   const eventCustomerName = item => item.businessName || item.customerName || '행사도시락';
+  ${extractFunction('settlementSalesTotal')}
+  ${extractFunction('settlementCarryover')}
+  ${extractFunction('settlementCarriedOverAmount')}
   ${extractFunction('settlementBilledTotal')}
   ${extractFunction('settlementPaidTotal')}
+  ${extractFunction('settlementBalance')}
   ${extractFunction('settlementOutstandingBalance')}
   ${extractFunction('isSettlementUnpaid')}
   ${extractFunction('settlementCompanyKey')}
