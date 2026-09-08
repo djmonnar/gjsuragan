@@ -1026,6 +1026,12 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .member-form-field.full{grid-column:1/-1}
 .member-form-field .form-label{margin-top:0}
 .member-readonly-email{display:flex;align-items:center;min-height:42px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:#f7f9f8;color:#475467;font-size:13px;font-weight:700;word-break:break-all}
+.member-reset-link-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.member-reset-link-help{font-size:12px;color:var(--sub)}
+.member-reset-link-result{margin-top:8px;padding:10px 12px;border:1px solid #b2dfdb;background:#e0f2f1;border-radius:9px;font-size:12px;line-height:1.6;color:#004d40;word-break:keep-all}
+.member-reset-link-result.error{border-color:#fecaca;background:#fdecea;color:#b91c1c}
+.member-reset-link-result .reset-link-text{display:block;font-family:monospace;font-size:11px;word-break:break-all;background:#fff;border:1px solid #b2dfdb;border-radius:6px;padding:6px 8px;margin:6px 0;color:#1f2937}
+.member-reset-link-result .reset-link-actions{display:flex;gap:6px;flex-wrap:wrap}
 .member-address-input-row{display:flex;gap:8px;align-items:center}
 .member-address-input-row .form-input{flex:1;margin-bottom:0}
 .member-address-search{white-space:nowrap;min-height:42px;padding:9px 12px}
@@ -2422,6 +2428,11 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <div class="member-form-field full">
             <label class="form-label">로그인 이메일</label>
             <div class="member-readonly-email" id="edit-member-email">-</div>
+            <div class="member-reset-link-row">
+              <button type="button" class="secondary-btn" id="member-reset-link-btn" onclick="createPasswordResetLink()">🔑 비밀번호 재설정 링크 만들기</button>
+              <span class="member-reset-link-help">재설정 메일이 안 올 때 링크를 만들어 카톡으로 보내주세요.</span>
+            </div>
+            <div class="member-reset-link-result" id="member-reset-link-result" style="display:none"></div>
           </div>
           <div class="member-form-field full">
             <label class="form-label" for="edit-place">배송지</label>
@@ -8159,6 +8170,80 @@ function openBusinessCreate() {
   document.getElementById('edit-bizname').focus();
 }
 
+// ── 고객 비밀번호 재설정 링크 (관리자가 만들어 카톡으로 전달) ──
+// Firebase 재설정 메일이 네이버·다음에서 안 올 때 쓴다. 서버(api/admin/password-reset-link)가 정식 링크를 만든다.
+let lastPasswordResetLink = null;
+function resetPasswordResetLinkBox() {
+  const box = document.getElementById('member-reset-link-result');
+  if (box) {
+    box.style.display = 'none';
+    box.textContent = '';
+    box.classList.remove('error');
+  }
+  lastPasswordResetLink = null;
+}
+async function createPasswordResetLink() {
+  const uid = document.getElementById('edit-uid').value;
+  const member = allUsers[uid] || deletedUsers[uid] || {};
+  const email = String(member.email || document.getElementById('edit-member-email')?.textContent || '').trim();
+  const box = document.getElementById('member-reset-link-result');
+  const btn = document.getElementById('member-reset-link-btn');
+  if (!email.includes('@')) { showToast('이 회원의 로그인 이메일을 찾을 수 없습니다.'); return; }
+  if (!auth.currentUser) { showToast('관리자 로그인 후 사용할 수 있습니다.'); return; }
+  btn.disabled = true;
+  btn.textContent = '링크 만드는 중...';
+  box.style.display = '';
+  box.classList.remove('error');
+  box.textContent = `${email} 계정을 확인하는 중...`;
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const response = await fetch(`${FUNCTIONS_API_BASE}/api/admin/password-reset-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ email })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.ok === false || !data.link) {
+      throw new Error(data.error || `${response.status} ${response.statusText}`);
+    }
+    lastPasswordResetLink = { ...data, businessName: member.businessName || '' };
+    const lastLogin = data.lastSignInAt ? new Date(data.lastSignInAt).toLocaleDateString('ko-KR') : '기록 없음';
+    box.innerHTML = `
+      <div>✅ <b>${escapeHtml(data.email)}</b> 계정 확인됨 · 마지막 로그인 ${escapeHtml(lastLogin)}${data.hasPassword ? '' : ' · <b>비밀번호 로그인 계정이 아닙니다</b>'}</div>
+      <span class="reset-link-text">${escapeHtml(data.link)}</span>
+      <div class="reset-link-actions">
+        <button type="button" class="kakao-mini-btn" onclick="copyPasswordResetLink('kakao')">💬 카톡 문구 복사</button>
+        <button type="button" class="mini-btn" onclick="copyPasswordResetLink('link')">링크만 복사</button>
+      </div>
+      <div style="margin-top:6px">고객이 링크를 열어 새 비밀번호를 정하면 바로 로그인할 수 있습니다. 링크는 한 번 쓰면 끝나고 시간이 지나면 만료되니, 만료되면 다시 만들어 보내주세요.</div>`;
+  } catch(e) {
+    box.classList.add('error');
+    box.textContent = '링크를 만들지 못했습니다: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔑 비밀번호 재설정 링크 만들기';
+  }
+}
+function copyPasswordResetLink(kind) {
+  if (!lastPasswordResetLink) return;
+  const { link, businessName } = lastPasswordResetLink;
+  const text = kind === 'kakao'
+    ? [
+        `[궁중수라간] ${businessName ? businessName + ' ' : ''}비밀번호 재설정 링크입니다.`,
+        '아래 링크를 눌러 새 비밀번호를 정한 뒤 고객 앱에서 로그인해주세요.',
+        link,
+        '',
+        '※ 링크는 한 번만 쓸 수 있고 시간이 지나면 만료됩니다. 만료되면 다시 요청해주세요.'
+      ].join('\n')
+    : link;
+  const done = () => showToast(kind === 'kakao' ? '✅ 카톡 문구 복사됨' : '✅ 링크 복사됨');
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => window.prompt('복사하세요:', text));
+  } else {
+    window.prompt('복사하세요:', text);
+  }
+}
+
 function openMemberEdit(uid) {
   const u = allUsers[uid];
   if (!u) return;
@@ -8168,6 +8253,10 @@ function openMemberEdit(uid) {
   document.getElementById('edit-phone').value = u.phone || '';
   document.getElementById('edit-member-email').textContent = u.email
     || (isAdminRegisteredBusiness({ ...u, uid }) ? '로그인 계정 없음 (관리자 직접 등록)' : '-');
+  // 로그인 계정이 있는 회원에게만 비밀번호 재설정 링크 버튼을 보여준다
+  resetPasswordResetLinkBox();
+  const resetLinkRow = document.querySelector('#member-modal .member-reset-link-row');
+  if (resetLinkRow) resetLinkRow.style.display = u.email ? '' : 'none';
   document.getElementById('edit-member-subtitle').textContent = [u.businessName || u.name || '고객', u.phone || '연락처 미입력'].join(' · ');
   document.getElementById('edit-place').value = u.deliveryPlace || u.address || '';
   document.getElementById('edit-place-detail').value = u.deliveryPlaceDetail || '';
