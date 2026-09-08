@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v61-settlement-carryover';
+const CACHE = 'gjsuragan-v62-password-reset-link';
 const PRECACHE = [
   './customer.html',
   './admin.html',
