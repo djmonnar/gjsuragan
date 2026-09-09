@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v63-settlement-order-delete-sync';
+const CACHE = 'gjsuragan-v64-settlement-resync-all';
 const PRECACHE = [
   './customer.html',
   './admin.html',
