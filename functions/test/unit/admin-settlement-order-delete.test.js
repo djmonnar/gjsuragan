@@ -214,3 +214,67 @@ test('배송기록이 없는 엑셀 비회원 정산과 행사도시락은 다�
   const event = await runResync(null)('event:evt-1');
   assert.deepEqual(event.rebuilt, []);
 });
+
+// ── 전체 다시계산 ──────────────────────────────────────────
+// 어느 업체가 어긋났는지 사람이 알 수 없으므로, 저장된 정산 문서를 한꺼번에 훑어서 맞춘다.
+function runResyncAll({ stored = {} } = {}) {
+  const calls = { rebuilt: [], toasts: [], reloaded: 0, confirmed: '' };
+  const context = {
+    console,
+    confirm: msg => { calls.confirmed = msg; return true; },
+    showToast: msg => calls.toasts.push(msg),
+    currentMonthStr: () => '2026-09',
+    document: { getElementById: () => ({ value: '2026-09' }) },
+    loadSettlementItems: async () => stored,
+    loadSettlements: async () => { calls.reloaded += 1; },
+    rebuildSettlementsForUids: async (month, uids) => {
+      calls.rebuilt.push({ month, uids: [...uids] });
+      return { checked: uids.length, changed: 2, removed: 1 };
+    }
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('resyncAllSettlements'), context);
+  return context.resyncAllSettlements().then(() => calls);
+}
+
+test('전체 다시계산은 저장된 정산 문서가 있는 업체만 대상으로 한다', async () => {
+  // 저장된 문서가 없던 업체까지 새로 만들면, 고객 화면에 없던 청구가 갑자기 뜬다.
+  const calls = await runResyncAll({
+    stored: {
+      bareunmom: { lunch: 8, amount: 64000 },
+      dolbom: { lunch: 3, amount: 24000 }
+    }
+  });
+  assert.equal(calls.rebuilt.length, 1);
+  assert.equal(calls.rebuilt[0].month, '2026-09');
+  assert.deepEqual([...calls.rebuilt[0].uids].sort(), ['bareunmom', 'dolbom']);
+  assert.equal(calls.reloaded, 1);
+  assert.match(calls.toasts.join(' '), /3곳 바로잡았습니다/);
+});
+
+test('전체 다시계산에서 행사도시락과 엑셀 비회원 정산은 빠진다', async () => {
+  const calls = await runResyncAll({
+    stored: {
+      bareunmom: { lunch: 8 },
+      excelbiz: { type: 'manualMonthly', lunch: 5 },
+      excelbiz2: { manualMonthly: true, lunch: 5 },
+      'event_abc': { type: 'event', eventLunch: 20 }
+    }
+  });
+  assert.deepEqual([...calls.rebuilt[0].uids], ['bareunmom']);
+});
+
+test('다시 계산할 정산이 없으면 아무것도 쓰지 않는다', async () => {
+  const calls = await runResyncAll({ stored: {} });
+  assert.deepEqual(calls.rebuilt, []);
+  assert.equal(calls.reloaded, 0);
+  assert.match(calls.toasts.join(' '), /다시 계산할 정산이 없습니다/);
+});
+
+test('보류 상태 정산은 다시 계산해도 상태를 유지하고 지우지 않는다', async () => {
+  // 보류는 사람이 일부러 잡아둔 상태다. 전체 다시계산이 이걸 청구완료로 바꾸면 안 된다.
+  const rebuildSource = extractFunction('rebuildSettlementsForUids');
+  assert.match(rebuildSource, /const onHold = saved\.status === '보류';/);
+  assert.match(rebuildSource, /!hasCarryoverInfo && !onHold/);
+  assert.match(rebuildSource, /saved\.status === '이월' \|\| onHold/);
+});

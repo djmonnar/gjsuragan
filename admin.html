@@ -533,7 +533,8 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .settle-month-picker>div{min-width:0}
   .settle-month-picker .form-input{width:100%;min-height:44px}
   .settle-month-picker .save-btn{min-height:44px;margin:0;padding-left:16px;padding-right:16px}
-  .settle-month-picker .settle-carryover-btn{grid-column:1/-1;min-height:44px}
+  .settle-month-picker .settle-carryover-btn,
+  .settle-month-picker .settle-resync-btn{grid-column:1/-1;min-height:44px}
   .settle-filter-tabs{margin-left:-2px;margin-right:-2px;scrollbar-width:none}
   .settle-filter-tabs::-webkit-scrollbar{display:none}
   .settle-tab-btn{flex:0 0 auto;min-height:39px;padding:8px 13px}
@@ -2045,6 +2046,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           </div>
           <button class="save-btn" style="width:auto" onclick="loadSettlements()">불러오기</button>
           <button class="manual-btn settle-carryover-btn" type="button" style="white-space:nowrap" onclick="openCarryoverModal()">↩️ 전월 미수금 이월</button>
+          <button class="manual-btn settle-resync-btn" type="button" style="white-space:nowrap" onclick="resyncAllSettlements()" title="이 달 정산을 배송기록 기준으로 모두 다시 계산해 고객 화면과 맞춥니다">🔄 전체 다시계산</button>
         </div>
         <div class="settle-filter-tabs">
           <button class="settle-tab-btn active" data-filter="all" onclick="setSettleFilter('all')">전체</button>
@@ -6896,7 +6898,7 @@ async function completeSelectedDeliveries() {
 
 async function rebuildSettlementsForUids(month, uids) {
   const targetUids = [...new Set((uids || []).filter(Boolean))];
-  if (!month || targetUids.length === 0) return;
+  if (!month || targetUids.length === 0) return { checked: 0, changed: 0, removed: 0 };
   invalidateDeliveryDateCache();
   const [adminDoc, settlementItems] = await Promise.all([
     db.collection('users').doc(adminUid).get(),
@@ -6905,6 +6907,8 @@ async function rebuildSettlementsForUids(month, uids) {
   const adminData = adminDoc.exists ? adminDoc.data() : {};
   // 오래된 달은 관리자 문서에 없고 보관소에 있다.
   const deliveryRecords = await loadDeliveryRecordsForDates(monthDates(month), adminData);
+  let changed = 0;
+  let removed = 0;
 
   for (const uid of targetUids) {
     const registeredUser = allUsers[uid] || deletedUsers[uid] || null;
@@ -6969,10 +6973,14 @@ async function rebuildSettlementsForUids(month, uids) {
     const paidTotal = settlementPaidTotal(saved);
     // 이월 정보가 있는 정산 문서는 배송이 0이 되어도 지우지 않는다 (이월액·이월 상태가 사라지면 안 됨)
     const hasCarryoverInfo = settlementCarryover(saved) > 0 || Boolean(saved.carriedOverTo);
+    // 보류는 사람이 일부러 잡아둔 상태다. 다시 계산해도 지우거나 상태를 바꾸지 않는다.
+    // (autoBillCompletedDeliveries 는 보류 행을 아예 건너뛴다)
+    const onHold = saved.status === '보류';
     if ((lunch + salad + eventLunch + catering) <= 0) {
-      if (settlementItems[uid] && paidTotal <= 0 && !hasCarryoverInfo) {
+      if (settlementItems[uid] && paidTotal <= 0 && !hasCarryoverInfo && !onHold) {
         await settlementItemRef(month, uid).delete();
         applySettlementToUserCache(uid, month, null);
+        removed++;
       }
       continue;
     }
@@ -6985,10 +6993,20 @@ async function rebuildSettlementsForUids(month, uids) {
     const cateringItems = Array.from(cateringById.values());
     const adjust = parseInt(saved.adjust, 10) || 0;
     const payments = saved.payments || [];
-    // 이미 다음 달로 이월된 정산은 상태를 유지한다 (금액이 바뀌면 정산 탭에서 이월액을 다시 확인해야 함)
-    const status = saved.status === '이월'
-      ? '이월'
+    // 이미 다음 달로 이월된 정산과 보류는 상태를 유지한다
+    // (금액이 바뀌면 정산 탭에서 이월액을 다시 확인해야 함)
+    const status = (saved.status === '이월' || onHold)
+      ? saved.status
       : (paidTotal > 0 && paidTotal >= (amount + adjust + settlementCarryover(saved)) ? '입금완료' : '청구완료');
+    // 저장된 값과 달라진 것만 "바로잡았다"고 센다.
+    const savedTotals = [
+      Number(saved.lunch ?? saved.lunchTotal ?? 0) || 0,
+      Number(saved.salad ?? saved.saladTotal ?? 0) || 0,
+      Number(saved.eventLunch ?? saved.eventLunchTotal ?? 0) || 0,
+      Number(saved.catering ?? saved.cateringTotal ?? 0) || 0,
+      Number(saved.amount || 0) || 0
+    ].join('/');
+    if (savedTotals !== [lunch, salad, eventLunch, catering, amount].join('/')) changed++;
     const invoiceNo = saved.invoiceNo || await generateInvoiceNo(month);
     const dueDate = saved.dueDate || defaultDueDate(month);
     const settlementUser = registeredUser || { businessName: manualBusinessName || uid, phone: manualPhone, email: '' };
@@ -7028,6 +7046,7 @@ async function rebuildSettlementsForUids(month, uids) {
       autoBilledAt: new Date().toISOString()
     });
   }
+  return { checked: targetUids.length, changed, removed };
 }
 
 async function cancelDeliveryRecord(uid, date = currentDateStr) {
@@ -14419,6 +14438,41 @@ async function resyncSettlementRow(uid) {
     showToast(`🔄 ${name} ${month} 정산을 다시 계산했습니다.`);
   } catch(e) {
     showToast('정산 다시 계산 실패: ' + e.message);
+  }
+}
+
+// 그 달에 저장된 정산 문서를 한꺼번에 배송기록 기준으로 다시 계산한다.
+// 어느 업체가 어긋났는지 사람이 알 수 없으므로, 저장된 정산 문서를 전부 훑어서 맞춘다.
+// 저장된 문서가 있는 업체만 대상으로 한다. 없던 업체에 새 청구서를 만들어
+// 고객 화면에 없던 청구가 갑자기 뜨는 일이 없어야 한다.
+async function resyncAllSettlements() {
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  let stored = {};
+  try {
+    stored = await loadSettlementItems(month);
+  } catch(e) {
+    showToast('정산 목록을 읽지 못했습니다: ' + e.message);
+    return;
+  }
+  const targets = Object.entries(stored)
+    // 행사도시락과 엑셀 비회원 정산은 배송기록이 없어 다시 계산하면 0이 되어 지워진다.
+    .filter(([uid, doc]) => doc && doc.type !== 'manualMonthly' && !doc.manualMonthly
+      && doc.type !== 'event' && !String(uid).startsWith('event'))
+    .map(([uid]) => uid);
+  if (targets.length === 0) {
+    showToast(`${month} 에 다시 계산할 정산이 없습니다.`);
+    return;
+  }
+  if (!confirm(`${month} 정산 ${targets.length}곳을 배송기록 기준으로 다시 계산할까요?\n지운 주문이 고객 정산표에 남아 있으면 같이 정리됩니다.\n\n· 입금 기록, 이월, 보류 상태는 그대로 둡니다\n· 행사도시락과 엑셀 비회원 정산은 제외됩니다`)) return;
+  try {
+    const result = await rebuildSettlementsForUids(month, targets);
+    await loadSettlements();
+    const fixed = (result?.changed || 0) + (result?.removed || 0);
+    showToast(fixed
+      ? `🔄 ${month} 정산 ${targets.length}곳 확인 · ${fixed}곳 바로잡았습니다.`
+      : `🔄 ${month} 정산 ${targets.length}곳 확인 · 어긋난 곳이 없었습니다.`);
+  } catch(e) {
+    showToast('전체 다시 계산 실패: ' + e.message);
   }
 }
 
