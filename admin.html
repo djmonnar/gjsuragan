@@ -4208,7 +4208,18 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
       }
     });
 
-    if ((lunch + salad + eventLunch + catering) <= 0) continue;
+    const paidTotal = settlementPaidTotal(saved);
+    // 이월 정보가 있는 정산 문서는 배송이 0이 되어도 지우지 않는다 (이월액·이월 상태가 사라지면 안 됨)
+    const hasCarryoverInfo = settlementCarryover(saved) > 0 || Boolean(saved.carriedOverTo);
+    if ((lunch + salad + eventLunch + catering) <= 0) {
+      // 남은 배송이 없으면 저장된 정산 문서도 지운다. rebuildSettlementsForUids 와 같은 규칙이다.
+      // 고객 화면은 이 문서를 그대로 읽기 때문에, 남겨두면 지운 날짜가 고객 정산표에만 계속 보인다.
+      if (settlementItems[uid] && paidTotal <= 0 && !hasCarryoverInfo) {
+        await settlementItemRef(month, uid).delete();
+        applySettlementToUserCache(uid, month, null);
+      }
+      continue;
+    }
     if (!registeredUser && !manualOrder) continue;
 
     const amount = settlementLunchAmount({ lunch, lunchPrice })
@@ -4217,7 +4228,6 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
       + cateringAmount;
     const adjust = parseInt(saved.adjust, 10) || 0;
     const payments = saved.payments || [];
-    const paidTotal = settlementPaidTotal(saved);
     // 이미 다음 달로 이월된 정산은 상태를 유지한다
     const status = saved.status === '이월'
       ? '이월'
@@ -8732,8 +8742,12 @@ async function saveBatchEntry() {
   try {
     await saveDeliveryRecords(date, batchRecords);
     // 수량을 0으로 지운 업체는 기록을 없앤다. 없던 업체를 지워도 문제되지 않는다.
+    const batchClearedUids = [];
     for (const uid of batchRemovedUids) {
-      if (existingBatchRecords[uid]) await removeDeliveryRecord(date, uid);
+      if (existingBatchRecords[uid]) {
+        await removeDeliveryRecord(date, uid);
+        batchClearedUids.push(uid);
+      }
     }
     if (!cachedDeliveryRecords[date]) cachedDeliveryRecords[date] = {};
     customers.forEach(([uid]) => {
@@ -8745,6 +8759,14 @@ async function saveBatchEntry() {
     });
     document.getElementById('batch-modal').classList.remove('open');
     if (date === currentDateStr) loadOrders();
+    // 기록을 지운 업체도 저장된 정산 문서를 다시 계산해야 고객 정산표에서 같이 빠진다.
+    if (batchClearedUids.length) {
+      try {
+        await rebuildSettlementsForUids(date.slice(0, 7), batchClearedUids);
+      } catch(settlementError) {
+        console.error('일괄 입력 삭제분 정산 반영 실패:', settlementError);
+      }
+    }
     if (batchSavedUids.length) {
       try {
         const result = await autoBillCompletedDeliveries(date, batchSavedUids);
@@ -8754,10 +8776,10 @@ async function saveBatchEntry() {
         console.error('일괄 입력 정산 자동 반영 실패:', settlementError);
         showToast(`✅ ${savedCount}곳 배송 내역 저장됨 · 정산 자동 반영은 실패했습니다.`);
       }
-      if (activeAdminTab === 'settlements') loadSettlements();
     } else {
       showToast(`✅ ${savedCount}곳 배송 내역이 저장되었습니다.`);
     }
+    if (activeAdminTab === 'settlements') loadSettlements();
   } catch(e) {
     errEl.textContent = '저장 실패: ' + e.message;
     errEl.classList.add('show');
@@ -9018,9 +9040,20 @@ async function deleteOrderItem(uid = '') {
       if (!cachedDeliveryRecords[currentDateStr]) cachedDeliveryRecords[currentDateStr] = {};
       cachedDeliveryRecords[currentDateStr][targetUid] = tombstone;
     }
+    // 관리자 정산 탭은 배송기록에서 매번 다시 집계하지만, 고객 화면은 저장된 정산 문서를 그대로 읽는다.
+    // 여기서 다시 계산하지 않으면 지운 날짜가 관리자 화면에서만 빠지고 고객 정산표에는 그대로 남는다.
+    let settlementSynced = true;
+    try {
+      await rebuildSettlementsForUids(currentDateStr.slice(0, 7), [targetUid]);
+    } catch (settlementError) {
+      settlementSynced = false;
+      console.error('주문 삭제 후 정산 반영 실패:', settlementError);
+    }
     closeManualOrderModal();
     currentOrderRows = currentOrderRows.filter(item => item.uid !== targetUid);
-    showToast('주문 항목이 삭제되었습니다.');
+    showToast(settlementSynced
+      ? '주문 항목이 삭제되었습니다.'
+      : '주문 항목은 삭제됐지만 정산 반영에 실패했습니다. 정산 탭에서 확인해 주세요.');
     loadOrders();
     if (activeAdminTab === 'settlements') loadSettlements();
     if (activeAdminTab === 'stats') loadOrderStats();
@@ -11470,6 +11503,7 @@ function settlementMobileActionsHtml(uid, row) {
     ${quickPay}
     <button class="mini-btn" onclick="openSheetModal('${safeUid}')">정산표 보기</button>
     <button class="mini-btn" onclick="openSettlementEdit('${safeUid}')">정산 수정</button>
+    ${(row && (row.type === 'event' || row.type === 'manualMonthly')) ? '' : `<button class="mini-btn" onclick="resyncSettlementRow('${safeUid}')">정산 다시계산</button>`}
     ${(row && (row.manualOrder || row.removedUser)) ? `<button class="mini-btn" onclick="openSettlementMergeModal('${safeUid}')">다른 업체와 합치기</button>` : ''}
     <button class="kakao-mini-btn" onclick="copySettlementKakao('${safeUid}')">카톡 복사</button>
     <button class="mini-btn" onclick="makeSettlementReceipt('${safeUid}')">영수증</button>
@@ -11724,6 +11758,7 @@ function renderSettlements() {
               ${balance > 0 ? `<button class="quick-pay-btn transfer" onclick="quickSettlePayment('${escapeHtml(row.uid)}','이체')">이체입금</button><button class="quick-pay-btn card" onclick="quickSettlePayment('${escapeHtml(row.uid)}','카드')">카드입금</button>` : ''}
               ${(row.manualOrder || row.removedUser) ? `<button class="mini-btn" onclick="openSettlementMergeModal('${row.uid}')" title="이 행의 배송 기록을 다른 등록 업체로 옮깁니다">합치기</button>` : ''}
               <button class="mini-btn" onclick="openSettlementEdit('${row.uid}')">수정</button>
+              <button class="mini-btn" onclick="resyncSettlementRow('${row.uid}')" title="배송기록에서 이번 달 정산을 다시 계산해 고객 화면에도 반영합니다">다시계산</button>
               <button class="mini-btn" onclick="openSheetModal('${row.uid}')">정산표</button>
               <button class="kakao-mini-btn" onclick="copySettlementKakao('${row.uid}')">💬</button>
               <button class="mini-btn" onclick="makeSettlementReceipt('${row.uid}')">영수증</button>
@@ -14356,6 +14391,34 @@ async function confirmSettlementMerge() {
     await loadSettlements();
   } catch(e) {
     showToast('합치기 실패: ' + e.message);
+  }
+}
+
+// 저장된 정산 문서(settlements/{월}/items/{uid})를 배송기록 기준으로 다시 계산한다.
+// 관리자 정산 탭은 화면을 그릴 때마다 배송기록에서 다시 집계하지만,
+// 고객 화면(customer.html, customer-settlement.html)은 저장된 정산 문서를 그대로 읽는다.
+// 예전에 지운 주문이 고객 정산표에만 남아 있을 때 이 버튼으로 맞춘다.
+async function resyncSettlementRow(uid) {
+  if (!uid) return;
+  if (String(uid).startsWith('event:')) {
+    showToast('행사도시락은 다시 계산 대상이 아닙니다.');
+    return;
+  }
+  const row = getSettlementRow(uid);
+  if (row?.type === 'manualMonthly') {
+    // 엑셀로 넣은 비회원 정산은 배송기록이 없다. 다시 계산하면 0이 되어 지워진다.
+    showToast('엑셀 비회원 정산은 배송기록이 없어 다시 계산할 수 없습니다.');
+    return;
+  }
+  const name = row ? (row.user.businessName || uid) : uid;
+  const month = document.getElementById('settle-month').value || currentMonthStr();
+  if (!confirm(`${name}의 ${month} 정산을 배송기록 기준으로 다시 계산할까요?\n고객 화면에 보이는 정산표도 같이 맞춰집니다.`)) return;
+  try {
+    await rebuildSettlementsForUids(month, [uid]);
+    await loadSettlements();
+    showToast(`🔄 ${name} ${month} 정산을 다시 계산했습니다.`);
+  } catch(e) {
+    showToast('정산 다시 계산 실패: ' + e.message);
   }
 }
 
