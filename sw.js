@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v62-password-reset-link';
+const CACHE = 'gjsuragan-v63-settlement-order-delete-sync';
 const PRECACHE = [
   './customer.html',
   './admin.html',
