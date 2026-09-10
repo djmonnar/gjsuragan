@@ -73,6 +73,8 @@ node functions/scripts/preview-attendance.js
 
 ## 운영 반영
 
+태블릿에 자동 표시하는 돌담명가 오늘 네이버예약은 별도 [예약 연동 문서](attendance-bookings.md)를 따른다. 예약 API·서버 연결키는 출퇴근 API와 분리되어 있다.
+
 코드 검토 후 Firebase 프로젝트를 명시해 새 함수와 Rules를 배포하고 정적 사이트를 반영한다.
 
 ```powershell

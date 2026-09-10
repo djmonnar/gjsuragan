@@ -15,7 +15,8 @@
       const headers = { 'Content-Type': 'application/json' };
       if (credential.token) headers.Authorization = `Bearer ${credential.token}`;
       if (credential.device) headers['X-Attendance-Device'] = credential.device;
-      const response = await fetch(ENDPOINT, { method: 'POST', headers, body: JSON.stringify({ ...data, action }), signal: controller.signal, cache: 'no-store' });
+      const endpoint = action === 'kiosk.bookings' ? ENDPOINT.replace(/attendanceApi$/, 'attendanceBookingsApi') : ENDPOINT;
+      const response = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify({ ...data, action }), signal: controller.signal, cache: 'no-store' });
       const result = await response.json();
       if (!response.ok) {
         const error = new Error(result.error || '요청을 처리하지 못했습니다.');

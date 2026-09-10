@@ -9,6 +9,7 @@ const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { createAttendanceService, createAttendanceHandler } = require('../attendance');
 const { workDate } = require('../attendanceModel');
+const { normalizeFeed, createBookingsHandler } = require('../attendanceBookings');
 const root = path.resolve(__dirname, '../..');
 const projectId = 'demo-gjsuragan-attendance-preview';
 const port = Number(process.env.ATTENDANCE_PREVIEW_PORT || 8765);
@@ -16,6 +17,23 @@ if (!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST || '')) throw
 const db = getFirestore(initializeApp({ projectId }, 'attendance-preview'));
 let clock = null;
 const service = createAttendanceService({ db, now: () => clock ?? Date.now() });
+let bookingScenario = 'ready';
+const bookingsHandler = createBookingsHandler({ authorizeDevice: service.authorizeDevice, readBookings: async () => {
+  if (bookingScenario === 'error') throw new Error('Local upstream failure');
+  const now = Date.now();
+  if (bookingScenario === 'unconfigured') return { state: 'unconfigured', date: workDate(now), serverNow: now, bookings: [] };
+  const rows = [
+    { id: 'sample1', time: '11:30', name: '김예약', itemName: '한정식', menuItems: [{ name: '수라 한정식', count: 4 }], adults: 4, children: 0, status: 'completed' },
+    { id: 'sample2', time: '12:30', name: '이가족', itemName: '가족 모임', menuItems: [{ name: '명가 한정식', count: 5 }], adults: 5, children: 1, status: 'confirmed' },
+    { id: 'sample3', time: '18:00', name: '박모임', itemName: '저녁 모임', menuItems: [{ name: '명가 한정식', count: 8 }], adults: 8, children: 0, status: 'confirmed' },
+    { id: 'sample4', time: '18:30', name: '최손님', itemName: '한정식', menuItems: [{ name: '수라 한정식', count: 2 }], adults: 2, children: 0, status: 'requested' },
+    { id: 'sample5', time: '19:00', name: '정취소', itemName: '한정식', menuItems: [], adults: 3, children: 0, status: 'cancelled' }
+  ];
+  return { ...normalizeFeed({ version: 1, state: bookingScenario === 'waiting' ? 'waiting' : 'ready',
+    date: workDate(now), storeName: '돌담명가', syncFailed: false,
+    sourceUpdatedAt: new Date(now - (bookingScenario === 'stale' ? 3600000 : 120000)).toISOString(),
+    bookings: ['empty', 'waiting'].includes(bookingScenario) ? [] : rows }, now), demo: true };
+} });
 const handler = createAttendanceHandler({ service, verifyToken: async token => {
   if (token !== 'local-emulator-admin') throw new Error('Invalid local fixture token');
   return { uid: 'local-preview-admin', email: 'sun1562@naver.com' };
@@ -53,7 +71,12 @@ async function start() {
   clock = null;
   http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://127.0.0.1:${port}`);
-    if (url.pathname === '/attendanceApi') {
+    if (url.pathname === '/preview-bookings-scenario' && req.method === 'POST') {
+      const scenario = url.searchParams.get('state');
+      if (!['ready', 'error', 'empty', 'waiting', 'unconfigured', 'stale'].includes(scenario)) { res.writeHead(400).end(); return; }
+      bookingScenario = scenario; res.writeHead(204).end(); return;
+    }
+    if (url.pathname === '/attendanceApi' || url.pathname === '/attendanceBookingsApi') {
       let body = '';
       for await (const chunk of req) { body += chunk; if (body.length > 65536) { res.writeHead(413).end(); return; } }
       try { req.body = body ? JSON.parse(body) : {}; } catch (_) { res.writeHead(400).end(); return; }
@@ -61,7 +84,7 @@ async function start() {
       res.status = code => {res.statusCode=code;return res;};
       res.json = value => {res.setHeader('Content-Type','application/json');res.end(JSON.stringify(value));};
       res.send = value => res.end(value);
-      await handler(req,res); return;
+      await (url.pathname === '/attendanceBookingsApi' ? bookingsHandler : handler)(req,res); return;
     }
     if (url.pathname === '/preview-firebase.js') { res.setHeader('Content-Type','text/javascript; charset=utf-8');res.end(firebaseStub);return; }
     if (url.pathname === '/sw.js') { res.setHeader('Content-Type','text/javascript');res.end('');return; }

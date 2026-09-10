@@ -44,10 +44,12 @@
       $('kiosk-main').hidden = false;
       connection(true, '출퇴근 기록 가능');
       tick(); render();
+      window.AttendanceBookings?.connect(device, () => Date.now() + offset);
     } catch (error) {
       connection(false, '연결 확인 필요');
       if (error.status === 401) {
         device = '';
+        window.AttendanceBookings?.clear();
         try { localStorage.removeItem(STORAGE_KEY); } catch (_) { /* ignore */ }
         $('kiosk-main').hidden = true;
         $('kiosk-setup').hidden = false;

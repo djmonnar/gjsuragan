@@ -97,8 +97,11 @@ test('inactive employees cannot punch, and active shifts must finish before dele
   await assert.rejects(service.saveEmployee({ ...(await getEmployee()), active: false }, 'admin'), { status: 400 });
 });
 test('revoked and unknown devices fail before reading or writing attendance', async () => {
+  await service.authorizeDevice(token);
   assert.equal((await service.listKiosk(token)).employees[0].hourlyRate, undefined);
   await service.revokeDevice({ id: deviceId }, 'admin');
+  await assert.rejects(service.authorizeDevice(token), { status: 401 });
+  await assert.rejects(service.authorizeDevice('0'.repeat(64)), { status: 401 });
   await assert.rejects(service.listKiosk(token), { status: 401 });
   await assert.rejects(punch('in', 'x'), { status: 401 });
   await assert.rejects(service.listKiosk('0'.repeat(64)), { status: 401 });

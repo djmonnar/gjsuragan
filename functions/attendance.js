@@ -97,6 +97,9 @@ function createAttendanceService({ db, now = Date.now }) {
     const snap = await employees.where('active', '==', true).get();
     return { employees: snap.docs.map(serialize).filter(e => !e.deletedAt).map(model.kioskEmployee), deviceName: device.name, serverNow: now() };
   }
+  async function authorizeDevice(token) {
+    checkDevice(await deviceRef(token).get());
+  }
   async function punch(input, token) {
     const tabletRef = deviceRef(token);
     const employeeRef = employees.doc(model.id(input.employeeId));
@@ -174,7 +177,7 @@ function createAttendanceService({ db, now = Date.now }) {
       return { id: ref.id };
     });
   }
-  return { listAdmin, saveEmployee, deleteEmployee, createDevice, revokeDevice, listKiosk, punch, saveShift };
+  return { listAdmin, saveEmployee, deleteEmployee, createDevice, revokeDevice, listKiosk, punch, saveShift, authorizeDevice };
 }
 
 function createAttendanceHandler({ service, verifyToken, logError = console.error }) {

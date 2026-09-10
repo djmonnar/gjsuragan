@@ -14,6 +14,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js" defer></script>
   <script src="./assets/js/attendance-ui.js?v=20260910" defer></script>
+  <script src="./assets/js/attendance-bookings.js?v=20260910" defer></script>
   <script src="./assets/js/attendance-kiosk.js?v=20260910" defer></script>
 </head>
 <body class="att-kiosk">
@@ -35,6 +36,13 @@
   </section>
   <main class="att-kiosk-main" id="kiosk-main" hidden>
     <div class="att-kiosk-hero"><div><p class="att-eyebrow">오늘도 함께하는 궁중수라간</p><h1>내 이름을 눌러 주세요</h1><p>출근할 때 한 번, 퇴근할 때 한 번.</p></div><div class="att-kiosk-clock"><div class="att-clock-time" id="kiosk-clock">00:00</div><div class="att-clock-date" id="kiosk-date"></div></div></div>
+    <section class="att-bookings" aria-labelledby="bookings-heading">
+      <div class="att-bookings-head"><div><p class="att-eyebrow" id="bookings-store">돌담명가 · 네이버예약</p><h2 id="bookings-heading">오늘 예약</h2></div><span class="att-pill green">자동 갱신</span></div>
+      <div class="att-bookings-summary" id="bookings-summary">오늘 예약을 확인하고 있어요</div>
+      <p class="att-bookings-status" id="bookings-status" role="status">오너비스타 연결 확인 중</p>
+      <p class="att-bookings-sync" id="bookings-sync">1분마다 자동으로 확인합니다.</p>
+      <div class="att-bookings-list" id="bookings-list"></div>
+    </section>
     <div class="att-toolbar"><div class="att-tabs" role="group" aria-label="근무 상태 필터"><button class="att-tab active" data-filter="all">전체 <span id="kiosk-total">0</span></button><button class="att-tab" data-filter="working">근무 중 <span id="kiosk-working">0</span></button><button class="att-tab" data-filter="off">미출근·퇴근</button></div><input class="att-input att-kiosk-search" id="kiosk-search" type="search" placeholder="이름 검색" aria-label="직원 이름 검색" autocomplete="off"></div>
     <div class="att-notice" id="kiosk-error" role="alert" hidden></div>
     <div class="att-kiosk-grid" id="kiosk-grid" aria-label="직원 목록"></div>
