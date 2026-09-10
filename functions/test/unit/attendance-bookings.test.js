@@ -106,3 +106,22 @@ test('tablet cannot read other dates through admin actions; verified admin can r
   await call('kiosk.bookings');
   assert.deepEqual(calls, ['2026-09-20', undefined]);
 });
+test('calendar proxy validates a complete month, whitelists totals, and stays admin-only', async () => {
+  const days = Array.from({ length: 29 }, (_, i) => ({ date: `2028-02-${String(i + 1).padStart(2, '0')}`, activeCount: 1, headcount: 3, cancelledCount: 0, noshowCount: 0, verified: false, customerName: 'private-name', totalPrice: 50000 }));
+  const read = createBookingReader({ token: () => 'secret', now: () => start, fetchImpl: async (url, options) => {
+    assert.equal(url, 'https://ownervista.co.kr/api/integrations/attendance/calendar?month=2028-02');
+    assert.equal(options.redirect, 'error');
+    return Response.json({ version: 1, state: 'calendar', month: '2028-02', storeName: '돌담명가', days, sourceUpdatedAt: null });
+  } });
+  const handler = createBookingsHandler({ readBookings: read, authorizeDevice: async () => 'device', verifyToken: async token => ({ uid: 'admin', email: token === 'owner' ? 'sun1562@naver.com' : 'customer@example.invalid' }) });
+  async function call(token, month = '2028-02') {
+    const res = { code: 200, set() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; } };
+    await handler({ method: 'POST', headers: token ? { authorization: `Bearer ${token}` } : {}, body: { action: 'admin.bookings.calendar', month, organizationId: 'other' } }, res);
+    return res;
+  }
+  assert.equal((await call()).code, 401); assert.equal((await call('customer')).code, 403);
+  const response = await call('owner'); assert.equal(response.body.days.length, 29);
+  assert.doesNotMatch(JSON.stringify(response.body), /secret|private-name|totalPrice|customerName/);
+  assert.equal((await call('owner', '2028-13')).code, 400);
+  days.pop(); assert.equal((await call('owner')).code, 503);
+});

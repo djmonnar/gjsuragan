@@ -9,7 +9,7 @@ const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { createAttendanceService, createAttendanceHandler } = require('../attendance');
 const { workDate } = require('../attendanceModel');
-const { normalizeFeed, createBookingsHandler, bookingInput } = require('../attendanceBookings');
+const { normalizeFeed, normalizeCalendar, createBookingsHandler, bookingInput } = require('../attendanceBookings');
 const crypto = require('node:crypto');
 const root = path.resolve(__dirname, '../..');
 const projectId = 'demo-gjsuragan-attendance-preview';
@@ -26,6 +26,7 @@ const verifyPreviewToken = async token => {
   if (token !== 'local-emulator-admin') throw new Error('Invalid local fixture token');
   return { uid: 'local-preview-admin', email: 'sun1562@naver.com' };
 };
+let readPreviewBookings;
 const bookingsHandler = createBookingsHandler({ authorizeDevice: service.authorizeDevice, verifyToken: verifyPreviewToken,
   createBooking: async (input, deviceId) => {
     if (bookingScenario === 'error') throw new Error('Local upstream failure');
@@ -42,7 +43,7 @@ const bookingsHandler = createBookingsHandler({ authorizeDevice: service.authori
     const result = { bookingId: id, useDate: value.date };
     bookingRequests.set(key, { body: JSON.stringify(value), result });
     return result;
-  }, readBookings: async (selectedDate) => {
+  }, readBookings: readPreviewBookings = async (selectedDate) => {
   if (bookingScenario === 'error') throw new Error('Local upstream failure');
   const now = Date.now();
   const date = selectedDate || workDate(now);
@@ -60,6 +61,20 @@ const bookingsHandler = createBookingsHandler({ authorizeDevice: service.authori
     bookings: [...(['empty', 'waiting'].includes(bookingScenario) || date !== workDate(now) ? [] : rows),
       ...[...manualBookings.values()].filter(row => row.date === date)] }, now, date), demo: true };
 } });
+readPreviewBookings.calendar = async month => {
+  if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)) throw Object.assign(new Error('조회 월을 확인해 주세요.'), { status: 400 });
+  if (bookingScenario === 'unconfigured') return { state: 'unconfigured', month, days: [] };
+  const last = new Date(`${month}-01T00:00:00Z`); last.setUTCMonth(last.getUTCMonth() + 1, 0);
+  const days = await Promise.all(Array.from({ length: last.getUTCDate() }, async (_, i) => {
+    const date = `${month}-${String(i + 1).padStart(2, '0')}`, feed = await readPreviewBookings(date);
+    const active = feed.bookings.filter(row => row.active);
+    return { date, activeCount: active.length, headcount: active.reduce((sum, row) => sum + row.adults + row.children, 0),
+      cancelledCount: feed.bookings.filter(row => row.status.startsWith('cancelled')).length,
+      noshowCount: feed.bookings.filter(row => row.status === 'noshowed').length, verified: bookingScenario !== 'waiting' };
+  }));
+  return normalizeCalendar({ version: 1, state: 'calendar', month, storeName: '돌담명가', days,
+    sourceUpdatedAt: new Date(Date.now() - 120000).toISOString(), syncFailed: false }, Date.now(), month);
+};
 const handler = createAttendanceHandler({ service, verifyToken: async token => {
   if (token !== 'local-emulator-admin') throw new Error('Invalid local fixture token');
   return { uid: 'local-preview-admin', email: 'sun1562@naver.com' };
@@ -119,7 +134,7 @@ async function start() {
     if (url.pathname === '/mobile-preview.html') {
       const width = Math.max(320, Math.min(800, Number(url.searchParams.get('width')) || 390));
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.end(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>모바일 관리자 로컬 미리보기</title></head><body style="margin:0;background:#e9e5df;display:grid;place-items:center"><iframe title="모바일 관리자" src="/staff-admin.html${url.searchParams.has('previewAuth') ? '?previewAuth=out' : ''}#attendance" allow="clipboard-write" style="width:${width}px;height:844px;border:0;background:white"></iframe></body></html>`); return;
+      res.end(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>모바일 관리자 로컬 미리보기</title></head><body style="margin:0;background:#e9e5df;display:grid;place-items:center"><iframe title="모바일 관리자" src="/staff-admin.html${url.searchParams.has('previewAuth') ? '?previewAuth=out' : ''}#${url.searchParams.get('view') === 'reservations' ? 'reservations' : 'attendance'}" allow="clipboard-write" style="width:${width}px;height:844px;border:0;background:white"></iframe></body></html>`); return;
     }
     const pathname = url.pathname === '/' ? '/attendance.html' : url.pathname;
     if (!/^\/(?:staff-admin\.html|admin\.html|attendance\.html|assets\/(?:css|js|img)\/[^?]+|icons\/icon\.svg|(?:staff-admin-manifest|admin-manifest)\.json)$/.test(pathname)) {res.writeHead(404).end();return;}

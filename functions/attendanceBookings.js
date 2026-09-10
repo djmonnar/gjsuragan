@@ -7,7 +7,7 @@ const ACTIVE = new Set(['requested', 'confirmed', 'completed']);
 const STATUSES = new Set([...ACTIVE, 'cancelled', 'cancelled_by_change', 'noshowed', 'unknown']);
 
 function normalizeFeed(input, now, date = workDate(now)) {
-  if (input?.version !== 1 || input.date !== date || !['ready', 'waiting'].includes(input.state)
+  if (input?.version !== 1 || input.date !== date || !['ready', 'waiting', 'partial'].includes(input.state)
     || typeof input.storeName !== 'string' || !Array.isArray(input.bookings) || input.bookings.length > 3000
     || (input.state === 'waiting' && input.bookings.some(row => row?.origin !== 'manual'))) throw new Error('Invalid reservation feed');
   const text = (value, max) => typeof value === 'string' ? value.slice(0, max) : '';
@@ -50,6 +50,27 @@ async function readJson(response) {
   } finally { await reader.cancel().catch(() => {}); }
 }
 
+function normalizeCalendar(input, now, month) {
+  if (input?.version !== 1 || input.state !== 'calendar' || input.month !== month
+    || typeof input.storeName !== 'string' || !Array.isArray(input.days)) throw new Error('Invalid calendar');
+  const last = new Date(`${month}-01T00:00:00Z`); last.setUTCMonth(last.getUTCMonth() + 1, 0);
+  if (input.days.length !== last.getUTCDate()) throw new Error('Incomplete calendar');
+  const days = input.days.map((row, i) => {
+    const date = `${month}-${String(i + 1).padStart(2, '0')}`;
+    if (row?.date !== date || typeof row.verified !== 'boolean') throw new Error('Invalid calendar date');
+    const result = { date, verified: row.verified };
+    for (const key of ['activeCount', 'headcount', 'cancelledCount', 'noshowCount']) {
+      if (!Number.isSafeInteger(row[key]) || row[key] < 0 || row[key] > 1000000000) throw new Error('Invalid calendar count');
+      result[key] = row[key];
+    }
+    return result;
+  });
+  const sourceUpdatedAt = input.sourceUpdatedAt === null ? null : Date.parse(input.sourceUpdatedAt);
+  if (sourceUpdatedAt !== null && (!Number.isFinite(sourceUpdatedAt) || sourceUpdatedAt > now + 60000)) throw new Error('Invalid calendar sync time');
+  return { state: 'calendar', month, storeName: input.storeName.slice(0, 100), days, sourceUpdatedAt,
+    syncFailed: input.syncFailed === true, fetchedAt: now };
+}
+
 function createBookingReader({ token, fetchImpl = fetch, now = Date.now }) {
   let cached = null, pending = null;
   const read = async (date) => {
@@ -78,6 +99,17 @@ function createBookingReader({ token, fetchImpl = fetch, now = Date.now }) {
     return pending;
   };
   read.invalidate = async () => { if (pending) await pending.catch(() => {}); cached = null; };
+  read.calendar = async month => {
+    if (typeof month !== 'string' || !/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)) fail('조회 월을 확인해 주세요.', 400);
+    const secret = token();
+    if (!secret) return { state: 'unconfigured', month, days: [] };
+    const url = new URL(SOURCE.replace(/today$/, 'calendar')); url.searchParams.set('month', month);
+    const response = await fetchImpl(url.href, { headers: { Authorization: `Bearer ${secret}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000), redirect: 'error', cache: 'no-store' });
+    if ([401, 403].includes(response.status)) fail('오너비스타 예약 연결을 확인해 주세요.', 403);
+    if (!response.ok) fail('예약 캘린더를 불러오지 못했습니다. 잠시 후 다시 확인해 주세요.', 503);
+    return normalizeCalendar(await readJson(response), now(), month);
+  };
   return read;
 }
 
@@ -126,7 +158,7 @@ function createBookingsHandler({ authorizeDevice, readBookings, createBooking, v
     try {
       // Check revocation on EVERY request, including requests served from the short cache.
       const action = req.body?.action;
-      const isAdmin = ['admin.bookings', 'admin.booking.create'].includes(action);
+      const isAdmin = ['admin.bookings', 'admin.bookings.calendar', 'admin.booking.create'].includes(action);
       let deviceId;
       if (isAdmin) {
         const token = String(req.headers.authorization || '').match(/^Bearer (.+)$/i)?.[1];
@@ -141,6 +173,7 @@ function createBookingsHandler({ authorizeDevice, readBookings, createBooking, v
         await readBookings.invalidate?.();
         return res.status(200).json({ ok: true, ...result });
       }
+      if (action === 'admin.bookings.calendar') return res.status(200).json({ ok: true, ...await readBookings.calendar(req.body.month) });
       if (!['kiosk.bookings', 'admin.bookings'].includes(action)) fail('지원하지 않는 예약 요청입니다.', 400);
       if (isAdmin && typeof req.body.date !== 'string') fail('조회 날짜를 확인해 주세요.', 400);
       return res.status(200).json({ ok: true, ...await readBookings(isAdmin ? req.body.date : undefined) });
@@ -152,4 +185,4 @@ function createBookingsHandler({ authorizeDevice, readBookings, createBooking, v
   };
 }
 
-module.exports = { normalizeFeed, createBookingReader, createBookingsHandler, createBookingWriter, bookingInput };
+module.exports = { normalizeFeed, normalizeCalendar, createBookingReader, createBookingsHandler, createBookingWriter, bookingInput };
