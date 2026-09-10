@@ -38,10 +38,10 @@ function createAttendanceService({ db, now = Date.now }) {
       shifts.where('checkOutAt', '==', null).get(), devices.get()
     ]);
     return {
-      employees: people.docs.map(serialize),
-      shifts: records.docs.map(serialize).filter(s => !s.voided).map(s => ({ ...s, ...model.totals(s) })),
-      openShifts: active.docs.map(serialize).filter(s => !s.voided),
-      devices: tablets.docs.map(serialize).map(d => ({ id: d.id, name: d.name, enabled: d.enabled, createdAt: d.createdAt })),
+      employees: people.docs.map(serialize).map(e => ({ ...e, floor: model.floor(e.floor) })),
+      shifts: records.docs.map(serialize).filter(s => !s.voided).map(s => ({ ...s, floor: model.floor(s.floor), ...model.totals(s) })),
+      openShifts: active.docs.map(serialize).filter(s => !s.voided).map(s => ({ ...s, floor: model.floor(s.floor) })),
+      devices: tablets.docs.map(serialize).map(d => ({ id: d.id, name: d.name, floor: model.floor(d.floor), version: d.version || 1, enabled: d.enabled, createdAt: d.createdAt })),
       serverNow: now()
     };
   }
@@ -54,7 +54,9 @@ function createAttendanceService({ db, now = Date.now }) {
       if (input.id) { existing(snap, '직원'); revision(input, before); }
       if (before?.deletedAt) model.fail('삭제된 직원은 수정할 수 없습니다.');
       if (before?.currentShiftId && !data.active) model.fail('퇴근 처리 후 재직 상태를 변경해 주세요.');
-      const after = { ...data, currentShiftId: before?.currentShiftId || null, lastShift: before?.lastShift || null,
+      const floor = input.floor === undefined ? model.floor(before?.floor) : data.floor;
+      if (before?.currentShiftId && floor !== model.floor(before.floor)) model.fail('퇴근 처리 후 근무 층을 변경해 주세요.');
+      const after = { ...data, floor, currentShiftId: before?.currentShiftId || null, lastShift: before?.lastShift || null,
         createdAt: before?.createdAt ?? now(), updatedAt: now(), deletedAt: null, version: (before?.version || 0) + 1 };
       tx.set(ref, after);
       log(tx, actor, 'employee.save', ref.id, before, after);
@@ -75,13 +77,25 @@ function createAttendanceService({ db, now = Date.now }) {
   }
   async function createDevice(input, actor) {
     const name = model.text(input.name, '태블릿 이름', 50, true);
+    const floor = model.floor(input.floor);
     const token = crypto.randomBytes(32).toString('hex');
     const ref = deviceRef(token);
     await db.runTransaction(async tx => {
-      tx.create(ref, { name, enabled: true, createdAt: now(), createdBy: actor });
-      log(tx, actor, 'device.create', ref.id, null, { name });
+      tx.create(ref, { name, floor, version: 1, enabled: true, createdAt: now(), createdBy: actor });
+      log(tx, actor, 'device.create', ref.id, null, { name, floor });
     });
-    return { token, name };
+    return { token, name, floor };
+  }
+  async function setDeviceFloor(input, actor) {
+    const ref = devices.doc(model.id(input.id));
+    const floor = model.integer(input.floor, '태블릿 층', 1, 2);
+    await db.runTransaction(async tx => {
+      const before = checkDevice(await tx.get(ref));
+      revision(input, { version: before.version || 1 });
+      tx.update(ref, { floor, version: (before.version || 1) + 1, updatedAt: now() });
+      log(tx, actor, 'device.floor', ref.id, { floor: model.floor(before.floor) }, { floor });
+    });
+    return { floor };
   }
   async function revokeDevice(input, actor) {
     const ref = devices.doc(model.id(input.id));
@@ -95,7 +109,8 @@ function createAttendanceService({ db, now = Date.now }) {
   async function listKiosk(token) {
     const device = checkDevice(await deviceRef(token).get());
     const snap = await employees.where('active', '==', true).get();
-    return { employees: snap.docs.map(serialize).filter(e => !e.deletedAt).map(model.kioskEmployee), deviceName: device.name, serverNow: now() };
+    const floor = model.floor(device.floor);
+    return { employees: snap.docs.map(serialize).filter(e => !e.deletedAt && model.floor(e.floor) === floor).map(model.kioskEmployee), deviceName: device.name, floor, serverNow: now() };
   }
   async function authorizeDevice(token) {
     return checkDevice(await deviceRef(token).get()).id;
@@ -111,19 +126,20 @@ function createAttendanceService({ db, now = Date.now }) {
     const payload = `${input.employeeId}:${input.kind}:${expectedShiftId || ''}`;
     return db.runTransaction(async tx => {
       const [tabletSnap, employeeSnap, requestSnap] = await Promise.all([tx.get(tabletRef), tx.get(employeeRef), tx.get(requestRef)]);
-      checkDevice(tabletSnap);
+      const tablet = checkDevice(tabletSnap);
       if (requestSnap.exists) {
         if (requestSnap.data().payload !== payload) model.fail('다른 요청에 사용된 기록 번호입니다.', 409);
         return requestSnap.data().result;
       }
       const employee = existing(employeeSnap, '직원');
       if (!employee.active || employee.deletedAt) model.fail('출퇴근 대상 직원이 아닙니다.', 409);
+      if (model.floor(employee.floor) !== model.floor(tablet.floor)) model.fail('이 태블릿에 지정된 층의 직원만 출퇴근할 수 있습니다. 목록을 새로고침해 주세요.', 403);
       const at = now();
       let ref, record;
       if (input.kind === 'in') {
         if (employee.currentShiftId) model.fail('이미 출근한 상태입니다. 화면을 새로고침해 주세요.', 409);
         ref = newShiftRef;
-        record = { employeeId: employee.id, employeeName: employee.name, workDate: model.workDate(at),
+        record = { employeeId: employee.id, employeeName: employee.name, floor: model.floor(employee.floor), workDate: model.workDate(at),
           checkInAt: at, checkOutAt: null, payType: employee.payType, hourlyRate: employee.hourlyRate,
           breakMinutes: employee.breakMinutes, note: '', source: 'kiosk', deviceId: tabletRef.id,
           version: 1, voided: false, createdAt: at, updatedAt: at };
@@ -166,6 +182,7 @@ function createAttendanceService({ db, now = Date.now }) {
       if (!remove && others.some(s => model.overlaps(data, s))) model.fail('이 직원의 다른 근무시간과 겹칩니다. 기존 기록을 확인해 주세요.', 409);
       const after = remove ? { ...before, voided: true, updatedAt: now(), version: before.version + 1 } : {
         ...before, ...data, employeeId, employeeName: before?.employeeName || employee.name,
+        floor: model.floor(before ? before.floor : employee.floor),
         source: before?.source || 'admin', voided: false, createdAt: before?.createdAt ?? now(),
         updatedAt: now(), version: (before?.version || 0) + 1
       };
@@ -177,7 +194,7 @@ function createAttendanceService({ db, now = Date.now }) {
       return { id: ref.id };
     });
   }
-  return { listAdmin, saveEmployee, deleteEmployee, createDevice, revokeDevice, listKiosk, punch, saveShift, authorizeDevice };
+  return { listAdmin, saveEmployee, deleteEmployee, createDevice, setDeviceFloor, revokeDevice, listKiosk, punch, saveShift, authorizeDevice };
 }
 
 function createAttendanceHandler({ service, verifyToken, logError = console.error }) {
@@ -207,6 +224,7 @@ function createAttendanceHandler({ service, verifyToken, logError = console.erro
           case 'shift.save': result = await service.saveShift(input, user.uid); break;
           case 'shift.delete': result = await service.saveShift(input, user.uid, true); break;
           case 'device.create': result = await service.createDevice(input, user.uid); break;
+          case 'device.floor': result = await service.setDeviceFloor(input, user.uid); break;
           case 'device.revoke': result = await service.revokeDevice(input, user.uid); break;
           default: model.fail('지원하지 않는 요청입니다.', 404);
         }

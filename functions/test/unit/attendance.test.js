@@ -44,6 +44,13 @@ test('kiosk employee serialization omits wage, notes and employment history', ()
   assert.deepEqual(Object.keys(value).sort(), ['currentShiftId', 'id', 'lastShift', 'name', 'role']);
 });
 
+test('floor accepts only first and second floors, with legacy records on first floor', () => {
+  assert.equal(M.floor(), 1);
+  assert.equal(M.floor(1), 1);
+  assert.equal(M.floor(2), 2);
+  for (const value of [0, 3, '2', null, NaN, 1.5]) assert.throws(() => M.floor(value));
+});
+
 async function call(action, options = {}) {
   const calls = [];
   const service = new Proxy({}, { get: (_, name) => async (...args) => { calls.push([name, ...args]); return {}; } });
@@ -56,7 +63,7 @@ async function call(action, options = {}) {
   return { res, calls };
 }
 test('all admin actions require a verified allowlisted Firebase account', async () => {
-  for (const action of ['admin.list','employee.save','employee.delete','shift.save','shift.delete','device.create','device.revoke']) {
+  for (const action of ['admin.list','employee.save','employee.delete','shift.save','shift.delete','device.create','device.floor','device.revoke']) {
     const missing = await call(action);
     assert.equal(missing.res.statusCode, 401); assert.equal(missing.calls.length, 0);
     const customer = await call(action, { headers: { authorization: 'Bearer customer' }, email: 'customer@example.invalid' });

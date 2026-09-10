@@ -80,14 +80,15 @@ async function start() {
   const names = ['김수라','이정민','박영희','최민수','정하늘','윤서연','한지우','오현우'];
   const ids = [];
   for (let i = 0; i < names.length; i++) {
-    const e = { name:names[i], role:['조리','포장','배송'][i%3],active:true,payType:i===0?'salaried':'hourly',hourlyRate:i===0?0:12000,breakMinutes:0,note:'로컬 미리보기용 가상 직원' };
+    const e = { name:names[i], floor:i < 4 ? 1 : 2, role:['조리','포장','배송'][i%3],active:true,payType:i===0?'salaried':'hourly',hourlyRate:i===0?0:12000,breakMinutes:0,note:'로컬 미리보기용 가상 직원' };
     const {id} = await service.saveEmployee(e, 'local-preview-admin'); ids.push(id);
     for (let day = 1; day <= Math.min(Number(today.slice(8)) - 1, 8); day++) {
       const checkInAt = new Date(`${month}-${String(day).padStart(2,'0')}T09:00:00+09:00`).getTime();
       await service.saveShift({employeeId:id,checkInAt,checkOutAt:checkInAt+8*3600000,payType:e.payType,hourlyRate:e.hourlyRate,breakMinutes:60,note:''}, 'local-preview-admin');
     }
   }
-  const {token} = await service.createDevice({name:'매장 태블릿 · 가상 데이터'}, 'local-preview-admin');
+  const {token} = await service.createDevice({name:'1층 태블릿 · 가상 데이터',floor:1}, 'local-preview-admin');
+  const upstairs = await service.createDevice({name:'2층 태블릿 · 가상 데이터',floor:2}, 'local-preview-admin');
   clock = new Date(`${today}T09:00:00+09:00`).getTime();
   if (clock < Date.now()) {
     for (let i = 0; i < 3; i++) await service.punch({employeeId:ids[i],kind:'in',requestId:`sample-${i}`}, token);
@@ -124,7 +125,7 @@ async function start() {
     if (pathname.endsWith('.html')) {
       content = content.replace(/<script\b[^>]*src="https:\/\/www\.gstatic\.com\/firebasejs\/[^\"]+"[^>]*><\/script>/g, '');
       content = content.replace('<head>', '<head><script src="/preview-firebase.js"></script>');
-      if (pathname === '/attendance.html' && !url.searchParams.has('setup')) content = content.replace('<head>', `<head><script>localStorage.setItem('gjsuragan-attendance-device','${token}');</script>`);
+      if (pathname === '/attendance.html' && !url.searchParams.has('setup')) content = content.replace('<head>', `<head><script>localStorage.setItem('gjsuragan-attendance-device','${url.searchParams.get('floor') === '2' ? upstairs.token : token}');</script>`);
       if (pathname === '/attendance.html' && url.searchParams.has('setup')) content = content.replace('<head>', "<head><script>localStorage.removeItem('gjsuragan-attendance-device');</script>");
     }
     if (pathname.endsWith('/attendance-ui.js')) content = content.replace('https://asia-northeast3-gjsuragan-60505.cloudfunctions.net/attendanceApi', `http://127.0.0.1:${port}/attendanceApi`);

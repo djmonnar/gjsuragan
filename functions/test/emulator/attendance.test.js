@@ -133,3 +133,53 @@ test('employee edits reject stale versions and device input cannot spoof time or
   assert.equal((await getShift(result.shiftId)).checkInAt, now);
   assert.equal((await getShift(result.shiftId)).hourlyRate, 13000);
 });
+
+test('each tablet lists and punches only its assigned floor, including forged floor input', async () => {
+  const second = await service.saveEmployee({ ...employeeInput, name: '2층 직원', floor: 2 }, 'admin');
+  const upstairs = await service.createDevice({ name: '2층 태블릿', floor: 2 }, 'admin');
+  assert.deepEqual((await service.listKiosk(token)).employees.map(e => e.id), [employeeId]);
+  assert.equal((await service.listKiosk(upstairs.token)).floor, 2);
+  assert.deepEqual((await service.listKiosk(upstairs.token)).employees.map(e => e.id), [second.id]);
+  await assert.rejects(service.punch({ employeeId: second.id, kind: 'in', requestId: 'wrong-floor', floor: 2 }, token), { status: 403 });
+  await assert.rejects(service.punch({ employeeId, kind: 'in', requestId: 'other-floor', floor: 1 }, upstairs.token), { status: 403 });
+  const record = await service.punch({ employeeId: second.id, kind: 'in', requestId: 'upstairs-in', floor: 1 }, upstairs.token);
+  assert.equal((await getShift(record.shiftId)).floor, 2);
+  now += hour;
+  await assert.rejects(service.punch({ employeeId: second.id, kind: 'out', shiftId: record.shiftId, requestId: 'wrong-out' }, token), { status: 403 });
+  await service.punch({ employeeId: second.id, kind: 'out', shiftId: record.shiftId, requestId: 'upstairs-out' }, upstairs.token);
+  assert.equal((await service.listAdmin('2026-09')).shifts[0].amount, 12000);
+});
+
+test('floor transfers preserve completed history and old clients cannot erase the assigned floor', async () => {
+  const first = await punch('in', 'before-transfer');
+  await assert.rejects(service.saveEmployee({ ...(await getEmployee()), floor: 2 }, 'admin'), { status: 400 });
+  now += hour; await punch('out', 'complete-first-floor', first.shiftId);
+  await service.saveEmployee({ ...(await getEmployee()), floor: 2 }, 'admin');
+  assert.equal((await service.listKiosk(token)).employees.length, 0);
+  const { floor: _floor, ...oldClient } = await getEmployee();
+  await service.saveEmployee({ ...oldClient, name: '새 이름' }, 'admin');
+  assert.equal((await getEmployee()).floor, 2);
+  const prior = await getShift(first.shiftId);
+  await service.saveShift({ ...prior, note: '이동 후 과거 기록 수정', floor: 2 }, 'admin');
+  assert.equal((await getShift(first.shiftId)).floor, 1);
+  now += hour;
+  const next = await service.saveShift({ employeeId, checkInAt: now - hour, checkOutAt: now, breakMinutes: 0, payType: 'hourly', hourlyRate: 12000, note: '', floor: 1 }, 'admin');
+  assert.equal((await getShift(next.id)).floor, 2);
+  assert.deepEqual((await service.listAdmin('2026-09')).shifts.map(s => s.floor).sort(), [1, 2]);
+});
+
+test('existing tablets can change floor with conflict detection and legacy defaults need no migration', async () => {
+  const { FieldValue } = require('firebase-admin/firestore');
+  await db.collection('staffEmployees').doc(employeeId).update({ floor: FieldValue.delete() });
+  await db.collection('attendanceDevices').doc(deviceId).update({ floor: FieldValue.delete(), version: FieldValue.delete() });
+  assert.equal((await service.listKiosk(token)).floor, 1);
+  assert.equal((await service.listAdmin('2026-09')).employees[0].floor, 1);
+  const second = await service.saveEmployee({ ...employeeInput, floor: 2 }, 'admin');
+  await service.setDeviceFloor({ id: deviceId, version: 1, floor: 2 }, 'admin');
+  assert.deepEqual((await service.listKiosk(token)).employees.map(e => e.id), [second.id]);
+  await assert.rejects(service.setDeviceFloor({ id: deviceId, version: 1, floor: 1 }, 'admin'), { status: 409 });
+  await assert.rejects(service.setDeviceFloor({ id: deviceId, version: 2, floor: 3 }, 'admin'), { status: 400 });
+  await assert.rejects(punch('in', 'old-screen'), { status: 403 });
+  await service.revokeDevice({ id: deviceId }, 'admin');
+  await assert.rejects(service.setDeviceFloor({ id: deviceId, version: 2, floor: 1 }, 'admin'), { status: 401 });
+});

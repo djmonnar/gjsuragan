@@ -1,12 +1,12 @@
-const CACHE = 'gjsuragan-v69-reservations';
+const CACHE = 'gjsuragan-v70-attendance-floors';
 const PRECACHE = [
   './customer.html',
   './admin.html',
   './attendance.html',
-  './assets/css/attendance.css?v=20260910',
+  './assets/css/attendance.css?v=20260910-floors',
   './assets/js/attendance-ui.js?v=20260910',
-  './assets/js/attendance-admin.js?v=20260910',
-  './assets/js/attendance-kiosk.js?v=20260910',
+  './assets/js/attendance-admin.js?v=20260910-floors',
+  './assets/js/attendance-kiosk.js?v=20260910-floors',
   './assets/js/attendance-bookings.js?v=20260910',
   './assets/js/attendance-booking-form.js?v=20260910',
   './assets/js/attendance-bookings-admin.js?v=20260910',

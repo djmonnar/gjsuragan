@@ -1,6 +1,6 @@
 .att-root,.att-dialog,.att-kiosk{--att-ink:#342a25;--att-muted:#81756c;--att-border:#e7dfd4;--att-brand:#703d2e;--att-green:#317457;--att-bg:#f7f5ef;color:var(--att-ink);font-family:'Pretendard Variable','Pretendard',system-ui,sans-serif;line-height:1.5}
 .att-root *,.att-dialog *,.att-kiosk *{box-sizing:border-box}
-.att-root button,.att-root input,.att-root select,.att-dialog button,.att-dialog input,.att-dialog select,.att-dialog textarea,.att-kiosk button,.att-kiosk input{font:inherit}
+.att-root button,.att-root input,.att-root select,.att-dialog button,.att-dialog input,.att-dialog select,.att-dialog textarea,.att-kiosk button,.att-kiosk input,.att-kiosk select{font:inherit}
 .att-root button,.att-dialog button,.att-kiosk button{cursor:pointer;touch-action:manipulation}
 .att-root button:disabled,.att-dialog button:disabled,.att-kiosk button:disabled{opacity:.5;cursor:wait}
 .att-root :focus-visible,.att-dialog :focus-visible,.att-kiosk :focus-visible{outline:3px solid #b38441;outline-offset:3px}
@@ -18,6 +18,7 @@
 .att-stat-value{font-size:25px;font-weight:750;letter-spacing:-.04em;margin:5px 0 1px;line-height:1.4;font-variant-numeric:tabular-nums}
 .att-stat small{font-size:11px;color:var(--att-muted)}
 .att-toolbar{margin-bottom:18px}.att-tabs{display:flex;gap:4px;background:#eae5dc;padding:4px;border-radius:12px}
+.att-floor-toolbar{margin-top:22px;margin-bottom:0}.att-floor-toolbar .att-tabs{border:1px solid var(--att-border);background:#f4efe7}.att-floor-toolbar .att-tab.active{background:var(--att-brand);color:#fff}
 .att-tab{border:0;background:transparent;color:var(--att-muted);padding:9px 15px;border-radius:9px;font-weight:650;min-height:40px}.att-tab.active{background:#fff;color:var(--att-ink);box-shadow:0 1px 4px #38241412}
 .att-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.att-input{border:1px solid var(--att-border);border-radius:9px;background:#fff;padding:10px 12px;min-height:44px;color:var(--att-ink);max-width:100%}
 .att-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}

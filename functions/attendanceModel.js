@@ -26,6 +26,11 @@ function id(value) {
   return value;
 }
 
+// Records created before floor separation belong to the first floor.
+function floor(value = 1) {
+  return integer(value, '근무 층', 1, 2);
+}
+
 function workDate(ms) {
   return new Date(ms + 9 * 3600000).toISOString().slice(0, 10);
 }
@@ -42,6 +47,7 @@ function employeeInput(input) {
   return {
     name: text(input.name, '이름', 40, true),
     role: text(input.role, '담당 업무', 40),
+    floor: floor(input.floor),
     payType: input.payType,
     hourlyRate: input.payType === 'hourly' ? integer(input.hourlyRate, '시급', 1, 1000000) : 0,
     breakMinutes: integer(input.breakMinutes, '무급 휴게시간', 0, 720),
@@ -88,4 +94,4 @@ function kioskEmployee(employee) {
   };
 }
 
-module.exports = { MINUTE, MAX_SHIFT_MS, fail, text, integer, id, workDate, monthRange, employeeInput, shiftInput, totals, overlaps, kioskEmployee };
+module.exports = { MINUTE, MAX_SHIFT_MS, fail, text, integer, id, floor, workDate, monthRange, employeeInput, shiftInput, totals, overlaps, kioskEmployee };
