@@ -431,3 +431,39 @@ test('등록용 문서가 빠진 옛 보류 기록은 다시 채우고 확인 �
   assert.equal(record.customerData.orderType, 'sub');
   assert.equal(record.name, '차진');
 });
+
+test('취소인데 등록된 적 없는 주문은 숫자와 주문번호로 남긴다', async () => {
+  // 예전에는 여기서 아무 기록 없이 사라져서, 로그 숫자를 더해도 아귀가 안 맞았다.
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736', '취소완료')], {});
+  const logs = [];
+
+  const result = await syncImwebOrders({
+    db, client, env: {}, registerFrom: '', log: message => logs.push(message)
+  });
+
+  assert.equal(result.deleted, 0);
+  assert.equal(result.cancelled, 1);
+  assert.deepEqual(result.cancelledOrderNos, ['202608240989736(취소완료)']);
+  assert.ok(logs.some(message => message.includes('취소 상태라 등록하지 않음')));
+  assert.ok(logs.some(message => message.includes('202608240989736')));
+});
+
+test('로그 숫자를 더하면 훑은 건수와 아귀가 맞는다', async () => {
+  const db = fakeDb();
+  const client = fakeClient([
+    order('1001'),                       // 등록됨
+    order('1002', '배송완료'),            // 종료상태로 건너뜀
+    order('1003', '취소완료')             // 취소인데 등록된 적 없음
+  ], {
+    1001: [subItem('주 3회|월/수/금 조리|총 12회')],
+    1002: [subItem('주 3회|월/수/금 조리|총 12회')],
+    1003: [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.scanned, 3);
+  assert.equal(result.saved + result.skipped + result.missed + result.cancelled, 3,
+    '훑은 주문이 어느 칸에도 안 잡히고 사라지면 안 된다');
+});
