@@ -17,7 +17,9 @@ const port = Number(process.env.ATTENDANCE_PREVIEW_PORT || 8765);
 if (!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST || '')) throw new Error('Set FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 before starting the local preview.');
 const db = getFirestore(initializeApp({ projectId }, 'attendance-preview'));
 let clock = null;
-const service = createAttendanceService({ db, now: () => clock ?? Date.now() });
+const previewKey = crypto.randomBytes(32).toString('base64');
+const service = createAttendanceService({ db, now: () => clock ?? Date.now(),
+  vault: require('../attendancePrivate').createPrivateVault(() => previewKey) });
 let bookingScenario = 'ready';
 const manualBookings = new Map(), bookingRequests = new Map();
 const verifyPreviewToken = async token => {
@@ -113,6 +115,11 @@ async function start() {
     }
     if (url.pathname === '/preview-firebase.js') { res.setHeader('Content-Type','text/javascript; charset=utf-8');res.end(firebaseStub);return; }
     if (url.pathname === '/sw.js') { res.setHeader('Content-Type','text/javascript');res.end('');return; }
+    if (url.pathname === '/mobile-preview.html') {
+      const width = Math.max(320, Math.min(800, Number(url.searchParams.get('width')) || 390));
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.end(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>모바일 관리자 로컬 미리보기</title></head><body style="margin:0;background:#e9e5df;display:grid;place-items:center"><iframe title="모바일 관리자" src="/admin.html#attendance" allow="clipboard-write" style="width:${width}px;height:844px;border:0;background:white"></iframe></body></html>`); return;
+    }
     const pathname = url.pathname === '/' ? '/attendance.html' : url.pathname;
     if (!/^\/(?:admin\.html|attendance\.html|assets\/(?:css|js|img)\/[^?]+|icons\/icon\.svg|admin-manifest\.json)$/.test(pathname)) {res.writeHead(404).end();return;}
     const file = path.resolve(root, `.${decodeURIComponent(pathname)}`);

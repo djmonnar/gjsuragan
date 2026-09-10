@@ -2,10 +2,12 @@
 
 const crypto = require('crypto');
 const model = require('./attendanceModel');
+const privateData = require('./attendancePrivate');
 
 // All attendance writes go through this service. Browser Firestore writes are denied.
-function createAttendanceService({ db, now = Date.now }) {
+function createAttendanceService({ db, now = Date.now, vault = privateData.createPrivateVault() }) {
   const employees = db.collection('staffEmployees');
+  const privateEmployees = db.collection('staffPrivate');
   const shifts = db.collection('staffShifts');
   const devices = db.collection('attendanceDevices');
   const requests = db.collection('attendanceRequests');
@@ -47,6 +49,7 @@ function createAttendanceService({ db, now = Date.now }) {
   }
   async function saveEmployee(input, actor) {
     const data = model.employeeInput(input);
+    const details = input.privateDetails === undefined ? undefined : privateData.privateInput(input.privateDetails);
     const ref = input.id ? employees.doc(model.id(input.id)) : employees.doc();
     return db.runTransaction(async tx => {
       const snap = await tx.get(ref);
@@ -59,11 +62,29 @@ function createAttendanceService({ db, now = Date.now }) {
       // An older admin screen can edit other fields without erasing a saved salary.
       const monthlySalary = data.payType === 'salaried' && input.monthlySalary === undefined && before?.payType === 'salaried'
         ? before.monthlySalary ?? null : data.monthlySalary;
-      const after = { ...data, floor, monthlySalary, currentShiftId: before?.currentShiftId || null, lastShift: before?.lastShift || null,
+      const after = { ...data, floor, monthlySalary,
+        privateSummary: details ? privateData.privateSummary(details) : before?.privateSummary || privateData.privateSummary(privateData.empty()),
+        currentShiftId: before?.currentShiftId || null, lastShift: before?.lastShift || null,
         createdAt: before?.createdAt ?? now(), updatedAt: now(), deletedAt: null, version: (before?.version || 0) + 1 };
+      if (details) {
+        if (Object.values(details).some(Boolean)) tx.set(privateEmployees.doc(ref.id), { encrypted: vault.seal(details, ref.id), updatedAt: now() });
+        else tx.delete(privateEmployees.doc(ref.id));
+      }
       tx.set(ref, after);
       log(tx, actor, 'employee.save', ref.id, before, after);
       return { id: ref.id };
+    });
+  }
+  async function getEmployeePrivate(input, actor, bankOnly = false) {
+    const id = model.id(input.id);
+    return db.runTransaction(async tx => {
+      const [employeeSnap, privateSnap] = await Promise.all([tx.get(employees.doc(id)), tx.get(privateEmployees.doc(id))]);
+      const employee = existing(employeeSnap, '직원');
+      if (employee.deletedAt) model.fail('삭제된 직원입니다.', 404);
+      const details = vault.open(privateSnap.data()?.encrypted, id);
+      log(tx, actor, bankOnly ? 'employee.bank.read' : 'employee.private.read', id, null, { accessed: true });
+      return bankOnly ? { bankName: details.bankName, bankAccount: details.bankAccount, accountHolder: details.accountHolder }
+        : { privateDetails: details, version: employee.version };
     });
   }
   async function deleteEmployee(input, actor) {
@@ -72,7 +93,8 @@ function createAttendanceService({ db, now = Date.now }) {
       const before = existing(await tx.get(ref), '직원');
       revision(input, before);
       if (before.currentShiftId) model.fail('퇴근 처리 후 직원을 삭제해 주세요.');
-      const after = { ...before, active: false, deletedAt: now(), version: before.version + 1, updatedAt: now() };
+      const after = { ...before, privateSummary: privateData.privateSummary(privateData.empty()), active: false, deletedAt: now(), version: before.version + 1, updatedAt: now() };
+      tx.delete(privateEmployees.doc(ref.id));
       tx.set(ref, after);
       log(tx, actor, 'employee.delete', ref.id, before, after);
       return { id: ref.id };
@@ -197,7 +219,7 @@ function createAttendanceService({ db, now = Date.now }) {
       return { id: ref.id };
     });
   }
-  return { listAdmin, saveEmployee, deleteEmployee, createDevice, setDeviceFloor, revokeDevice, listKiosk, punch, saveShift, authorizeDevice };
+  return { listAdmin, saveEmployee, getEmployeePrivate, deleteEmployee, createDevice, setDeviceFloor, revokeDevice, listKiosk, punch, saveShift, authorizeDevice };
 }
 
 function createAttendanceHandler({ service, verifyToken, logError = console.error }) {
@@ -223,6 +245,8 @@ function createAttendanceHandler({ service, verifyToken, logError = console.erro
         switch (input.action) {
           case 'admin.list': result = await service.listAdmin(input.month); break;
           case 'employee.save': result = await service.saveEmployee(input, user.uid); break;
+          case 'employee.private': result = await service.getEmployeePrivate(input, user.uid); break;
+          case 'employee.bank': result = await service.getEmployeePrivate(input, user.uid, true); break;
           case 'employee.delete': result = await service.deleteEmployee(input, user.uid); break;
           case 'shift.save': result = await service.saveShift(input, user.uid); break;
           case 'shift.delete': result = await service.saveShift(input, user.uid, true); break;

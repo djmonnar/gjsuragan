@@ -1,11 +1,11 @@
-const CACHE = 'gjsuragan-v71-monthly-salary';
+const CACHE = 'gjsuragan-v72-staff-details';
 const PRECACHE = [
   './customer.html',
   './admin.html',
   './attendance.html',
-  './assets/css/attendance.css?v=20260910-salary',
+  './assets/css/attendance.css?v=20260910-details',
   './assets/js/attendance-ui.js?v=20260910',
-  './assets/js/attendance-admin.js?v=20260910-salary',
+  './assets/js/attendance-admin.js?v=20260910-details',
   './assets/js/attendance-kiosk.js?v=20260910-floors',
   './assets/js/attendance-bookings.js?v=20260910',
   './assets/js/attendance-booking-form.js?v=20260910',

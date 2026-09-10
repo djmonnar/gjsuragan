@@ -86,7 +86,7 @@ test('attendance wages are admin-only and all client writes and device secrets a
   const driverDb = env.authenticatedContext('driver', { firebase: { sign_in_provider: 'anonymous' } }).firestore();
   const adminDb = env.authenticatedContext('admin', { email: testAdminEmail }).firestore();
   await env.withSecurityRulesDisabled(async context => {
-    for (const collection of ['staffEmployees', 'staffShifts', 'attendanceAudit', 'attendanceDevices', 'attendanceRequests']) {
+    for (const collection of ['staffEmployees', 'staffShifts', 'attendanceAudit', 'attendanceDevices', 'attendanceRequests', 'staffPrivate']) {
       await setDoc(doc(context.firestore(), `${collection}/test`), { hourlyRate: 12000 });
     }
   });
@@ -94,10 +94,10 @@ test('attendance wages are admin-only and all client writes and device secrets a
     await assertSucceeds(getDoc(doc(adminDb, `${collection}/test`)));
     for (const client of [publicDb, customerDb, driverDb]) await assertFails(getDoc(doc(client, `${collection}/test`)));
   }
-  for (const collection of ['staffEmployees', 'staffShifts', 'attendanceAudit', 'attendanceDevices', 'attendanceRequests']) {
+  for (const collection of ['staffEmployees', 'staffShifts', 'attendanceAudit', 'attendanceDevices', 'attendanceRequests', 'staffPrivate']) {
     for (const client of [publicDb, customerDb, driverDb, adminDb]) await assertFails(setDoc(doc(client, `${collection}/test`), { hourlyRate: 1 }));
   }
-  for (const collection of ['attendanceDevices', 'attendanceRequests']) {
+  for (const collection of ['attendanceDevices', 'attendanceRequests', 'staffPrivate']) {
     for (const client of [publicDb, customerDb, driverDb, adminDb]) await assertFails(getDoc(doc(client, `${collection}/test`)));
   }
 });
