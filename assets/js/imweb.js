@@ -4,6 +4,7 @@
 const IW_KEY_STORE = 'iw_keys';
 let iwOrders = []; // 불러온 주문 목록
 let iwRows = [];   // 주문을 상품 줄 단위로 펼친 목록 (한 주문에 상품이 여러 줄일 수 있다)
+let iwRegisteredKeys = new Set(); // 이미 등록된 상품 줄의 syncKey
 
 const IW_CANCEL_STATUSES = [
   'order_cancel', 'pay_cancel', 'refund_req', 'refund_done',
@@ -15,27 +16,57 @@ function imwebNormalizeStatus(status){
   return String(status || '').replace(/\s+/g, '').toLowerCase();
 }
 
+// 취소·환불이라는 낱말이 들어 있지만 취소가 실제로 이뤄지지 않은 상태들이다.
+// 취소요청을 물리거나(취소철회) 판매자가 반려하면 주문은 그대로 살아 있는데
+// 아임웹은 claim_status 에 '취소철회' / 'CANCEL_REJECT' 같은 값을 남긴다.
+const IW_CANCEL_UNDONE = /철회|반려|거부|취소불가|취소실패|withdraw|reject|refuse|deny|denied|revoke|uncancel|cancel_cancel/;
+
+function imwebIsCancelUndone(status){
+  const normalized = imwebNormalizeStatus(status);
+  return !!normalized && IW_CANCEL_UNDONE.test(normalized);
+}
+
 function imwebIsCancelStatus(status){
   const normalized = imwebNormalizeStatus(status);
   if(!normalized) return false;
+  if(imwebIsCancelUndone(normalized)) return false;
   if(IW_CANCEL_STATUSES.some(s => imwebNormalizeStatus(s) === normalized)) return true;
   return /cancel|refund|취소|환불/.test(normalized);
 }
 
-function imwebOrderStatuses(order){
-  const vals = [
+// 주문 자체의 상태. claim_* 는 상품 줄 하나에만 걸린 클레임일 수 있어서 빼둔다.
+function imwebOrderHeadStatuses(order){
+  return [
     order?.status, order?.order_status, order?.payment_status,
-    order?.status_text, order?.status_name, order?.order_status_text,
-    order?.claim_status, order?.claim_type
-  ];
-  (order?.product_list || []).forEach(item => {
-    vals.push(item?.status, item?.status_text, item?.status_name, item?.claim_status, item?.claim_type);
-  });
+    order?.status_text, order?.status_name, order?.order_status_text
+  ].filter(Boolean);
+}
+
+function imwebItemStatuses(item){
+  return [item?.status, item?.status_text, item?.status_name, item?.claim_status, item?.claim_type].filter(Boolean);
+}
+
+function imwebOrderStatuses(order){
+  const vals = [...imwebOrderHeadStatuses(order), order?.claim_status, order?.claim_type];
+  (order?.product_list || []).forEach(item => { vals.push(...imwebItemStatuses(item)); });
   return vals.filter(Boolean);
 }
 
+function imwebCancelStatusForItem(item){
+  return imwebItemStatuses(item).find(imwebIsCancelStatus) || '';
+}
+
+// 주문 전체가 취소된 경우만 잡는다.
+// 주문 상태는 멀쩡한데 claim_* 만 취소면 부분취소일 수 있으니, 상품 줄이 전부 취소일 때만 전체 취소로 본다.
+// 한 줄 취소를 주문 전체 취소로 보면 같은 주문의 살아 있는 줄까지 지워지고 다시는 등록되지 않는다.
 function imwebCancelStatusForOrder(order){
-  return imwebOrderStatuses(order).find(imwebIsCancelStatus) || '';
+  const head = imwebOrderHeadStatuses(order).find(imwebIsCancelStatus);
+  if(head) return head;
+  const claim = [order?.claim_status, order?.claim_type].filter(Boolean).find(imwebIsCancelStatus);
+  if(!claim) return '';
+  const items = order?.product_list || [];
+  if(!items.length) return claim;
+  return items.every(item => imwebCancelStatusForItem(item)) ? claim : '';
 }
 
 function imwebAddCancelInfoText(out, value){
@@ -132,6 +163,23 @@ async function imwebDeleteLocalOrder(orderNo, cancelStatus='', source='manual_fe
   return uniqueIds.length;
 }
 
+// 부분취소는 취소된 상품 줄에 해당하는 문서만 지운다.
+async function imwebDeleteLocalSyncKey(orderNo, syncKey, cancelStatus='', source='manual_fetch', cancelInfo={}){
+  const key = String(syncKey || '').trim();
+  if(!key || !window.__DB) return 0;
+
+  const targets = custs.filter(c => {
+    const docKey = String(c.syncKey || c.orderNum || '');
+    return docKey === key;
+  });
+  const uniqueIds = [...new Set(targets.map(c => c.id).filter(Boolean))];
+  if(!uniqueIds.length) return 0;
+
+  await imwebCreateCancelLog(orderNo, cancelStatus, targets, source, cancelInfo);
+  await Promise.all(uniqueIds.map(id => window.__DB.collection('customers').doc(id).delete()));
+  return uniqueIds.length;
+}
+
 function imwebSaveKeys(){
   const ak = document.getElementById('iw-apikey').value.trim();
   const sk = document.getElementById('iw-secret').value.trim();
@@ -218,8 +266,9 @@ async function imwebFetch(){
   try{
     const token = await imwebGetToken(keys.ak, keys.sk);
 
-    // 기존 주문번호 목록 (중복 방지)
-    const existingOrderNums = new Set(custs.map(c=>c.orderNum||'').filter(Boolean));
+    // 기존 등록 목록 (중복 방지). 주문번호가 아니라 상품 줄 단위(syncKey)로 본다.
+    // 한 줄이 등록돼 있다고 주문 전체를 숨기면, 취소했다가 다시 신청한 줄이 영영 안 보인다.
+    iwRegisteredKeys = new Set(custs.map(c => String(c.syncKey || c.orderNum || '')).filter(Boolean));
 
     let params = `order_date_from=${from.replace(/-/g,'')}&order_date_to=${to.replace(/-/g,'')}`;
     if(status) params += `&status=${status}`;
@@ -239,19 +288,29 @@ async function imwebFetch(){
       const cancelStatus = imwebCancelStatusForOrder(order);
       if(cancelStatus){
         deleted += await imwebDeleteLocalOrder(order.order_no, cancelStatus, 'manual_fetch', imwebCancelInfoForOrder(order));
-      } else {
-        activeOrders.push(order);
+        continue;
       }
+      // 부분취소: 취소된 상품 줄만 지우고 나머지 줄은 그대로 불러온다.
+      const items = order.product_list || [];
+      for(let idx = 0; idx < items.length; idx++){
+        const itemCancelStatus = imwebCancelStatusForItem(items[idx]);
+        if(!itemCancelStatus) continue;
+        deleted += await imwebDeleteLocalSyncKey(
+          order.order_no, iwSyncKey(order.order_no, idx + 1),
+          itemCancelStatus, 'manual_fetch', imwebCancelInfoForOrder(order));
+      }
+      activeOrders.push(order);
     }
 
-    // 이미 등록된 주문번호 제외
-    iwOrders = activeOrders.filter(o => !existingOrderNums.has(String(o.order_no)));
-
-    document.getElementById('iw-cnt').textContent =
-      `${iwOrders.length}건 (전체 ${activeOrders.length}건 중 미등록${deleted ? ` / 취소삭제 ${deleted}건` : ''})`;
+    iwOrders = activeOrders;
     renderImwebOrders();
+
+    const totalRows = iwAllItemRows().length;
+    const shown = iwRows.length;
+    document.getElementById('iw-cnt').textContent =
+      `${shown}건 (전체 ${totalRows}건 중 미등록${deleted ? ` / 취소삭제 ${deleted}건` : ''})`;
     document.getElementById('iw-result-wrap').style.display = 'block';
-    toast(`${iwOrders.length}건 불러옴 (기등록 ${activeOrders.length - iwOrders.length}건 제외${deleted ? `, 취소삭제 ${deleted}건` : ''})`,'info');
+    toast(`${shown}건 불러옴 (기등록 ${totalRows - shown}건 제외${deleted ? `, 취소삭제 ${deleted}건` : ''})`,'info');
 
   } catch(e){
     toast('오류: '+e.message,'er');
@@ -282,16 +341,24 @@ function parseImwebProduct(prodName){
 
 // 한 주문에 상품이 여러 줄 들어오는 경우가 있다.
 // 예전에는 첫 줄만 읽어서 나머지 줄이 통째로 사라졌다. 줄마다 한 행으로 펼친다.
-function iwOrderItemRows(){
+function iwAllItemRows(){
   const rows = [];
   iwOrders.forEach(order => {
     const items = order.product_list || [];
     const list = items.length ? items : [{}];
+    // 자리번호(itemIdx)는 취소·기등록 여부와 상관없이 그대로 둬야 syncKey 가 어긋나지 않는다.
     list.forEach((item, idx) => {
-      rows.push({ order, item, itemIdx: idx + 1, itemCount: list.length });
+      rows.push({ order, item, itemIdx: idx + 1, itemCount: list.length, hasItems: items.length > 0 });
     });
   });
   return rows;
+}
+
+function iwOrderItemRows(){
+  return iwAllItemRows().filter(row => {
+    if(row.hasItems && imwebCancelStatusForItem(row.item)) return false;
+    return !iwRegisteredKeys.has(iwSyncKey(row.order.order_no, row.itemIdx));
+  });
 }
 
 function iwSyncKey(orderNo, itemIdx){
@@ -439,6 +506,8 @@ async function imwebRegAll(){
 
 function imwebReset(){
   iwOrders=[];
+  iwRows=[];
+  iwRegisteredKeys=new Set();
   document.getElementById('iw-result-wrap').style.display='none';
   document.getElementById('iw-tbody').innerHTML='';
 }

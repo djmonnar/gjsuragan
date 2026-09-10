@@ -37,7 +37,7 @@ function fakeDb(seed = {}) {
 
 const ORDER_TIME = Math.floor(Date.UTC(2026, 7, 24, 1, 0) / 1000); // 2026-08-24(월) 10:00 KST
 
-function order(orderNo, status = 'pay_done') {
+function order(orderNo, status = 'pay_done', extra = {}) {
   return {
     order_no: orderNo,
     order_date: '20260824',
@@ -46,6 +46,19 @@ function order(orderNo, status = 'pay_done') {
     delivery: {
       memo: '',
       address: { name: '차진', phone: '010-0000-0000', address: '경남 진주시', address_detail: '8' }
+    },
+    ...extra
+  };
+}
+
+// 상품 줄마다 상태가 다른 주문(부분취소)을 흉내낸다.
+function fakeClientWithProdOrders(orders, prodOrdersByOrderNo) {
+  return {
+    async getToken() { return 'token'; },
+    async getOrders() { return orders; },
+    async getProdOrders(_token, orderNo) { return prodOrdersByOrderNo[orderNo] || []; },
+    itemsFromProdOrders(prodOrders) {
+      return (prodOrders || []).flatMap(po => po.items || []);
     }
   };
 }
@@ -167,4 +180,92 @@ test('배송 보류 상태는 등록 대상이다', async () => {
 
   const result = await syncImwebOrders({ db, client, env: {} });
   assert.equal(result.saved, 1);
+});
+
+test('취소를 철회한 주문은 다시 등록된다', async () => {
+  // 취소요청을 물리면 주문은 결제완료로 살아 있는데 claim_* 에 취소 흔적만 남는다.
+  // 예전에는 이 흔적 하나만 보고 주문 전체를 취소로 처리해서 영영 등록되지 않았다.
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736', 'pay_done', { claim_status: '취소철회', claim_type: 'CANCEL' })], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {} });
+
+  assert.equal(result.saved, 1);
+  assert.equal(result.deleted, 0);
+  assert.equal(customers(db).length, 1);
+});
+
+test('부분취소는 취소된 줄만 빼고 나머지 줄을 등록한다', async () => {
+  const db = fakeDb();
+  const client = fakeClientWithProdOrders([order('202608240989736')], {
+    '202608240989736': [
+      { status: 'pay_done', items: [subItem('주 3회|월/수/금 조리|총 12회')] },
+      { status: 'cancel_done', items: [subItem('주 2회|화/목 조리|총 8회')] }
+    ]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {} });
+
+  assert.equal(result.saved, 1);
+  const saved = customers(db);
+  assert.deepEqual(saved.map(c => c.syncKey), ['202608240989736']);
+  assert.deepEqual(saved.map(c => c.cookDays), [[1, 3, 5]]);
+});
+
+test('이미 등록된 주문도 취소 흔적이 있으면 취소된 줄만 지운다', async () => {
+  const db = fakeDb({
+    'customers/a': { syncKey: '202608240989736', name: '차진' },
+    'customers/b': { syncKey: '202608240989736-2', name: '차진' }
+  });
+  const client = fakeClientWithProdOrders(
+    [order('202608240989736', 'pay_done', { claim_status: 'cancel_done', claim_type: 'CANCEL' })], {
+      '202608240989736': [
+        { status: 'pay_done', items: [subItem('주 3회|월/수/금 조리|총 12회')] },
+        { status: 'cancel_done', items: [subItem('주 2회|화/목 조리|총 8회')] }
+      ]
+    });
+
+  const result = await syncImwebOrders({ db, client, env: {} });
+
+  assert.equal(result.deleted, 1);
+  assert.equal(result.saved, 0);
+  assert.deepEqual(customers(db).map(c => c.syncKey), ['202608240989736']);
+  const logs = [...db.store.entries()].filter(([id]) => id.startsWith('imwebCancelLogs/'));
+  assert.equal(logs.length, 1);
+  assert.deepEqual(logs[0][1].deletedDocIds, ['b']);
+  assert.equal(logs[0][1].cancelStatus, 'cancel_done', '취소 로그에는 주문 상태가 아니라 실제 취소 상태가 남아야 한다');
+});
+
+test('상품 줄이 전부 취소면 주문 전체를 지운다', async () => {
+  const db = fakeDb({
+    'customers/a': { syncKey: '202608240989736', name: '차진' },
+    'customers/b': { syncKey: '202608240989736-2', name: '차진' }
+  });
+  const client = fakeClientWithProdOrders(
+    [order('202608240989736', 'pay_done', { claim_status: 'cancel_done' })], {
+      '202608240989736': [
+        { status: 'cancel_done', items: [subItem('주 3회|월/수/금 조리|총 12회')] },
+        { status: 'cancel_done', items: [subItem('주 2회|화/목 조리|총 8회')] }
+      ]
+    });
+
+  const result = await syncImwebOrders({ db, client, env: {} });
+
+  assert.equal(result.deleted, 2);
+  assert.equal(customers(db).length, 0);
+});
+
+test('취소 흔적이 있어도 상품 줄을 못 읽으면 아무것도 지우지 않는다', async () => {
+  const db = fakeDb({ 'customers/a': { syncKey: '202608240989736', name: '차진' } });
+  const client = fakeClientWithProdOrders(
+    [order('202608240989736', 'pay_done', { claim_status: 'cancel_done' })], {});
+  const logs = [];
+
+  const result = await syncImwebOrders({ db, client, env: {}, log: message => logs.push(message) });
+
+  assert.equal(result.deleted, 0);
+  assert.equal(customers(db).length, 1);
+  assert.ok(logs.some(message => message.includes('판정 보류')), '판정을 미뤘다는 로그가 남아야 한다');
 });

@@ -154,6 +154,37 @@ test('주문 상태를 취소·종료·허용으로 가른다', () => {
   assert.equal(parser.isAllowStatus('배송완료'), false);
 });
 
+test('취소를 철회·반려한 상태는 취소로 보지 않는다', () => {
+  assert.equal(parser.isCancelStatus('취소철회'), false);
+  assert.equal(parser.isCancelStatus('취소반려'), false);
+  assert.equal(parser.isCancelStatus('CANCEL_REJECT'), false);
+  assert.equal(parser.isCancelStatus('cancel_withdraw'), false);
+  assert.equal(parser.isCancelStatus('환불거부'), false);
+  // 진짜 취소는 그대로 취소다
+  assert.equal(parser.isCancelStatus('취소요청'), true);
+  assert.equal(parser.isCancelStatus('cancel_done'), true);
+  assert.equal(parser.isCancelStatus('refund_req'), true);
+});
+
+test('주문 상태와 클레임 상태를 따로 모은다', () => {
+  const order = { status: 'pay_done', claim_status: '취소철회', claim_type: 'CANCEL' };
+  assert.deepEqual(parser.orderHeadStatuses(order), ['pay_done']);
+  assert.deepEqual(parser.orderClaimStatuses(order), ['취소철회', 'CANCEL']);
+  assert.equal(parser.hasClaimTrace(parser.orderClaimStatuses(order)), true);
+  assert.equal(parser.hasClaimTrace(parser.orderClaimStatuses({ claim_type: 'EXCHANGE' })), false);
+  // 예전 호출부가 쓰던 합본은 그대로 둔다
+  assert.deepEqual(parser.orderStatuses(order, []), ['pay_done', '취소철회', 'CANCEL']);
+});
+
+test('상품 줄 상태는 주문 상태를 물려받고 줄 상태가 있으면 덧붙인다', () => {
+  const order = { status: 'pay_done' };
+  const item = { claim_status: 'cancel_done' };
+  const prodOrder = { status: 'pay_done', items: [item] };
+  assert.deepEqual(parser.lineStatuses(order, prodOrder, item), ['pay_done', 'pay_done', 'cancel_done']);
+  assert.deepEqual(parser.lineStatuses(order, null, {}), ['pay_done']);
+  assert.equal(parser.prodOrderOfItem([prodOrder], item), prodOrder);
+});
+
 test('syncKey 는 첫 줄만 주문번호를 그대로 쓴다', () => {
   assert.equal(parser.buildSyncKey('123', 1), '123');
   assert.equal(parser.buildSyncKey('123', 2), '123-2');

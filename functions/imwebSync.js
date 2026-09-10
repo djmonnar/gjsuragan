@@ -1,5 +1,9 @@
-// 아임웹 주문 동기화 본체. 앱스스크립트 syncImwebOrders 를 그대로 옮긴 것이다.
+// 아임웹 주문 동기화 본체. 앱스스크립트 syncImwebOrders 를 옮긴 것이다.
 // 클라이언트와 db 를 주입받아서 테스트에서 가짜로 갈아끼울 수 있게 한다.
+//
+// 취소 판정만 앱스스크립트와 다르다. 예전에는 주문에 붙은 취소 흔적 하나만 보고
+// 주문 전체를 취소로 처리했다. 그래서 취소를 철회하거나 한 줄만 취소한 주문이
+// 영영 등록되지 않았다. 지금은 주문 상태와 상품 줄 상태를 따로 본다.
 
 const parser = require('./imwebParser');
 const defaultClient = require('./imwebClient');
@@ -62,6 +66,21 @@ function recordsForOrderNo(existing, orderNo) {
   return records;
 }
 
+function recordsForSyncKey(existing, syncKey) {
+  const key = String(syncKey || '');
+  if (!key) return [];
+  return (existing.get(key) || []).filter(record => record?.id);
+}
+
+// 지운 문서를 색인에서도 빼야 같은 실행 안에서 '이미등록' 으로 잘못 걸리지 않는다.
+function forgetOrder(existing, orderNo) {
+  const no = String(orderNo || '').trim();
+  if (!no) return;
+  for (const key of [...existing.keys()]) {
+    if (key === no || key.startsWith(`${no}-`)) existing.delete(key);
+  }
+}
+
 async function recordCancel(db, orderNo, status, records, cancelInfo, now) {
   await db.collection(CANCEL_LOGS).add({
     orderNo: String(orderNo || ''),
@@ -82,15 +101,31 @@ async function recordCancel(db, orderNo, status, records, cancelInfo, now) {
   });
 }
 
-async function deleteCancelledOrder(db, orderNo, status, order, prodOrders, existing, now, log) {
-  const records = recordsForOrderNo(existing, orderNo);
-  if (!records.length) return 0;
-  const cancelInfo = parser.cancelInfoForOrder(order, prodOrders);
+async function deleteRecords(db, orderNo, status, records, cancelInfo, now) {
   await recordCancel(db, orderNo, status, records, cancelInfo, now);
   for (const record of records) {
     await db.collection(CUSTOMERS).doc(record.id).delete();
   }
+}
+
+async function deleteCancelledOrder(db, orderNo, status, order, prodOrders, existing, now, log) {
+  const records = recordsForOrderNo(existing, orderNo);
+  if (!records.length) return 0;
+  const cancelInfo = parser.cancelInfoForOrder(order, prodOrders);
+  await deleteRecords(db, orderNo, status, records, cancelInfo, now);
+  forgetOrder(existing, orderNo);
   log(`🗑 취소 삭제: ${orderNo}${cancelInfo.cancelReasonText ? ` / 사유: ${cancelInfo.cancelReasonText}` : ''}`);
+  return records.length;
+}
+
+// 부분취소는 취소된 상품 줄만 지운다. 같은 주문의 살아 있는 줄은 건드리지 않는다.
+async function deleteCancelledLine(db, orderNo, syncKey, status, order, prodOrders, existing, now, log) {
+  const records = recordsForSyncKey(existing, syncKey);
+  if (!records.length) return 0;
+  const cancelInfo = parser.cancelInfoForOrder(order, prodOrders);
+  await deleteRecords(db, orderNo, status, records, cancelInfo, now);
+  existing.delete(String(syncKey));
+  log(`🗑 부분취소 삭제: ${syncKey}${cancelInfo.cancelReasonText ? ` / 사유: ${cancelInfo.cancelReasonText}` : ''}`);
   return records.length;
 }
 
@@ -121,9 +156,11 @@ async function syncImwebOrders(options = {}) {
     if (!orderNo) continue;
     if (forceRecheck && !onlyOrderNos.includes(orderNo)) continue;
 
-    const headStatuses = parser.orderStatuses(order, []);
-    const headStatus = headStatuses[0] || '';
+    const headStatuses = parser.orderHeadStatuses(order);
+    const claimStatuses = parser.orderClaimStatuses(order);
+    const headStatus = headStatuses[0] || claimStatuses[0] || '';
 
+    // 주문 자체가 취소면 상품 줄을 볼 것도 없이 통째로 지운다.
     if (headStatuses.some(parser.isCancelStatus)) {
       deleted += await deleteCancelledOrder(db, orderNo, headStatus, order, [], existing, now, log);
       continue;
@@ -136,42 +173,72 @@ async function syncImwebOrders(options = {}) {
     }
 
     // 상품 조회는 주문 하나당 API 한 번이라 이미 등록된 주문은 여기서 끊는다.
-    if (!forceRecheck && existing.has(orderNo)) {
+    // 다만 claim_* 에 취소 흔적이 있으면 부분취소일 수 있어서 줄 단위로 다시 본다.
+    const claimTrace = parser.hasClaimTrace(claimStatuses);
+    if (!forceRecheck && !claimTrace && existing.has(orderNo)) {
       skipped++;
       continue;
     }
 
     const prodOrders = await client.getProdOrders(token, orderNo);
     const items = client.itemsFromProdOrders(prodOrders);
-    if (!items.length) { skipped++; continue; }
-
-    const statuses = parser.orderStatuses(order, prodOrders);
-    const status = statuses[0] || '';
-
-    if (statuses.some(parser.isCancelStatus)) {
-      deleted += await deleteCancelledOrder(db, orderNo, status, order, prodOrders, existing, now, log);
-      continue;
-    }
-
-    if (statuses.some(parser.isTerminalStatus)) {
-      log(`⏭ 종료상태 건너뜀: ${orderNo} (${status})`);
+    if (!items.length) {
+      // 클레임이 걸린 주문인데 줄을 못 읽으면 판정을 미룬다. 함부로 지우지 않는다.
+      if (claimTrace) log(`⚠ 상품 줄을 못 읽어 판정 보류: ${orderNo} (${claimStatuses.join(' / ')})`);
       skipped++;
       continue;
     }
 
-    if (!statuses.some(parser.isAllowStatus)) {
-      log(`⏸ 건너뜀: ${orderNo} (${status})`);
-      skipped++;
+    const lines = items.map((item, idx) => {
+      const itemIdx = idx + 1;
+      const statuses = parser.lineStatuses(order, parser.prodOrderOfItem(prodOrders, item), item);
+      return {
+        itemIdx,
+        syncKey: parser.buildSyncKey(orderNo, itemIdx),
+        statuses,
+        status: statuses[0] || '',
+        // 취소·종료 로그에는 주문 상태가 아니라 실제로 걸린 상태를 남긴다.
+        cancelStatus: statuses.find(parser.isCancelStatus) || '',
+        terminalStatus: statuses.find(parser.isTerminalStatus) || ''
+      };
+    });
+
+    // 줄이 전부 취소면 주문 전체 취소로 보고 주문번호에 딸린 문서를 통째로 지운다.
+    if (lines.every(line => line.cancelStatus)) {
+      deleted += await deleteCancelledOrder(db, orderNo, lines[0].cancelStatus || headStatus, order, prodOrders, existing, now, log);
       continue;
     }
 
-    for (const entry of parser.parseOrderItems(order, orderNo, items, { log, now })) {
-      if (existing.has(entry.syncKey)) {
-        log(`⏭ 이미등록: ${entry.syncKey}`);
+    // 상품 파싱은 실제로 등록할 줄이 생겼을 때만 한다. 취소된 줄까지 파싱하면 로그만 시끄러워진다.
+    let parsedEntries = null;
+    const entryFor = line => {
+      if (!parsedEntries) parsedEntries = parser.parseOrderItems(order, orderNo, items, { log, now });
+      return parsedEntries[line.itemIdx - 1];
+    };
+
+    for (const line of lines) {
+      if (line.cancelStatus) {
+        deleted += await deleteCancelledLine(db, orderNo, line.syncKey, line.cancelStatus, order, prodOrders, existing, now, log);
+        continue;
+      }
+      if (line.terminalStatus) {
+        log(`⏭ 종료상태 건너뜀: ${line.syncKey} (${line.terminalStatus})`);
         skipped++;
         continue;
       }
-      if (!entry.parsed) { skipped++; continue; }
+      if (!line.statuses.some(parser.isAllowStatus)) {
+        log(`⏸ 건너뜀: ${line.syncKey} (${line.status})`);
+        skipped++;
+        continue;
+      }
+      if (existing.has(line.syncKey)) {
+        log(`⏭ 이미등록: ${line.syncKey}`);
+        skipped++;
+        continue;
+      }
+
+      const entry = entryFor(line);
+      if (!entry?.parsed) { skipped++; continue; }
 
       const created = await db.collection(CUSTOMERS).add(entry.parsed);
       existing.set(entry.syncKey, [{
@@ -195,5 +262,6 @@ module.exports = {
   loadSyncEnabled,
   loadExistingBySyncKey,
   recordsForOrderNo,
+  recordsForSyncKey,
   syncImwebOrders
 };

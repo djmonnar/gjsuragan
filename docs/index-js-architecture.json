@@ -18,14 +18,14 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 325311,
-    "lines": 7498,
-    "functionDeclarations": 438,
-    "uniqueCallableGlobals": 391,
+    "normalizedBytes": 328872,
+    "lines": 7567,
+    "functionDeclarations": 444,
+    "uniqueCallableGlobals": 397,
     "explicitWindowExports": 36,
-    "globalStateDeclarations": 62,
+    "globalStateDeclarations": 65,
     "privateStateDeclarations": 5,
-    "asyncFunctions": 58,
+    "asyncFunctions": 59,
     "crossFileCallRelationships": 134,
     "firestoreAccessPoints": 31,
     "inlineHandlerAttributes": 157,
@@ -247,15 +247,19 @@
     {
       "path": "assets/js/imweb.js",
       "metrics": {
-        "bytes": 37154,
-        "lines": 909,
-        "functionDeclarations": 51,
-        "asyncFunctions": 11
+        "bytes": 40715,
+        "lines": 978,
+        "functionDeclarations": 57,
+        "asyncFunctions": 12
       },
       "globalsDefined": [
         "imwebNormalizeStatus",
+        "imwebIsCancelUndone",
         "imwebIsCancelStatus",
+        "imwebOrderHeadStatuses",
+        "imwebItemStatuses",
         "imwebOrderStatuses",
+        "imwebCancelStatusForItem",
         "imwebCancelStatusForOrder",
         "imwebAddCancelInfoText",
         "imwebAddCancelInfoTime",
@@ -263,6 +267,7 @@
         "imwebCancelInfoForOrder",
         "imwebCreateCancelLog",
         "imwebDeleteLocalOrder",
+        "imwebDeleteLocalSyncKey",
         "imwebSaveKeys",
         "imwebLoadKeys",
         "imwebClearKeys",
@@ -272,6 +277,7 @@
         "imwebGetToken",
         "imwebFetch",
         "parseImwebProduct",
+        "iwAllItemRows",
         "iwOrderItemRows",
         "iwSyncKey",
         "iwItemAmount",
@@ -334,7 +340,10 @@
         "iwOrders",
         "IW_CANCEL_STATUSES",
         "iwXlData",
-        "IW_PROD_OPTIONS"
+        "IW_PROD_OPTIONS",
+        "iwRows",
+        "iwRegisteredKeys",
+        "IW_CANCEL_UNDONE"
       ],
       "windowExports": [],
       "domIds": [
