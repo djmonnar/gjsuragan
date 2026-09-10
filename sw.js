@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v66-customer-unpaid-summary';
+const CACHE = 'gjsuragan-v67-menu-notice-text';
 const PRECACHE = [
   './customer.html',
   './admin.html',

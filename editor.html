@@ -289,6 +289,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
 .ksura-origin-list{font-size:13px;line-height:1.8;display:grid;grid-template-columns:repeat(2,1fr);gap:6px 14px;}
 .ksura-origin-item{display:flex;align-items:flex-start;gap:5px;}
 .ksura-origin-label{font-weight:bold;color:#5C3A21;min-width:70px;flex-shrink:0;}
+.ksura-notice{text-align:center;margin-top:28px;padding:11px 14px;background:#FFF7ED;border:1px solid #FDBA74;border-radius:10px;font-size:14px;font-weight:bold;color:#C2410C;}
 .ksura-footer{text-align:center;margin-top:32px;font-size:15px;color:#8C7E72;}
 .ksura-line{width:50px;height:4px;background:#FED7AA;margin:14px auto;border-radius:4px;}
 .ksura-tel{font-size:20px;font-weight:bold;color:#4A3B32;margin-top:6px;}
@@ -637,6 +638,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:#F3F4F6;display:fl
       <h3>공통 정보</h3>
       <div class="fg"><label>전화번호</label><input type="text" id="s-tel" placeholder="010-3507-1278"></div>
       <div class="fg"><label>하단 문구</label><input type="text" id="s-footer" placeholder="건강하고 신선한 식재료로..."></div>
+      <div class="fg"><label>안내 문구</label><input type="text" id="s-notice" placeholder="재료수급상황에 따라 반찬은 변경 될 수 있습니다."></div>
     </div>
 
     <div class="set-sec">
@@ -979,6 +981,7 @@ function toMonthNumber(v){
 const DEFAULT_SHARED_SETTINGS = {
   tel:'010-3507-1278',
   footerText:'건강하고 신선한 식재료로 매일 아침 정성껏 조리합니다.',
+  noticeText:'재료수급상황에 따라 반찬은 변경 될 수 있습니다.',
   originItems:[
     {label:'쌀·잡곡',value:'국내산'},
     {label:'배추김치',value:'배추(국내산), 고춧가루(국내산·중국산 혼합)'},
@@ -1952,6 +1955,7 @@ function loadSettingsUI(){
   document.getElementById('m-title').value = month.title || getAutoMonthTitle(month.year, month.month);
   document.getElementById('s-tel').value = state.sharedSettings.tel || '';
   document.getElementById('s-footer').value = state.sharedSettings.footerText || '';
+  document.getElementById('s-notice').value = state.sharedSettings.noticeText || '';
   const fbEmailEl = document.getElementById('fb-email');
   if(fbEmailEl && !fbEmailEl.value) fbEmailEl.value = FIREBASE_ADMIN_EMAIL;
   updateFirebaseAuthUI();
@@ -1985,6 +1989,7 @@ function removeOrigin(i){
 function saveSharedSettings(){
   state.sharedSettings.tel = normalizeSpaces(document.getElementById('s-tel').value);
   state.sharedSettings.footerText = normalizeSpaces(document.getElementById('s-footer').value);
+  state.sharedSettings.noticeText = normalizeSpaces(document.getElementById('s-notice').value);
   state.sharedSettings.originItems = (state.sharedSettings.originItems || []).map(item=>({
     label: normalizeSpaces(item.label),
     value: normalizeSpaces(item.value)
@@ -2538,6 +2543,7 @@ function renderPreview(){
       <div>${IC.soup} 국</div><div>${IC.dot} 반찬</div><div>${IC.leaf} 매일 샐러드</div>
     </div>
     <div class="ksura-grid">${buildMonthCards(selected)}</div>
+    ${state.sharedSettings.noticeText ? `<div class="ksura-notice">${escapeHtml(state.sharedSettings.noticeText)}</div>` : ''}
     ${originItems.length ? `
       <div class="ksura-origin-box">
         <div class="ksura-origin-title">${IC.info} 원산지 표기 안내</div>
@@ -2572,6 +2578,7 @@ function exportPayload(){
     sharedSettings: {
       tel: state.sharedSettings.tel || '',
       footerText: state.sharedSettings.footerText || '',
+      noticeText: state.sharedSettings.noticeText || '',
       originItems: (state.sharedSettings.originItems || []).map(o=>({label:o.label || '', value:o.value || ''}))
     },
     activeMonthId: state.activeMonthId
@@ -2628,6 +2635,7 @@ body{margin:0;background:#FDFCF8;}
 @media(min-width:768px){.ksura-origin-list{grid-template-columns:repeat(2,1fr);}}
 .ksura-origin-item{display:flex;align-items:flex-start;gap:6px;}
 .ksura-origin-label{font-weight:bold;color:#5C3A21;min-width:75px;flex-shrink:0;}
+.ksura-notice{text-align:center;margin-top:32px;padding:14px 18px;background:#FFF7ED;border:1px solid #FDBA74;border-radius:12px;font-size:15px;font-weight:bold;color:#C2410C;}
 .ksura-footer{text-align:center;margin-top:40px;font-size:16px;color:#8C7E72;}
 .ksura-line{width:60px;height:4px;background:#FED7AA;margin:16px auto;border-radius:4px;}
 .ksura-tel{font-size:22px;font-weight:bold;color:#4A3B32;margin-top:8px;}
@@ -2759,6 +2767,9 @@ function render(){
     cards = unparsed.map(renderCard).join('');
   }
 
+  const notice = payload.sharedSettings.noticeText
+    ? '<div class="ksura-notice">' + escapeHtml(payload.sharedSettings.noticeText) + '</div>'
+    : '';
   const origin = (payload.sharedSettings.originItems || []).length
     ? '<div class="ksura-origin-box"><div class="ksura-origin-title">' + IC.info + ' 원산지 표기 안내</div><div class="ksura-origin-list">' + (payload.sharedSettings.originItems || []).map(o => '<div class="ksura-origin-item"><span class="ksura-origin-label">' + escapeHtml(o.label) + '</span><span>' + escapeHtml(o.value) + '</span></div>').join('') + '</div></div>'
     : '';
@@ -2768,6 +2779,7 @@ function render(){
     '<div class="ksura-header"><div class="ksura-info"><span style="font-weight:bold;border-bottom:2px solid #FED7AA;padding-bottom:2px;">' + escapeHtml(selected.title) + '</span> | <div class="ksura-delivery-notice">' + IC.truck + ' 오늘 조리해서 <b>내일 식탁으로</b></div><button class="ksura-print-btn" onclick="window.print()">' + IC.print + ' 인쇄하기</button></div></div>' +
     '<div class="ksura-legend"><div style="color:#5C3A21;font-weight:bold;display:flex;align-items:center;gap:6px;">' + IC.main + ' 메인요리</div><div>' + IC.soup + ' 국</div><div>' + IC.dot + ' 반찬</div><div>' + IC.leaf + ' 매일 샐러드</div></div>' +
     '<div class="ksura-grid">' + cards + '</div>' +
+    notice +
     origin +
     '<div class="ksura-footer">' + escapeHtml(payload.sharedSettings.footerText || '') + '<div class="ksura-line"></div><div class="ksura-tel">' + escapeHtml(payload.sharedSettings.tel || '') + '</div></div>';
 }
