@@ -412,3 +412,22 @@ test('등록 보류 사유 문구는 상황별로 갈린다', () => {
   assert.equal(imwebSyncModule.missedReason(false, '2026-08-24', '2026-09-10').reasonCode, 'before_cutoff');
   assert.match(imwebSyncModule.missedReason(false, '2026-08-24', '2026-09-10').reason, /2026-09-10/);
 });
+
+test('등록용 문서가 빠진 옛 보류 기록은 다시 채우고 확인 표시는 지키지 않는다', async () => {
+  // 예전 버전이 남긴 기록에는 customerData 가 없다. 그대로 두면 화면에서 등록할 수 없다.
+  const db = fakeDb({
+    'imwebMissedOrders/202608240989736': {
+      syncKey: '202608240989736', orderNo: '202608240989736', name: '차진'
+    }
+  });
+  const client = fakeClient([order('202608240989736')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  await syncImwebOrders({ db, client, env: {}, registerFrom: '2026-09-01' });
+
+  const [record] = missedOrders(db);
+  assert.ok(record.customerData, '등록용 문서가 채워져야 한다');
+  assert.equal(record.customerData.orderType, 'sub');
+  assert.equal(record.name, '차진');
+});

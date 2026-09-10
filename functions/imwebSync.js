@@ -53,11 +53,15 @@ async function loadRegisterFrom(db) {
 }
 
 // 이미 적어둔 놓친 주문은 다시 쓰지 않는다. '확인함' 표시가 지워지면 안 되기 때문이다.
+// 다만 등록용 문서(customerData)가 빠진 옛 기록은 다시 채운다.
+// 그게 없으면 화면에서 '등록' 을 눌러도 넣을 내용이 없다.
 async function loadMissedKeys(db) {
   const keys = new Set();
   try {
     const snapshot = await db.collection(MISSED_ORDERS).get();
-    snapshot.forEach(doc => keys.add(doc.id));
+    snapshot.forEach(doc => {
+      if ((doc.data() || {}).customerData) keys.add(doc.id);
+    });
   } catch {
     // 컬렉션이 없으면 빈 집합으로 시작한다.
   }
