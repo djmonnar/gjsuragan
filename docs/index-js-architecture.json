@@ -18,17 +18,17 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 333230,
-    "lines": 7669,
-    "functionDeclarations": 447,
-    "uniqueCallableGlobals": 400,
-    "explicitWindowExports": 38,
+    "normalizedBytes": 339686,
+    "lines": 7801,
+    "functionDeclarations": 455,
+    "uniqueCallableGlobals": 408,
+    "explicitWindowExports": 41,
     "globalStateDeclarations": 66,
     "privateStateDeclarations": 5,
-    "asyncFunctions": 60,
+    "asyncFunctions": 61,
     "crossFileCallRelationships": 134,
     "firestoreAccessPoints": 33,
-    "inlineHandlerAttributes": 158,
+    "inlineHandlerAttributes": 163,
     "inlineHandlerFunctionNames": 82
   },
   "files": [
@@ -708,10 +708,10 @@
     {
       "path": "assets/js/rendering.js",
       "metrics": {
-        "bytes": 93652,
-        "lines": 1874,
-        "functionDeclarations": 95,
-        "asyncFunctions": 6
+        "bytes": 100108,
+        "lines": 2006,
+        "functionDeclarations": 103,
+        "asyncFunctions": 7
       },
       "globalsDefined": [
         "refreshAll",
@@ -735,7 +735,15 @@
         "renderCancelLogs",
         "ackCancelLogs",
         "renderMissedOrders",
-        "ackMissedOrders",
+        "unreadMissedOrders",
+        "missedDuplicateInfo",
+        "missedRowHtml",
+        "renderMissedModalList",
+        "openMissedModal",
+        "missedToggleAll",
+        "selectedMissedOrders",
+        "registerSelectedMissedOrders",
+        "dismissMissedOrders",
         "renderDash",
         "renderToday",
         "printCourierList",
@@ -880,8 +888,11 @@
         "__riskOrderSessionHidden"
       ],
       "windowExports": [
-        "ackMissedOrders",
         "closeCancelPopover",
+        "dismissMissedOrders",
+        "missedToggleAll",
+        "openMissedModal",
+        "registerSelectedMissedOrders",
         "renderCancelLogs",
         "renderMissedOrders",
         "toggleCancelPopover"

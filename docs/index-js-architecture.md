@@ -17,20 +17,20 @@ The current order is part of the application contract.
 
 | Order | File | Lines | Bytes (LF) | Functions | Async | Primary responsibility |
 | ---: | --- | ---: | ---: | ---: | ---: | --- |
-| 1 | `auth-core.js` | 862 | 30,112 | 27 | 13 | Authentication, shared customer state, customer CRUD |
+| 1 | `auth-core.js` | 894 | 31,501 | 28 | 13 | Authentication, shared customer state, customer CRUD |
 | 2 | `delivery-transaction.js` | 78 | 2,962 | 3 | Atomic delivery state transitions |
 | 3 | `imweb.js` | 978 | 40,715 | 57 | Imweb integration, spreadsheet import, legacy completion handlers |
 | 4 | `schedule-report.js` | 382 | 17,588 | 38 | Date/schedule/report calculation and final delivery policy |
 | 5 | `manual-delivery-dates.js` | 320 | 14,156 | 25 | Manual delivery-date calculation and calendar editor |
 | 6 | `rendering-formatters.js` | 55 | 1,736 | 10 | Pure text, badge and order-label formatters |
-| 7 | `rendering.js` | 1804 | 90,683 | 93 | Dashboard, delivery, customer and modal rendering |
+| 7 | `rendering.js` | 2006 | 100,108 | 103 | Dashboard, delivery, customer and modal rendering |
 | 8 | `order-settlement.js` | 245 | 10,733 | 16 | Order amount normalization, grouping and monthly sales rendering |
 | 9 | `route-map.js` | 762 | 28,321 | 43 | Route page, geocoding cache, map and route proxy |
 | 10 | `import-export.js` | 915 | 44,121 | 39 | Text/XLSX import, previews and export |
 | 11 | `logen.js` | 397 | 17,143 | 33 | Logen registration and slip lookup UI |
 | 12 | `ui.js` | 454 | 19,093 | 37 | Navigation, forms, modals and compatibility wrappers |
 | 13 | `notice-memos.js` | 315 | 11,509 | 23 | Delivery notice memo feature in a private IIFE |
-| **Total** |  | **7,244** | **313,186** | **420** | **56** | |
+| **Total** |  | **7,801** | **339,686** | **455** | **61** | |
 
 The audit found 384 callable function names, 62 shared global state declarations,
 5 private state declarations, 36 explicit `window`/root exports, 134 static
@@ -110,14 +110,14 @@ reference.
 
 | Symbol | Initial owner | Final owner | Reason |
 | --- | --- | --- | --- |
-| `markDone` | `imweb.js` | `schedule-report.js` | Stable transaction-backed employee completion policy |
-| `undoMarkDone` | `imweb.js` | `schedule-report.js` | Stable transaction-backed cancellation policy |
-| `markAll` | `imweb.js` | `schedule-report.js` | Bulk completion through final policy |
-| `markAllDirect` | rendering/legacy path | `schedule-report.js` | Direct-delivery bulk policy |
-| `markAllCourier` | rendering/legacy path | `schedule-report.js` | Courier bulk policy |
-| `listFor` | `schedule-report.js` | `ui.js` wrapper | Preserve completed rows for presentation |
-| `renderDash` | `rendering.js` | `ui.js` wrapper 1 | Completed-row styling |
-| `renderDash` | wrapper 1 | `ui.js` wrapper 2 | Active-set statistics |
+| `markDone` | `imweb.js` | 978 | 40,715 | 57 
+| `undoMarkDone` | `imweb.js` | 978 | 40,715 | 57 
+| `markAll` | `imweb.js` | 978 | 40,715 | 57 
+| `markAllDirect` | rendering/legacy path | 382 | 17,588 | 38 
+| `markAllCourier` | rendering/legacy path | 382 | 17,588 | 38 
+| `listFor` | `schedule-report.js` | 382 | 17,588 | 38 
+| `renderDash` | `rendering.js` | 2006 | 100,108 | 103 
+| `renderDash` | wrapper 1 | 454 | 19,093 | 37 
 
 These are compatibility contracts, not dead duplicates. A future module split
 must replace them with one explicit composition point and regression tests before
@@ -135,13 +135,13 @@ unused.
 
 | State family | Current owner | Main consumers | Risk |
 | --- | --- | --- | --- |
-| Authentication, `db`, current user | `auth-core.js` | nearly all files | High: initialization order and credentials boundary |
-| `custs`, edit/order selection state | `auth-core.js` | schedule, rendering, route, import/export, UI | High: implicit mutable shared state |
-| Selected dates and report mode | `schedule-report.js` | rendering, UI | Medium: date-dependent render coupling |
-| Route/map caches and selection | `route-map.js` | route UI | Medium: map SDK lifecycle |
-| Import preview state | `import-export.js` | import modals | Medium: parser and write workflow share state |
-| Settlement source labels | `order-settlement.js` | settlement rendering and import amount helpers | Low: immutable display mapping |
-| Notice memo state | `notice-memos.js` IIFE | exported memo handlers only | Low: already encapsulated |
+| Authentication, `db`, current user | `auth-core.js` | 894 | 31,501 | 28 
+| `custs`, edit/order selection state | `auth-core.js` | 894 | 31,501 | 28 
+| Selected dates and report mode | `schedule-report.js` | 382 | 17,588 | 38 
+| Route/map caches and selection | `route-map.js` | 762 | 28,321 | 43 
+| Import preview state | `import-export.js` | 915 | 44,121 | 39 
+| Settlement source labels | `order-settlement.js` | 245 | 10,733 | 16 
+| Notice memo state | `notice-memos.js` IIFE | 315 | 11,509 | 23 
 
 ## Firestore access map
 

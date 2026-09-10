@@ -163,10 +163,32 @@ async function deleteCancelledLine(db, orderNo, syncKey, status, order, prodOrde
   return records.length;
 }
 
+// 왜 자동등록에서 빠졌는지를 사람 말로 적어둔다. 화면에서 그대로 보여준다.
+function missedReason(claimTrace, orderDate, registerFrom) {
+  if (!orderDate) {
+    return {
+      reasonCode: 'unknown_date',
+      reason: '주문일을 읽을 수 없어 자동으로 등록하지 않았습니다. 배송이 남아 있는지 확인해 주세요.'
+    };
+  }
+  if (claimTrace) {
+    return {
+      reasonCode: 'cancel_trace',
+      reason: '아임웹에 취소 흔적(취소 후 철회·부분취소 등)이 남아 있어서, 그동안 자동등록에서 잘못 빠져 있던 주문입니다.'
+    };
+  }
+  return {
+    reasonCode: 'before_cutoff',
+    reason: `등록 기준일(${registerFrom}) 이전 주문이라 자동으로 등록하지 않았습니다.`
+  };
+}
+
 // 등록했어야 하는데 기준일 이전이라 보류한 주문을 적어둔다.
 // 문서 id 를 syncKey 로 잡아서 같은 줄이 여러 번 쌓이지 않게 한다.
-async function recordMissedOrder(db, entry, order, line, orderDate, now) {
+// customerData 에 등록용 문서를 통째로 넣어둬서, 화면에서 고르면 그대로 등록할 수 있다.
+async function recordMissedOrder(db, entry, order, line, orderDate, registerFrom, claimTrace, now) {
   const parsed = entry?.parsed || {};
+  const { reason, reasonCode } = missedReason(claimTrace, orderDate, registerFrom);
   const payload = {
     syncKey: String(line.syncKey || ''),
     orderNo: String(order?.order_no || ''),
@@ -180,7 +202,9 @@ async function recordMissedOrder(db, entry, order, line, orderDate, now) {
     orderType: String(parsed.orderType || ''),
     startDate: String(parsed.startDate || parsed.onceDate || ''),
     total: Number(parsed.total || 0),
-    reason: orderDate ? '등록 기준일 이전 주문' : '주문일을 읽을 수 없는 주문',
+    reason,
+    reasonCode,
+    customerData: parsed,
     source: 'cloud_function',
     firstSeenAt: now.toISOString()
     // acknowledged 는 일부러 쓰지 않는다. 사람이 '확인함' 을 누른 값을 덮으면 안 된다.
@@ -311,7 +335,7 @@ async function syncImwebOrders(options = {}) {
       const orderDate = parser.orderDate(order);
       if (registerFrom && (!orderDate || orderDate < registerFrom)) {
         if (!missedKeys.has(line.syncKey)) {
-          await recordMissedOrder(db, entry, order, line, orderDate, now);
+          await recordMissedOrder(db, entry, order, line, orderDate, registerFrom, claimTrace, now);
           missedKeys.add(line.syncKey);
         }
         missed++;
@@ -342,6 +366,7 @@ module.exports = {
   loadSyncEnabled,
   loadExistingBySyncKey,
   loadRegisterFrom,
+  missedReason,
   recordsForOrderNo,
   recordsForSyncKey,
   syncImwebOrders

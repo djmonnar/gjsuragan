@@ -297,6 +297,7 @@ function renderMissedOrders(){
   }
 
   const unread = (missedOrders || []).filter(order => !order.acknowledged);
+  if(document.getElementById('missedM')?.classList.contains('on')) renderMissedModalList();
   count.textContent = unread.length;
   wrap.style.display = unread.length ? 'block' : 'none';
   if(!unread.length){
@@ -326,26 +327,157 @@ function renderMissedOrders(){
   }
 }
 
-async function ackMissedOrders(){
-  const unread = (missedOrders || []).filter(order => !order.acknowledged && order.id);
-  if(!unread.length) return;
-  try{
-    const batch = window.__DB.batch();
-    unread.forEach(order => {
-      batch.update(window.__DB.collection('imwebMissedOrders').doc(order.id), {
+function unreadMissedOrders(){
+  return (missedOrders || []).filter(order => !order.acknowledged && order.id);
+}
+
+// 손으로 이미 등록해 둔 건과 겹치는지 본다.
+// 같은 주문번호면 확실한 중복이고, 번호만 같으면 사람이 봐야 할 의심이다.
+function missedDuplicateInfo(record){
+  const list = Array.isArray(custs) ? custs : [];
+  const orderNo = String(record.orderNo || '');
+  const syncKey = String(record.syncKey || '');
+
+  const sameOrder = list.find(c => {
+    if(syncKey && String(c.syncKey || '') === syncKey) return true;
+    return orderNo && String(c.orderNum || '') === orderNo;
+  });
+  if(sameOrder){
+    return {kind:'same-order', match:sameOrder,
+      text:`같은 주문번호로 이미 등록돼 있습니다 — ${sameOrder.name || '이름 없음'} / ${sameOrder.scheduleName || sameOrder.onceDate || ''}`};
+  }
+
+  const digits = customerPhoneDigits(record.phone || '');
+  const samePhone = digits ? list.find(c => customerPhoneDigits(c.phone || '') === digits) : null;
+  if(samePhone){
+    return {kind:'same-phone', match:samePhone,
+      text:`같은 번호로 등록된 고객이 있습니다 — ${samePhone.name || '이름 없음'} / ${samePhone.scheduleName || samePhone.onceDate || ''} / ${samePhone.status === 'end' ? '종료' : samePhone.status === 'pause' ? '일시정지' : '진행중'}`};
+  }
+
+  return {kind:'none', match:null, text:''};
+}
+
+function missedRowHtml(record, index){
+  const dup = missedDuplicateInfo(record);
+  // 겹치는 게 있으면 기본으로 꺼둔다. 이중 배송이 실수로 나가는 게 제일 나쁘다.
+  const checked = dup.kind === 'none' ? 'checked' : '';
+  const dupBadge = dup.kind === 'same-order'
+    ? '<span class="badge b-end">이미 등록됨</span>'
+    : dup.kind === 'same-phone'
+      ? '<span class="badge" style="background:#fff7ed;color:#c2410c;border-color:#fed7aa;font-weight:900;">겹칠 수 있음</span>'
+      : '';
+
+  return `<label style="display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);cursor:pointer;">
+    <input type="checkbox" class="missed-ck" data-idx="${index}" ${checked} style="margin-top:3px;flex:0 0 auto;">
+    <div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <b style="font-size:14px;">${escHtml(record.name || '이름 없음')}</b>
+        <span style="font-size:12px;color:var(--text3);">${escHtml(record.phone || '연락처 없음')}</span>
+        ${dupBadge}
+      </div>
+      <div style="font-size:12px;color:var(--text2);display:flex;gap:10px;flex-wrap:wrap;">
+        <span>주문일 <b>${escHtml(record.orderDate || '알 수 없음')}</b></span>
+        <span>주문번호 <span style="font-family:monospace;">${escHtml(record.syncKey || record.orderNo || '')}</span></span>
+        <span>${escHtml(record.scheduleName || '-')}</span>
+        ${record.startDate ? `<span>첫 배송 ${escHtml(record.startDate)}</span>` : ''}
+        ${record.total ? `<span>총 ${Number(record.total)}회</span>` : ''}
+      </div>
+      <div style="font-size:12px;color:var(--text3);">${escHtml(record.addr || '')}</div>
+      <div style="font-size:12px;color:#be123c;">왜 안 들어왔나: ${escHtml(record.reason || '-')}</div>
+      ${dup.text ? `<div style="font-size:12px;color:#c2410c;">${escHtml(dup.text)}</div>` : ''}
+    </div>
+  </label>`;
+}
+
+function renderMissedModalList(){
+  const list = document.getElementById('missedM-list');
+  const empty = document.getElementById('missedM-empty');
+  const count = document.getElementById('missedM-count');
+  if(!list) return;
+
+  const records = unreadMissedOrders();
+  list.innerHTML = records.map(missedRowHtml).join('');
+  if(empty) empty.style.display = records.length ? 'none' : 'block';
+  if(count){
+    const dupes = records.filter(record => missedDuplicateInfo(record).kind !== 'none').length;
+    count.textContent = records.length
+      ? `${records.length}건${dupes ? ` · 겹칠 수 있는 ${dupes}건은 기본 해제` : ''}`
+      : '';
+  }
+}
+
+function openMissedModal(){
+  renderMissedModalList();
+  openM('missedM');
+}
+
+function missedToggleAll(on){
+  document.querySelectorAll('.missed-ck').forEach(box => { box.checked = !!on; });
+}
+
+function selectedMissedOrders(){
+  const records = unreadMissedOrders();
+  return [...document.querySelectorAll('.missed-ck:checked')]
+    .map(box => records[Number(box.dataset.idx)])
+    .filter(Boolean);
+}
+
+async function registerSelectedMissedOrders(){
+  const picked = selectedMissedOrders();
+  if(!picked.length){ toast('등록할 주문을 선택하세요', 'er'); return; }
+  const dupes = picked.filter(record => missedDuplicateInfo(record).kind !== 'none').length;
+  const warn = dupes ? `\n\n겹칠 수 있는 ${dupes}건이 포함돼 있습니다. 이중 배송이 되지 않는지 확인하세요.` : '';
+  if(!confirm(`선택한 ${picked.length}건을 배송목록에 등록하시겠습니까?${warn}`)) return;
+
+  let ok = 0;
+  for(const record of picked){
+    const data = record.customerData;
+    if(!data){ toast(`${record.name || record.syncKey}: 등록할 정보가 없습니다`, 'er'); continue; }
+    try{
+      const created = await window.__DB.collection('customers').add({...data, createdAt:new Date().toISOString()});
+      await window.__DB.collection('imwebMissedOrders').doc(record.id).update({
         acknowledged:true,
         acknowledgedAt:new Date().toISOString(),
+        registeredAt:new Date().toISOString(),
+        registeredCustomerId:created?.id || '',
+      });
+      ok++;
+    } catch(e){
+      toast(`${record.name || record.syncKey} 등록 오류: ${e.message}`, 'er');
+    }
+  }
+  if(ok) toast(`${ok}건 등록 완료`, 'ok');
+  renderMissedModalList();
+  if(!unreadMissedOrders().length) closeM('missedM');
+}
+
+async function dismissMissedOrders(){
+  const picked = selectedMissedOrders();
+  if(!picked.length){ toast('목록에서 지울 주문을 선택하세요', 'er'); return; }
+  if(!confirm(`선택한 ${picked.length}건을 등록하지 않고 목록에서 지웁니다.\n배송목록에는 넣지 않습니다.`)) return;
+  try{
+    const batch = window.__DB.batch();
+    picked.forEach(record => {
+      batch.update(window.__DB.collection('imwebMissedOrders').doc(record.id), {
+        acknowledged:true,
+        acknowledgedAt:new Date().toISOString(),
+        dismissedAt:new Date().toISOString(),
       });
     });
     await batch.commit();
-    toast('등록 보류 알림 확인 완료', 'ok');
+    toast(`${picked.length}건 목록에서 지움`, 'ok');
+    renderMissedModalList();
+    if(!unreadMissedOrders().length) closeM('missedM');
   } catch(e){
-    toast('알림 확인 처리 오류: ' + e.message, 'er');
+    toast('처리 오류: ' + e.message, 'er');
   }
 }
 
 window.renderMissedOrders = renderMissedOrders;
-window.ackMissedOrders = ackMissedOrders;
+window.openMissedModal = openMissedModal;
+window.missedToggleAll = missedToggleAll;
+window.registerSelectedMissedOrders = registerSelectedMissedOrders;
+window.dismissMissedOrders = dismissMissedOrders;
 window.renderCancelLogs = renderCancelLogs;
 window.toggleCancelPopover = toggleCancelPopover;
 window.closeCancelPopover = closeCancelPopover;

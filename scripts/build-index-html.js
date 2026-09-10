@@ -13,7 +13,7 @@ const expectedPageIds = [
   'page-dash', 'page-today', 'page-route', 'page-notice', 'page-report',
   'page-settlement', 'page-customers', 'page-export', 'page-import', 'page-manual'
 ];
-const expectedModalIds = ['noticePopupM', 'addM', 'addrM', 'editM', 'pauseM', 'parseM'];
+const expectedModalIds = ['noticePopupM', 'addM', 'addrM', 'editM', 'pauseM', 'parseM', 'missedM'];
 const expectedScriptSources = [
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js',
@@ -25,7 +25,7 @@ const expectedScriptSources = [
   'assets/js/schedule-report.js?v=20260807-resumedate1',
   'assets/js/manual-delivery-dates.js?v=20260806-manualorder2',
   'assets/js/rendering-formatters.js?v=20260711-helper1',
-  'assets/js/rendering.js?v=20260910-missed1',
+  'assets/js/rendering.js?v=20260910-picker1',
   'assets/js/order-settlement.js?v=20260712-sales1',
   'assets/js/route-map.js?v=20260626-roundtrip1',
   'assets/js/import-export.js?v=20260625-door-x1',
@@ -144,7 +144,7 @@ function validateGenerated(buffer) {
   }
 
   const ids = [...source.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
-  if (ids.length !== 259) fail(`DOM id count is ${ids.length}; expected 259`);
+  if (ids.length !== 263) fail(`DOM id count is ${ids.length}; expected 263`);
   const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
   if (duplicates.length) fail(`duplicate DOM ids: ${[...new Set(duplicates)].join(', ')}`);
 
@@ -155,7 +155,7 @@ function validateGenerated(buffer) {
   if (!sameValues(modalIds, expectedModalIds)) fail('modal id list or order changed');
 
   const inlineEventCount = countMatches(source, /\son[a-z]+\s*=/gi);
-  if (inlineEventCount !== 158) fail(`inline event count is ${inlineEventCount}; expected 158`);
+  if (inlineEventCount !== 163) fail(`inline event count is ${inlineEventCount}; expected 163`);
 
   const scriptSources = [...source.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/gi)]
     .map(match => match[1]);
