@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#703d2e">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="매장 관리">
+  <title>매장 관리 · 궁중수라간 &amp; 돌담명가</title>
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./staff-admin-manifest.json">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
+  <link rel="stylesheet" href="./assets/css/attendance.css?v=20260910-stores">
+  <link rel="stylesheet" href="./assets/css/staff-admin.css?v=20260910-stores">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js" defer></script>
+  <script src="./assets/js/attendance-ui.js?v=20260910-stores" defer></script>
+  <script src="./assets/js/attendance-admin.js?v=20260910-stores" defer></script>
+  <script src="./assets/js/attendance-booking-form.js?v=20260910" defer></script>
+  <script src="./assets/js/attendance-bookings-admin.js?v=20260910-stores" defer></script>
+  <script src="./assets/js/staff-admin.js?v=20260910-stores" defer></script>
+</head>
+<body class="staff-app">
+  <div id="staff-loading" class="staff-loading" role="status">매장 관리 화면을 준비하고 있습니다…</div>
+  <main id="staff-login" class="staff-login" hidden>
+    <section class="staff-login-card">
+      <div class="staff-login-mark" aria-hidden="true">宮</div>
+      <p class="staff-eyebrow">STORE MANAGEMENT</p>
+      <h1>매장 운영을<br>한눈에, 간편하게.</h1>
+      <p class="staff-login-intro">궁중수라간 · 돌담명가<br>직원 출퇴근부터 급여, 예약까지 관리하세요.</p>
+      <form id="staff-login-form">
+        <label class="att-field" for="staff-password">관리자 비밀번호</label>
+        <input id="staff-password" class="att-input" type="password" name="password" autocomplete="current-password" required placeholder="기존 관리자 비밀번호">
+        <button class="att-button att-primary" type="submit">관리 페이지 열기 <span aria-hidden="true">→</span></button>
+        <p id="staff-auth-error" class="att-error" role="alert"></p>
+      </form>
+      <p class="staff-login-note">기존 관리자 계정으로 이용할 수 있습니다.</p>
+      <a class="staff-kiosk-link" href="./attendance.html">직원 출퇴근 화면 ↗</a>
+    </section>
+  </main>
+  <div id="staff-main" hidden>
+    <header class="staff-header"><div class="staff-brand"><span aria-hidden="true">宮</span><div><strong>매장 관리</strong><small>궁중수라간 · 돌담명가</small></div></div><div class="staff-header-actions"><a href="./attendance.html" target="_blank" rel="noopener">출퇴근 화면 ↗</a><button id="staff-logout" type="button">로그아웃</button></div></header>
+    <nav class="staff-nav" aria-label="매장 관리 메뉴"><a href="#attendance" data-panel="attendance" aria-current="page">직원 · 근태</a><a href="#reservations" data-panel="reservations">돌담명가 예약</a></nav>
+    <p id="staff-session-error" class="att-error staff-session-error" role="alert"></p>
+    <main>
+      <section id="staff-attendance-panel" aria-label="직원 및 근태 관리"><div class="att-root" id="attendance-root"></div></section>
+      <section id="staff-reservations-panel" aria-label="예약 관리" hidden><div class="att-root" id="reservations-root"></div></section>
+    </main>
+  </div>
+</body>
+</html>

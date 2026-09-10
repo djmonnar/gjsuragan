@@ -5,11 +5,19 @@
   const STORAGE_KEY = 'gjsuragan-attendance-device';
   let device = '', employees = [], filter = 'all', offset = 0, loading = false, dialogOpen = false;
   let setupAuth, floor = 1;
-  const setupFloor = new URLSearchParams(location.search).get('floor');
-  if (['1', '2'].includes(setupFloor)) {
-    $('kiosk-setup-floor').value = setupFloor;
-    $('kiosk-setup-form').elements.name.value = `${setupFloor}층 출퇴근 태블릿`;
+  const setupFloor = U.setupStore(location.search);
+  function showStore(value) {
+    document.title = `출퇴근 · ${U.storeName(value)}`;
+    $('kiosk-store-name').textContent = U.storeName(value);
+    $('kiosk-seal').textContent = Number(value) === 1 ? '石' : '宮';
   }
+  showStore(setupFloor);
+  $('kiosk-setup-floor').value = String(setupFloor);
+  $('kiosk-setup-form').elements.name.value = `${U.storeName(setupFloor)} 출퇴근 태블릿`;
+  $('kiosk-setup-floor').onchange = event => {
+    $('kiosk-setup-form').elements.name.value = `${U.storeName(event.target.value)} 출퇴근 태블릿`;
+    showStore(event.target.value);
+  };
   try { device = localStorage.getItem(STORAGE_KEY) || ''; } catch (_) { /* Setup explains unavailable storage on submit. */ }
   function connection(ok, label) {
     $('kiosk-connection').textContent = label;
@@ -31,10 +39,10 @@
       const last = e.lastShift;
       const finishedToday = !working && last?.checkOutAt && U.date(last.checkOutAt) === today;
       const detail = working ? `${U.date(last.checkInAt) !== today ? `${U.date(last.checkInAt).slice(5)} ` : ''}${U.time(last.checkInAt)} 출근` : finishedToday ? `${U.time(last.checkOutAt)} 퇴근` : '오늘도 반갑습니다';
-      return `<button class="att-person ${working ? 'working' : ''}" data-employee="${U.esc(e.id)}" aria-label="${U.esc(e.name)}, ${working ? '퇴근하기' : '출근하기'}"><div class="att-person-head"><span class="att-avatar" aria-hidden="true">${U.esc(Array.from(e.name)[0])}</span><span class="att-pill ${working ? 'green' : ''}">${working ? '근무 중' : finishedToday ? '퇴근 완료' : '출근 전'}</span></div><div class="att-person-name">${U.esc(e.name)}</div><div class="att-person-role">${U.esc(e.role || '궁중수라간 직원')}</div><div class="att-person-bottom"><span>${U.esc(detail)}</span><span class="att-person-action">${working ? '퇴근' : '출근'} →</span></div></button>`;
+      return `<button class="att-person ${working ? 'working' : ''}" data-employee="${U.esc(e.id)}" aria-label="${U.esc(e.name)}, ${working ? '퇴근하기' : '출근하기'}"><div class="att-person-head"><span class="att-avatar" aria-hidden="true">${U.esc(Array.from(e.name)[0])}</span><span class="att-pill ${working ? 'green' : ''}">${working ? '근무 중' : finishedToday ? '퇴근 완료' : '출근 전'}</span></div><div class="att-person-name">${U.esc(e.name)}</div><div class="att-person-role">${U.esc(e.role || `${U.storeName(floor)} 직원`)}</div><div class="att-person-bottom"><span>${U.esc(detail)}</span><span class="att-person-action">${working ? '퇴근' : '출근'} →</span></div></button>`;
     }).join('');
     $('kiosk-empty').hidden = visible.length > 0;
-    $('kiosk-empty').innerHTML = employees.length ? '<strong>해당하는 직원이 없어요</strong>이름이나 근무 상태를 다시 확인해 주세요.' : `<strong>${floor}층에 등록된 직원이 아직 없어요</strong>admin의 직원·근태에서 근무 층을 ${floor}층으로 지정해 주세요.`;
+    $('kiosk-empty').innerHTML = employees.length ? '<strong>해당하는 직원이 없어요</strong>이름이나 근무 상태를 다시 확인해 주세요.' : `<strong>${U.storeName(floor)}에 등록된 직원이 아직 없어요</strong>별도 관리 페이지에서 직원의 근무 매장을 ${U.storeName(floor)}로 지정해 주세요.`;
   }
   async function load() {
     if (!device || loading) return;
@@ -44,9 +52,9 @@
       floor = data.floor ?? 1;
       employees = data.employees.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
       offset = data.serverNow - Date.now();
-      $('kiosk-device-name').textContent = `${data.deviceName} · ${floor}층 전용`;
-      $('kiosk-floor-label').textContent = `궁중수라간 · ${floor}층 직원 출퇴근`;
-      document.title = `${floor}층 출퇴근 · 궁중수라간`;
+      $('kiosk-device-name').textContent = `${U.deviceName(data.deviceName, floor)} · ${U.storeName(floor)} 전용`;
+      $('kiosk-floor-label').textContent = `${U.storeName(floor)} 직원 출퇴근`;
+      showStore(floor);
       $('kiosk-error').hidden = true;
       $('kiosk-setup').hidden = true;
       $('kiosk-main').hidden = false;

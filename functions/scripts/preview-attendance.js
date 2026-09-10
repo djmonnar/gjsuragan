@@ -70,7 +70,8 @@ const firebaseStub = `
  const snap = { exists:false, empty:true, size:0, docs:[], data:()=>({}), forEach:()=>{}, docChanges:()=>[] };
  const query = new Proxy({}, {get:(_,k)=>k==='get'?async()=>snap:k==='onSnapshot'?(cb)=>{setTimeout(()=>cb(snap),0);return()=>{}}:()=>query});
  const user = {uid:'local-preview-admin', email:'sun1562@naver.com', getIdToken:async()=> 'local-emulator-admin'};
- const auth = {currentUser:user,setPersistence:async()=>{},onAuthStateChanged:cb=>{setTimeout(()=>cb(user),10);return()=>{}},signInWithEmailAndPassword:async()=>({user}),signOut:async()=>{}};
+ const listeners = new Set();
+ const auth = {currentUser:new URLSearchParams(location.search).has('previewAuth')?null:user,setPersistence:async()=>{},onAuthStateChanged:cb=>{listeners.add(cb);setTimeout(()=>cb(auth.currentUser),10);return()=>listeners.delete(cb)},signInWithEmailAndPassword:async(email,password)=>{if(password!=='preview-admin') throw new Error('Preview password');auth.currentUser=user;listeners.forEach(cb=>cb(user));return {user}},signOut:async()=>{auth.currentUser=null;listeners.forEach(cb=>cb(null))}};
  const app = {auth:()=>auth,firestore:()=>query,storage:()=>query};
  window.firebase = {initializeApp:()=>app,auth:{Auth:{Persistence:{NONE:'none'}}},messaging:{isSupported:()=>false},firestore:{FieldValue:{serverTimestamp:()=>null,delete:()=>null},Timestamp:{fromDate:d=>d}}};
 })();`;
@@ -89,8 +90,8 @@ async function start() {
       await service.saveShift({employeeId:id,checkInAt,checkOutAt:checkInAt+8*3600000,payType:e.payType,hourlyRate:e.hourlyRate,breakMinutes:60,note:''}, 'local-preview-admin');
     }
   }
-  const {token} = await service.createDevice({name:'1층 태블릿 · 가상 데이터',floor:1}, 'local-preview-admin');
-  const upstairs = await service.createDevice({name:'2층 태블릿 · 가상 데이터',floor:2}, 'local-preview-admin');
+  const {token} = await service.createDevice({name:'돌담명가 태블릿 · 가상 데이터',floor:1}, 'local-preview-admin');
+  const upstairs = await service.createDevice({name:'궁중수라간 태블릿 · 가상 데이터',floor:2}, 'local-preview-admin');
   clock = new Date(`${today}T09:00:00+09:00`).getTime();
   if (clock < Date.now()) {
     for (let i = 0; i < 3; i++) await service.punch({employeeId:ids[i],kind:'in',requestId:`sample-${i}`}, token);
@@ -118,10 +119,10 @@ async function start() {
     if (url.pathname === '/mobile-preview.html') {
       const width = Math.max(320, Math.min(800, Number(url.searchParams.get('width')) || 390));
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.end(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>모바일 관리자 로컬 미리보기</title></head><body style="margin:0;background:#e9e5df;display:grid;place-items:center"><iframe title="모바일 관리자" src="/admin.html#attendance" allow="clipboard-write" style="width:${width}px;height:844px;border:0;background:white"></iframe></body></html>`); return;
+      res.end(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>모바일 관리자 로컬 미리보기</title></head><body style="margin:0;background:#e9e5df;display:grid;place-items:center"><iframe title="모바일 관리자" src="/staff-admin.html${url.searchParams.has('previewAuth') ? '?previewAuth=out' : ''}#attendance" allow="clipboard-write" style="width:${width}px;height:844px;border:0;background:white"></iframe></body></html>`); return;
     }
     const pathname = url.pathname === '/' ? '/attendance.html' : url.pathname;
-    if (!/^\/(?:admin\.html|attendance\.html|assets\/(?:css|js|img)\/[^?]+|icons\/icon\.svg|admin-manifest\.json)$/.test(pathname)) {res.writeHead(404).end();return;}
+    if (!/^\/(?:staff-admin\.html|admin\.html|attendance\.html|assets\/(?:css|js|img)\/[^?]+|icons\/icon\.svg|(?:staff-admin-manifest|admin-manifest)\.json)$/.test(pathname)) {res.writeHead(404).end();return;}
     const file = path.resolve(root, `.${decodeURIComponent(pathname)}`);
     if (!file.startsWith(`${root}${path.sep}`) || !fs.existsSync(file)) {res.writeHead(404).end();return;}
     const mime = {'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.json':'application/json','.jpg':'image/jpeg','.png':'image/png'};
@@ -132,11 +133,11 @@ async function start() {
     if (pathname.endsWith('.html')) {
       content = content.replace(/<script\b[^>]*src="https:\/\/www\.gstatic\.com\/firebasejs\/[^\"]+"[^>]*><\/script>/g, '');
       content = content.replace('<head>', '<head><script src="/preview-firebase.js"></script>');
-      if (pathname === '/attendance.html' && !url.searchParams.has('setup')) content = content.replace('<head>', `<head><script>localStorage.setItem('gjsuragan-attendance-device','${url.searchParams.get('floor') === '2' ? upstairs.token : token}');</script>`);
+      if (pathname === '/attendance.html' && !url.searchParams.has('setup')) content = content.replace('<head>', `<head><script>localStorage.setItem('gjsuragan-attendance-device','${(url.searchParams.get('store') === 'suragan' || (!url.searchParams.has('store') && url.searchParams.get('floor') === '2')) ? upstairs.token : token}');</script>`);
       if (pathname === '/attendance.html' && url.searchParams.has('setup')) content = content.replace('<head>', "<head><script>localStorage.removeItem('gjsuragan-attendance-device');</script>");
     }
     if (pathname.endsWith('/attendance-ui.js')) content = content.replace('https://asia-northeast3-gjsuragan-60505.cloudfunctions.net/attendanceApi', `http://127.0.0.1:${port}/attendanceApi`);
     res.end(content);
-  }).listen(port,'127.0.0.1', () => console.log(`Local attendance preview ready at http://127.0.0.1:${port}/attendance.html and /admin.html#attendance (sample data, Firestore Emulator only).`));
+  }).listen(port,'127.0.0.1', () => console.log(`Local attendance preview ready at http://127.0.0.1:${port}/attendance.html and /staff-admin.html#attendance (sample data, Firestore Emulator only).`));
 }
 start().catch(error=>{console.error(error);process.exitCode=1;});

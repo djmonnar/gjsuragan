@@ -26,9 +26,9 @@ function id(value) {
   return value;
 }
 
-// Records created before floor separation belong to the first floor.
+// Legacy floor IDs remain stable: 1 = Doldam, 2 = Suragan. No record migration is needed.
 function floor(value = 1) {
-  return integer(value, '근무 층', 1, 2);
+  return integer(value, '근무 매장', 1, 2);
 }
 
 function workDate(ms) {
