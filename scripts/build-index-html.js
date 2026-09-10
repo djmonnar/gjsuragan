@@ -19,7 +19,7 @@ const expectedScriptSources = [
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-  'assets/js/auth-core.js?v=20260910-missed1',
+  'assets/js/auth-core.js?v=20260910-missed2',
   'assets/js/delivery-transaction.js?v=20260710-safety1',
   'assets/js/imweb.js?v=20260910-cancel1',
   'assets/js/schedule-report.js?v=20260807-resumedate1',
