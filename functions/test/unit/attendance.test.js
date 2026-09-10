@@ -40,8 +40,20 @@ test('overlap rejects open or intersecting shifts but allows adjacent shifts', (
   assert.equal(M.overlaps(base, { ...base, voided: true }), false);
 });
 test('kiosk employee serialization omits wage, notes and employment history', () => {
-  const value = M.kioskEmployee({ id: 'e', name: '직원', role: '조리', hourlyRate: 12000, note: 'private', version: 1, deletedAt: null });
+  const value = M.kioskEmployee({ id: 'e', name: '직원', role: '조리', hourlyRate: 12000, monthlySalary: 3000000, note: 'private', version: 1, deletedAt: null });
   assert.deepEqual(Object.keys(value).sort(), ['currentShiftId', 'id', 'lastShift', 'name', 'role']);
+});
+
+test('monthly salary is a separate positive won amount and unset legacy salary is not zero', () => {
+  const employee = { name: '직원', role: '조리', payType: 'salaried', active: true, breakMinutes: 0, note: '' };
+  const saved = M.employeeInput({ ...employee, hourlyRate: 999999, monthlySalary: 3000000 });
+  assert.equal(saved.monthlySalary, 3000000);
+  assert.equal(saved.hourlyRate, 0);
+  assert.equal(M.employeeInput(employee).monthlySalary, null);
+  assert.equal(M.employeeInput({ ...employee, payType: 'hourly', hourlyRate: 12000, monthlySalary: 3000000 }).monthlySalary, null);
+  for (const value of [0, -1, 1.5, '3000000', null, NaN, Infinity, 100000001]) {
+    assert.throws(() => M.employeeInput({ ...employee, monthlySalary: value }), { status: 400 });
+  }
 });
 
 test('floor accepts only first and second floors, with legacy records on first floor', () => {

@@ -183,3 +183,34 @@ test('existing tablets can change floor with conflict detection and legacy defau
   await service.revokeDevice({ id: deviceId }, 'admin');
   await assert.rejects(service.setDeviceFloor({ id: deviceId, version: 2, floor: 1 }, 'admin'), { status: 401 });
 });
+
+test('monthly salary persists through old-client edits and never becomes hourly pay or kiosk data', async () => {
+  await service.saveEmployee({ ...(await getEmployee()), payType: 'salaried', monthlySalary: 3000000 }, 'admin');
+  assert.equal((await service.listAdmin('2026-09')).employees[0].monthlySalary, 3000000);
+  const { monthlySalary: _salary, ...olderForm } = await getEmployee();
+  await service.saveEmployee({ ...olderForm, role: '홀' }, 'admin');
+  assert.equal((await getEmployee()).monthlySalary, 3000000);
+  assert.equal((await getEmployee()).hourlyRate, 0);
+  assert.equal((await service.listKiosk(token)).employees[0].monthlySalary, undefined);
+  const first = await punch('in', 'salary-first'); now += 8 * hour; await punch('out', 'salary-out', first.shiftId);
+  await service.saveEmployee({ ...(await getEmployee()), monthlySalary: 3200000 }, 'admin');
+  now += hour; const second = await punch('in', 'salary-second'); now += hour; await punch('out', 'salary-out-again', second.shiftId);
+  const report = await service.listAdmin('2026-09');
+  assert.equal(report.employees[0].monthlySalary, 3200000);
+  assert.equal(report.shifts.reduce((sum, shift) => sum + shift.amount, 0), 0, 'monthly salary is not added once per shift');
+  assert.equal(report.shifts.reduce((sum, shift) => sum + shift.payableMinutes, 0), 540);
+  assert.equal((await getShift(first.shiftId)).hourlyRate, 0);
+  await service.saveEmployee({ ...(await getEmployee()), payType: 'hourly', hourlyRate: 12000 }, 'admin');
+  assert.equal((await getEmployee()).monthlySalary, null);
+  assert.equal((await getEmployee()).hourlyRate, 12000);
+  assert.equal((await getShift(first.shiftId)).payType, 'salaried');
+});
+
+test('unset existing monthly employees remain editable and reject invalid explicit amounts', async () => {
+  const legacy = await service.saveEmployee({ ...employeeInput, payType: 'salaried', hourlyRate: 0 }, 'admin');
+  const current = { ...(await db.collection('staffEmployees').doc(legacy.id).get()).data(), id: legacy.id };
+  assert.equal(current.monthlySalary, null);
+  await assert.rejects(service.saveEmployee({ ...current, monthlySalary: 0 }, 'admin'), { status: 400 });
+  await service.saveEmployee({ ...current, monthlySalary: 2800000 }, 'admin');
+  assert.equal((await db.collection('staffEmployees').doc(legacy.id).get()).data().monthlySalary, 2800000);
+});
