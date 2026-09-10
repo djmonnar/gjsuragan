@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..', '..');
-const pages = ['index.html', 'admin.html', 'customer.html', 'map/index.html', 'event-order.html'];
+const pages = ['index.html', 'admin.html', 'customer.html', 'map/index.html', 'event-order.html', 'attendance.html'];
 let failed = false;
 
 function isRemoteAsset(ref) {

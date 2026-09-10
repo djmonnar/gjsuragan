@@ -1,0 +1,83 @@
+# 직원 출퇴근 및 기본급 정산
+
+## 사용 흐름
+
+1. `admin.html`의 **직원·근태 → 직원 등록**에서 이름, 담당 업무, 급여 유형, 약정 시급을 입력한다.
+2. 매장 태블릿에서 `attendance.html`을 열고 관리자 비밀번호로 한 번 연결한다. 연결 후 관리자 인증은 메모리에서 종료되고 태블릿 전용 토큰만 브라우저에 남는다.
+3. 직원은 본인 이름 → **출근하기 / 퇴근하기**를 누른다. 저장 성공 화면이 나온 뒤 자동으로 목록으로 돌아간다. 목록은 15초마다 갱신된다.
+4. 관리자는 월간 캘린더의 날짜와 직원 필터로 출퇴근을 확인한다. **기록 추가 / 수정**에서 누락된 시간, 실제 무급 휴게시간, 해당 근무의 시급과 메모를 보정한다.
+5. **급여 정산**에서 직원별 근무시간과 기본급을 확인하고 CSV로 내려받는다.
+6. 퇴사·휴직 직원은 재직 체크를 해제하면 태블릿에서 숨겨진다. 삭제해도 과거 기록은 보존된다. 근무 중인 직원은 퇴근 처리 후 재직 변경·삭제할 수 있다.
+7. **태블릿 관리**에서 기기 연결을 해제할 수 있다. 해제된 기기는 다시 관리자가 연결해야 사용할 수 있다.
+
+## 시간과 금액 기준
+
+- 태블릿 입력은 서버 현재 시각으로 저장한다. 브라우저 시간이나 요청 본문의 시간·시급은 사용하지 않는다.
+- 표시와 월별 조회 기준은 `Asia/Seoul`, 출근일 기준이다. 8월 31일 출근하여 9월 1일 퇴근한 근무는 8월 합계에 포함된다.
+- 한 직원의 근무시간은 겹칠 수 없으며 동시에 열린 근무는 하나만 허용한다. 같은 날 여러 번 출퇴근할 수 있다.
+- 출근 시 시급, 급여 유형, 기본 무급 휴게시간을 복사한다. 직원 설정 변경은 다음 출근부터 적용되며 과거 정산은 바뀌지 않는다.
+- 기본 휴게시간은 0분이다. 관리자가 설정한 경우에만 차감하며 개별 근무에서 수정할 수 있다. 휴게시간이 실제 근무시간보다 길면 시간 수정을 요청한다.
+- 유급 근무 분 = `floor((퇴근 ms - 출근 ms) / 60000) - 무급 휴게 분`.
+- 근무별 기본급 = `round(유급 근무 분 × 저장된 시급 / 60)`. 월별 기본급은 근무별 금액의 합계이다.
+- 미퇴근은 합계에서 제외하며 18시간 이상 열린 기록은 조회 월과 관계없이 관리자 상단에 표시한다. 36시간 초과 근무는 태블릿에서 퇴근할 수 없으며 관리자가 실제 시간으로 보정해야 한다.
+- 이 합계는 **시급 기본급**이다. 주휴·연장·야간·휴일수당, 세금·공제는 포함하지 않는다. 월급 직원은 근태만 관리한다.
+- 인터넷이 끊기면 출퇴근 성공으로 표시하지 않는다. 재연결 후 같은 확인 창에서 다시 누르면 같은 요청 ID로 재시도한다. 이미 저장된 출퇴근은 중복 반영되지 않는다.
+
+## 구성과 접근 권한
+
+- 프론트: `attendance.html`, `assets/js/attendance-{ui,kiosk,admin}.js`, `assets/css/attendance.css`. 기존 `admin.html`에 독립 모듈로 연결한다.
+- 서버: `functions/attendance.js`, `functions/attendanceModel.js`. `functions/index.js`에서 **attendanceApi**를 `asia-northeast3`에 별도 export한다. 기존 주문·배송 API나 VPC 설정은 사용하지 않는다.
+- `staffEmployees`: 직원 설정, 현재 근무 ID와 마지막 출퇴근 요약, 버전, 삭제 시각.
+- `staffShifts`: 출퇴근 시간, 출근일, 당시 직원명·급여 유형·시급·휴게시간, 관리자 메모와 버전. 기록 삭제는 `voided` 처리이다.
+- `attendanceDevices`: 256비트 임의 토큰의 SHA-256 해시를 문서 ID로 사용한다. 원본 토큰은 최초 연결 응답에만 전달한다. 등록·해제는 관리자 전용이다.
+- `attendanceRequests`: 기기별 요청 ID와 결과를 저장해 재시도를 중복 제거한다.
+- `attendanceAudit`: 직원·기록 변경 전후와 출퇴근·기기 변경 이력을 남긴다.
+- 태블릿 API 응답에는 직원 ID·이름·업무·현재 근무·마지막 출퇴근만 포함한다. 시급과 메모, 과거 근태, 고객·관리자 자료는 전달하지 않는다.
+- 관리자 API는 Firebase ID 토큰과 기존 관리자 이메일 allowlist를 서버에서 검사한다. Firestore 클라이언트 쓰기는 관리자도 허용하지 않으며 모든 변경은 검증·트랜잭션을 거친다.
+- 기존 단일 필드 인덱스로 조회하므로 새 복합 인덱스나 기존 데이터 마이그레이션은 필요하지 않다.
+
+## 검증
+
+`functions/`에서 기존 검사 명령을 실행한다.
+
+```powershell
+npm ci
+npm run lint
+npm run test:unit
+npm run test:smoke
+npm run test:emulator
+```
+
+Windows의 Java 기본 locale이 한국어이면 Firestore Emulator rules compiler가 `MissingResourceException`을 낼 수 있다. 해당 실행 세션에만 아래 설정을 적용한다.
+
+```powershell
+$env:JAVA_TOOL_OPTIONS = '-Duser.language=en -Duser.country=US'
+```
+
+추가 테스트는 급여·날짜 경계·입력 검증·API 권한, 실제 Emulator에서 동시 출퇴근·재시도·관리자 수정 충돌·시급 변경·기기 해제·삭제 기록 보존, Rules에서 비관리자의 읽기와 모든 클라이언트 쓰기 차단을 확인한다.
+
+### 로컬 브라우저 미리보기
+
+Firestore Emulator를 먼저 실행하고 저장소 루트에서 다음 명령을 실행한다.
+
+```powershell
+$env:FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080'
+node functions/scripts/preview-attendance.js
+```
+
+- 태블릿: `http://127.0.0.1:8765/attendance.html`
+- 최초 연결 화면: `http://127.0.0.1:8765/attendance.html?setup=1`
+- 관리자: `http://127.0.0.1:8765/admin.html#attendance`
+
+이 서버는 loopback에만 열리고 `demo-gjsuragan-attendance-preview` Emulator 프로젝트에 가상 직원을 넣는다. 재시작하면 이 **미리보기 프로젝트만** 초기화한다. 인증은 로컬 stub, 출퇴근과 직원 관리는 실제 서비스 로직 및 Emulator를 사용한다. 운영 Firebase 인증·데이터에 접근하지 않는다. 실제 페이지 파일에는 테스트 인증이나 API 우회 코드가 없다.
+
+## 운영 반영
+
+코드 검토 후 Firebase 프로젝트를 명시해 새 함수와 Rules를 배포하고 정적 사이트를 반영한다.
+
+```powershell
+firebase deploy --only functions:attendanceApi --project gjsuragan-60505
+firebase deploy --only firestore:rules --project gjsuragan-60505
+```
+
+정적 파일은 저장소의 기존 GitHub Pages 배포 경로를 따른다. API 배포 전에는 새 화면에서 연결 오류가 표시된다. 배포 후 관리자 로그인, 직원 등록, 태블릿 최초 연결, 출근·퇴근, 관리자 캘린더·급여, 기기 해제를 실제 계정과 태블릿으로 확인한다.

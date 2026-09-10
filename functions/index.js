@@ -19,6 +19,13 @@ const imwebSecretKey = defineSecret('IMWEB_SECRET_KEY');
 admin.initializeApp();
 
 const db = admin.firestore();
+const { createAttendanceService, createAttendanceHandler } = require('./attendance');
+exports.attendanceApi = onRequest({ region: 'asia-northeast3', invoker: 'public', maxInstances: 10 },
+  createAttendanceHandler({
+    service: createAttendanceService({ db }),
+    verifyToken: token => admin.auth().verifyIdToken(token, true),
+    logError: (message, detail) => logger.error(message, detail)
+  }));
 const TIMEZONE = 'Asia/Seoul';
 const MAX_PENDING_PER_BATCH = 20;
 const KAKAO_SESSION_TTL_MS = 6 * 60 * 60 * 1000;

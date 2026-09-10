@@ -1,6 +1,8 @@
 # gjsuragan
 궁중수라간 배송 시스템
 
+직원 출퇴근은 `attendance.html`, 직원·근태·시급 정산 관리는 `admin.html`의 **직원·근태** 탭에서 제공합니다. 사용법·계산 기준·로컬 미리보기·운영 반영은 [직원 출퇴근 안내](docs/staff-attendance.md)를 참고하세요.
+
 리뉴얼 전 안전성 기준, 테스트 및 운영 전환 절차는 [RENEWAL_SAFETY.md](RENEWAL_SAFETY.md)를 참고하세요.
 
 ## 관리자 모바일 푸시 알림
