@@ -7028,7 +7028,11 @@ async function rebuildSettlementsForUids(month, uids) {
       Number(saved.catering ?? saved.cateringTotal ?? 0) || 0,
       Number(saved.amount || 0) || 0
     ].join('/');
-    if (savedTotals !== [lunch, salad, eventLunch, catering, amount].join('/')) changed++;
+    // 합계가 같아도 일별 내역에 지운 날짜가 남아 있을 수 있다.
+    // 고객 화면은 일별을 그대로 보여주므로 이것도 "바로잡은 것"으로 센다.
+    const savedDates = Object.keys(saved.daily || {}).sort().join(',');
+    const nextDates = Object.keys(daily).sort().join(',');
+    if (savedTotals !== [lunch, salad, eventLunch, catering, amount].join('/') || savedDates !== nextDates) changed++;
     const invoiceNo = saved.invoiceNo || await generateInvoiceNo(month);
     const dueDate = saved.dueDate || defaultDueDate(month);
     const settlementUser = registeredUser || { businessName: manualBusinessName || uid, phone: manualPhone, email: '' };
