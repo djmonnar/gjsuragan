@@ -31,6 +31,11 @@ async function loadSyncEnabled(db, env = process.env) {
   }
 }
 
+// 취소 판정을 고친 함수를 배포한 날. config 에 registerFrom 이 없으면 이 날을 기준일로 쓴다.
+// 설정을 깜빡해서 그동안 빠졌던 주문이 한꺼번에 등록되는 일이 없도록 기본값을 박아둔다.
+// 기준일을 아예 없애려면 config/imwebSync 의 registerFrom 에 옛날 날짜를 넣으면 된다.
+const DEFAULT_REGISTER_FROM = '2026-09-10';
+
 // 등록 기준일. 이 날짜보다 이전에 들어온 주문은 자동으로 등록하지 않는다.
 // 취소 판정 버그로 그동안 빠졌던 주문이 한꺼번에 배송목록에 쏟아지면
 // 이미 지나간 배송일까지 되살아나서 현장이 더 헷갈린다.
@@ -39,11 +44,11 @@ async function loadSyncEnabled(db, env = process.env) {
 async function loadRegisterFrom(db) {
   try {
     const snapshot = await db.collection(CONFIG_DOC[0]).doc(CONFIG_DOC[1]).get();
-    if (!snapshot.exists) return '';
+    if (!snapshot.exists) return DEFAULT_REGISTER_FROM;
     const value = String((snapshot.data() || {}).registerFrom || '').trim();
-    return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '';
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : DEFAULT_REGISTER_FROM;
   } catch {
-    return '';
+    return DEFAULT_REGISTER_FROM;
   }
 }
 
@@ -332,6 +337,7 @@ async function syncImwebOrders(options = {}) {
 }
 
 module.exports = {
+  DEFAULT_REGISTER_FROM,
   isSyncEnabled,
   loadSyncEnabled,
   loadExistingBySyncKey,

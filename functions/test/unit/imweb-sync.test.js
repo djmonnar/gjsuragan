@@ -103,7 +103,7 @@ test('정기구독 두 줄 주문이 두 건으로 등록된다', async () => {
     ]
   });
 
-  const result = await syncImwebOrders({ db, client, env: {} });
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
 
   assert.equal(result.saved, 2);
   const saved = customers(db);
@@ -121,7 +121,7 @@ test('이미 등록된 주문은 다시 등록하지 않는다', async () => {
     '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
   });
 
-  const result = await syncImwebOrders({ db, client, env: {} });
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
 
   assert.equal(result.saved, 0);
   assert.equal(result.skipped, 1);
@@ -142,7 +142,7 @@ test('onlyOrderNos 를 주면 이미 등록된 주문에서 빠진 줄만 채운
   });
 
   const result = await syncImwebOrders({
-    db, client, env: {}, onlyOrderNos: ['202608240989736']
+    db, client, env: {}, registerFrom: '', onlyOrderNos: ['202608240989736']
   });
 
   assert.equal(result.saved, 1, '빠진 줄 하나만 추가되어야 한다');
@@ -159,7 +159,7 @@ test('취소된 주문은 관련 문서를 모두 지우고 취소 로그를 남
   });
   const client = fakeClient([order('202608240989736', '취소완료')], {});
 
-  const result = await syncImwebOrders({ db, client, env: {} });
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
 
   assert.equal(result.deleted, 2);
   assert.equal(customers(db).length, 0);
@@ -175,7 +175,7 @@ test('배송완료된 주문은 등록하지 않는다', async () => {
     '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
   });
 
-  const result = await syncImwebOrders({ db, client, env: {} });
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
 
   assert.equal(result.saved, 0);
   assert.equal(result.skipped, 1);
@@ -188,7 +188,7 @@ test('배송 보류 상태는 등록 대상이다', async () => {
     '202608240989736': [subItem('주 2회|화/목 조리|총 8회')]
   });
 
-  const result = await syncImwebOrders({ db, client, env: {} });
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
   assert.equal(result.saved, 1);
 });
 
@@ -200,7 +200,7 @@ test('취소를 철회한 주문은 다시 등록된다', async () => {
     '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
   });
 
-  const result = await syncImwebOrders({ db, client, env: {} });
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
 
   assert.equal(result.saved, 1);
   assert.equal(result.deleted, 0);
@@ -216,7 +216,7 @@ test('부분취소는 취소된 줄만 빼고 나머지 줄을 등록한다', as
     ]
   });
 
-  const result = await syncImwebOrders({ db, client, env: {} });
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
 
   assert.equal(result.saved, 1);
   const saved = customers(db);
@@ -237,7 +237,7 @@ test('이미 등록된 주문도 취소 흔적이 있으면 취소된 줄만 지
       ]
     });
 
-  const result = await syncImwebOrders({ db, client, env: {} });
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
 
   assert.equal(result.deleted, 1);
   assert.equal(result.saved, 0);
@@ -261,7 +261,7 @@ test('상품 줄이 전부 취소면 주문 전체를 지운다', async () => {
       ]
     });
 
-  const result = await syncImwebOrders({ db, client, env: {} });
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
 
   assert.equal(result.deleted, 2);
   assert.equal(customers(db).length, 0);
@@ -273,7 +273,7 @@ test('취소 흔적이 있어도 상품 줄을 못 읽으면 아무것도 지우
     [order('202608240989736', 'pay_done', { claim_status: 'cancel_done' })], {});
   const logs = [];
 
-  const result = await syncImwebOrders({ db, client, env: {}, log: message => logs.push(message) });
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '', log: message => logs.push(message) });
 
   assert.equal(result.deleted, 0);
   assert.equal(customers(db).length, 1);
@@ -360,10 +360,28 @@ test('config/imwebSync 의 registerFrom 을 기준일로 읽는다', async () =>
     collection: () => ({ doc: () => ({ async get() { return value; } }) })
   });
 
-  assert.equal(await imwebSyncModule.loadRegisterFrom(configDb({ exists: false })), '');
+  const fallback = imwebSyncModule.DEFAULT_REGISTER_FROM;
+  assert.match(fallback, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(await imwebSyncModule.loadRegisterFrom(configDb({ exists: false })), fallback,
+    '설정이 없어도 기본 기준일이 걸려서 옛날 주문이 쏟아지지 않는다');
   assert.equal(await imwebSyncModule.loadRegisterFrom(
-    configDb({ exists: true, data: () => ({ registerFrom: '2026-09-10' }) })), '2026-09-10');
+    configDb({ exists: true, data: () => ({ registerFrom: '2026-09-20' }) })), '2026-09-20');
   assert.equal(await imwebSyncModule.loadRegisterFrom(
-    configDb({ exists: true, data: () => ({ registerFrom: '2026/09/10' }) })), '',
-    '형식이 어긋난 값은 기준일로 쓰지 않는다');
+    configDb({ exists: true, data: () => ({ registerFrom: '2026/09/10' }) })), fallback,
+    '형식이 어긋난 값은 기본 기준일로 되돌린다');
+});
+
+test('설정을 깜빡해도 옛날 주문이 배송목록에 쏟아지지 않는다', async () => {
+  // config/imwebSync 에 registerFrom 을 넣지 않은 상태. 기본 기준일이 걸려야 한다.
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {} });
+
+  assert.equal(result.saved, 0);
+  assert.equal(result.missed, 1);
+  assert.equal(customers(db).length, 0);
+  assert.equal(missedOrders(db).length, 1);
 });

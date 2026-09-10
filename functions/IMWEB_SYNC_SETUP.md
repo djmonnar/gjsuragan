@@ -133,7 +133,11 @@ jsonPayload.message="Imweb sync finished"
 이미 지나간 배송일까지 되살아나면 현장이 더 헷갈리므로, **기준일 이전 주문은 등록하지 않고
 `imwebMissedOrders` 에 적어두기만 한다.** 대시보드에 '아임웹 등록 보류' 알림으로 뜬다.
 
-Firebase Console → Firestore → `config` → `imwebSync` 문서에 필드를 하나 더 넣는다.
+**기본값이 이미 박혀 있다.** `imwebSync.js` 의 `DEFAULT_REGISTER_FROM` (배포일) 이 기준일로
+쓰이므로, 배포만 하면 옛날 주문이 쏟아지지 않는다. 아무것도 설정하지 않아도 된다.
+
+기준일을 바꾸고 싶으면 Firebase Console → Firestore → `config` → `imwebSync` 문서에
+필드를 하나 더 넣는다.
 
 ```
 registerFrom (string) = "2026-09-10"
@@ -142,9 +146,10 @@ registerFrom (string) = "2026-09-10"
 - `YYYY-MM-DD` 형식이어야 한다. 형식이 어긋나면 기준일이 없는 것으로 본다.
 - 보통 **고친 함수를 배포한 날짜**를 넣는다. 그날부터 들어오는 주문은 평소대로 등록되고,
   그 전 주문은 배송목록을 건드리지 않고 알림으로만 뜬다.
-- 필드가 없으면 기준일 없이 예전처럼 전부 등록한다.
+- 필드가 없거나 형식이 어긋나면 `DEFAULT_REGISTER_FROM` 을 쓴다.
 - 주문일을 읽을 수 없는 주문도 나이를 알 수 없으니 등록하지 않고 알림으로 보낸다.
-- 백로그를 다 정리했으면 `registerFrom` 을 지우거나 오래된 날짜로 바꾸면 된다.
+- 백로그를 다 정리해서 기준일을 아예 없애고 싶으면 `registerFrom` 에 옛날 날짜
+  (예: `2000-01-01`) 를 넣는다. 필드를 지우면 기본값으로 돌아간다.
 
 `imwebMissedOrders` 문서 id 는 `syncKey` 라서 같은 줄이 여러 번 쌓이지 않는다.
 사람이 '확인 완료' 로 눌러둔 `acknowledged` 값은 함수가 절대 덮어쓰지 않는다.
