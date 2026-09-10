@@ -6,35 +6,35 @@
   <meta name="theme-color" content="#703d2e">
   <meta name="robots" content="noindex, nofollow">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="수라간 출퇴근">
+  <meta name="apple-mobile-web-app-title" content="매장 출퇴근">
   <title>출퇴근 · 궁중수라간</title>
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
-  <link rel="stylesheet" href="./assets/css/attendance.css?v=20260910-details">
+  <link rel="stylesheet" href="./assets/css/attendance.css?v=20260910-stores">
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js" defer></script>
-  <script src="./assets/js/attendance-ui.js?v=20260910" defer></script>
+  <script src="./assets/js/attendance-ui.js?v=20260910-stores" defer></script>
   <script src="./assets/js/attendance-bookings.js?v=20260910" defer></script>
   <script src="./assets/js/attendance-booking-form.js?v=20260910" defer></script>
-  <script src="./assets/js/attendance-kiosk.js?v=20260910-floors" defer></script>
+  <script src="./assets/js/attendance-kiosk.js?v=20260910-stores" defer></script>
 </head>
 <body class="att-kiosk">
   <header class="att-kiosk-header">
-    <div class="att-brandmark"><span class="att-seal" aria-hidden="true">宮</span><div><strong>궁중수라간</strong><small>STAFF ATTENDANCE</small></div></div>
+    <div class="att-brandmark"><span class="att-seal" id="kiosk-seal" aria-hidden="true">宮</span><div><strong id="kiosk-store-name">궁중수라간 · 돌담명가</strong><small>STAFF ATTENDANCE</small></div></div>
     <div class="att-kiosk-tools"><span class="att-connection" id="kiosk-connection" role="status">연결 확인 중</span><button type="button" class="att-button" id="kiosk-fullscreen" aria-label="전체 화면 전환">전체 화면</button></div>
   </header>
   <section class="att-setup" id="kiosk-setup" hidden>
-    <p class="att-eyebrow">WELCOME TO SURAGAN</p>
+      <p class="att-eyebrow">STAFF ATTENDANCE</p>
     <h1>출퇴근 태블릿 연결</h1>
     <p>관리자가 처음 한 번 연결하면,<br>직원은 이름만 눌러 출퇴근할 수 있어요.</p>
     <form id="kiosk-setup-form">
       <label class="att-field">태블릿 이름<input class="att-input" name="name" value="매장 출퇴근 태블릿" maxlength="50" required></label>
-      <label class="att-field">이 태블릿의 근무 층<select class="att-input" name="floor" id="kiosk-setup-floor"><option value="1">1층 직원만 표시</option><option value="2">2층 직원만 표시</option></select><small>지정한 층의 직원만 출퇴근할 수 있습니다.</small></label>
+      <label class="att-field">이 태블릿의 근무 매장<select class="att-input" name="floor" id="kiosk-setup-floor"><option value="2">궁중수라간 직원만 표시</option><option value="1">돌담명가 직원만 표시</option></select><small>지정한 매장의 직원만 출퇴근할 수 있습니다.</small></label>
       <label class="att-field">관리자 비밀번호<input class="att-input" type="password" name="password" autocomplete="current-password" required></label>
       <p class="att-error" id="kiosk-setup-error" role="alert"></p>
       <button class="att-button att-primary" type="submit">이 태블릿 연결하기</button>
     </form>
-    <p class="att-note">관리자 로그인은 연결 후 자동으로 종료됩니다. 연결된 태블릿은 admin의 직원·근태에서 해제할 수 있습니다.</p>
+    <p class="att-note">관리자 로그인은 연결 후 자동으로 종료됩니다. 연결된 태블릿은 <a href="./staff-admin.html">별도 관리 페이지</a>의 태블릿 관리에서 해제할 수 있습니다.</p>
   </section>
   <main class="att-kiosk-main" id="kiosk-main" hidden>
     <div class="att-kiosk-hero"><div><p class="att-eyebrow" id="kiosk-floor-label">궁중수라간 직원 출퇴근</p><h1>내 이름을 눌러 주세요</h1><p>출근할 때 한 번, 퇴근할 때 한 번.</p></div><div class="att-kiosk-clock"><div class="att-clock-time" id="kiosk-clock">00:00</div><div class="att-clock-date" id="kiosk-date"></div></div></div>

@@ -58,7 +58,7 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       if (before?.deletedAt) model.fail('삭제된 직원은 수정할 수 없습니다.');
       if (before?.currentShiftId && !data.active) model.fail('퇴근 처리 후 재직 상태를 변경해 주세요.');
       const floor = input.floor === undefined ? model.floor(before?.floor) : data.floor;
-      if (before?.currentShiftId && floor !== model.floor(before.floor)) model.fail('퇴근 처리 후 근무 층을 변경해 주세요.');
+      if (before?.currentShiftId && floor !== model.floor(before.floor)) model.fail('퇴근 처리 후 근무 매장을 변경해 주세요.');
       // An older admin screen can edit other fields without erasing a saved salary.
       const monthlySalary = data.payType === 'salaried' && input.monthlySalary === undefined && before?.payType === 'salaried'
         ? before.monthlySalary ?? null : data.monthlySalary;
@@ -113,7 +113,7 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
   }
   async function setDeviceFloor(input, actor) {
     const ref = devices.doc(model.id(input.id));
-    const floor = model.integer(input.floor, '태블릿 층', 1, 2);
+    const floor = model.integer(input.floor, '태블릿 매장', 1, 2);
     await db.runTransaction(async tx => {
       const before = checkDevice(await tx.get(ref));
       revision(input, { version: before.version || 1 });
@@ -158,7 +158,7 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       }
       const employee = existing(employeeSnap, '직원');
       if (!employee.active || employee.deletedAt) model.fail('출퇴근 대상 직원이 아닙니다.', 409);
-      if (model.floor(employee.floor) !== model.floor(tablet.floor)) model.fail('이 태블릿에 지정된 층의 직원만 출퇴근할 수 있습니다. 목록을 새로고침해 주세요.', 403);
+      if (model.floor(employee.floor) !== model.floor(tablet.floor)) model.fail('이 태블릿에 지정된 매장의 직원만 출퇴근할 수 있습니다. 목록을 새로고침해 주세요.', 403);
       const at = now();
       let ref, record;
       if (input.kind === 'in') {

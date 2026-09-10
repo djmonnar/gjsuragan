@@ -7,6 +7,15 @@
   const time = ms => ms == null ? '—' : new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(ms);
   const money = value => `${Number(value || 0).toLocaleString('ko-KR')}원`;
   const duration = minutes => `${Math.floor(minutes / 60)}시간 ${minutes % 60}분`;
+  // Keep the existing numeric partition so employee, shift and tablet records continue to match.
+  const storeName = value => Number(value) === 2 ? '궁중수라간' : '돌담명가';
+  function setupStore(search) {
+    const params = new URLSearchParams(search);
+    if (params.has('store')) return params.get('store') === 'doldam' ? 1 : 2;
+    if (params.has('floor')) return params.get('floor') === '2' ? 2 : 1;
+    return 2;
+  }
+  const deviceName = (name, value) => /^[12]층 출퇴근 태블릿$/.test(name) ? `${storeName(value)} 출퇴근 태블릿` : name;
   async function request(action, data = {}, credential = {}) {
     if (navigator.onLine === false) throw new Error('인터넷 연결을 확인해 주세요. 연결 후 다시 눌러야 기록됩니다.');
     const controller = new AbortController();
@@ -58,5 +67,5 @@
     el.showModal();
     return el;
   }
-  root.AttendanceUI = { esc, date, dateTime, time, money, duration, request, dialog };
+  root.AttendanceUI = { esc, date, dateTime, time, money, duration, request, dialog, storeName, setupStore, deviceName };
 })(window);

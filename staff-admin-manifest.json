@@ -1,0 +1,13 @@
+{
+  "id": "./staff-admin.html",
+  "name": "궁중수라간 · 돌담명가 매장 관리",
+  "short_name": "매장 관리",
+  "description": "직원 출퇴근, 급여, 예약 관리",
+  "start_url": "./staff-admin.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f5ef",
+  "theme_color": "#703d2e",
+  "lang": "ko",
+  "icons": [{ "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
