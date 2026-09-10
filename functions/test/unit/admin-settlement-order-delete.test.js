@@ -344,3 +344,72 @@ test('정산 저장 경로가 daily 를 그대로 쓰지 않고 삭제 표시를
   const saveSource = extractFunction('saveSettlementItem');
   assert.match(saveSource, /stripDeleteSentinels\(payload\.daily\)/);
 });
+
+// ── 고객 화면 미납 요약 ────────────────────────────────────
+// 고객 화면은 고른 달 하나만 보여준다. 7월이 미납인데 8월을 보고 있으면 알 수 없었다.
+const customerSource = fs.readFileSync(path.join(rootDir, 'customer.html'), 'utf8');
+
+function extractCustomerFunction(name) {
+  let start = customerSource.indexOf(`function ${name}(`);
+  assert.notEqual(start, -1, `${name} 함수를 찾지 못했습니다.`);
+  if (customerSource.slice(start - 6, start) === 'async ') start -= 6;
+  const bodyStart = customerSource.indexOf('{', customerSource.indexOf(')', start));
+  let depth = 0;
+  for (let i = bodyStart; i < customerSource.length; i += 1) {
+    if (customerSource[i] === '{') depth += 1;
+    if (customerSource[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return customerSource.slice(start, i + 1);
+    }
+  }
+  throw new Error(`${name} 함수 끝을 찾지 못했습니다.`);
+}
+
+const unpaid = vm.runInNewContext(`(() => {
+  ${extractCustomerFunction('customerSettlementSummary')}
+  return { customerSettlementSummary };
+})()`);
+
+test('다음 달로 이월한 달은 잔액이 0이라 미납으로 두 번 세지 않는다', () => {
+  // 7월 32,000원을 8월로 넘긴 경우. 8월 청구액에 이미 들어 있으므로 7월은 0이어야 한다.
+  const july = unpaid.customerSettlementSummary({
+    amount: 32000, payments: [], carriedOverAmount: 32000, carriedOverTo: '2026-08'
+  });
+  assert.equal(july.balance, 0);
+
+  const august = unpaid.customerSettlementSummary({
+    amount: 64000, payments: [], carryover: 32000, carryoverFrom: '2026-07'
+  });
+  assert.equal(august.billed, 96000);
+  assert.equal(august.balance, 96000);
+});
+
+test('이월하지 않은 지난달 미납은 그 달 잔액으로 그대로 남는다', () => {
+  // 관리자가 이월 처리를 안 해도 고객이 볼 수 있어야 한다.
+  const july = unpaid.customerSettlementSummary({ amount: 32000, payments: [] });
+  const august = unpaid.customerSettlementSummary({ amount: 64000, payments: [] });
+  assert.equal(july.balance, 32000);
+  assert.equal(august.balance, 64000);
+  assert.equal(july.balance + august.balance, 96000);
+});
+
+test('입금이 끝난 달은 미납 목록에 오르지 않는다', () => {
+  const paid = unpaid.customerSettlementSummary({
+    amount: 32000, payments: [{ amount: 32000, date: '2026-08-05' }]
+  });
+  assert.equal(paid.balance, 0);
+});
+
+test('정산 탭에 들어오면 미납 요약도 같이 불러온다', () => {
+  const initSource = extractCustomerFunction('initSettlementTab');
+  assert.match(initSource, /loadCustomerUnpaidSummary\(\)/);
+  const summarySource = extractCustomerFunction('loadCustomerUnpaidSummary');
+  // 잔액이 남은 달만 목록에 올린다.
+  assert.match(summarySource, /if \(balance > 0\)/);
+});
+
+test('다시계산 건수는 합계뿐 아니라 일별 날짜가 바뀐 것도 센다', () => {
+  // 합계는 맞는데 일별에만 지운 날짜가 남은 경우를 "어긋난 곳 없음" 으로 보고하면 안 된다.
+  const rebuildSource = extractFunction('rebuildSettlementsForUids');
+  assert.match(rebuildSource, /savedDates !== nextDates/);
+});

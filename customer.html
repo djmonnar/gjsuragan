@@ -1647,6 +1647,16 @@
   .cust-invoice-card{border:1px solid var(--border);border-radius:10px;padding:16px;background:#fff;margin-bottom:12px}
   .cust-invoice-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
   .cust-invoice-no{font-family:monospace;font-size:12px;color:var(--primary);background:#fff8e1;padding:3px 8px;border-radius:4px;border:1px solid #f5c842}
+  .cust-unpaid-box{background:#fdf3f2;border:1px solid #f0c4bd;border-radius:12px;padding:14px;margin-bottom:16px}
+  .cust-unpaid-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .cust-unpaid-title{font-size:14px;font-weight:800;color:#a5342a}
+  .cust-unpaid-total{font-size:19px;font-weight:900;color:#c0392b}
+  .cust-unpaid-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;background:#fff;border:1px solid #f0d6d2;border-radius:9px;padding:10px 12px;margin-top:6px;font:inherit;cursor:pointer;text-align:left}
+  .cust-unpaid-row:hover{border-color:#d98a80}
+  .cust-unpaid-row.current{border-color:#c0392b;background:#fff8f7}
+  .cust-unpaid-month{font-size:14px;font-weight:800;color:#3d1f0a;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .cust-unpaid-amt{font-size:15px;font-weight:900;color:#c0392b;white-space:nowrap}
+  .cust-unpaid-note{font-size:12px;color:#8a5c52;margin-top:10px;line-height:1.5}
   .cust-due-badge{font-size:12px;padding:3px 10px;border-radius:12px;font-weight:600}
   .cust-due-badge.overdue{background:#fdecea;color:#c0392b}
   .cust-due-badge.soon{background:#fff3e0;color:#e65100}
@@ -2194,6 +2204,7 @@
       </div>
       <button onclick="copyAccountNumber()" id="copy-account-btn" style="background:var(--primary);color:#fff;border:0;border-radius:8px;padding:9px 16px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap">복사</button>
     </div>
+    <div id="customer-unpaid-summary" style="display:none"></div>
     <div class="section-title"><svg class="gj-icon"><use href="#gj-settlement"></use></svg>월별 정산 내역</div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
       <input type="month" id="settle-month-input" class="form-input" style="max-width:160px">
@@ -4065,6 +4076,83 @@ function initSettlementTab() {
     input.value = `${kst.getFullYear()}-${String(kst.getMonth()+1).padStart(2,'0')}`;
   }
   loadCustomerSettlement();
+  loadCustomerUnpaidSummary();
+}
+
+// ── 미납 요약 ──────────────────────────────────────────────
+// 이 화면은 고른 달 하나만 보여준다. 그래서 7월이 미납인데 8월을 보고 있으면
+// 고객은 7월 미납을 알 수 없었다. 최근 몇 달을 훑어 잔액이 남은 달을 위에 모아 보여준다.
+// 다음 달로 이월한 달은 잔액이 0이 되므로(customerSettlementSummary) 이중으로 세지 않는다.
+const CUSTOMER_UNPAID_MONTH_COUNT = 12;
+
+function customerRecentMonths(count) {
+  const kst = getKST();
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(kst.getFullYear(), kst.getMonth() - i, 1);
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return out;
+}
+
+async function loadCustomerUnpaidSummary() {
+  const host = document.getElementById('customer-unpaid-summary');
+  if (!host || !currentUser) return;
+  const months = customerRecentMonths(CUSTOMER_UNPAID_MONTH_COUNT);
+  let legacy = {};
+  try {
+    const snap = await db.collection('users').doc(currentUser.uid).get();
+    // TODO: legacy users.settlements fallback은 데이터 마이그레이션 후 제거
+    legacy = (snap.exists ? snap.data() : {}).settlements || {};
+  } catch(e) {}
+  const rows = [];
+  await Promise.all(months.map(async month => {
+    let data = null;
+    try {
+      const snap = await db.collection('settlements').doc(month).collection('items').doc(currentUser.uid).get();
+      if (snap.exists) data = snap.data();
+    } catch(e) {}
+    if (!data) data = legacy[month] || null;
+    if (!data) return;
+    const { balance } = customerSettlementSummary(data);
+    if (balance > 0) rows.push({ month, balance, dueDate: data.dueDate || '' });
+  }));
+  rows.sort((a, b) => a.month.localeCompare(b.month));
+  renderCustomerUnpaidSummary(rows);
+}
+
+function renderCustomerUnpaidSummary(rows) {
+  const host = document.getElementById('customer-unpaid-summary');
+  if (!host) return;
+  if (!rows.length) {
+    host.style.display = 'none';
+    host.innerHTML = '';
+    return;
+  }
+  const total = rows.reduce((sum, r) => sum + r.balance, 0);
+  const viewing = document.getElementById('settle-month-input')?.value || '';
+  const rowsHtml = rows.map(r => `
+    <button type="button" class="cust-unpaid-row${r.month === viewing ? ' current' : ''}" onclick="showCustomerSettlementMonth('${r.month}')">
+      <span class="cust-unpaid-month">${escapeHtml(customerMonthShort(r.month) || r.month)}${r.dueDate ? custDueBadge(r.dueDate) : ''}</span>
+      <span class="cust-unpaid-amt">${r.balance.toLocaleString()}원</span>
+    </button>`).join('');
+  host.innerHTML = `
+    <div class="cust-unpaid-box">
+      <div class="cust-unpaid-head">
+        <span class="cust-unpaid-title">미납 ${rows.length}건</span>
+        <span class="cust-unpaid-total">${total.toLocaleString()}원</span>
+      </div>
+      ${rowsHtml}
+      <div class="cust-unpaid-note">달을 누르면 그 달 상세 내역을 볼 수 있습니다. 입금하셨는데도 남아 있으면 확인 요청 부탁드립니다.</div>
+    </div>`;
+  host.style.display = 'block';
+}
+
+function showCustomerSettlementMonth(month) {
+  const input = document.getElementById('settle-month-input');
+  if (input) input.value = month;
+  loadCustomerSettlement();
+  loadCustomerUnpaidSummary();
 }
 
 function custDueBadge(dueDate) {
