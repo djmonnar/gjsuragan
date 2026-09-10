@@ -3980,6 +3980,26 @@ function mergedManualMonthlySettlements(month, stored = {}) {
   });
   return merged;
 }
+// Firestore 의 set({merge:true}) 는 map 필드를 키 단위로 합친다.
+// daily 는 날짜를 키로 쓰는 map 이라, 새 daily 를 써도 지운 날짜 키가 문서에 그대로 남는다.
+// 합계(도시락 4개, 32,000원)는 숫자 필드라 제대로 덮어써지는데
+// 고객 화면 "일별 이용 내역" 에는 안 먹은 날이 계속 보이는 이유가 이것이다.
+// 새 daily 에 없는 옛 날짜는 삭제 표시를 실어 보내 문서에서 지운다.
+function settlementDailyPatch(nextDaily, savedDaily) {
+  const patch = { ...(nextDaily || {}) };
+  Object.keys(savedDaily || {}).forEach(ds => {
+    if (!Object.prototype.hasOwnProperty.call(patch, ds)) {
+      patch[ds] = firebase.firestore.FieldValue.delete();
+    }
+  });
+  return patch;
+}
+// 삭제 표시는 서버로 보내는 값이라 화면 캐시에는 남으면 안 된다.
+function stripDeleteSentinels(daily) {
+  return Object.fromEntries(
+    Object.entries(daily || {}).filter(([, value]) => !(value instanceof firebase.firestore.FieldValue))
+  );
+}
 function settlementItemRef(month, uid) {
   return db.collection('settlements').doc(month).collection('items').doc(uid);
 }
@@ -4090,7 +4110,8 @@ async function saveSettlementItem(month, uid, row, data, options = {}) {
   } else {
     await settlementItemRef(month, uid).set(payload, { merge: true });
   }
-  applySettlementToUserCache(uid, month, payload);
+  // 화면 캐시에는 daily 삭제 표시가 남으면 안 된다. 그건 서버로 보내는 값이다.
+  applySettlementToUserCache(uid, month, { ...payload, daily: stripDeleteSentinels(payload.daily) });
   return payload;
 }
 
@@ -4278,7 +4299,8 @@ async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
       lunchPrice,
       saladPrice,
       eventPrice,
-      daily,
+      // 지운 날짜가 고객 화면 일별 내역에 남지 않게 옛 날짜 키를 삭제 표시로 함께 보낸다.
+      daily: settlementDailyPatch(daily, saved.daily),
       source: manualOrder ? 'adminManualDelivery' : (saved.source || ''),
       autoBilled: true,
       autoBilledAt: new Date().toISOString()
@@ -7040,7 +7062,8 @@ async function rebuildSettlementsForUids(month, uids) {
       lunchPrice,
       saladPrice,
       eventPrice,
-      daily,
+      // 지운 날짜가 고객 화면 일별 내역에 남지 않게 옛 날짜 키를 삭제 표시로 함께 보낸다.
+      daily: settlementDailyPatch(daily, saved.daily),
       source: manualOrder ? 'adminManualDelivery' : (saved.source || ''),
       autoBilled: true,
       autoBilledAt: new Date().toISOString()
@@ -14231,7 +14254,8 @@ async function saveBreakdownEdits(uid) {
       const cateringAmount = cateringItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
       const amount = lunch * (row.lunchPrice || 0) + salad * (row.saladPrice || 0) + eventLunch * (row.eventPrice || row.lunchPrice || 0) + cateringAmount;
       await saveSettlementItem(month, uid, row, {
-        daily: newDaily,
+        // 여기서도 지운 날짜가 문서에 남지 않게 옛 날짜 키를 삭제 표시로 보낸다.
+        daily: settlementDailyPatch(newDaily, row.daily || row.dateBreakdown),
         lunch,
         salad,
         eventLunch,
