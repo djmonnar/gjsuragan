@@ -1,7 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { syncImwebOrders } = require('../../imwebSync');
+const imwebSyncModule = require('../../imwebSync');
+const { syncImwebOrders } = imwebSyncModule;
 
 // Firestore 대신 쓰는 최소 구현. add / delete / get 만 있으면 된다.
 function fakeDb(seed = {}) {
@@ -27,6 +28,15 @@ function fakeDb(seed = {}) {
         },
         doc(id) {
           return {
+            async get() {
+              const key = `${name}/${id}`;
+              return { exists: store.has(key), data: () => store.get(key) };
+            },
+            async set(data, options) {
+              const key = `${name}/${id}`;
+              const previous = options?.merge ? (store.get(key) || {}) : {};
+              store.set(key, { ...previous, ...data });
+            },
             async delete() { store.delete(`${name}/${id}`); }
           };
         }
@@ -268,4 +278,92 @@ test('취소 흔적이 있어도 상품 줄을 못 읽으면 아무것도 지우
   assert.equal(result.deleted, 0);
   assert.equal(customers(db).length, 1);
   assert.ok(logs.some(message => message.includes('판정 보류')), '판정을 미뤘다는 로그가 남아야 한다');
+});
+
+function missedOrders(db) {
+  return [...db.store.entries()]
+    .filter(([id]) => id.startsWith('imwebMissedOrders/'))
+    .map(([id, data]) => ({ id: id.slice('imwebMissedOrders/'.length), ...data }));
+}
+
+test('등록 기준일 이전 주문은 등록하지 않고 놓친 주문으로만 적어둔다', async () => {
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+  const logs = [];
+
+  const result = await syncImwebOrders({
+    db, client, env: {}, registerFrom: '2026-09-01', log: message => logs.push(message)
+  });
+
+  assert.equal(result.saved, 0);
+  assert.equal(result.missed, 1);
+  assert.equal(customers(db).length, 0, '배송목록에 갑자기 등록되면 안 된다');
+
+  const [record] = missedOrders(db);
+  assert.equal(record.id, '202608240989736', '문서 id 는 syncKey 여야 한다');
+  assert.equal(record.orderNo, '202608240989736');
+  assert.equal(record.orderDate, '2026-08-24');
+  assert.equal(record.name, '차진');
+  assert.equal(record.scheduleName, '월·수·금 조리 → 화·목·토 도착');
+  assert.equal(record.reason, '등록 기준일 이전 주문');
+  assert.equal(record.acknowledged, undefined, '확인 여부는 함수가 건드리지 않는다');
+  assert.ok(logs.some(message => message.includes('등록 보류')));
+});
+
+test('기준일 이후 주문은 그대로 등록된다', async () => {
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '2026-08-01' });
+
+  assert.equal(result.saved, 1);
+  assert.equal(result.missed, 0);
+  assert.equal(missedOrders(db).length, 0);
+});
+
+test('놓친 주문을 확인 처리하면 다음 실행이 덮어쓰지 않는다', async () => {
+  const db = fakeDb({
+    'imwebMissedOrders/202608240989736': {
+      syncKey: '202608240989736', orderNo: '202608240989736', acknowledged: true
+    }
+  });
+  const client = fakeClient([order('202608240989736')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '2026-09-01' });
+
+  assert.equal(result.missed, 1);
+  assert.equal(customers(db).length, 0);
+  const [record] = missedOrders(db);
+  assert.equal(record.acknowledged, true, '확인 표시가 유지돼야 한다');
+});
+
+test('기준일이 없으면 예전처럼 전부 등록한다', async () => {
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.saved, 1);
+  assert.equal(result.missed, 0);
+});
+
+test('config/imwebSync 의 registerFrom 을 기준일로 읽는다', async () => {
+  const configDb = value => ({
+    collection: () => ({ doc: () => ({ async get() { return value; } }) })
+  });
+
+  assert.equal(await imwebSyncModule.loadRegisterFrom(configDb({ exists: false })), '');
+  assert.equal(await imwebSyncModule.loadRegisterFrom(
+    configDb({ exists: true, data: () => ({ registerFrom: '2026-09-10' }) })), '2026-09-10');
+  assert.equal(await imwebSyncModule.loadRegisterFrom(
+    configDb({ exists: true, data: () => ({ registerFrom: '2026/09/10' }) })), '',
+    '형식이 어긋난 값은 기준일로 쓰지 않는다');
 });

@@ -10,6 +10,7 @@ const defaultClient = require('./imwebClient');
 
 const CUSTOMERS = 'customers';
 const CANCEL_LOGS = 'imwebCancelLogs';
+const MISSED_ORDERS = 'imwebMissedOrders';
 const CONFIG_DOC = ['config', 'imwebSync'];
 
 function isSyncEnabled(env = process.env) {
@@ -28,6 +29,34 @@ async function loadSyncEnabled(db, env = process.env) {
   } catch {
     return false;
   }
+}
+
+// 등록 기준일. 이 날짜보다 이전에 들어온 주문은 자동으로 등록하지 않는다.
+// 취소 판정 버그로 그동안 빠졌던 주문이 한꺼번에 배송목록에 쏟아지면
+// 이미 지나간 배송일까지 되살아나서 현장이 더 헷갈린다.
+// 대신 imwebMissedOrders 에 적어두고 사람이 보고 판단하게 한다.
+// 값이 없으면 기준일 없이 예전처럼 전부 등록한다.
+async function loadRegisterFrom(db) {
+  try {
+    const snapshot = await db.collection(CONFIG_DOC[0]).doc(CONFIG_DOC[1]).get();
+    if (!snapshot.exists) return '';
+    const value = String((snapshot.data() || {}).registerFrom || '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '';
+  } catch {
+    return '';
+  }
+}
+
+// 이미 적어둔 놓친 주문은 다시 쓰지 않는다. '확인함' 표시가 지워지면 안 되기 때문이다.
+async function loadMissedKeys(db) {
+  const keys = new Set();
+  try {
+    const snapshot = await db.collection(MISSED_ORDERS).get();
+    snapshot.forEach(doc => keys.add(doc.id));
+  } catch {
+    // 컬렉션이 없으면 빈 집합으로 시작한다.
+  }
+  return keys;
 }
 
 // 이미 등록된 주문을 찾을 때 쓰는 색인.
@@ -129,6 +158,32 @@ async function deleteCancelledLine(db, orderNo, syncKey, status, order, prodOrde
   return records.length;
 }
 
+// 등록했어야 하는데 기준일 이전이라 보류한 주문을 적어둔다.
+// 문서 id 를 syncKey 로 잡아서 같은 줄이 여러 번 쌓이지 않게 한다.
+async function recordMissedOrder(db, entry, order, line, orderDate, now) {
+  const parsed = entry?.parsed || {};
+  const payload = {
+    syncKey: String(line.syncKey || ''),
+    orderNo: String(order?.order_no || ''),
+    orderDate: String(orderDate || ''),
+    imwebStatus: String(line.status || ''),
+    name: String(parsed.name || ''),
+    phone: String(parsed.phone || ''),
+    addr: String(parsed.addr || ''),
+    product: String(parsed.productId || ''),
+    scheduleName: String(parsed.scheduleName || ''),
+    orderType: String(parsed.orderType || ''),
+    startDate: String(parsed.startDate || parsed.onceDate || ''),
+    total: Number(parsed.total || 0),
+    reason: orderDate ? '등록 기준일 이전 주문' : '주문일을 읽을 수 없는 주문',
+    source: 'cloud_function',
+    firstSeenAt: now.toISOString()
+    // acknowledged 는 일부러 쓰지 않는다. 사람이 '확인함' 을 누른 값을 덮으면 안 된다.
+  };
+  if (parsed.orderAmount !== undefined) payload.orderAmount = parsed.orderAmount;
+  await db.collection(MISSED_ORDERS).doc(String(line.syncKey)).set(payload, { merge: true });
+}
+
 async function syncImwebOrders(options = {}) {
   const db = options.db;
   if (!db) throw new Error('db 가 필요합니다.');
@@ -145,11 +200,17 @@ async function syncImwebOrders(options = {}) {
 
   const orders = await client.getOrders(token, parser.HOLD_QUERY_STATUSES, log);
   const existing = await loadExistingBySyncKey(db);
-  log(`아임웹 ${orders.length}건 / 기존 ${existing.size}건`);
+  // 기준일은 옵션으로도 줄 수 있게 해서 테스트와 재조회에서 갈아끼운다.
+  const registerFrom = options.registerFrom !== undefined
+    ? String(options.registerFrom || '')
+    : await loadRegisterFrom(db);
+  const missedKeys = registerFrom ? await loadMissedKeys(db) : new Set();
+  log(`아임웹 ${orders.length}건 / 기존 ${existing.size}건${registerFrom ? ` / 등록 기준일 ${registerFrom}` : ''}`);
 
   let saved = 0;
   let deleted = 0;
   let skipped = 0;
+  let missed = 0;
 
   for (const order of orders) {
     const orderNo = String(order.order_no || '');
@@ -240,6 +301,19 @@ async function syncImwebOrders(options = {}) {
       const entry = entryFor(line);
       if (!entry?.parsed) { skipped++; continue; }
 
+      // 기준일 이전 주문은 등록하지 않고 '놓친 주문' 으로만 적어둔다.
+      // 주문일을 못 읽는 주문도 나이를 알 수 없으니 사람이 보게 한다.
+      const orderDate = parser.orderDate(order);
+      if (registerFrom && (!orderDate || orderDate < registerFrom)) {
+        if (!missedKeys.has(line.syncKey)) {
+          await recordMissedOrder(db, entry, order, line, orderDate, now);
+          missedKeys.add(line.syncKey);
+        }
+        missed++;
+        log(`📋 등록 보류: ${line.syncKey} / 주문일 ${orderDate || '알 수 없음'} / ${entry.parsed.name}`);
+        continue;
+      }
+
       const created = await db.collection(CUSTOMERS).add(entry.parsed);
       existing.set(entry.syncKey, [{
         id: created?.id || entry.syncKey,
@@ -253,14 +327,15 @@ async function syncImwebOrders(options = {}) {
     }
   }
 
-  log(`=== 완료: 등록 ${saved}건 / 삭제 ${deleted}건 / 건너뜀 ${skipped}건 ===`);
-  return { saved, deleted, skipped, scanned: orders.length };
+  log(`=== 완료: 등록 ${saved}건 / 삭제 ${deleted}건 / 건너뜀 ${skipped}건${missed ? ` / 등록 보류 ${missed}건` : ''} ===`);
+  return { saved, deleted, skipped, missed, scanned: orders.length };
 }
 
 module.exports = {
   isSyncEnabled,
   loadSyncEnabled,
   loadExistingBySyncKey,
+  loadRegisterFrom,
   recordsForOrderNo,
   recordsForSyncKey,
   syncImwebOrders

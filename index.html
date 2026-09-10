@@ -220,6 +220,22 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
           </div>
           <div class="cancel-log-cards" id="cancelLogCards"></div>
         </div>
+        <div class="cancel-notice" id="missedNotice" style="display:none;">
+          <div class="cancel-head">
+            <div>
+              <div class="cancel-title">아임웹 등록 보류 <span id="missedNoticeCount">0</span>건</div>
+              <div class="cancel-sub">등록 기준일 이전 주문이라 배송목록에 넣지 않았습니다. 확인하고 필요하면 직접 등록하세요.</div>
+              <div class="cancel-summary" id="missedNoticeSummary"></div>
+            </div>
+            <button class="btn btn-g sm" onclick="ackMissedOrders()">확인 완료</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead><tr><th>주문일</th><th>주문번호</th><th>고객</th><th>연락처</th><th>일정</th><th>사유</th></tr></thead>
+              <tbody id="missedOrderBody"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <!-- 내일 배송 예정 -->
@@ -757,6 +773,8 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
     </ul>
     <h4>아임웹 취소삭제 알림</h4>
     <p>아임웹에서 주문이 취소·삭제되면 대시보드 상단에 빨간 알림 박스가 나타납니다. 내용을 확인하고 해당 고객을 정리한 뒤 <span class="mn-btn">확인 완료</span>를 누르면 사라집니다.</p>
+    <h4>아임웹 등록 보류 알림</h4>
+    <p>아임웹에는 살아 있는데 배송목록에 없는 주문을 찾으면 <b>등록 보류</b> 알림으로 알려줍니다. 지나간 배송일 주문이 갑자기 배송목록에 끼어들면 현장이 헷갈리므로 <b>자동으로 등록하지 않고 알려주기만</b> 합니다. 주문번호와 고객을 확인해서 아직 배송해야 할 건이면 <span class="mn-btn">＋ 신규 등록</span>으로 직접 넣고, 이미 끝난 건이면 <span class="mn-btn">확인 완료</span>를 누르면 사라집니다.</p>
     <h4>배송 목록</h4>
     <p>왼쪽은 선택한 날짜의 배송(🚗 직배송 / 택배 구분), 오른쪽은 내일 배송 예정입니다. 고객명을 클릭하면 바로 수정 창이 열립니다. 아래에는 A·B·C 세트별 활성 고객 수가 표시됩니다.</p>
   </div>
@@ -1310,13 +1328,13 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 </div>
 
 
-<script src="assets/js/auth-core.js?v=20260806-manualdates1" defer></script>
+<script src="assets/js/auth-core.js?v=20260910-missed1" defer></script>
 <script src="assets/js/delivery-transaction.js?v=20260710-safety1" defer></script>
 <script src="assets/js/imweb.js?v=20260910-cancel1" defer></script>
 <script src="assets/js/schedule-report.js?v=20260807-resumedate1" defer></script>
 <script src="assets/js/manual-delivery-dates.js?v=20260806-manualorder2" defer></script>
 <script src="assets/js/rendering-formatters.js?v=20260711-helper1" defer></script>
-<script src="assets/js/rendering.js?v=20260806-manualdates1" defer></script>
+<script src="assets/js/rendering.js?v=20260910-missed1" defer></script>
 <script src="assets/js/order-settlement.js?v=20260712-sales1" defer></script>
 <script src="assets/js/route-map.js?v=20260626-roundtrip1" defer></script>
 <script src="assets/js/import-export.js?v=20260625-door-x1" defer></script>
