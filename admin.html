@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>궁중수라간 관리자 · 주문 현황</title>
 <link rel="manifest" href="./admin-manifest.json">
+<link rel="stylesheet" href="./assets/css/attendance.css?v=20260910">
+<script src="./assets/js/attendance-ui.js?v=20260910"></script>
+<script src="./assets/js/attendance-admin.js?v=20260910"></script>
+<script src="./assets/js/attendance-booking-form.js?v=20260910"></script>
+<script src="./assets/js/attendance-bookings-admin.js?v=20260910"></script>
 <meta name="theme-color" content="#7B3F1A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="수라간관리자">
@@ -1261,6 +1266,8 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   <div class="admin-tabs">
     <button class="tab-btn active" id="tab-orders" onclick="switchAdminTab('orders')"><svg class="admin-icon"><use href="#admin-i-orders"></use></svg><span>주문</span></button>
     <button class="tab-btn" id="tab-members" onclick="switchAdminTab('members')"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>고객관리</span></button>
+    <button class="tab-btn" id="tab-attendance" onclick="switchAdminTab('attendance')"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>직원·근태</span></button>
+    <button class="tab-btn" id="tab-reservations" onclick="switchAdminTab('reservations')"><svg class="admin-icon"><use href="#admin-i-orders"></use></svg><span>예약 관리</span></button>
     <button class="tab-btn" id="tab-events" onclick="switchAdminTab('events')"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>행사도시락</span></button>
     <button class="tab-btn" id="tab-menus" onclick="switchAdminTab('menus')"><svg class="admin-icon"><use href="#admin-i-menu"></use></svg><span>식단관리</span></button>
     <button class="tab-btn" id="tab-changeRequests" onclick="switchAdminTab('changeRequests')"><svg class="admin-icon"><use href="#admin-i-chat"></use></svg><span>문의사항</span><span class="tab-count-badge" id="change-request-tab-count">0</span></button>
@@ -1697,6 +1704,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       </div>
     </div>
   </div>
+
+  <section class="admin-tab-panel" data-tab="attendance" style="display:none"><div class="att-root" id="attendance-root"></div></section>
+  <section class="admin-tab-panel" data-tab="reservations" style="display:none"><div class="att-root" id="reservations-root"></div></section>
 
   <div class="receipt-section admin-tab-panel" data-tab="receipts" style="display:none">
     <div class="section-title">🧾 간이영수증 생성</div>
@@ -5517,14 +5527,20 @@ auth.onAuthStateChanged(async (user) => {
       updateDateLabel();
       loadOrders();
       if (location.hash === '#changeRequests') switchAdminTab('changeRequests');
+      if (location.hash === '#attendance') switchAdminTab('attendance');
+      if (location.hash === '#reservations') switchAdminTab('reservations');
     }
   } else if (user) {
+    window.AttendanceAdmin?.dispose();
+    window.AttendanceReservations?.dispose();
     loadingEl.style.display = 'none';
     mainScreen.classList.remove('active');
     authScreen.classList.add('active');
     document.getElementById('login-info').textContent = `고객 계정(${user.email})이 열려 있습니다. 관리자 비밀번호를 입력하면 전환됩니다.`;
     document.getElementById('login-info').classList.add('show');
   } else {
+    window.AttendanceAdmin?.dispose();
+    window.AttendanceReservations?.dispose();
     loadingEl.style.display = 'none';
     mainScreen.classList.remove('active');
     authScreen.classList.add('active');
@@ -5549,6 +5565,8 @@ async function doAdminLogin() {
 }
 
 function doAdminLogout() {
+  window.AttendanceAdmin?.dispose();
+  window.AttendanceReservations?.dispose();
   _appInitialized = false;
   changeRequestsInitialized = false;
   if (changeRequestsUnsub) { changeRequestsUnsub(); changeRequestsUnsub = null; }
@@ -10154,9 +10172,11 @@ async function saveMealPdfCandidates() {
 }
 
 function switchAdminTab(tab) {
+  if (tab === 'attendance') window.AttendanceAdmin?.init();
+  if (tab === 'reservations') window.AttendanceReservations?.init();
   activeAdminTab = tab;
   if (tab !== 'orders') closeOrderMobileSearch();
-  ['orders','members','events','menus','changeRequests','settlements','taxInvoices','receipts','stats','settings','manual','map'].forEach(name => {
+  ['orders','members','attendance','reservations','events','menus','changeRequests','settlements','taxInvoices','receipts','stats','settings','manual','map'].forEach(name => {
     document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
   });
   document.querySelectorAll('.admin-tab-panel').forEach(el => {

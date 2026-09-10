@@ -500,6 +500,27 @@ service cloud.firestore {
         && request.resource.data.status in ['active', 'pause', 'end'];
     }
 
+    // Attendance is accessed through attendanceApi; wages and device secrets never
+    // become readable by customers, anonymous drivers, or paired tablets.
+    match /staffEmployees/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /staffShifts/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /attendanceAudit/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /attendanceDevices/{id} {
+      allow read, write: if false;
+    }
+    match /attendanceRequests/{id} {
+      allow read, write: if false;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAdmin() || validUserCreate(userId);

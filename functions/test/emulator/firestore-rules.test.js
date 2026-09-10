@@ -80,6 +80,28 @@ test('unauthenticated user cannot create a user profile', async () => {
   await assertFails(setDoc(doc(db, 'users/test-owner'), validProfile()));
 });
 
+test('attendance wages are admin-only and all client writes and device secrets are denied', async () => {
+  const publicDb = env.unauthenticatedContext().firestore();
+  const customerDb = env.authenticatedContext('customer', { email: 'customer@example.invalid' }).firestore();
+  const driverDb = env.authenticatedContext('driver', { firebase: { sign_in_provider: 'anonymous' } }).firestore();
+  const adminDb = env.authenticatedContext('admin', { email: testAdminEmail }).firestore();
+  await env.withSecurityRulesDisabled(async context => {
+    for (const collection of ['staffEmployees', 'staffShifts', 'attendanceAudit', 'attendanceDevices', 'attendanceRequests']) {
+      await setDoc(doc(context.firestore(), `${collection}/test`), { hourlyRate: 12000 });
+    }
+  });
+  for (const collection of ['staffEmployees', 'staffShifts', 'attendanceAudit']) {
+    await assertSucceeds(getDoc(doc(adminDb, `${collection}/test`)));
+    for (const client of [publicDb, customerDb, driverDb]) await assertFails(getDoc(doc(client, `${collection}/test`)));
+  }
+  for (const collection of ['staffEmployees', 'staffShifts', 'attendanceAudit', 'attendanceDevices', 'attendanceRequests']) {
+    for (const client of [publicDb, customerDb, driverDb, adminDb]) await assertFails(setDoc(doc(client, `${collection}/test`), { hourlyRate: 1 }));
+  }
+  for (const collection of ['attendanceDevices', 'attendanceRequests']) {
+    for (const client of [publicDb, customerDb, driverDb, adminDb]) await assertFails(getDoc(doc(client, `${collection}/test`)));
+  }
+});
+
 test('signed-in owner can create a profile without price fields', async () => {
   const db = env.authenticatedContext('test-owner', { email: 'owner@example.invalid' }).firestore();
   await assertSucceeds(setDoc(doc(db, 'users/test-owner'), validProfile()));
