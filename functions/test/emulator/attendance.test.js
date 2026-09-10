@@ -21,7 +21,8 @@ test.after(async () => { await deleteApp(app); });
 test.beforeEach(async () => {
   await fetch(`http://${process.env.FIRESTORE_EMULATOR_HOST}/emulator/v1/projects/${projectId}/databases/(default)/documents`, { method: 'DELETE' });
   now = at('2026-09-10T09:00:00+09:00');
-  service = createAttendanceService({ db, now: () => now });
+  service = createAttendanceService({ db, now: () => now,
+    vault: require('../../attendancePrivate').createPrivateVault(() => Buffer.alloc(32, 7).toString('base64')) });
   employeeId = (await service.saveEmployee(employeeInput, 'admin')).id;
   token = (await service.createDevice({ name: '테스트 태블릿' }, 'admin')).token;
   deviceId = (await service.listAdmin('2026-09')).devices[0].id;
@@ -213,4 +214,38 @@ test('unset existing monthly employees remain editable and reject invalid explic
   await assert.rejects(service.saveEmployee({ ...current, monthlySalary: 0 }, 'admin'), { status: 400 });
   await service.saveEmployee({ ...current, monthlySalary: 2800000 }, 'admin');
   assert.equal((await db.collection('staffEmployees').doc(legacy.id).get()).data().monthlySalary, 2800000);
+});
+
+test('private staff details stay encrypted, preserve old-client edits, and are removed on deletion', async () => {
+  const details = { residentNumber: '9001011234567', bankName: '테스트은행', bankAccount: '001234567890', accountHolder: '가상 직원' };
+  await service.saveEmployee({ ...(await getEmployee()), privateDetails: details }, 'admin');
+  const raw = (await db.collection('staffPrivate').doc(employeeId).get()).data();
+  assert.ok(raw.encrypted.data);
+  const read = await service.getEmployeePrivate({ id: employeeId }, 'admin');
+  assert.deepEqual(read.privateDetails, details);
+  const bank = await service.getEmployeePrivate({ id: employeeId }, 'admin', true);
+  assert.equal(bank.bankAccount, details.bankAccount);
+  assert.equal(bank.residentNumber, undefined);
+  await service.saveEmployee({ ...(await getEmployee()), role: '변경된 업무' }, 'admin');
+  assert.deepEqual((await service.getEmployeePrivate({ id: employeeId }, 'admin')).privateDetails, details);
+  const publicValues = JSON.stringify([raw, await getEmployee(), await service.listAdmin('2026-09'), await service.listKiosk(token), (await db.collection('attendanceAudit').get()).docs.map(d => d.data())]);
+  for (const value of [details.residentNumber, details.bankAccount]) assert.ok(!publicValues.includes(value), 'plaintext identifiers excluded from lists and logs');
+  assert.equal((await service.listKiosk(token)).employees[0].privateSummary, undefined);
+  const version = (await getEmployee()).version;
+  await assert.rejects(service.saveEmployee({ ...(await getEmployee()), version: version - 1, privateDetails: { ...details, bankAccount: '999999999999' } }, 'admin'), { status: 409 });
+  assert.deepEqual((await service.getEmployeePrivate({ id: employeeId }, 'admin')).privateDetails, details);
+  await service.deleteEmployee(await getEmployee(), 'admin');
+  assert.equal((await db.collection('staffPrivate').doc(employeeId).get()).exists, false);
+  await assert.rejects(service.getEmployeePrivate({ id: employeeId }, 'admin'), { status: 404 });
+});
+
+test('clearing private fields deletes the encrypted document and invalid input saves nothing', async () => {
+  const details = { residentNumber: '', bankName: '테스트은행', bankAccount: '001234567890', accountHolder: '' };
+  await service.saveEmployee({ ...(await getEmployee()), privateDetails: details }, 'admin');
+  const before = await getEmployee();
+  await assert.rejects(service.saveEmployee({ ...before, name: '변경 안 됨', privateDetails: { ...details, residentNumber: '123' } }, 'admin'), { status: 400 });
+  assert.equal((await getEmployee()).name, before.name);
+  await service.saveEmployee({ ...before, privateDetails: { residentNumber: '', bankName: '', bankAccount: '', accountHolder: '' } }, 'admin');
+  assert.equal((await db.collection('staffPrivate').doc(employeeId).get()).exists, false);
+  assert.equal((await getEmployee()).privateSummary.bankLast4, '');
 });

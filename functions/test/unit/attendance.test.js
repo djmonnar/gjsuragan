@@ -75,7 +75,7 @@ async function call(action, options = {}) {
   return { res, calls };
 }
 test('all admin actions require a verified allowlisted Firebase account', async () => {
-  for (const action of ['admin.list','employee.save','employee.delete','shift.save','shift.delete','device.create','device.floor','device.revoke']) {
+  for (const action of ['admin.list','employee.save','employee.private','employee.bank','employee.delete','shift.save','shift.delete','device.create','device.floor','device.revoke']) {
     const missing = await call(action);
     assert.equal(missing.res.statusCode, 401); assert.equal(missing.calls.length, 0);
     const customer = await call(action, { headers: { authorization: 'Bearer customer' }, email: 'customer@example.invalid' });
