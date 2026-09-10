@@ -4,7 +4,12 @@
   const $ = id => document.getElementById(id);
   const STORAGE_KEY = 'gjsuragan-attendance-device';
   let device = '', employees = [], filter = 'all', offset = 0, loading = false, dialogOpen = false;
-  let setupAuth;
+  let setupAuth, floor = 1;
+  const setupFloor = new URLSearchParams(location.search).get('floor');
+  if (['1', '2'].includes(setupFloor)) {
+    $('kiosk-setup-floor').value = setupFloor;
+    $('kiosk-setup-form').elements.name.value = `${setupFloor}층 출퇴근 태블릿`;
+  }
   try { device = localStorage.getItem(STORAGE_KEY) || ''; } catch (_) { /* Setup explains unavailable storage on submit. */ }
   function connection(ok, label) {
     $('kiosk-connection').textContent = label;
@@ -29,16 +34,19 @@
       return `<button class="att-person ${working ? 'working' : ''}" data-employee="${U.esc(e.id)}" aria-label="${U.esc(e.name)}, ${working ? '퇴근하기' : '출근하기'}"><div class="att-person-head"><span class="att-avatar" aria-hidden="true">${U.esc(Array.from(e.name)[0])}</span><span class="att-pill ${working ? 'green' : ''}">${working ? '근무 중' : finishedToday ? '퇴근 완료' : '출근 전'}</span></div><div class="att-person-name">${U.esc(e.name)}</div><div class="att-person-role">${U.esc(e.role || '궁중수라간 직원')}</div><div class="att-person-bottom"><span>${U.esc(detail)}</span><span class="att-person-action">${working ? '퇴근' : '출근'} →</span></div></button>`;
     }).join('');
     $('kiosk-empty').hidden = visible.length > 0;
-    $('kiosk-empty').innerHTML = employees.length ? '<strong>해당하는 직원이 없어요</strong>이름이나 근무 상태를 다시 확인해 주세요.' : '<strong>등록된 직원이 아직 없어요</strong>admin의 직원·근태에서 직원을 등록해 주세요.';
+    $('kiosk-empty').innerHTML = employees.length ? '<strong>해당하는 직원이 없어요</strong>이름이나 근무 상태를 다시 확인해 주세요.' : `<strong>${floor}층에 등록된 직원이 아직 없어요</strong>admin의 직원·근태에서 근무 층을 ${floor}층으로 지정해 주세요.`;
   }
   async function load() {
     if (!device || loading) return;
     loading = true;
     try {
       const data = await U.request('kiosk.list', {}, { device });
+      floor = data.floor ?? 1;
       employees = data.employees.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
       offset = data.serverNow - Date.now();
-      $('kiosk-device-name').textContent = data.deviceName;
+      $('kiosk-device-name').textContent = `${data.deviceName} · ${floor}층 전용`;
+      $('kiosk-floor-label').textContent = `궁중수라간 · ${floor}층 직원 출퇴근`;
+      document.title = `${floor}층 출퇴근 · 궁중수라간`;
       $('kiosk-error').hidden = true;
       $('kiosk-setup').hidden = true;
       $('kiosk-main').hidden = false;
@@ -112,7 +120,7 @@
       }
       const form = new FormData(event.target);
       const credential = await setupAuth.signInWithEmailAndPassword('sun1562@naver.com', form.get('password'));
-      const result = await U.request('device.create', { name: form.get('name') }, { token: await credential.user.getIdToken() });
+      const result = await U.request('device.create', { name: form.get('name'), floor: Number(form.get('floor')) }, { token: await credential.user.getIdToken() });
       localStorage.setItem(STORAGE_KEY, result.token);
       device = result.token;
       await load();

@@ -10,13 +10,13 @@
   <title>출퇴근 · 궁중수라간</title>
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
-  <link rel="stylesheet" href="./assets/css/attendance.css?v=20260910">
+  <link rel="stylesheet" href="./assets/css/attendance.css?v=20260910-floors">
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js" defer></script>
   <script src="./assets/js/attendance-ui.js?v=20260910" defer></script>
   <script src="./assets/js/attendance-bookings.js?v=20260910" defer></script>
   <script src="./assets/js/attendance-booking-form.js?v=20260910" defer></script>
-  <script src="./assets/js/attendance-kiosk.js?v=20260910" defer></script>
+  <script src="./assets/js/attendance-kiosk.js?v=20260910-floors" defer></script>
 </head>
 <body class="att-kiosk">
   <header class="att-kiosk-header">
@@ -29,6 +29,7 @@
     <p>관리자가 처음 한 번 연결하면,<br>직원은 이름만 눌러 출퇴근할 수 있어요.</p>
     <form id="kiosk-setup-form">
       <label class="att-field">태블릿 이름<input class="att-input" name="name" value="매장 출퇴근 태블릿" maxlength="50" required></label>
+      <label class="att-field">이 태블릿의 근무 층<select class="att-input" name="floor" id="kiosk-setup-floor"><option value="1">1층 직원만 표시</option><option value="2">2층 직원만 표시</option></select><small>지정한 층의 직원만 출퇴근할 수 있습니다.</small></label>
       <label class="att-field">관리자 비밀번호<input class="att-input" type="password" name="password" autocomplete="current-password" required></label>
       <p class="att-error" id="kiosk-setup-error" role="alert"></p>
       <button class="att-button att-primary" type="submit">이 태블릿 연결하기</button>
@@ -36,7 +37,7 @@
     <p class="att-note">관리자 로그인은 연결 후 자동으로 종료됩니다. 연결된 태블릿은 admin의 직원·근태에서 해제할 수 있습니다.</p>
   </section>
   <main class="att-kiosk-main" id="kiosk-main" hidden>
-    <div class="att-kiosk-hero"><div><p class="att-eyebrow">오늘도 함께하는 궁중수라간</p><h1>내 이름을 눌러 주세요</h1><p>출근할 때 한 번, 퇴근할 때 한 번.</p></div><div class="att-kiosk-clock"><div class="att-clock-time" id="kiosk-clock">00:00</div><div class="att-clock-date" id="kiosk-date"></div></div></div>
+    <div class="att-kiosk-hero"><div><p class="att-eyebrow" id="kiosk-floor-label">궁중수라간 직원 출퇴근</p><h1>내 이름을 눌러 주세요</h1><p>출근할 때 한 번, 퇴근할 때 한 번.</p></div><div class="att-kiosk-clock"><div class="att-clock-time" id="kiosk-clock">00:00</div><div class="att-clock-date" id="kiosk-date"></div></div></div>
     <section class="att-bookings" aria-labelledby="bookings-heading">
       <div class="att-bookings-head"><div><p class="att-eyebrow" id="bookings-store">돌담명가 · 예약</p><h2 id="bookings-heading">오늘 예약</h2></div><button type="button" class="att-button att-primary" id="bookings-add" disabled>＋ 예약 등록</button></div>
       <p class="att-booking-saved" id="bookings-saved" role="status" hidden></p>
