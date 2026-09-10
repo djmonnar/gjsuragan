@@ -365,6 +365,13 @@ function initFirestore(){
     .onSnapshot(
       snap => setMissedOrders(snap.docs.map(d => ({ id:d.id, ...d.data() })), ''),
       err => {
+        // 규칙 배포 전에는 읽기가 막힌다. 그 사이 배송화면에 빨간 경고를 띄우지 않는다.
+        // 규칙이 올라가면 리스너가 다시 붙으면서 그때부터 정상으로 보인다.
+        if(err?.code === 'permission-denied'){
+          setMissedOrders([], '');
+          console.warn('imwebMissedOrders 읽기 권한 없음 - Firestore rules 배포 필요');
+          return;
+        }
         setMissedOrders(missedOrders, err.message || '등록 보류 주문을 읽을 수 없습니다');
         console.warn('imwebMissedOrders 오류:', err.message);
       }
