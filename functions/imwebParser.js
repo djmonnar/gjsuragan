@@ -49,7 +49,19 @@ function matchesStatusList(status, list, fallbackPattern) {
   return fallbackPattern.test(normalized);
 }
 
+// 취소·환불이라는 낱말이 들어 있지만 취소가 실제로 이뤄지지 않은 상태들이다.
+// 고객이 취소요청을 물리거나(취소철회) 판매자가 반려하면 주문은 그대로 살아 있는데,
+// 아임웹은 claim_status 에 '취소철회' / 'CANCEL_REJECT' 같은 값을 남긴다.
+// 이걸 취소로 보면 되살아난 주문이 영영 등록되지 않는다.
+const CANCEL_UNDONE_PATTERN = /철회|반려|거부|취소불가|취소실패|withdraw|reject|refuse|deny|denied|revoke|uncancel|cancel_cancel/;
+
+function isCancelUndone(status) {
+  const normalized = normalizeStatus(status);
+  return !!normalized && CANCEL_UNDONE_PATTERN.test(normalized);
+}
+
 function isCancelStatus(status) {
+  if (isCancelUndone(status)) return false;
   return matchesStatusList(status, CANCEL_STATUS, /cancel|refund|취소|환불/);
 }
 
@@ -63,16 +75,57 @@ function isTerminalStatus(status) {
     /delivered|deliverycomplete|deliverydone|ordercomplete|purchasecomplete|shippingcomplete|배송완료|거래종료|구매확정/);
 }
 
-function orderStatuses(order, prodOrders) {
-  const statuses = [
-    order?.status, order?.order_status, order?.payment_status,
-    order?.status_text, order?.status_name, order?.order_status_text,
-    order?.claim_status, order?.claim_type
+const HEAD_STATUS_KEYS = [
+  'status', 'order_status', 'payment_status',
+  'status_text', 'status_name', 'order_status_text'
+];
+const CLAIM_STATUS_KEYS = ['claim_status', 'claim_type'];
+const LINE_STATUS_KEYS = ['status', 'status_text', 'status_name', 'claim_status', 'claim_type'];
+// claim_* 에 취소·환불 흔적이 있으면 부분취소일 수 있어서 상품 줄까지 확인해야 한다.
+const CLAIM_TRACE_PATTERN = /claim|cancel|refund|취소|환불|클레임/;
+
+function pickStatuses(node, keys) {
+  if (!node) return [];
+  return keys
+    .map(key => node[key])
+    .filter(status => status !== null && status !== undefined && status !== '');
+}
+
+// 주문 자체의 상태. claim_* 는 주문의 일부 줄에만 걸린 클레임일 수 있어서 빼둔다.
+// 이걸 주문 상태와 같이 묶으면 한 줄만 취소해도 주문 전체가 취소로 보인다.
+function orderHeadStatuses(order) {
+  return pickStatuses(order, HEAD_STATUS_KEYS);
+}
+
+// 주문에 걸린 클레임 흔적. 전체취소인지 부분취소인지는 이것만으로 알 수 없다.
+function orderClaimStatuses(order) {
+  return pickStatuses(order, CLAIM_STATUS_KEYS);
+}
+
+function hasClaimTrace(statuses) {
+  return (statuses || []).some(status => CLAIM_TRACE_PATTERN.test(normalizeStatus(status)));
+}
+
+// 상품 줄 하나의 상태. 줄에 상태가 없는 주문도 있어서 주문 상태를 같이 넣는다.
+function lineStatuses(order, prodOrder, item) {
+  return [
+    ...orderHeadStatuses(order),
+    ...pickStatuses(prodOrder, LINE_STATUS_KEYS),
+    ...pickStatuses(item, LINE_STATUS_KEYS)
   ];
-  (prodOrders || []).forEach(po => {
-    statuses.push(po?.status, po?.status_text, po?.status_name, po?.claim_status, po?.claim_type);
-  });
-  return statuses.filter(status => status !== null && status !== undefined && status !== '');
+}
+
+function prodOrderOfItem(prodOrders, item) {
+  for (const prodOrder of prodOrders || []) {
+    if ((prodOrder?.items || []).includes(item)) return prodOrder;
+  }
+  return null;
+}
+
+function orderStatuses(order, prodOrders) {
+  const statuses = [...orderHeadStatuses(order), ...orderClaimStatuses(order)];
+  (prodOrders || []).forEach(po => { statuses.push(...pickStatuses(po, LINE_STATUS_KEYS)); });
+  return statuses;
 }
 
 function addCancelText(out, value) {
@@ -582,15 +635,20 @@ module.exports = {
   buildSyncKey,
   cancelInfoForOrder,
   firstShipDate,
+  hasClaimTrace,
   isAllowStatus,
   isCancelStatus,
+  isCancelUndone,
   isSubItem,
   isTerminalStatus,
+  lineStatuses,
   matchSchedule,
   normalizeAmount,
   optionValues,
   orderAmount,
+  orderClaimStatuses,
   orderDate,
+  orderHeadStatuses,
   orderStatuses,
   parseDateFromProdName,
   parseDirectHopeDateInfo,
@@ -599,5 +657,6 @@ module.exports = {
   parseOrderItems,
   parseProd,
   parseSubItem,
+  prodOrderOfItem,
   singleProdDate
 };

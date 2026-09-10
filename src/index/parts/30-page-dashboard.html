@@ -106,6 +106,22 @@
           </div>
           <div class="cancel-log-cards" id="cancelLogCards"></div>
         </div>
+        <div class="cancel-notice" id="missedNotice" style="display:none;">
+          <div class="cancel-head">
+            <div>
+              <div class="cancel-title">아임웹 등록 보류 <span id="missedNoticeCount">0</span>건</div>
+              <div class="cancel-sub">등록 기준일 이전 주문이라 배송목록에 넣지 않았습니다. 확인하고 필요하면 직접 등록하세요.</div>
+              <div class="cancel-summary" id="missedNoticeSummary"></div>
+            </div>
+            <button class="btn btn-g sm" onclick="ackMissedOrders()">확인 완료</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead><tr><th>주문일</th><th>주문번호</th><th>고객</th><th>연락처</th><th>일정</th><th>사유</th></tr></thead>
+              <tbody id="missedOrderBody"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <!-- 내일 배송 예정 -->

@@ -15,6 +15,8 @@ let _customersUnsub = null;
 let _cancelLogsUnsub = null;
 let _cancelLogsReady = false;
 let cancelLogsError = '';
+let _missedOrdersUnsub = null;
+let missedOrdersError = '';
 
 function showLoginScreen(){
   const loading = document.getElementById('loading');
@@ -70,6 +72,10 @@ function stopFirestore(){
   if(typeof _customersUnsub === 'function'){
     _customersUnsub();
   }
+  if(typeof _missedOrdersUnsub === 'function'){
+    _missedOrdersUnsub();
+  }
+  _missedOrdersUnsub = null;
   if(typeof _cancelLogsUnsub === 'function'){
     _cancelLogsUnsub();
   }
@@ -83,6 +89,12 @@ function setCancelLogs(nextLogs, errorMessage){
   cancelLogsError = errorMessage || '';
   cancelLogs = Array.isArray(nextLogs) ? nextLogs : [];
   if(typeof renderCancelLogs === 'function') renderCancelLogs();
+}
+
+function setMissedOrders(nextOrders, errorMessage){
+  missedOrdersError = errorMessage || '';
+  missedOrders = Array.isArray(nextOrders) ? nextOrders : [];
+  if(typeof renderMissedOrders === 'function') renderMissedOrders();
 }
 
 async function loadCancelLogsOnce(){
@@ -275,6 +287,7 @@ const SL = { active:'구독중', pause:'정지', end:'종료' };
 // ════════════════════════════════════════
 let custs = [];
 let cancelLogs = [];
+let missedOrders = [];
 let editId = null;
 let orderType = 'sub';
 let parsedData = null;
@@ -342,6 +355,18 @@ function initFirestore(){
         setCancelLogs(cancelLogs, err.message || '취소삭제 로그를 읽을 수 없습니다');
         toast('취소삭제 로그 읽기 오류: ' + cancelLogsError, 'er');
         console.warn('imwebCancelLogs 오류:', err.message);
+      }
+    );
+
+  // 아임웹 동기화가 기준일 이전이라 등록을 보류한 주문. 사람이 보고 판단하라고 띄운다.
+  _missedOrdersUnsub = window.__DB.collection('imwebMissedOrders')
+    .orderBy('orderDate', 'desc')
+    .limit(50)
+    .onSnapshot(
+      snap => setMissedOrders(snap.docs.map(d => ({ id:d.id, ...d.data() })), ''),
+      err => {
+        setMissedOrders(missedOrders, err.message || '등록 보류 주문을 읽을 수 없습니다');
+        console.warn('imwebMissedOrders 오류:', err.message);
       }
     );
 

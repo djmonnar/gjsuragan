@@ -276,6 +276,76 @@ async function ackCancelLogs(){
   }
 }
 
+// 아임웹 동기화가 기준일 이전이라 등록을 보류한 주문.
+// 배송목록에 갑자기 끼어들면 지나간 배송일까지 되살아나 현장이 헷갈리므로,
+// 등록은 하지 않고 여기에만 띄워서 사람이 보고 판단하게 한다.
+function renderMissedOrders(){
+  const wrap = document.getElementById('missedNotice');
+  const body = document.getElementById('missedOrderBody');
+  const count = document.getElementById('missedNoticeCount');
+  const summary = document.getElementById('missedNoticeSummary');
+  if(!wrap || !body || !count) return;
+
+  if(missedOrdersError){
+    count.textContent = '!';
+    wrap.style.display = 'block';
+    body.innerHTML = `<tr><td colspan="6" style="color:var(--danger);">
+      등록 보류 주문을 읽을 수 없습니다. Firestore rules에 imwebMissedOrders 읽기 권한을 배포해야 합니다.
+    </td></tr>`;
+    if(summary) summary.innerHTML = `<span><b>읽기 오류:</b> ${escHtml(missedOrdersError)}</span>`;
+    return;
+  }
+
+  const unread = (missedOrders || []).filter(order => !order.acknowledged);
+  count.textContent = unread.length;
+  wrap.style.display = unread.length ? 'block' : 'none';
+  if(!unread.length){
+    body.innerHTML = '';
+    if(summary) summary.innerHTML = '';
+    return;
+  }
+
+  body.innerHTML = unread.slice(0, 20).map(order => `<tr>
+      <td style="white-space:nowrap;">${escHtml(order.orderDate || '알 수 없음')}</td>
+      <td style="font-family:monospace;font-size:12px;">${escHtml(order.syncKey || order.orderNo || '')}</td>
+      <td>${escHtml(order.name || '이름 없음')}</td>
+      <td style="white-space:nowrap;">${escHtml(order.phone || '-')}</td>
+      <td style="max-width:220px;white-space:normal;">${escHtml(order.scheduleName || '-')}</td>
+      <td style="max-width:200px;white-space:normal;">${escHtml(order.reason || '-')}</td>
+    </tr>`).join('');
+
+  if(summary){
+    const first = unread[0];
+    const extra = unread.length > 1 ? ` 외 ${unread.length - 1}건` : '';
+    summary.innerHTML = `
+      <span><b>${escHtml(first.name || '이름 없음')}${extra}</b></span>
+      <span>#${escHtml(first.orderNo || '')}</span>
+      <span>주문일 ${escHtml(first.orderDate || '알 수 없음')}</span>
+      <span>${escHtml(first.scheduleName || '-')}</span>
+    `;
+  }
+}
+
+async function ackMissedOrders(){
+  const unread = (missedOrders || []).filter(order => !order.acknowledged && order.id);
+  if(!unread.length) return;
+  try{
+    const batch = window.__DB.batch();
+    unread.forEach(order => {
+      batch.update(window.__DB.collection('imwebMissedOrders').doc(order.id), {
+        acknowledged:true,
+        acknowledgedAt:new Date().toISOString(),
+      });
+    });
+    await batch.commit();
+    toast('등록 보류 알림 확인 완료', 'ok');
+  } catch(e){
+    toast('알림 확인 처리 오류: ' + e.message, 'er');
+  }
+}
+
+window.renderMissedOrders = renderMissedOrders;
+window.ackMissedOrders = ackMissedOrders;
 window.renderCancelLogs = renderCancelLogs;
 window.toggleCancelPopover = toggleCancelPopover;
 window.closeCancelPopover = closeCancelPopover;
