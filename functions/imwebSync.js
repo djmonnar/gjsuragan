@@ -12,6 +12,10 @@ const CUSTOMERS = 'customers';
 const CANCEL_LOGS = 'imwebCancelLogs';
 const MISSED_ORDERS = 'imwebMissedOrders';
 const CONFIG_DOC = ['config', 'imwebSync'];
+// 한 번에 새로 만드는 알림 수 상한.
+// 상태 코드 하나를 목록에 빠뜨리면 지난 주문이 통째로 '알아보지 못함' 이 되어
+// 알림이 수백 건 쏟아지고, 그러면 아무도 안 보게 된다. 넘치면 다음 실행에서 이어 담는다.
+const MAX_NEW_ALERTS_PER_RUN = 20;
 
 function isSyncEnabled(env = process.env) {
   return String(env.IMWEB_SYNC_ENABLED || '').trim().toLowerCase() === 'true';
@@ -52,20 +56,20 @@ async function loadRegisterFrom(db) {
   }
 }
 
-// 이미 적어둔 놓친 주문은 다시 쓰지 않는다. '확인함' 표시가 지워지면 안 되기 때문이다.
-// 다만 등록용 문서(customerData)가 빠진 옛 기록은 다시 채운다.
-// 그게 없으면 화면에서 '등록' 을 눌러도 넣을 내용이 없다.
-async function loadMissedKeys(db) {
-  const keys = new Set();
+// 이미 적어둔 기록은 다시 쓰지 않는다. '확인함' 표시가 지워지면 안 되기 때문이다.
+// 값은 등록용 문서(customerData)를 이미 담고 있는지다.
+// 담고 있지 않은데 이번에 파싱이 됐다면 그때는 다시 써서 채운다.
+async function loadMissedRecords(db) {
+  const records = new Map();
   try {
     const snapshot = await db.collection(MISSED_ORDERS).get();
     snapshot.forEach(doc => {
-      if ((doc.data() || {}).customerData) keys.add(doc.id);
+      records.set(doc.id, Boolean((doc.data() || {}).customerData));
     });
   } catch {
-    // 컬렉션이 없으면 빈 집합으로 시작한다.
+    // 컬렉션이 없으면 빈 목록으로 시작한다.
   }
-  return keys;
+  return records;
 }
 
 // 이미 등록된 주문을 찾을 때 쓰는 색인.
@@ -175,6 +179,13 @@ async function deleteCancelledLine(db, orderNo, syncKey, status, order, prodOrde
   return records.length;
 }
 
+// 손님은 주문했는데 우리 쪽에 안 뜨는 경우들. 로그만 남기면 아무도 못 본다.
+const UNREGISTERED_REASONS = {
+  unknown_status: '아임웹 주문 상태를 알아보지 못해서 자동으로 등록하지 못했습니다. 상태 이름을 알려주시면 다음부터 자동으로 잡습니다.',
+  unparsed_product: '상품명에서 세트·상품을 알아보지 못해서 자동으로 등록하지 못했습니다. 직접 등록해 주세요.',
+  no_items: '아임웹에서 이 주문의 상품 내역을 읽지 못했습니다. 아임웹에서 주문을 확인해 주세요.'
+};
+
 // 왜 자동등록에서 빠졌는지를 사람 말로 적어둔다. 화면에서 그대로 보여준다.
 function missedReason(claimTrace, orderDate, registerFrom) {
   if (!orderDate) {
@@ -195,34 +206,43 @@ function missedReason(claimTrace, orderDate, registerFrom) {
   };
 }
 
-// 등록했어야 하는데 기준일 이전이라 보류한 주문을 적어둔다.
-// 문서 id 를 syncKey 로 잡아서 같은 줄이 여러 번 쌓이지 않게 한다.
-// customerData 에 등록용 문서를 통째로 넣어둬서, 화면에서 고르면 그대로 등록할 수 있다.
-async function recordMissedOrder(db, entry, order, line, orderDate, registerFrom, claimTrace, now) {
-  const parsed = entry?.parsed || {};
-  const { reason, reasonCode } = missedReason(claimTrace, orderDate, registerFrom);
+// 등록되지 않은 주문을 적어둔다. 문서 id 가 syncKey 라 같은 줄이 여러 번 쌓이지 않는다.
+// parsed 가 있으면 customerData 에 통째로 넣어둬서 화면에서 고르면 그대로 등록할 수 있다.
+// 파싱 자체가 안 된 주문은 parsed 가 없으니, 손님 정보만 주문에서 직접 뽑아 담는다.
+async function recordUnregistered(db, options) {
+  const { order, syncKey, status, reason, reasonCode, prodName, parsed, orderDate, now } = options;
+  const address = order?.delivery?.address || {};
   const payload = {
-    syncKey: String(line.syncKey || ''),
+    syncKey: String(syncKey || ''),
     orderNo: String(order?.order_no || ''),
     orderDate: String(orderDate || ''),
-    imwebStatus: String(line.status || ''),
-    name: String(parsed.name || ''),
-    phone: String(parsed.phone || ''),
-    addr: String(parsed.addr || ''),
-    product: String(parsed.productId || ''),
-    scheduleName: String(parsed.scheduleName || ''),
-    orderType: String(parsed.orderType || ''),
-    startDate: String(parsed.startDate || parsed.onceDate || ''),
-    total: Number(parsed.total || 0),
+    imwebStatus: String(status || ''),
+    name: String(parsed?.name || address.name || order?.orderer?.name || ''),
+    phone: String(parsed?.phone || address.phone || order?.orderer?.call || ''),
+    addr: String(parsed?.addr || [address.address, address.address_detail].filter(Boolean).join(' ')),
+    prodName: String(prodName || ''),
+    product: String(parsed?.productId || ''),
+    scheduleName: String(parsed?.scheduleName || ''),
+    orderType: String(parsed?.orderType || ''),
+    startDate: String(parsed?.startDate || parsed?.onceDate || ''),
+    total: Number(parsed?.total || 0),
     reason,
     reasonCode,
-    customerData: parsed,
     source: 'cloud_function',
     firstSeenAt: now.toISOString()
     // acknowledged 는 일부러 쓰지 않는다. 사람이 '확인함' 을 누른 값을 덮으면 안 된다.
   };
-  if (parsed.orderAmount !== undefined) payload.orderAmount = parsed.orderAmount;
-  await db.collection(MISSED_ORDERS).doc(String(line.syncKey)).set(payload, { merge: true });
+  if (parsed) payload.customerData = parsed;
+  if (parsed?.orderAmount !== undefined) payload.orderAmount = parsed.orderAmount;
+  await db.collection(MISSED_ORDERS).doc(String(syncKey)).set(payload, { merge: true });
+}
+
+async function recordMissedOrder(db, entry, order, line, orderDate, registerFrom, claimTrace, now) {
+  const { reason, reasonCode } = missedReason(claimTrace, orderDate, registerFrom);
+  await recordUnregistered(db, {
+    order, syncKey: line.syncKey, status: line.status,
+    reason, reasonCode, parsed: entry?.parsed || null, orderDate, now
+  });
 }
 
 async function syncImwebOrders(options = {}) {
@@ -245,7 +265,8 @@ async function syncImwebOrders(options = {}) {
   const registerFrom = options.registerFrom !== undefined
     ? String(options.registerFrom || '')
     : await loadRegisterFrom(db);
-  const missedKeys = registerFrom ? await loadMissedKeys(db) : new Set();
+  // 기준일이 없어도 '알아보지 못한 주문' 은 알려야 하므로 항상 읽는다.
+  const missedRecords = await loadMissedRecords(db);
   log(`아임웹 ${orders.length}건 / 기존 ${existing.size}건${registerFrom ? ` / 등록 기준일 ${registerFrom}` : ''}`);
 
   let saved = 0;
@@ -254,6 +275,27 @@ async function syncImwebOrders(options = {}) {
   let missed = 0;
   // 취소 상태인데 등록된 적이 없어서 지울 것도 없던 주문·상품 줄
   const cancelledUnregistered = [];
+
+  // 결제는 됐는데 우리가 등록하지 못한 주문. 로그만 남기면 아무도 못 보니 알림으로 올린다.
+  // 같은 줄을 매 실행마다 다시 쓰지 않고, 등록용 문서가 뒤늦게 생기면 그때 채운다.
+  let newAlerts = 0;
+  let alertOverflow = 0;
+  const noteUnregistered = async (options) => {
+    const key = String(options.syncKey || '');
+    const recorded = missedRecords.get(key);
+    if (recorded === undefined || (recorded === false && options.parsed)) {
+      if (newAlerts >= MAX_NEW_ALERTS_PER_RUN) {
+        alertOverflow++;
+        missed++;
+        return;
+      }
+      await recordUnregistered(db, { ...options, now });
+      missedRecords.set(key, Boolean(options.parsed));
+      newAlerts++;
+    }
+    missed++;
+    log(`📋 등록 못함(${options.reasonCode}): ${key} / ${options.status || '상태 없음'} / ${options.prodName || options.parsed?.name || ''}`);
+  };
 
   for (const order of orders) {
     const orderNo = String(order.order_no || '');
@@ -288,8 +330,18 @@ async function syncImwebOrders(options = {}) {
     const items = client.itemsFromProdOrders(prodOrders);
     if (!items.length) {
       // 클레임이 걸린 주문인데 줄을 못 읽으면 판정을 미룬다. 함부로 지우지 않는다.
-      if (claimTrace) log(`⚠ 상품 줄을 못 읽어 판정 보류: ${orderNo} (${claimStatuses.join(' / ')})`);
-      skipped++;
+      if (claimTrace) {
+        log(`⚠ 상품 줄을 못 읽어 판정 보류: ${orderNo} (${claimStatuses.join(' / ')})`);
+        skipped++;
+        continue;
+      }
+      // 살아 있는 주문인데 상품 내역이 안 온다. 손님은 주문했는데 우리 쪽에 안 뜨는 경우다.
+      if (existing.has(orderNo)) { skipped++; continue; }
+      await noteUnregistered({
+        order, syncKey: orderNo, status: headStatus,
+        reason: UNREGISTERED_REASONS.no_items, reasonCode: 'no_items',
+        parsed: null, orderDate: parser.orderDate(order)
+      });
       continue;
     }
 
@@ -331,8 +383,20 @@ async function syncImwebOrders(options = {}) {
         continue;
       }
       if (!line.statuses.some(parser.isAllowStatus)) {
-        log(`⏸ 건너뜀: ${line.syncKey} (${line.status})`);
-        skipped++;
+        // 아직 결제 전인 주문은 등록 대상이 아니다. 이건 알릴 일이 아니라 정상이다.
+        if (line.statuses.some(parser.isPendingStatus)) {
+          log(`⏸ 결제 전 건너뜀: ${line.syncKey} (${line.status})`);
+          skipped++;
+          continue;
+        }
+        // 결제도 취소도 종료도 아닌, 우리가 모르는 상태다. 그냥 넘기면 손님 주문이 사라진다.
+        if (existing.has(line.syncKey)) { skipped++; continue; }
+        await noteUnregistered({
+          order, syncKey: line.syncKey, status: line.statuses.join(' / '),
+          reason: UNREGISTERED_REASONS.unknown_status, reasonCode: 'unknown_status',
+          prodName: items[line.itemIdx - 1]?.prod_name || '',
+          parsed: null, orderDate: parser.orderDate(order)
+        });
         continue;
       }
       if (existing.has(line.syncKey)) {
@@ -342,15 +406,25 @@ async function syncImwebOrders(options = {}) {
       }
 
       const entry = entryFor(line);
-      if (!entry?.parsed) { skipped++; continue; }
+      if (!entry?.parsed) {
+        // 상품명에서 세트·상품을 못 읽었다. 자동 등록은 못 해도 알려는 줘야 한다.
+        await noteUnregistered({
+          order, syncKey: line.syncKey, status: line.status,
+          reason: UNREGISTERED_REASONS.unparsed_product, reasonCode: 'unparsed_product',
+          prodName: items[line.itemIdx - 1]?.prod_name || '',
+          parsed: null, orderDate: parser.orderDate(order)
+        });
+        continue;
+      }
 
       // 기준일 이전 주문은 등록하지 않고 '놓친 주문' 으로만 적어둔다.
       // 주문일을 못 읽는 주문도 나이를 알 수 없으니 사람이 보게 한다.
       const orderDate = parser.orderDate(order);
       if (registerFrom && (!orderDate || orderDate < registerFrom)) {
-        if (!missedKeys.has(line.syncKey)) {
+        const recorded = missedRecords.get(line.syncKey);
+        if (recorded === undefined || recorded === false) {
           await recordMissedOrder(db, entry, order, line, orderDate, registerFrom, claimTrace, now);
-          missedKeys.add(line.syncKey);
+          missedRecords.set(line.syncKey, true);
         }
         missed++;
         log(`📋 등록 보류: ${line.syncKey} / 주문일 ${orderDate || '알 수 없음'} / ${entry.parsed.name}`);
@@ -370,6 +444,9 @@ async function syncImwebOrders(options = {}) {
     }
   }
 
+  if (alertOverflow) {
+    log(`⚠ 알림 상한(${MAX_NEW_ALERTS_PER_RUN}건)을 넘어 ${alertOverflow}건은 다음 실행으로 미뤘다. 상태 목록에 빠진 코드가 없는지 확인이 필요하다.`);
+  }
   if (cancelledUnregistered.length) {
     // 주문번호를 같이 남긴다. 정말 취소된 주문인지 아임웹에서 바로 확인할 수 있어야 한다.
     log(`🚫 취소 상태라 등록하지 않음(등록된 적 없는 ${cancelledUnregistered.length}건): ${cancelledUnregistered.slice(0, 30).join(', ')}`);
@@ -377,6 +454,7 @@ async function syncImwebOrders(options = {}) {
   log(`=== 완료: 등록 ${saved}건 / 삭제 ${deleted}건 / 건너뜀 ${skipped}건${missed ? ` / 등록 보류 ${missed}건` : ''}${cancelledUnregistered.length ? ` / 취소 ${cancelledUnregistered.length}건` : ''} ===`);
   return {
     saved, deleted, skipped, missed,
+    newAlerts, alertOverflow,
     cancelled: cancelledUnregistered.length,
     cancelledOrderNos: cancelledUnregistered.slice(0, 30),
     scanned: orders.length
@@ -388,6 +466,7 @@ module.exports = {
   isSyncEnabled,
   loadSyncEnabled,
   loadExistingBySyncKey,
+  loadMissedRecords,
   loadRegisterFrom,
   missedReason,
   recordsForOrderNo,

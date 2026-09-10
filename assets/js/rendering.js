@@ -357,15 +357,25 @@ function missedDuplicateInfo(record){
   return {kind:'none', match:null, text:''};
 }
 
+// 상품명·상태를 못 알아본 주문은 등록에 쓸 정보가 없다. 손으로 넣어야 한다.
+function missedNeedsManual(record){
+  return !record?.customerData;
+}
+
 function missedRowHtml(record, index){
   const dup = missedDuplicateInfo(record);
-  // 겹치는 게 있으면 기본으로 꺼둔다. 이중 배송이 실수로 나가는 게 제일 나쁘다.
-  const checked = dup.kind === 'none' ? 'checked' : '';
+  const manual = missedNeedsManual(record);
+  // 겹치는 게 있거나 자동 등록이 안 되면 기본으로 꺼둔다.
+  // 이중 배송이 실수로 나가는 게 제일 나쁘다.
+  const checked = dup.kind === 'none' && !manual ? 'checked' : '';
   const dupBadge = dup.kind === 'same-order'
     ? '<span class="badge b-end">이미 등록됨</span>'
     : dup.kind === 'same-phone'
       ? '<span class="badge" style="background:#fff7ed;color:#c2410c;border-color:#fed7aa;font-weight:900;">겹칠 수 있음</span>'
       : '';
+  const manualBadge = manual
+    ? '<span class="badge" style="background:#fef2f2;color:#b91c1c;border-color:#fecaca;font-weight:900;">직접 등록 필요</span>'
+    : '';
 
   return `<label style="display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);cursor:pointer;">
     <input type="checkbox" class="missed-ck" data-idx="${index}" ${checked} style="margin-top:3px;flex:0 0 auto;">
@@ -373,12 +383,13 @@ function missedRowHtml(record, index){
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <b style="font-size:14px;">${escHtml(record.name || '이름 없음')}</b>
         <span style="font-size:12px;color:var(--text3);">${escHtml(record.phone || '연락처 없음')}</span>
-        ${dupBadge}
+        ${manualBadge}${dupBadge}
       </div>
       <div style="font-size:12px;color:var(--text2);display:flex;gap:10px;flex-wrap:wrap;">
         <span>주문일 <b>${escHtml(record.orderDate || '알 수 없음')}</b></span>
         <span>주문번호 <span style="font-family:monospace;">${escHtml(record.syncKey || record.orderNo || '')}</span></span>
-        <span>${escHtml(record.scheduleName || '-')}</span>
+        <span>${escHtml(record.scheduleName || record.prodName || '-')}</span>
+        ${record.imwebStatus ? `<span>아임웹 상태 <b>${escHtml(record.imwebStatus)}</b></span>` : ''}
         ${record.startDate ? `<span>첫 배송 ${escHtml(record.startDate)}</span>` : ''}
         ${record.total ? `<span>총 ${Number(record.total)}회</span>` : ''}
       </div>
@@ -400,8 +411,12 @@ function renderMissedModalList(){
   if(empty) empty.style.display = records.length ? 'none' : 'block';
   if(count){
     const dupes = records.filter(record => missedDuplicateInfo(record).kind !== 'none').length;
+    const manual = records.filter(missedNeedsManual).length;
+    const notes = [];
+    if(dupes) notes.push(`겹칠 수 있는 ${dupes}건`);
+    if(manual) notes.push(`직접 등록해야 하는 ${manual}건`);
     count.textContent = records.length
-      ? `${records.length}건${dupes ? ` · 겹칠 수 있는 ${dupes}건은 기본 해제` : ''}`
+      ? `${records.length}건${notes.length ? ` · ${notes.join(', ')}은 기본 해제` : ''}`
       : '';
   }
 }
@@ -423,16 +438,27 @@ function selectedMissedOrders(){
 }
 
 async function registerSelectedMissedOrders(){
-  const picked = selectedMissedOrders();
-  if(!picked.length){ toast('등록할 주문을 선택하세요', 'er'); return; }
+  const selected = selectedMissedOrders();
+  if(!selected.length){ toast('등록할 주문을 선택하세요', 'er'); return; }
+
+  // 상품·상태를 못 알아본 건은 넣을 내용이 없다. 조용히 빼지 말고 몇 건인지 알려준다.
+  const manual = selected.filter(missedNeedsManual);
+  const picked = selected.filter(record => !missedNeedsManual(record));
+  if(!picked.length){
+    toast(`선택한 ${manual.length}건은 자동 등록이 안 됩니다. ＋ 신규 등록으로 직접 넣어주세요`, 'er');
+    return;
+  }
+
   const dupes = picked.filter(record => missedDuplicateInfo(record).kind !== 'none').length;
-  const warn = dupes ? `\n\n겹칠 수 있는 ${dupes}건이 포함돼 있습니다. 이중 배송이 되지 않는지 확인하세요.` : '';
-  if(!confirm(`선택한 ${picked.length}건을 배송목록에 등록하시겠습니까?${warn}`)) return;
+  const warn = [
+    dupes ? `겹칠 수 있는 ${dupes}건이 포함돼 있습니다. 이중 배송이 되지 않는지 확인하세요.` : '',
+    manual.length ? `${manual.length}건은 자동 등록이 안 돼 제외됩니다. 직접 등록해 주세요.` : '',
+  ].filter(Boolean).join('\n');
+  if(!confirm(`${picked.length}건을 배송목록에 등록하시겠습니까?${warn ? `\n\n${warn}` : ''}`)) return;
 
   let ok = 0;
   for(const record of picked){
     const data = record.customerData;
-    if(!data){ toast(`${record.name || record.syncKey}: 등록할 정보가 없습니다`, 'er'); continue; }
     try{
       const created = await window.__DB.collection('customers').add({...data, createdAt:new Date().toISOString()});
       await window.__DB.collection('imwebMissedOrders').doc(record.id).update({

@@ -467,3 +467,141 @@ test('로그 숫자를 더하면 훑은 건수와 아귀가 맞는다', async ()
   assert.equal(result.saved + result.skipped + result.missed + result.cancelled, 3,
     '훑은 주문이 어느 칸에도 안 잡히고 사라지면 안 된다');
 });
+
+test('알아보지 못한 상태의 주문은 조용히 넘기지 않고 알린다', async () => {
+  // 손님은 결제했는데 우리가 상태를 못 알아봐서 배송목록에 안 뜨는 경우.
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736', '처음보는상태')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.saved, 0);
+  assert.equal(result.missed, 1);
+  const [record] = missedOrders(db);
+  assert.equal(record.reasonCode, 'unknown_status');
+  assert.match(record.imwebStatus, /처음보는상태/);
+  assert.equal(record.name, '차진', '파싱을 못 해도 손님 정보는 주문에서 뽑아 담는다');
+  assert.equal(record.phone, '010-0000-0000');
+  assert.equal(record.customerData, undefined, '자동 등록은 못 하니 등록용 문서는 없다');
+});
+
+test('입금 대기 주문은 알리지 않는다', async () => {
+  // 아직 결제 전인 주문까지 알리면 알림이 매일 울려서 아무도 안 본다.
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736', '입금대기')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.missed, 0);
+  assert.equal(result.skipped, 1);
+  assert.equal(missedOrders(db).length, 0);
+});
+
+test('상품명을 못 알아본 주문도 알린다', async () => {
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736')], {
+    '202608240989736': [{ prod_name: '새로 만든 반찬 꾸러미', options: [] }]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.saved, 0);
+  assert.equal(result.missed, 1);
+  const [record] = missedOrders(db);
+  assert.equal(record.reasonCode, 'unparsed_product');
+  assert.equal(record.prodName, '새로 만든 반찬 꾸러미', '어떤 상품인지 알려줘야 고칠 수 있다');
+  assert.equal(record.name, '차진');
+});
+
+test('상품 내역을 못 읽은 주문도 알린다', async () => {
+  const db = fakeDb();
+  const client = {
+    async getToken() { return 'token'; },
+    async getOrders() { return [order('202608240989736')]; },
+    async getProdOrders() { return []; },
+    itemsFromProdOrders() { return []; }
+  };
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.missed, 1);
+  const [record] = missedOrders(db);
+  assert.equal(record.reasonCode, 'no_items');
+  assert.equal(record.syncKey, '202608240989736');
+});
+
+test('같은 주문을 매 실행마다 다시 쓰지 않는다', async () => {
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736', '처음보는상태')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+  const first = missedOrders(db)[0].firstSeenAt;
+
+  await syncImwebOrders({ db, client, env: {}, registerFrom: '', now: new Date(Date.now() + 600000) });
+
+  assert.equal(missedOrders(db).length, 1);
+  assert.equal(missedOrders(db)[0].firstSeenAt, first, '처음 본 시각이 밀리면 안 된다');
+});
+
+test('이미 등록된 주문은 상태를 못 알아봐도 다시 알리지 않는다', async () => {
+  const db = fakeDb({ 'customers/a': { syncKey: '202608240989736', name: '차진' } });
+  const client = fakeClient([order('202608240989736', '처음보는상태')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.missed, 0);
+  assert.equal(missedOrders(db).length, 0);
+});
+
+test('알림이 한 번에 쏟아지지 않게 상한을 둔다', async () => {
+  // 상태 코드 하나를 빠뜨리면 지난 주문이 통째로 '알아보지 못함' 이 된다.
+  // 그때 알림이 수백 건 쌓이면 아무도 안 보게 되므로 상한을 두고 나눠 담는다.
+  const orders = Array.from({ length: 30 }, (_, i) => order(`90${i}`, '처음보는상태'));
+  const items = {};
+  orders.forEach(o => { items[o.order_no] = [subItem('주 3회|월/수/금 조리|총 12회')]; });
+
+  const db = fakeDb();
+  const logs = [];
+  const result = await syncImwebOrders({
+    db, client: fakeClient(orders, items), env: {}, registerFrom: '', log: m => logs.push(m)
+  });
+
+  assert.equal(result.missed, 30, '건수는 그대로 세야 한다');
+  assert.equal(result.newAlerts, 20);
+  assert.equal(result.alertOverflow, 10);
+  assert.equal(missedOrders(db).length, 20);
+  assert.ok(logs.some(m => m.includes('알림 상한')), '넘친 사실을 로그로 알려야 한다');
+
+  // 다음 실행에서 나머지를 이어 담는다
+  const second = await syncImwebOrders({ db, client: fakeClient(orders, items), env: {}, registerFrom: '' });
+  assert.equal(second.newAlerts, 10);
+  assert.equal(second.alertOverflow, 0);
+  assert.equal(missedOrders(db).length, 30);
+});
+
+test('구매확정·반품완료 주문은 알림으로 올리지 않는다', async () => {
+  const db = fakeDb();
+  const client = fakeClient([
+    order('9001', 'PURCHASE_CONFIRMATION'),
+    order('9002', 'RETURN'),
+    order('9003', 'EXCHANGE')
+  ], {
+    9001: [subItem('주 3회|월/수/금 조리|총 12회')],
+    9002: [subItem('주 3회|월/수/금 조리|총 12회')],
+    9003: [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.missed, 0, '끝난 주문까지 알리면 알림이 무용지물이 된다');
+  assert.equal(result.skipped, 3);
+  assert.equal(missedOrders(db).length, 0);
+});
