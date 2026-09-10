@@ -24,7 +24,7 @@
       const headers = { 'Content-Type': 'application/json' };
       if (credential.token) headers.Authorization = `Bearer ${credential.token}`;
       if (credential.device) headers['X-Attendance-Device'] = credential.device;
-      const endpoint = ['kiosk.bookings', 'kiosk.booking.create', 'admin.bookings', 'admin.booking.create'].includes(action) ? ENDPOINT.replace(/attendanceApi$/, 'attendanceBookingsApi') : ENDPOINT;
+      const endpoint = ['kiosk.bookings', 'kiosk.booking.create', 'admin.bookings', 'admin.bookings.calendar', 'admin.booking.create'].includes(action) ? ENDPOINT.replace(/attendanceApi$/, 'attendanceBookingsApi') : ENDPOINT;
       const response = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify({ ...data, action }), signal: controller.signal, cache: 'no-store' });
       const result = await response.json();
       if (!response.ok) {
