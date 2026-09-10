@@ -20,6 +20,7 @@
     "parts/52-modal-edit.html",
     "parts/53-modal-pause.html",
     "parts/54-modal-parse.html",
+    "parts/55-modal-missed.html",
     "parts/90-scripts-document-end.html"
   ]
 }

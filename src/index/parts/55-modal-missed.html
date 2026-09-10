@@ -1,0 +1,26 @@
+<!-- ══ 아임웹 등록 보류 주문 확인 모달 ══ -->
+<div class="mbg" id="missedM">
+  <div class="modal" style="width:900px;max-width:96vw;">
+    <div class="mh"><div class="mt">아임웹 등록 보류 주문 확인</div><div class="mx" onclick="closeM('missedM')">✕</div></div>
+    <div class="mb" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="ibox" style="margin:0;">
+        아임웹에는 살아 있는데 배송목록에 없는 주문입니다.
+        지나간 배송일 주문이 갑자기 끼어들면 헷갈리므로 <b>자동으로 등록하지 않았습니다.</b><br>
+        <b>이미 손으로 등록해 둔 건과 겹칠 수 있으니</b>, 아래에서 겹침 표시를 확인하고 등록할 것만 골라주세요.
+      </div>
+      <div id="missedM-empty" style="display:none;padding:24px;text-align:center;color:var(--text3);">
+        확인할 보류 주문이 없습니다.
+      </div>
+      <div id="missedM-list" style="display:flex;flex-direction:column;gap:10px;max-height:52vh;overflow-y:auto;"></div>
+    </div>
+    <div class="mf" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:12px;color:var(--text3);" id="missedM-count"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-g sm" onclick="missedToggleAll(true)">전체 선택</button>
+        <button class="btn btn-g sm" onclick="missedToggleAll(false)">전체 해제</button>
+        <button class="btn btn-g" onclick="dismissMissedOrders()">등록 안 함 · 목록에서 지우기</button>
+        <button class="btn btn-p" onclick="registerSelectedMissedOrders()">선택한 주문 등록</button>
+      </div>
+    </div>
+  </div>
+</div>

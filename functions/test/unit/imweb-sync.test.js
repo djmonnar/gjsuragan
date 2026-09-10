@@ -307,7 +307,12 @@ test('등록 기준일 이전 주문은 등록하지 않고 놓친 주문으로�
   assert.equal(record.orderDate, '2026-08-24');
   assert.equal(record.name, '차진');
   assert.equal(record.scheduleName, '월·수·금 조리 → 화·목·토 도착');
-  assert.equal(record.reason, '등록 기준일 이전 주문');
+  assert.match(record.reason, /등록 기준일\(2026-09-01\) 이전 주문/);
+  assert.equal(record.reasonCode, 'before_cutoff');
+  assert.equal(record.customerData.syncKey, '202608240989736',
+    '화면에서 그대로 등록할 수 있게 고객 문서를 통째로 담아둔다');
+  assert.equal(record.customerData.orderType, 'sub');
+  assert.deepEqual(record.customerData.cookDays, [1, 3, 5]);
   assert.equal(record.acknowledged, undefined, '확인 여부는 함수가 건드리지 않는다');
   assert.ok(logs.some(message => message.includes('등록 보류')));
 });
@@ -384,4 +389,45 @@ test('설정을 깜빡해도 옛날 주문이 배송목록에 쏟아지지 않�
   assert.equal(result.missed, 1);
   assert.equal(customers(db).length, 0);
   assert.equal(missedOrders(db).length, 1);
+});
+
+test('취소 흔적 때문에 빠졌던 주문은 이유를 그렇게 적는다', async () => {
+  const db = fakeDb();
+  const client = fakeClient(
+    [order('202608240989736', 'pay_done', { claim_status: '취소철회', claim_type: 'CANCEL' })], {
+      '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+    });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '2026-09-01' });
+
+  assert.equal(result.missed, 1);
+  const [record] = missedOrders(db);
+  assert.equal(record.reasonCode, 'cancel_trace');
+  assert.match(record.reason, /취소 흔적/);
+});
+
+test('등록 보류 사유 문구는 상황별로 갈린다', () => {
+  assert.equal(imwebSyncModule.missedReason(false, '', '2026-09-10').reasonCode, 'unknown_date');
+  assert.equal(imwebSyncModule.missedReason(true, '2026-08-24', '2026-09-10').reasonCode, 'cancel_trace');
+  assert.equal(imwebSyncModule.missedReason(false, '2026-08-24', '2026-09-10').reasonCode, 'before_cutoff');
+  assert.match(imwebSyncModule.missedReason(false, '2026-08-24', '2026-09-10').reason, /2026-09-10/);
+});
+
+test('등록용 문서가 빠진 옛 보류 기록은 다시 채우고 확인 표시는 지키지 않는다', async () => {
+  // 예전 버전이 남긴 기록에는 customerData 가 없다. 그대로 두면 화면에서 등록할 수 없다.
+  const db = fakeDb({
+    'imwebMissedOrders/202608240989736': {
+      syncKey: '202608240989736', orderNo: '202608240989736', name: '차진'
+    }
+  });
+  const client = fakeClient([order('202608240989736')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  await syncImwebOrders({ db, client, env: {}, registerFrom: '2026-09-01' });
+
+  const [record] = missedOrders(db);
+  assert.ok(record.customerData, '등록용 문서가 채워져야 한다');
+  assert.equal(record.customerData.orderType, 'sub');
+  assert.equal(record.name, '차진');
 });
