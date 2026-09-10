@@ -185,6 +185,48 @@ test('상품 줄 상태는 주문 상태를 물려받고 줄 상태가 있으면
   assert.equal(parser.prodOrderOfItem([prodOrder], item), prodOrder);
 });
 
+// 아임웹 문서에 나온 주문 상태 코드 전부. 하나라도 어디에도 안 걸리면
+// 그 상태의 주문이 '알아보지 못함' 으로 알림에 쏟아져 알림이 무용지물이 된다.
+test('아임웹 주문 상태 코드가 모두 어딘가에는 걸린다', () => {
+  const codes = {
+    PAY_WAIT: 'pending',
+    PAY_COMPLETE: 'allow',
+    STANDBY: 'allow',
+    DELIVERING: 'allow',
+    COMPLETE: 'terminal',
+    CANCEL: 'cancel',
+    RETURN: 'terminal',
+    EXCHANGE: 'terminal',
+    PURCHASE_CONFIRMATION: 'terminal'
+  };
+  const verdict = code => {
+    if (parser.isCancelStatus(code)) return 'cancel';
+    if (parser.isTerminalStatus(code)) return 'terminal';
+    if (parser.isAllowStatus(code)) return 'allow';
+    if (parser.isPendingStatus(code)) return 'pending';
+    return 'unknown';
+  };
+  for (const [code, expected] of Object.entries(codes)) {
+    assert.equal(verdict(code), expected, `${code} 가 ${expected} 로 안 잡힌다`);
+  }
+});
+
+test('반품·교환 요청 단계는 끝난 것으로 보지 않는다', () => {
+  // 요청은 아직 사람이 봐야 하는 상태다. 완료와 같이 묶으면 조용히 묻힌다.
+  assert.equal(parser.isTerminalStatus('RETURN_REQUEST'), false);
+  assert.equal(parser.isTerminalStatus('반품요청'), false);
+  assert.equal(parser.isTerminalStatus('EXCHANGE_REQUEST'), false);
+  assert.equal(parser.isTerminalStatus('교환요청'), false);
+});
+
+test('결제 전 상태는 등록 대상도 알림 대상도 아니다', () => {
+  assert.equal(parser.isPendingStatus('PAY_WAIT'), true);
+  assert.equal(parser.isPendingStatus('입금대기'), true);
+  assert.equal(parser.isPendingStatus('입금 대기'), true);
+  assert.equal(parser.isAllowStatus('PAY_WAIT'), false, '결제 전 주문이 등록되면 안 된다');
+  assert.equal(parser.isPendingStatus('PAY_COMPLETE'), false);
+});
+
 test('syncKey 는 첫 줄만 주문번호를 그대로 쓴다', () => {
   assert.equal(parser.buildSyncKey('123', 1), '123');
   assert.equal(parser.buildSyncKey('123', 2), '123-2');

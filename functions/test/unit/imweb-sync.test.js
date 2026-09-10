@@ -560,3 +560,48 @@ test('이미 등록된 주문은 상태를 못 알아봐도 다시 알리지 않
   assert.equal(result.missed, 0);
   assert.equal(missedOrders(db).length, 0);
 });
+
+test('알림이 한 번에 쏟아지지 않게 상한을 둔다', async () => {
+  // 상태 코드 하나를 빠뜨리면 지난 주문이 통째로 '알아보지 못함' 이 된다.
+  // 그때 알림이 수백 건 쌓이면 아무도 안 보게 되므로 상한을 두고 나눠 담는다.
+  const orders = Array.from({ length: 30 }, (_, i) => order(`90${i}`, '처음보는상태'));
+  const items = {};
+  orders.forEach(o => { items[o.order_no] = [subItem('주 3회|월/수/금 조리|총 12회')]; });
+
+  const db = fakeDb();
+  const logs = [];
+  const result = await syncImwebOrders({
+    db, client: fakeClient(orders, items), env: {}, registerFrom: '', log: m => logs.push(m)
+  });
+
+  assert.equal(result.missed, 30, '건수는 그대로 세야 한다');
+  assert.equal(result.newAlerts, 20);
+  assert.equal(result.alertOverflow, 10);
+  assert.equal(missedOrders(db).length, 20);
+  assert.ok(logs.some(m => m.includes('알림 상한')), '넘친 사실을 로그로 알려야 한다');
+
+  // 다음 실행에서 나머지를 이어 담는다
+  const second = await syncImwebOrders({ db, client: fakeClient(orders, items), env: {}, registerFrom: '' });
+  assert.equal(second.newAlerts, 10);
+  assert.equal(second.alertOverflow, 0);
+  assert.equal(missedOrders(db).length, 30);
+});
+
+test('구매확정·반품완료 주문은 알림으로 올리지 않는다', async () => {
+  const db = fakeDb();
+  const client = fakeClient([
+    order('9001', 'PURCHASE_CONFIRMATION'),
+    order('9002', 'RETURN'),
+    order('9003', 'EXCHANGE')
+  ], {
+    9001: [subItem('주 3회|월/수/금 조리|총 12회')],
+    9002: [subItem('주 3회|월/수/금 조리|총 12회')],
+    9003: [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.missed, 0, '끝난 주문까지 알리면 알림이 무용지물이 된다');
+  assert.equal(result.skipped, 3);
+  assert.equal(missedOrders(db).length, 0);
+});

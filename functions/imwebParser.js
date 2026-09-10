@@ -16,10 +16,16 @@ const ALLOW_STATUS = [
   'DELIVERY_HOLD', 'DELIVERY_ON_HOLD', 'DELIVERY_PENDING', 'HOLD', 'HOLDING', 'ON_HOLD',
   '배송보류', '배송 보류'
 ];
+// 배송이 끝나 더 이상 등록 대상이 아닌 상태.
+// 아임웹 문서에 나온 실제 코드는 COMPLETE(배송완료) / PURCHASE_CONFIRMATION(구매확정) /
+// RETURN(반품완료) / EXCHANGE(교환완료) 다. 이 넷이 빠져 있으면 지난 주문이 전부
+// '알아보지 못한 상태' 로 알림에 쏟아져서 알림이 무용지물이 된다.
 const TERMINAL_STATUS = [
   'delivered', 'complete', 'order_complete', 'purchase_complete', 'delivery_complete', 'delivery_done',
+  'purchase_confirmation', 'return', 'return_done', 'exchange', 'exchange_done',
   'DELIVERED', 'COMPLETE', 'ORDER_COMPLETE', 'PURCHASE_COMPLETE', 'DELIVERY_COMPLETE', 'DELIVERY_DONE',
-  '배송완료', '배송 완료', '거래종료', '구매확정', '구매 확정'
+  'PURCHASE_CONFIRMATION', 'RETURN', 'RETURN_DONE', 'EXCHANGE', 'EXCHANGE_DONE',
+  '배송완료', '배송 완료', '거래종료', '구매확정', '구매 확정', '반품완료', '반품 완료', '교환완료', '교환 완료'
 ];
 // 아직 결제 전이라 등록 대상이 아닌 상태.
 // '알아보지 못한 상태' 와 반드시 구분해야 한다. 무통장 입금을 기다리는 주문까지
@@ -86,8 +92,10 @@ function isPendingStatus(status) {
 }
 
 function isTerminalStatus(status) {
+  // 낱말이 든 것만 넓게 잡는다. 'return' / 'exchange' 를 통째로 넣으면
+  // 반품요청·교환요청까지 끝난 것으로 보게 되므로 목록에서 정확히 맞을 때만 잡는다.
   return matchesStatusList(status, TERMINAL_STATUS,
-    /delivered|deliverycomplete|deliverydone|ordercomplete|purchasecomplete|shippingcomplete|배송완료|거래종료|구매확정/);
+    /delivered|deliverycomplete|deliverydone|ordercomplete|purchasecomplete|purchaseconfirmation|shippingcomplete|배송완료|거래종료|구매확정|반품완료|교환완료/);
 }
 
 const HEAD_STATUS_KEYS = [

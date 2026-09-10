@@ -12,6 +12,10 @@ const CUSTOMERS = 'customers';
 const CANCEL_LOGS = 'imwebCancelLogs';
 const MISSED_ORDERS = 'imwebMissedOrders';
 const CONFIG_DOC = ['config', 'imwebSync'];
+// 한 번에 새로 만드는 알림 수 상한.
+// 상태 코드 하나를 목록에 빠뜨리면 지난 주문이 통째로 '알아보지 못함' 이 되어
+// 알림이 수백 건 쏟아지고, 그러면 아무도 안 보게 된다. 넘치면 다음 실행에서 이어 담는다.
+const MAX_NEW_ALERTS_PER_RUN = 20;
 
 function isSyncEnabled(env = process.env) {
   return String(env.IMWEB_SYNC_ENABLED || '').trim().toLowerCase() === 'true';
@@ -274,12 +278,20 @@ async function syncImwebOrders(options = {}) {
 
   // 결제는 됐는데 우리가 등록하지 못한 주문. 로그만 남기면 아무도 못 보니 알림으로 올린다.
   // 같은 줄을 매 실행마다 다시 쓰지 않고, 등록용 문서가 뒤늦게 생기면 그때 채운다.
+  let newAlerts = 0;
+  let alertOverflow = 0;
   const noteUnregistered = async (options) => {
     const key = String(options.syncKey || '');
     const recorded = missedRecords.get(key);
     if (recorded === undefined || (recorded === false && options.parsed)) {
+      if (newAlerts >= MAX_NEW_ALERTS_PER_RUN) {
+        alertOverflow++;
+        missed++;
+        return;
+      }
       await recordUnregistered(db, { ...options, now });
       missedRecords.set(key, Boolean(options.parsed));
+      newAlerts++;
     }
     missed++;
     log(`📋 등록 못함(${options.reasonCode}): ${key} / ${options.status || '상태 없음'} / ${options.prodName || options.parsed?.name || ''}`);
@@ -432,6 +444,9 @@ async function syncImwebOrders(options = {}) {
     }
   }
 
+  if (alertOverflow) {
+    log(`⚠ 알림 상한(${MAX_NEW_ALERTS_PER_RUN}건)을 넘어 ${alertOverflow}건은 다음 실행으로 미뤘다. 상태 목록에 빠진 코드가 없는지 확인이 필요하다.`);
+  }
   if (cancelledUnregistered.length) {
     // 주문번호를 같이 남긴다. 정말 취소된 주문인지 아임웹에서 바로 확인할 수 있어야 한다.
     log(`🚫 취소 상태라 등록하지 않음(등록된 적 없는 ${cancelledUnregistered.length}건): ${cancelledUnregistered.slice(0, 30).join(', ')}`);
@@ -439,6 +454,7 @@ async function syncImwebOrders(options = {}) {
   log(`=== 완료: 등록 ${saved}건 / 삭제 ${deleted}건 / 건너뜀 ${skipped}건${missed ? ` / 등록 보류 ${missed}건` : ''}${cancelledUnregistered.length ? ` / 취소 ${cancelledUnregistered.length}건` : ''} ===`);
   return {
     saved, deleted, skipped, missed,
+    newAlerts, alertOverflow,
     cancelled: cancelledUnregistered.length,
     cancelledOrderNos: cancelledUnregistered.slice(0, 30),
     scanned: orders.length
