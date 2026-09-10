@@ -84,6 +84,13 @@ function runAutoBill({ deliveryRecords = {}, settlementItems = {}, users = {} } 
     saveSettlementItem: async (month, uid, row, data) => { written.push({ month, uid, row, data }); }
   };
   vm.createContext(context);
+  // daily 삭제 표시에 쓰이는 최소 firebase 스텁
+  vm.runInContext(`
+    class FieldValue {}
+    var firebase = { firestore: { FieldValue } };
+    firebase.firestore.FieldValue.delete = () => new FieldValue();
+  `, context);
+  vm.runInContext(extractFunction('settlementDailyPatch'), context);
   vm.runInContext(extractFunction('autoBillCompletedDeliveries'), context);
   return context.autoBillCompletedDeliveries('2026-09-04', Object.keys(users))
     .then(result => ({ result, deleted, written }));
@@ -277,4 +284,63 @@ test('보류 상태 정산은 다시 계산해도 상태를 유지하고 지우�
   assert.match(rebuildSource, /const onHold = saved\.status === '보류';/);
   assert.match(rebuildSource, /!hasCarryoverInfo && !onHold/);
   assert.match(rebuildSource, /saved\.status === '이월' \|\| onHold/);
+});
+
+// ── 일별 내역(daily) 지우기 ────────────────────────────────
+// Firestore 의 set({merge:true}) 는 map 필드를 키 단위로 합친다.
+// daily 는 날짜가 키인 map 이라, 새 daily 를 써도 지운 날짜 키가 문서에 남는다.
+// 그래서 합계(도시락 4개 / 32,000원)는 맞는데 고객 화면 "일별 이용 내역" 에는
+// 안 먹은 9/3, 9/4 가 계속 보였다.
+const dailyHelpers = vm.runInNewContext(`(() => {
+  class FieldValue {}
+  const firebase = { firestore: { FieldValue } };
+  firebase.firestore.FieldValue.delete = () => new FieldValue();
+  ${extractFunction('settlementDailyPatch')}
+  ${extractFunction('stripDeleteSentinels')}
+  return { settlementDailyPatch, stripDeleteSentinels, FieldValue };
+})()`);
+
+test('새 daily 에 없는 옛 날짜는 삭제 표시를 실어 보낸다', () => {
+  const patch = dailyHelpers.settlementDailyPatch(
+    { '2026-09-07': { lunch: 2 }, '2026-09-08': { lunch: 2 } },
+    { '2026-09-03': { lunch: 2 }, '2026-09-04': { lunch: 2 }, '2026-09-07': { lunch: 2 }, '2026-09-08': { lunch: 2 } }
+  );
+  assert.deepEqual(Object.keys(patch).sort(), ['2026-09-03', '2026-09-04', '2026-09-07', '2026-09-08']);
+  // 남은 날은 값 그대로, 지운 날은 삭제 표시
+  assert.equal(patch['2026-09-07'].lunch, 2);
+  assert.equal(patch['2026-09-08'].lunch, 2);
+  assert.ok(patch['2026-09-03'] instanceof dailyHelpers.FieldValue);
+  assert.ok(patch['2026-09-04'] instanceof dailyHelpers.FieldValue);
+});
+
+test('저장된 daily 가 없으면 삭제 표시 없이 새 날짜만 쓴다', () => {
+  const patch = dailyHelpers.settlementDailyPatch({ '2026-09-07': { lunch: 2 } }, undefined);
+  assert.deepEqual(Object.keys(patch), ['2026-09-07']);
+  assert.equal(patch['2026-09-07'].lunch, 2);
+});
+
+test('배송이 전부 빠지면 저장된 날짜가 모두 삭제 표시가 된다', () => {
+  const patch = dailyHelpers.settlementDailyPatch({}, { '2026-09-03': { lunch: 2 }, '2026-09-04': { lunch: 2 } });
+  assert.equal(Object.keys(patch).length, 2);
+  Object.values(patch).forEach(v => assert.ok(v instanceof dailyHelpers.FieldValue));
+});
+
+test('화면 캐시에는 삭제 표시가 남지 않는다', () => {
+  const patch = dailyHelpers.settlementDailyPatch(
+    { '2026-09-07': { lunch: 2 } },
+    { '2026-09-03': { lunch: 2 }, '2026-09-07': { lunch: 2 } }
+  );
+  // vm 안에서 만든 객체라 구조만 비교한다.
+  assert.deepEqual(JSON.parse(JSON.stringify(dailyHelpers.stripDeleteSentinels(patch))), { '2026-09-07': { lunch: 2 } });
+});
+
+test('정산 저장 경로가 daily 를 그대로 쓰지 않고 삭제 표시를 붙여 보낸다', () => {
+  // 여기서 settlementDailyPatch 를 빼먹으면 지운 날짜가 고객 화면에 그대로 남는다.
+  const autoBillSource = extractFunction('autoBillCompletedDeliveries');
+  const rebuildSource = extractFunction('rebuildSettlementsForUids');
+  assert.match(autoBillSource, /daily: settlementDailyPatch\(daily, saved\.daily\)/);
+  assert.match(rebuildSource, /daily: settlementDailyPatch\(daily, saved\.daily\)/);
+
+  const saveSource = extractFunction('saveSettlementItem');
+  assert.match(saveSource, /stripDeleteSentinels\(payload\.daily\)/);
 });

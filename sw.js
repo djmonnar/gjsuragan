@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v64-settlement-resync-all';
+const CACHE = 'gjsuragan-v65-settlement-daily-cleanup';
 const PRECACHE = [
   './customer.html',
   './admin.html',
