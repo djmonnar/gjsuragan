@@ -50,6 +50,8 @@ function employeeInput(input) {
     floor: floor(input.floor),
     payType: input.payType,
     hourlyRate: input.payType === 'hourly' ? integer(input.hourlyRate, '시급', 1, 1000000) : 0,
+    monthlySalary: input.payType === 'salaried' && input.monthlySalary !== undefined
+      ? integer(input.monthlySalary, '월급', 1, 100000000) : null,
     breakMinutes: integer(input.breakMinutes, '무급 휴게시간', 0, 720),
     active: input.active,
     note: text(input.note, '메모', 500)

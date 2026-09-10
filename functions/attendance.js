@@ -56,7 +56,10 @@ function createAttendanceService({ db, now = Date.now }) {
       if (before?.currentShiftId && !data.active) model.fail('퇴근 처리 후 재직 상태를 변경해 주세요.');
       const floor = input.floor === undefined ? model.floor(before?.floor) : data.floor;
       if (before?.currentShiftId && floor !== model.floor(before.floor)) model.fail('퇴근 처리 후 근무 층을 변경해 주세요.');
-      const after = { ...data, floor, currentShiftId: before?.currentShiftId || null, lastShift: before?.lastShift || null,
+      // An older admin screen can edit other fields without erasing a saved salary.
+      const monthlySalary = data.payType === 'salaried' && input.monthlySalary === undefined && before?.payType === 'salaried'
+        ? before.monthlySalary ?? null : data.monthlySalary;
+      const after = { ...data, floor, monthlySalary, currentShiftId: before?.currentShiftId || null, lastShift: before?.lastShift || null,
         createdAt: before?.createdAt ?? now(), updatedAt: now(), deletedAt: null, version: (before?.version || 0) + 1 };
       tx.set(ref, after);
       log(tx, actor, 'employee.save', ref.id, before, after);

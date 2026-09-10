@@ -1,5 +1,6 @@
 .att-root,.att-dialog,.att-kiosk{--att-ink:#342a25;--att-muted:#81756c;--att-border:#e7dfd4;--att-brand:#703d2e;--att-green:#317457;--att-bg:#f7f5ef;color:var(--att-ink);font-family:'Pretendard Variable','Pretendard',system-ui,sans-serif;line-height:1.5}
 .att-root *,.att-dialog *,.att-kiosk *{box-sizing:border-box}
+.att-dialog [hidden]{display:none!important}
 .att-root button,.att-root input,.att-root select,.att-dialog button,.att-dialog input,.att-dialog select,.att-dialog textarea,.att-kiosk button,.att-kiosk input,.att-kiosk select{font:inherit}
 .att-root button,.att-dialog button,.att-kiosk button{cursor:pointer;touch-action:manipulation}
 .att-root button:disabled,.att-dialog button:disabled,.att-kiosk button:disabled{opacity:.5;cursor:wait}
