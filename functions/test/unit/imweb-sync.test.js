@@ -467,3 +467,96 @@ test('로그 숫자를 더하면 훑은 건수와 아귀가 맞는다', async ()
   assert.equal(result.saved + result.skipped + result.missed + result.cancelled, 3,
     '훑은 주문이 어느 칸에도 안 잡히고 사라지면 안 된다');
 });
+
+test('알아보지 못한 상태의 주문은 조용히 넘기지 않고 알린다', async () => {
+  // 손님은 결제했는데 우리가 상태를 못 알아봐서 배송목록에 안 뜨는 경우.
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736', '처음보는상태')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.saved, 0);
+  assert.equal(result.missed, 1);
+  const [record] = missedOrders(db);
+  assert.equal(record.reasonCode, 'unknown_status');
+  assert.match(record.imwebStatus, /처음보는상태/);
+  assert.equal(record.name, '차진', '파싱을 못 해도 손님 정보는 주문에서 뽑아 담는다');
+  assert.equal(record.phone, '010-0000-0000');
+  assert.equal(record.customerData, undefined, '자동 등록은 못 하니 등록용 문서는 없다');
+});
+
+test('입금 대기 주문은 알리지 않는다', async () => {
+  // 아직 결제 전인 주문까지 알리면 알림이 매일 울려서 아무도 안 본다.
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736', '입금대기')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.missed, 0);
+  assert.equal(result.skipped, 1);
+  assert.equal(missedOrders(db).length, 0);
+});
+
+test('상품명을 못 알아본 주문도 알린다', async () => {
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736')], {
+    '202608240989736': [{ prod_name: '새로 만든 반찬 꾸러미', options: [] }]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.saved, 0);
+  assert.equal(result.missed, 1);
+  const [record] = missedOrders(db);
+  assert.equal(record.reasonCode, 'unparsed_product');
+  assert.equal(record.prodName, '새로 만든 반찬 꾸러미', '어떤 상품인지 알려줘야 고칠 수 있다');
+  assert.equal(record.name, '차진');
+});
+
+test('상품 내역을 못 읽은 주문도 알린다', async () => {
+  const db = fakeDb();
+  const client = {
+    async getToken() { return 'token'; },
+    async getOrders() { return [order('202608240989736')]; },
+    async getProdOrders() { return []; },
+    itemsFromProdOrders() { return []; }
+  };
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.missed, 1);
+  const [record] = missedOrders(db);
+  assert.equal(record.reasonCode, 'no_items');
+  assert.equal(record.syncKey, '202608240989736');
+});
+
+test('같은 주문을 매 실행마다 다시 쓰지 않는다', async () => {
+  const db = fakeDb();
+  const client = fakeClient([order('202608240989736', '처음보는상태')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+  const first = missedOrders(db)[0].firstSeenAt;
+
+  await syncImwebOrders({ db, client, env: {}, registerFrom: '', now: new Date(Date.now() + 600000) });
+
+  assert.equal(missedOrders(db).length, 1);
+  assert.equal(missedOrders(db)[0].firstSeenAt, first, '처음 본 시각이 밀리면 안 된다');
+});
+
+test('이미 등록된 주문은 상태를 못 알아봐도 다시 알리지 않는다', async () => {
+  const db = fakeDb({ 'customers/a': { syncKey: '202608240989736', name: '차진' } });
+  const client = fakeClient([order('202608240989736', '처음보는상태')], {
+    '202608240989736': [subItem('주 3회|월/수/금 조리|총 12회')]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '' });
+
+  assert.equal(result.missed, 0);
+  assert.equal(missedOrders(db).length, 0);
+});

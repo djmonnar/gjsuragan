@@ -18,10 +18,10 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 339686,
-    "lines": 7801,
-    "functionDeclarations": 455,
-    "uniqueCallableGlobals": 408,
+    "normalizedBytes": 340954,
+    "lines": 7827,
+    "functionDeclarations": 456,
+    "uniqueCallableGlobals": 409,
     "explicitWindowExports": 41,
     "globalStateDeclarations": 66,
     "privateStateDeclarations": 5,
@@ -708,9 +708,9 @@
     {
       "path": "assets/js/rendering.js",
       "metrics": {
-        "bytes": 100108,
-        "lines": 2006,
-        "functionDeclarations": 103,
+        "bytes": 101376,
+        "lines": 2032,
+        "functionDeclarations": 104,
         "asyncFunctions": 7
       },
       "globalsDefined": [
@@ -737,6 +737,7 @@
         "renderMissedOrders",
         "unreadMissedOrders",
         "missedDuplicateInfo",
+        "missedNeedsManual",
         "missedRowHtml",
         "renderMissedModalList",
         "openMissedModal",

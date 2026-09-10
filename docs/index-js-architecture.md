@@ -23,14 +23,14 @@ The current order is part of the application contract.
 | 4 | `schedule-report.js` | 382 | 17,588 | 38 | Date/schedule/report calculation and final delivery policy |
 | 5 | `manual-delivery-dates.js` | 320 | 14,156 | 25 | Manual delivery-date calculation and calendar editor |
 | 6 | `rendering-formatters.js` | 55 | 1,736 | 10 | Pure text, badge and order-label formatters |
-| 7 | `rendering.js` | 2006 | 100,108 | 103 | Dashboard, delivery, customer and modal rendering |
+| 7 | `rendering.js` | 2032 | 101,376 | 104 | Dashboard, delivery, customer and modal rendering |
 | 8 | `order-settlement.js` | 245 | 10,733 | 16 | Order amount normalization, grouping and monthly sales rendering |
 | 9 | `route-map.js` | 762 | 28,321 | 43 | Route page, geocoding cache, map and route proxy |
 | 10 | `import-export.js` | 915 | 44,121 | 39 | Text/XLSX import, previews and export |
 | 11 | `logen.js` | 397 | 17,143 | 33 | Logen registration and slip lookup UI |
 | 12 | `ui.js` | 454 | 19,093 | 37 | Navigation, forms, modals and compatibility wrappers |
 | 13 | `notice-memos.js` | 315 | 11,509 | 23 | Delivery notice memo feature in a private IIFE |
-| **Total** |  | **7,801** | **339,686** | **455** | **61** | |
+| **Total** |  | **7,827** | **340,954** | **456** | **61** | |
 
 The audit found 384 callable function names, 62 shared global state declarations,
 5 private state declarations, 36 explicit `window`/root exports, 134 static
@@ -116,7 +116,7 @@ reference.
 | `markAllDirect` | rendering/legacy path | 382 | 17,588 | 38 
 | `markAllCourier` | rendering/legacy path | 382 | 17,588 | 38 
 | `listFor` | `schedule-report.js` | 382 | 17,588 | 38 
-| `renderDash` | `rendering.js` | 2006 | 100,108 | 103 
+| `renderDash` | `rendering.js` | 2032 | 101,376 | 104 
 | `renderDash` | wrapper 1 | 454 | 19,093 | 37 
 
 These are compatibility contracts, not dead duplicates. A future module split

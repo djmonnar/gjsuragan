@@ -21,6 +21,16 @@ const TERMINAL_STATUS = [
   'DELIVERED', 'COMPLETE', 'ORDER_COMPLETE', 'PURCHASE_COMPLETE', 'DELIVERY_COMPLETE', 'DELIVERY_DONE',
   '배송완료', '배송 완료', '거래종료', '구매확정', '구매 확정'
 ];
+// 아직 결제 전이라 등록 대상이 아닌 상태.
+// '알아보지 못한 상태' 와 반드시 구분해야 한다. 무통장 입금을 기다리는 주문까지
+// '확인 필요' 로 띄우면 알림이 매일 울려서 아무도 안 보게 된다.
+const PENDING_STATUS = [
+  'wait_deposit', 'deposit_wait', 'pay_wait', 'payment_wait', 'unpaid',
+  'order_wait', 'wait_pay', 'waiting_payment',
+  'WAIT_DEPOSIT', 'DEPOSIT_WAIT', 'PAY_WAIT', 'PAYMENT_WAIT', 'UNPAID',
+  'ORDER_WAIT', 'WAIT_PAY', 'WAITING_PAYMENT',
+  '입금대기', '입금 대기', '결제대기', '결제 대기', '미결제', '주문대기', '주문 대기'
+];
 const HOLD_QUERY_STATUSES = ['delivery_hold', '배송 보류'];
 
 const SINGLE_PROD_MAP = {
@@ -68,6 +78,11 @@ function isCancelStatus(status) {
 function isAllowStatus(status) {
   return matchesStatusList(status, ALLOW_STATUS,
     /paydone|paycomplete|paymentcomplete|deliveryready|delivering|standby|deliveryhold|deliveryonhold|deliverypending|결제완료|배송준비|배송중|배송보류/);
+}
+
+function isPendingStatus(status) {
+  return matchesStatusList(status, PENDING_STATUS,
+    /waitdeposit|depositwait|paywait|paymentwait|waitingpayment|unpaid|orderwait|입금대기|결제대기|미결제|주문대기/);
 }
 
 function isTerminalStatus(status) {
@@ -630,6 +645,7 @@ function parseOrderItems(order, orderNo, items, options = {}) {
 
 module.exports = {
   HOLD_QUERY_STATUSES,
+  PENDING_STATUS,
   PRODUCT_LABELS,
   SINGLE_PROD_MAP,
   buildSyncKey,
@@ -639,6 +655,7 @@ module.exports = {
   isAllowStatus,
   isCancelStatus,
   isCancelUndone,
+  isPendingStatus,
   isSubItem,
   isTerminalStatus,
   lineStatuses,
