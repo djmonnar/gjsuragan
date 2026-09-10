@@ -45,20 +45,32 @@ async function fetchOrderPage(token, status, page) {
 }
 
 // 같은 주문이 상태별 조회에 중복으로 나오므로 주문번호로 한 번만 담는다.
+// 어디서 왜 멈췄는지 한 줄로 남긴다. 목록이 잘려서 뒤쪽 주문이 통째로 안 보이는 일을
+// 숫자만 보고는 알 수가 없기 때문이다.
 async function appendOrders(token, status, all, seen, log) {
+  const label = status ? `상태 '${status}'` : '전체';
   let lastFirstOrderNo = '';
+  let added = 0;
+  let pages = 0;
+  let stopReason = '';
+
   for (let page = 1; page <= MAX_PAGES; page++) {
+    pages = page;
     const json = await fetchOrderPage(token, status, page);
     if (json.code !== 200) {
       log(`주문 조회 오류${status ? ` (${status})` : ''}: ${json.msg || json.code}`);
-      return;
+      stopReason = '오류로 중단';
+      break;
     }
     const list = json.data?.list || [];
-    if (!list.length) return;
+    if (!list.length) { stopReason = '빈 페이지'; break; }
 
     // 아임웹이 마지막 페이지 이후로도 같은 목록을 계속 돌려주는 경우가 있어 끊는다.
     const firstOrderNo = String(list[0]?.order_no || '');
-    if (page > 1 && firstOrderNo && firstOrderNo === lastFirstOrderNo) return;
+    if (page > 1 && firstOrderNo && firstOrderNo === lastFirstOrderNo) {
+      stopReason = '앞 페이지와 같은 목록이 와서 중단';
+      break;
+    }
     lastFirstOrderNo = firstOrderNo;
 
     for (const order of list) {
@@ -66,11 +78,15 @@ async function appendOrders(token, status, all, seen, log) {
       if (key && !seen.has(key)) {
         seen.add(key);
         all.push(order);
+        added++;
       }
     }
 
-    if (list.length < PAGE_LIMIT) return;
+    if (list.length < PAGE_LIMIT) { stopReason = `마지막 페이지(${list.length}건)`; break; }
+    if (page === MAX_PAGES) stopReason = `최대 ${MAX_PAGES}페이지까지만 읽음 — 뒤에 더 있을 수 있다`;
   }
+
+  log(`아임웹 조회 ${label}: ${pages}페이지 / 새로 담은 ${added}건 / ${stopReason}`);
 }
 
 async function getOrders(token, holdStatuses = [], log = () => {}) {

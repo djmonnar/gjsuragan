@@ -146,9 +146,14 @@ async function deleteRecords(db, orderNo, status, records, cancelInfo, now) {
   }
 }
 
-async function deleteCancelledOrder(db, orderNo, status, order, prodOrders, existing, now, log) {
+async function deleteCancelledOrder(db, orderNo, status, order, prodOrders, existing, now, log, unregistered) {
   const records = recordsForOrderNo(existing, orderNo);
-  if (!records.length) return 0;
+  if (!records.length) {
+    // 취소된 주문인데 우리 쪽에 등록된 적이 없다. 지울 것도 등록할 것도 없다.
+    // 예전에는 여기서 아무 기록 없이 사라져서, 숫자를 맞춰봐도 어디로 갔는지 알 수 없었다.
+    if (unregistered) unregistered.push(`${orderNo}(${status || '취소'})`);
+    return 0;
+  }
   const cancelInfo = parser.cancelInfoForOrder(order, prodOrders);
   await deleteRecords(db, orderNo, status, records, cancelInfo, now);
   forgetOrder(existing, orderNo);
@@ -157,9 +162,12 @@ async function deleteCancelledOrder(db, orderNo, status, order, prodOrders, exis
 }
 
 // 부분취소는 취소된 상품 줄만 지운다. 같은 주문의 살아 있는 줄은 건드리지 않는다.
-async function deleteCancelledLine(db, orderNo, syncKey, status, order, prodOrders, existing, now, log) {
+async function deleteCancelledLine(db, orderNo, syncKey, status, order, prodOrders, existing, now, log, unregistered) {
   const records = recordsForSyncKey(existing, syncKey);
-  if (!records.length) return 0;
+  if (!records.length) {
+    if (unregistered) unregistered.push(`${syncKey}(${status || '취소'})`);
+    return 0;
+  }
   const cancelInfo = parser.cancelInfoForOrder(order, prodOrders);
   await deleteRecords(db, orderNo, status, records, cancelInfo, now);
   existing.delete(String(syncKey));
@@ -244,6 +252,8 @@ async function syncImwebOrders(options = {}) {
   let deleted = 0;
   let skipped = 0;
   let missed = 0;
+  // 취소 상태인데 등록된 적이 없어서 지울 것도 없던 주문·상품 줄
+  const cancelledUnregistered = [];
 
   for (const order of orders) {
     const orderNo = String(order.order_no || '');
@@ -256,7 +266,7 @@ async function syncImwebOrders(options = {}) {
 
     // 주문 자체가 취소면 상품 줄을 볼 것도 없이 통째로 지운다.
     if (headStatuses.some(parser.isCancelStatus)) {
-      deleted += await deleteCancelledOrder(db, orderNo, headStatus, order, [], existing, now, log);
+      deleted += await deleteCancelledOrder(db, orderNo, headStatus, order, [], existing, now, log, cancelledUnregistered);
       continue;
     }
 
@@ -299,7 +309,7 @@ async function syncImwebOrders(options = {}) {
 
     // 줄이 전부 취소면 주문 전체 취소로 보고 주문번호에 딸린 문서를 통째로 지운다.
     if (lines.every(line => line.cancelStatus)) {
-      deleted += await deleteCancelledOrder(db, orderNo, lines[0].cancelStatus || headStatus, order, prodOrders, existing, now, log);
+      deleted += await deleteCancelledOrder(db, orderNo, lines[0].cancelStatus || headStatus, order, prodOrders, existing, now, log, cancelledUnregistered);
       continue;
     }
 
@@ -312,7 +322,7 @@ async function syncImwebOrders(options = {}) {
 
     for (const line of lines) {
       if (line.cancelStatus) {
-        deleted += await deleteCancelledLine(db, orderNo, line.syncKey, line.cancelStatus, order, prodOrders, existing, now, log);
+        deleted += await deleteCancelledLine(db, orderNo, line.syncKey, line.cancelStatus, order, prodOrders, existing, now, log, cancelledUnregistered);
         continue;
       }
       if (line.terminalStatus) {
@@ -360,8 +370,17 @@ async function syncImwebOrders(options = {}) {
     }
   }
 
-  log(`=== 완료: 등록 ${saved}건 / 삭제 ${deleted}건 / 건너뜀 ${skipped}건${missed ? ` / 등록 보류 ${missed}건` : ''} ===`);
-  return { saved, deleted, skipped, missed, scanned: orders.length };
+  if (cancelledUnregistered.length) {
+    // 주문번호를 같이 남긴다. 정말 취소된 주문인지 아임웹에서 바로 확인할 수 있어야 한다.
+    log(`🚫 취소 상태라 등록하지 않음(등록된 적 없는 ${cancelledUnregistered.length}건): ${cancelledUnregistered.slice(0, 30).join(', ')}`);
+  }
+  log(`=== 완료: 등록 ${saved}건 / 삭제 ${deleted}건 / 건너뜀 ${skipped}건${missed ? ` / 등록 보류 ${missed}건` : ''}${cancelledUnregistered.length ? ` / 취소 ${cancelledUnregistered.length}건` : ''} ===`);
+  return {
+    saved, deleted, skipped, missed,
+    cancelled: cancelledUnregistered.length,
+    cancelledOrderNos: cancelledUnregistered.slice(0, 30),
+    scanned: orders.length
+  };
 }
 
 module.exports = {
