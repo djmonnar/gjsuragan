@@ -9,7 +9,8 @@ const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { createAttendanceService, createAttendanceHandler } = require('../attendance');
 const { workDate } = require('../attendanceModel');
-const { normalizeFeed, createBookingsHandler } = require('../attendanceBookings');
+const { normalizeFeed, createBookingsHandler, bookingInput } = require('../attendanceBookings');
+const crypto = require('node:crypto');
 const root = path.resolve(__dirname, '../..');
 const projectId = 'demo-gjsuragan-attendance-preview';
 const port = Number(process.env.ATTENDANCE_PREVIEW_PORT || 8765);
@@ -18,10 +19,32 @@ const db = getFirestore(initializeApp({ projectId }, 'attendance-preview'));
 let clock = null;
 const service = createAttendanceService({ db, now: () => clock ?? Date.now() });
 let bookingScenario = 'ready';
-const bookingsHandler = createBookingsHandler({ authorizeDevice: service.authorizeDevice, readBookings: async () => {
+const manualBookings = new Map(), bookingRequests = new Map();
+const verifyPreviewToken = async token => {
+  if (token !== 'local-emulator-admin') throw new Error('Invalid local fixture token');
+  return { uid: 'local-preview-admin', email: 'sun1562@naver.com' };
+};
+const bookingsHandler = createBookingsHandler({ authorizeDevice: service.authorizeDevice, verifyToken: verifyPreviewToken,
+  createBooking: async (input, deviceId) => {
+    if (bookingScenario === 'error') throw new Error('Local upstream failure');
+    const value = bookingInput(input);
+    const key = `${deviceId}:${value.requestId}`;
+    if (bookingRequests.has(key)) {
+      const old = bookingRequests.get(key);
+      if (old.body !== JSON.stringify(value)) { const error = new Error('Same request has changed'); error.status = 409; throw error; }
+      return old.result;
+    }
+    const id = `m_${crypto.createHash('sha256').update(key).digest('hex').slice(0, 24)}`;
+    manualBookings.set(id, { id, date: value.date, time: value.time, name: value.name, adults: value.people, children: 0,
+      itemName: value.menu, menuItems: [{ name: value.menu, count: value.people }], seat: value.seat, origin: 'manual', status: 'confirmed' });
+    const result = { bookingId: id, useDate: value.date };
+    bookingRequests.set(key, { body: JSON.stringify(value), result });
+    return result;
+  }, readBookings: async (selectedDate) => {
   if (bookingScenario === 'error') throw new Error('Local upstream failure');
   const now = Date.now();
-  if (bookingScenario === 'unconfigured') return { state: 'unconfigured', date: workDate(now), serverNow: now, bookings: [] };
+  const date = selectedDate || workDate(now);
+  if (bookingScenario === 'unconfigured') return { state: 'unconfigured', date, serverNow: now, bookings: [] };
   const rows = [
     { id: 'sample1', time: '11:30', name: '김예약', itemName: '한정식', menuItems: [{ name: '수라 한정식', count: 4 }], adults: 4, children: 0, status: 'completed' },
     { id: 'sample2', time: '12:30', name: '이가족', itemName: '가족 모임', menuItems: [{ name: '명가 한정식', count: 5 }], adults: 5, children: 1, status: 'confirmed' },
@@ -30,9 +53,10 @@ const bookingsHandler = createBookingsHandler({ authorizeDevice: service.authori
     { id: 'sample5', time: '19:00', name: '정취소', itemName: '한정식', menuItems: [], adults: 3, children: 0, status: 'cancelled' }
   ];
   return { ...normalizeFeed({ version: 1, state: bookingScenario === 'waiting' ? 'waiting' : 'ready',
-    date: workDate(now), storeName: '돌담명가', syncFailed: false,
+    date, storeName: '돌담명가', syncFailed: false, menuOptions: ['수라 한정식', '명가 한정식'],
     sourceUpdatedAt: new Date(now - (bookingScenario === 'stale' ? 3600000 : 120000)).toISOString(),
-    bookings: ['empty', 'waiting'].includes(bookingScenario) ? [] : rows }, now), demo: true };
+    bookings: [...(['empty', 'waiting'].includes(bookingScenario) || date !== workDate(now) ? [] : rows),
+      ...[...manualBookings.values()].filter(row => row.date === date)] }, now, date), demo: true };
 } });
 const handler = createAttendanceHandler({ service, verifyToken: async token => {
   if (token !== 'local-emulator-admin') throw new Error('Invalid local fixture token');

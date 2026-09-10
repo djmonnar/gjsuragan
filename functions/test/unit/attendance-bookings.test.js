@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeFeed, createBookingReader, createBookingsHandler } = require('../../attendanceBookings');
+const { normalizeFeed, createBookingReader, createBookingsHandler, createBookingWriter, bookingInput } = require('../../attendanceBookings');
 const start = Date.parse('2026-09-10T23:59:40+09:00');
 const row = { id: 'one', name: '가상예약', time: '18:00', menuItems: [{ name: '메뉴', count: 2 }], adults: 2, children: 1, status: 'confirmed' };
 const feed = overrides => ({ version: 1, state: 'ready', date: '2026-09-10', storeName: '테스트 매장', sourceUpdatedAt: new Date(start - 60000).toISOString(), bookings: [row], ...overrides });
@@ -73,4 +73,36 @@ test('tablet authorization is checked before reading or returning a cached list'
   enabled = false;
   assert.equal((await call('paired')).code, 401);
   assert.equal(reads, 1);
+});
+
+test('registration sends a scoped whitelist and stable retry ID without trusting browser actor fields', async () => {
+  const input = { requestId: '11111111-1111-4111-8111-111111111111', name: '가상 손님', date: '2026-09-11', time: '18:00', menu: '코스', seat: '홀 3번', people: 4, actorUid: 'spoof', alimtalkTemplateCode: 'send', deviceId: 'spoof' };
+  const writer = createBookingWriter({ now: () => start, token: () => 'secret', fetchImpl: async (url, options) => {
+    assert.equal(url, 'https://ownervista.co.kr/api/integrations/attendance/reservations');
+    const body = JSON.parse(options.body);
+    assert.equal(body.deviceId, 'server-device'); assert.equal(body.requestId, input.requestId);
+    assert.equal(body.actorUid, undefined); assert.equal(body.alimtalkTemplateCode, undefined);
+    assert.equal(options.redirect, 'error');
+    return Response.json({ ok: true, bookingId: 'm_123456789012345678901234', useDate: input.date });
+  } });
+  await writer(input, 'server-device');
+  assert.throws(() => bookingInput({ ...input, date: '2026-02-30' }, start), { status: 400 });
+  assert.throws(() => bookingInput({ ...input, people: 0 }, start), { status: 400 });
+});
+
+test('tablet cannot read other dates through admin actions; verified admin can read and register', async () => {
+  const calls = [];
+  const handler = createBookingsHandler({ authorizeDevice: async () => 'device', verifyToken: async token => ({ uid: 'admin', email: token === 'owner' ? 'sun1562@naver.com' : 'other@example.invalid' }),
+    readBookings: async date => { calls.push(date); return { date }; }, createBooking: async (_input, actor) => ({ actor }) });
+  async function call(action, token) {
+    const res = { code: 200, set() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; } };
+    await handler({ method: 'POST', headers: { 'x-attendance-device': 'device', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: { action, date: '2026-09-20' } }, res);
+    return res;
+  }
+  assert.equal((await call('admin.bookings')).code, 401);
+  assert.equal((await call('admin.bookings', 'customer')).code, 403);
+  assert.equal((await call('admin.bookings', 'owner')).body.date, '2026-09-20');
+  assert.equal((await call('admin.booking.create', 'owner')).body.actor.length, 64);
+  await call('kiosk.bookings');
+  assert.deepEqual(calls, ['2026-09-20', undefined]);
 });

@@ -98,7 +98,7 @@ function createAttendanceService({ db, now = Date.now }) {
     return { employees: snap.docs.map(serialize).filter(e => !e.deletedAt).map(model.kioskEmployee), deviceName: device.name, serverNow: now() };
   }
   async function authorizeDevice(token) {
-    checkDevice(await deviceRef(token).get());
+    return checkDevice(await deviceRef(token).get()).id;
   }
   async function punch(input, token) {
     const tabletRef = deviceRef(token);

@@ -20,13 +20,15 @@ admin.initializeApp();
 
 const db = admin.firestore();
 const { createAttendanceService, createAttendanceHandler } = require('./attendance');
-const { createBookingReader, createBookingsHandler } = require('./attendanceBookings');
+const { createBookingReader, createBookingsHandler, createBookingWriter } = require('./attendanceBookings');
 const ownervistaBookingsToken = defineSecret('OWNERVISTA_BOOKINGS_TOKEN');
 // A separate function keeps reservation upstream/secret failures out of clock-in/out.
 exports.attendanceBookingsApi = onRequest({ region: 'asia-northeast3', invoker: 'public', maxInstances: 3,
   secrets: [ownervistaBookingsToken] }, createBookingsHandler({
   authorizeDevice: createAttendanceService({ db }).authorizeDevice,
-  readBookings: createBookingReader({ token: () => ownervistaBookingsToken.value() })
+  verifyToken: token => admin.auth().verifyIdToken(token, true),
+  readBookings: createBookingReader({ token: () => ownervistaBookingsToken.value() }),
+  createBooking: createBookingWriter({ token: () => ownervistaBookingsToken.value() })
 }));
 exports.attendanceApi = onRequest({ region: 'asia-northeast3', invoker: 'public', maxInstances: 10 },
   createAttendanceHandler({

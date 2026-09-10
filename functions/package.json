@@ -9,7 +9,7 @@
     "build:index": "node ../scripts/build-index-html.js",
     "check:index": "node ../scripts/build-index-html.js --check",
     "check:index-js": "node ../scripts/check-index-js-architecture.js",
-    "lint": "node --check index.js && node --check attendance.js && node --check attendanceModel.js && node --check attendanceBookings.js && node --check ../assets/js/attendance-bookings.js",
+    "lint": "node --check index.js && node --check attendance.js && node --check attendanceModel.js && node --check attendanceBookings.js && node --check ../assets/js/attendance-bookings.js && node --check ../assets/js/attendance-booking-form.js && node --check ../assets/js/attendance-bookings-admin.js",
     "test:unit": "node --test test/unit/*.test.js",
     "test:emulator:inside": "node --test --test-concurrency=1 test/emulator/*.test.js",
     "test:emulator": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-gjsuragan-safety \"npm run test:emulator:inside\"",

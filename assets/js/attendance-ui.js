@@ -15,7 +15,7 @@
       const headers = { 'Content-Type': 'application/json' };
       if (credential.token) headers.Authorization = `Bearer ${credential.token}`;
       if (credential.device) headers['X-Attendance-Device'] = credential.device;
-      const endpoint = action === 'kiosk.bookings' ? ENDPOINT.replace(/attendanceApi$/, 'attendanceBookingsApi') : ENDPOINT;
+      const endpoint = ['kiosk.bookings', 'kiosk.booking.create', 'admin.bookings', 'admin.booking.create'].includes(action) ? ENDPOINT.replace(/attendanceApi$/, 'attendanceBookingsApi') : ENDPOINT;
       const response = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify({ ...data, action }), signal: controller.signal, cache: 'no-store' });
       const result = await response.json();
       if (!response.ok) {
@@ -25,7 +25,7 @@
       }
       return result;
     } catch (error) {
-      if (error.name === 'AbortError' || error instanceof TypeError) throw new Error(action === 'kiosk.punch'
+      if (error.name === 'AbortError' || error instanceof TypeError) throw new Error(['kiosk.punch', 'kiosk.booking.create', 'admin.booking.create'].includes(action)
         ? '응답을 확인하지 못했습니다. 연결을 확인하고 다시 눌러 주세요. 같은 요청은 중복 저장되지 않습니다.'
         : '응답을 확인하지 못했습니다. 새로고침으로 반영 여부를 확인한 뒤 다시 시도해 주세요.');
       throw error;

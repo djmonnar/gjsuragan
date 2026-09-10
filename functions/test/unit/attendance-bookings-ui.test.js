@@ -31,17 +31,18 @@ test('automatically loads and refreshes without clicks, escapes names and includ
   assert.equal(ui.requests(), 1);
   assert.match(ui.el('bookings-summary').innerHTML, /3<small>명/);
   assert.doesNotMatch(ui.el('bookings-list').innerHTML, /<script>/);
-  await ui.timers.get(60000)();
+  assert.equal(ui.timers.has(60000), false);
+  await ui.timers.get(300000)();
   assert.equal(ui.requests(), 2);
 });
 test('network failure retains labeled same-day snapshot; revoked access clears it', async () => {
   const ui = setup(); await flush();
   ui.setError(new Error('network'));
-  await ui.timers.get(60000)();
+  await ui.timers.get(300000)();
   assert.match(ui.el('bookings-summary').innerHTML, /3<small>명/);
   assert.match(ui.el('bookings-status').textContent, /마지막으로 확인한/);
   ui.setError(Object.assign(new Error('revoked'), { status: 403 }));
-  await ui.timers.get(60000)();
+  await ui.timers.get(300000)();
   assert.equal(ui.el('bookings-list').innerHTML, '');
 });
 test('Korean midnight clears yesterday even when the refresh fails', async () => {
