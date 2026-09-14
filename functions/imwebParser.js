@@ -357,16 +357,27 @@ function parseProd(text) {
   return match ? match[1].toUpperCase() : '';
 }
 
+// 함수는 UTC 로 돈다. 주문 시각이 없다고 그냥 new Date() 를 쓰면
+// 한국시간 자정~오전 9시 사이에 날짜가 하루 전으로 잡힌다.
+// 주문 시각이 있을 때와 없을 때가 서로 다른 날짜를 내놓으면 안 된다.
+function kstDate(millis) {
+  return new Date(millis + 9 * 3600000);
+}
+
+// 주문 시각이 있으면 그것을, 없으면 지금을 한국시간으로 맞춰 돌려준다.
+// 이 값에서는 getUTC* 로 읽어야 한국 날짜가 나온다.
+function kstBase(orderTime, now = new Date()) {
+  return orderTime ? kstDate(orderTime * 1000) : kstDate(now.getTime());
+}
+
 function formatUtcDate(date) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 }
 
 // 단품은 12시 이전 주문이면 당일, 이후면 다음날 출고한다.
 function singleProdDate(orderTimestamp, now = new Date()) {
-  if (!orderTimestamp) {
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  }
-  const dt = new Date((orderTimestamp + 9 * 3600) * 1000);
+  if (!orderTimestamp) return formatUtcDate(kstBase(0, now));
+  const dt = kstBase(orderTimestamp, now);
   if (dt.getUTCHours() < 12) return formatUtcDate(dt);
   return formatUtcDate(new Date(dt.getTime() + 86400000));
 }
@@ -378,10 +389,10 @@ function buildValidDateString(year, month, day) {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-function parseDateFromProdName(prodName, orderTime) {
+function parseDateFromProdName(prodName, orderTime, now = new Date()) {
   const match = String(prodName || '').match(/(\d{1,2})월[\s.\-]*(\d{1,2})일/);
   if (!match) return { date: '', reason: '상품명에서 날짜를 찾지 못했습니다' };
-  const base = orderTime ? new Date((orderTime + 9 * 3600) * 1000) : new Date();
+  const base = kstBase(orderTime, now);
   let year = base.getUTCFullYear();
   const month = parseInt(match[1], 10);
   const day = parseInt(match[2], 10);
@@ -393,9 +404,9 @@ function parseDateFromProdName(prodName, orderTime) {
   return { date, reason: '' };
 }
 
-function parseDirectHopeDateInfo(values, orderTime) {
+function parseDirectHopeDateInfo(values, orderTime, now = new Date()) {
   const joined = (values || []).join(' ');
-  const base = orderTime ? new Date((orderTime + 9 * 3600) * 1000) : new Date();
+  const base = kstBase(orderTime, now);
   const baseMonth = base.getUTCMonth() + 1;
   let month = null;
   let day = null;
@@ -531,13 +542,13 @@ function parseOnceItem(order, item, itemIdx, actualOrderNum, syncKey, options = 
   let onceDate = '';
   let reviewReason = '';
   if (isDirect) {
-    const info = parseDirectHopeDateInfo(values, orderTs);
+    const info = parseDirectHopeDateInfo(values, orderTs, now);
     onceDate = info.date;
     if (!onceDate) reviewReason = info.reason || '직배송 희망날짜를 확인할 수 없습니다';
   } else if (prod in SINGLE_PROD_MAP) {
     onceDate = singleProdDate(orderTs, now);
   } else {
-    const info = parseDateFromProdName(prodName, orderTs);
+    const info = parseDateFromProdName(prodName, orderTs, now);
     onceDate = info.date;
     if (!onceDate) reviewReason = info.reason || '세트 배송일을 상품명에서 확인할 수 없습니다';
   }
@@ -666,6 +677,7 @@ module.exports = {
   isPendingStatus,
   isSubItem,
   isTerminalStatus,
+  kstBase,
   lineStatuses,
   matchSchedule,
   normalizeAmount,
