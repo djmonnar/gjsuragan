@@ -3750,6 +3750,26 @@ function userPrivateDeletePayload() {
     return acc;
   }, {});
 }
+// 새로 만드는 문서에는 지울 필드가 없다.
+// 삭제 표시(FieldValue.delete())를 그대로 넣으면 set() 이 {merge:true} 없이는
+// 받지 않는다고 거절해서 저장 자체가 실패한다.
+// serverTimestamp 같은 다른 표시는 건드리면 안 되므로 삭제 표시만 정확히 가려낸다.
+function isFieldDeleteSentinel(value) {
+  if (!value || typeof value !== 'object') return false;
+  try {
+    if (typeof value.isEqual === 'function') {
+      return value.isEqual(firebase.firestore.FieldValue.delete());
+    }
+  } catch (e) {
+    // isEqual 을 못 쓰면 아래 이름 검사로 넘어간다.
+  }
+  return /delete/i.test(String(value._methodName || ''));
+}
+function withoutFieldDeletes(payload = {}) {
+  return Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => !isFieldDeleteSentinel(value))
+  );
+}
 function userPrivateLegacyPriceDeletePayload() {
   return USER_PRIVATE_LEGACY_PRICE_FIELDS.reduce((acc, field) => {
     acc[field] = firebase.firestore.FieldValue.delete();
@@ -9201,12 +9221,14 @@ async function saveMember() {
       ...userPrivateDeletePayload()
     };
     if (isCreate) {
-      batch.set(db.collection('users').doc(uid), {
+      // 새 문서라 지울 필드가 없다. 일시정지 해제 표시와 userPrivate 이관 표시가
+      // 삭제 표시로 들어오는데, set() 은 그걸 받지 않아 저장이 통째로 실패한다.
+      batch.set(db.collection('users').doc(uid), withoutFieldDeletes({
         ...userPayload,
         adminRegistered: true,
         registeredBy: adminUid || '',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      }));
     } else {
       batch.update(db.collection('users').doc(uid), userPayload);
     }
