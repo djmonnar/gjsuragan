@@ -6452,11 +6452,6 @@ function adjustQty(btn, delta) {
   if (rowEl?.dataset.orderUid) refreshOrderRowCalculatedCells(rowEl.dataset.orderUid);
 }
 
-function orderRowElementByUid(uid) {
-  const check = Array.from(document.querySelectorAll('.order-check')).find(el => el.value === uid);
-  return check ? check.closest('tr') : null;
-}
-
 function orderQtyValuesFromRow(rowEl) {
   return {
     lunch: parseDeliveryCount(rowEl?.querySelector('.deliver-lunch')?.value, 0),

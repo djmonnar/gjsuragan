@@ -227,6 +227,39 @@ test('결제 전 상태는 등록 대상도 알림 대상도 아니다', () => {
   assert.equal(parser.isPendingStatus('PAY_COMPLETE'), false);
 });
 
+// Cloud Functions 는 UTC 로 돈다. 주문 시각이 없을 때 그냥 new Date() 를 쓰면
+// 한국시간 자정~오전 9시 사이에 날짜가 하루 전으로 잡혀서, 같은 주문인데
+// order_time 유무로 배송일이 달라진다.
+test('주문 시각이 없어도 한국 날짜로 잡는다', () => {
+  const utcNow = new Date('2026-09-14T17:00:00Z'); // 한국시간 2026-09-15 새벽 2시
+  const orderTs = Math.floor(utcNow.getTime() / 1000);
+
+  assert.equal(parser.singleProdDate(0, utcNow), '2026-09-15');
+  assert.equal(parser.singleProdDate(0, utcNow), parser.singleProdDate(orderTs, utcNow),
+    '주문 시각이 있든 없든 같은 날이어야 한다');
+});
+
+test('월 경계에서 직배송 희망날짜가 한 달 어긋나지 않는다', () => {
+  const utcNow = new Date('2026-09-30T17:00:00Z'); // 한국시간 2026-10-01 새벽 2시
+  const orderTs = Math.floor(utcNow.getTime() / 1000);
+  const values = ['배송희망날짜 30일'];
+
+  assert.equal(parser.parseDirectHopeDateInfo(values, 0, utcNow).date, '2026-10-30');
+  assert.equal(parser.parseDirectHopeDateInfo(values, orderTs, utcNow).date, '2026-10-30');
+});
+
+test('연말 상품명 날짜도 한국 연도로 잡는다', () => {
+  const utcNow = new Date('2025-12-31T16:00:00Z'); // 한국시간 2026-01-01 새벽 1시
+  // 한국은 이미 1월 1일이다. 1월 5일 상품은 올해(2026) 로 잡혀야 한다.
+  assert.equal(parser.parseDateFromProdName('1월 5일 반찬세트', 0, utcNow).date, '2026-01-05');
+});
+
+test('한국시간 기준 날짜를 돌려준다', () => {
+  const utcNow = new Date('2026-09-14T17:00:00Z');
+  assert.equal(parser.kstBase(0, utcNow).getUTCDate(), 15);
+  assert.equal(parser.kstBase(Math.floor(utcNow.getTime() / 1000), utcNow).getUTCDate(), 15);
+});
+
 test('syncKey 는 첫 줄만 주문번호를 그대로 쓴다', () => {
   assert.equal(parser.buildSyncKey('123', 1), '123');
   assert.equal(parser.buildSyncKey('123', 2), '123-2');
