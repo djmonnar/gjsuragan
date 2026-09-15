@@ -3106,9 +3106,24 @@ function isMealPausedOnDate(user = {}, dStr = currentDateStr) {
   if (startDate && dStr < startDate) return false;
   return !resumeDate || dStr < resumeDate;
 }
+// 그날 주문 마감을 넘겨 가입했으면 그날 주문은 받을 수 없다.
+// 고객 앱과 같은 기준으로 본다 — 마감 시각 정각도 이미 마감이다.
+function userJoinedAfterDeadline(user = {}) {
+  const created = timestampToDate(user.createdAt || user.registeredAt || user.joinedAt);
+  if (!created) return false;
+  const kst = new Date(created.getTime() + 9 * 60 * 60 * 1000);
+  const minutes = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+  return minutes >= adminDeadline.hour * 60 + adminDeadline.minute;
+}
+// 가입 날짜만 비교하면, 마감 뒤에 가입한 업체도 가입 당일부터 활성으로 잡힌다.
+// 그러면 기본수량이 그대로 그날 주문에 들어가서, 배송하지도 않은 날이 정산서에 올라간다.
 function isUserActiveOnDate(user = {}, dStr = currentDateStr) {
   const createdDate = userCreatedDateStr(user);
-  return (!createdDate || createdDate <= dStr) && !isMealPausedOnDate(user, dStr);
+  if (createdDate) {
+    if (createdDate > dStr) return false;
+    if (createdDate === dStr && userJoinedAfterDeadline(user)) return false;
+  }
+  return !isMealPausedOnDate(user, dStr);
 }
 const NEW_MEMBER_BADGE_DAYS = 3;
 function isNewMember(user = {}) {
