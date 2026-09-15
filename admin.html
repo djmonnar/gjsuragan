@@ -1946,6 +1946,8 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <li>업체 카드를 클릭하면 업체명, 배송지, 식사시간, 요일별 기본 수량을 수정할 수 있습니다.</li>
           <li>매일 수량이 같으면 <b>매일 같은 수량 사용</b>을 체크합니다.</li>
           <li>요일마다 다르면 월~금 수량을 각각 입력합니다.</li>
+          <li><b>서비스 시작일</b>을 넣으면 그 날짜부터 주문표에 잡힙니다. 미리 등록만 해두고 나중에 시작하는 업체는 꼭 넣어주세요. 비워두면 가입 다음 영업일부터 잡힙니다.</li>
+          <li>아직 시작 전인 업체는 목록에 <b>○○ 시작</b> 표시가 붙습니다.</li>
         </ol>
       </div>
       <div class="manual-card">
@@ -2541,6 +2543,14 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
             <input class="form-input" type="number" id="edit-salad-price" min="0" placeholder="8000">
           </div>
           <div class="member-form-field full">
+            <label class="form-label" for="edit-service-start">서비스 시작일 <span style="font-weight:400;color:var(--text-secondary)">(선택)</span></label>
+            <input class="form-input" type="date" id="edit-service-start">
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:6px;line-height:1.5">
+              이 날짜부터 주문표에 잡힙니다. 비워두면 가입 다음 영업일부터입니다.<br>
+              미리 등록만 해두고 나중에 시작하는 업체는 시작일을 넣어주세요. 그전 날짜는 청구되지 않습니다.
+            </div>
+          </div>
+          <div class="member-form-field full">
             <label class="form-label" for="edit-admin-memo">관리자 메모</label>
             <input class="form-input" type="text" id="edit-admin-memo" maxlength="40" placeholder="주문 탭 업체명 옆에 표시됩니다. 예: 비닐X, 첫배송 주의">
           </div>
@@ -3115,9 +3125,20 @@ function userJoinedAfterDeadline(user = {}) {
   const minutes = kst.getUTCHours() * 60 + kst.getUTCMinutes();
   return minutes >= adminDeadline.hour * 60 + adminDeadline.minute;
 }
+function userServiceStartDateStr(user = {}) {
+  const value = String(user.serviceStartDate || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '';
+}
 // 가입 날짜만 비교하면, 마감 뒤에 가입한 업체도 가입 당일부터 활성으로 잡힌다.
 // 그러면 기본수량이 그대로 그날 주문에 들어가서, 배송하지도 않은 날이 정산서에 올라간다.
+//
+// 서비스 시작일을 정해두면 그 전날까지는 아예 잡지 않는다. 미리 등록만 해두고
+// 나중에 시작하는 업체가 그 사이 평일마다 청구되던 것을 막는다.
+// 실제로 들어온 주문 문서는 이 판정을 거치지 않으므로, 시작 전에 손님이 직접 넣은
+// 주문은 그대로 보인다. 여기서 막는 것은 자동으로 만들어지는 기본 주문뿐이다.
 function isUserActiveOnDate(user = {}, dStr = currentDateStr) {
+  const serviceStart = userServiceStartDateStr(user);
+  if (serviceStart && dStr < serviceStart) return false;
   const createdDate = userCreatedDateStr(user);
   if (createdDate) {
     if (createdDate > dStr) return false;
@@ -8035,9 +8056,17 @@ async function loadRecentOrderLogs() {
   }
 }
 
+// 아직 시작 전인 업체. 주문표에 왜 안 보이는지 회원 목록에서 바로 알 수 있어야 한다.
+function serviceStartBadgeHtml(user = {}) {
+  const start = userServiceStartDateStr(user);
+  if (!start || start <= dateStr(getKST())) return '';
+  return `<span class="member-row-badge paused" title="이 날짜부터 주문표에 잡힙니다">${escapeHtml(start)} 시작</span>`;
+}
+
 function memberRowBadgesHtml(user = {}, duplicateCount = 0) {
   const badges = [newMemberBadgeHtml(user), disposableLunchBadgeHtml(user), taxInvoiceBadgeHtml(user)];
   if (isAdminRegisteredBusiness(user)) badges.push('<span class="admin-memo-chip" title="앱 가입 없이 관리자가 직접 등록한 업체">직접등록</span>');
+  badges.push(serviceStartBadgeHtml(user));
   if (isMealPausedOnDate(user, dateStr(getKST()))) badges.push('<span class="member-row-badge paused">일시정지</span>');
   if (memberHasMissingInfo(user)) badges.push('<span class="member-row-badge missing">정보 확인</span>');
   if (memberWeeklyOrderQty(user) <= 0) badges.push('<span class="member-row-badge zero">0개·휴무</span>');
@@ -8245,6 +8274,7 @@ function openBusinessCreate() {
   document.getElementById('edit-lunch-price').value = '';
   document.getElementById('edit-salad-price').value = '';
   document.getElementById('edit-admin-memo').value = '';
+  document.getElementById('edit-service-start').value = '';
   document.getElementById('edit-meal-paused').checked = false;
   document.getElementById('edit-meal-pause-start').value = '';
   document.getElementById('edit-meal-resume-date').value = '';
@@ -8360,6 +8390,7 @@ function openMemberEdit(uid) {
   document.getElementById('edit-salad-price').value = userSaladPrice(u) || '';
   document.getElementById('edit-admin-memo').value = adminMemoValue(u);
   document.getElementById('edit-meal-paused').checked = u.mealPaused === true;
+  document.getElementById('edit-service-start').value = userServiceStartDateStr(u);
   document.getElementById('edit-meal-pause-start').value = u.mealPauseStartDate || '';
   document.getElementById('edit-meal-resume-date').value = u.mealResumeDate || '';
   toggleMemberPauseFields();
@@ -9175,6 +9206,7 @@ async function saveMember() {
   const mealPauseStartDate = document.getElementById('edit-meal-pause-start').value;
   const mealResumeDate = document.getElementById('edit-meal-resume-date').value;
   const disposableLunch = document.getElementById('edit-disposable-lunch').checked;
+  const serviceStartDate = document.getElementById('edit-service-start').value;
   if (!bizname) {
     const errEl = document.getElementById('edit-error');
     errEl.textContent = '업체명을 입력해주세요.';
@@ -9225,6 +9257,8 @@ async function saveMember() {
       defaultSalad: salad,
       sameDailyMeal,
       weekdayMeals,
+      // 비워두면 필드를 지운다. 새 문서에는 지울 게 없으므로 withoutFieldDeletes 가 걷어낸다.
+      serviceStartDate: serviceStartDate || firebase.firestore.FieldValue.delete(),
       ...pauseFields,
       ...publicUserPricePayload(lunchPrice, saladPrice),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -9250,6 +9284,8 @@ async function saveMember() {
     await commitMemberHolidaySave(holidayPlan);
     const holidaySummary = memberHolidaySaveSummary(holidayPlan);
     allUsers[uid] = { ...allUsers[uid], businessName: bizname, phone, deliveryPlace, deliveryPlaceDetail, mealTime, defaultLunch: lunch, defaultSalad: salad, sameDailyMeal, weekdayMeals, ...publicUserPricePayload(lunchPrice, saladPrice), adminMemo, disposableLunch, mealPaused };
+    if (serviceStartDate) allUsers[uid].serviceStartDate = serviceStartDate;
+    else delete allUsers[uid].serviceStartDate;
     if (isCreate) allUsers[uid].adminRegistered = true;
     if (mealPaused) {
       allUsers[uid].mealPauseStartDate = mealPauseStartDate;

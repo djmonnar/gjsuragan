@@ -41,6 +41,7 @@ function load(deadline = { hour: 9, minute: 20 }) {
     extractFunction('timestampToDate'),
     extractFunction('kstDateStrFromTimestamp'),
     extractFunction('userCreatedDateStr'),
+    extractFunction('userServiceStartDateStr'),
     extractFunction('isMealPausedOnDate'),
     extractFunction('userJoinedAfterDeadline'),
     extractFunction('isUserActiveOnDate')
@@ -96,4 +97,57 @@ test('일시정지 판정은 그대로다', () => {
   const user = { createdAt: kst('2026-09-01', 8, 0), mealPaused: true, mealPauseStartDate: '2026-09-10' };
   assert.equal(ctx.isUserActiveOnDate(user, '2026-09-11'), false);
   assert.equal(ctx.isUserActiveOnDate(user, '2026-09-09'), true);
+});
+
+// 미리 등록만 해두고 나중에 시작하는 업체가, 그 사이 평일마다 기본수량으로
+// 청구되던 문제. 업체별 '서비스 시작일' 을 정하면 그 전날까지는 잡지 않는다.
+test('서비스 시작일 전에는 주문에 잡히지 않는다', () => {
+  const ctx = load();
+  const user = { createdAt: kst('2026-09-11', 8, 0), serviceStartDate: '2026-09-21' };
+
+  assert.equal(ctx.isUserActiveOnDate(user, '2026-09-11'), false, '가입일이어도 시작 전이면 안 잡힌다');
+  assert.equal(ctx.isUserActiveOnDate(user, '2026-09-18'), false);
+  assert.equal(ctx.isUserActiveOnDate(user, '2026-09-20'), false, '시작 전날까지는 안 잡힌다');
+  assert.equal(ctx.isUserActiveOnDate(user, '2026-09-21'), true, '시작일 당일부터 잡힌다');
+  assert.equal(ctx.isUserActiveOnDate(user, '2026-09-22'), true);
+});
+
+test('서비스 시작일을 비워두면 예전처럼 가입 기준으로 잡는다', () => {
+  const ctx = load();
+  const before = { createdAt: kst('2026-09-11', 8, 0) };
+  const after = { createdAt: kst('2026-09-11', 9, 30) };
+
+  assert.equal(ctx.isUserActiveOnDate({ ...before, serviceStartDate: '' }, '2026-09-11'), true);
+  assert.equal(ctx.isUserActiveOnDate({ ...after, serviceStartDate: '' }, '2026-09-11'), false);
+});
+
+test('형식이 어긋난 시작일은 무시한다', () => {
+  const ctx = load();
+  const user = { createdAt: kst('2026-09-11', 8, 0), serviceStartDate: '2026/09/21' };
+  assert.equal(ctx.isUserActiveOnDate(user, '2026-09-11'), true, '잘못된 값 때문에 업체가 통째로 빠지면 안 된다');
+  assert.equal(ctx.userServiceStartDateStr(user), '');
+});
+
+test('시작일이 지나도 일시정지는 그대로 적용된다', () => {
+  const ctx = load();
+  const user = {
+    createdAt: kst('2026-09-01', 8, 0),
+    serviceStartDate: '2026-09-10',
+    mealPaused: true,
+    mealPauseStartDate: '2026-09-14'
+  };
+  assert.equal(ctx.isUserActiveOnDate(user, '2026-09-11'), true);
+  assert.equal(ctx.isUserActiveOnDate(user, '2026-09-15'), false);
+});
+
+test('저장 경로가 서비스 시작일을 실제로 담는다', () => {
+  // 화면에만 있고 저장이 안 되면 아무 소용이 없다. 저장 코드 자체를 고정한다.
+  const save = adminSource.slice(adminSource.indexOf("const isCreate = document.getElementById('edit-mode')"));
+  const body = save.slice(0, save.indexOf('await batch.commit()'));
+  assert.match(body, /const serviceStartDate = document\.getElementById\('edit-service-start'\)\.value/);
+  assert.match(body, /serviceStartDate: serviceStartDate \|\| firebase\.firestore\.FieldValue\.delete\(\)/);
+});
+
+test('수정 모달을 열면 저장된 시작일이 채워진다', () => {
+  assert.match(adminSource, /getElementById\('edit-service-start'\)\.value = userServiceStartDateStr\(u\)/);
 });
