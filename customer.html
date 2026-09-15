@@ -2070,7 +2070,7 @@
           <div class="deadline-timer-time" id="deadline-timer-time">--:--:--</div>
         </div>
       </div>
-      <div class="deadline-timer-sub" id="deadline-timer-sub">오늘 주문 마감: 오전 9시 10분</div>
+      <div class="deadline-timer-sub" id="deadline-timer-sub">오늘 주문 마감: 오전 9시 20분</div>
     </div>
 
     <button class="meal-open-btn" id="order-meal-open-btn" type="button" onclick="openOrderMealModal()">
@@ -2082,7 +2082,7 @@
       <span class="icon"><svg class="gj-icon"><use href="#gj-clock"></use></svg></span>
       <div>
         <strong>오늘 주문이 마감되었습니다</strong><br>
-        <span style="font-size:12px" id="closed-banner-time">오늘 주문 마감: 오전 9시 10분</span>
+        <span style="font-size:12px" id="closed-banner-time">오늘 주문 마감: 오전 9시 20분</span>
       </div>
     </div>
 
@@ -2419,7 +2419,7 @@
       <div class="help-section-title">2. 오늘 주문과 내일 주문</div>
       <ol>
         <li><b>오늘 주문</b>은 오늘 받을 도시락과 샐러드 수량입니다.</li>
-        <li>오늘 주문은 <b>오전 9시 10분</b>에 마감됩니다. 마감 후에는 수량을 바꿀 수 없습니다.</li>
+        <li>오늘 주문은 <b><span id="help-deadline-text">오전 9시 20분</span></b>에 마감됩니다. 마감 후에는 수량을 바꿀 수 없습니다.</li>
         <li><b>내일 주문</b>은 다음 영업일에 받을 주문입니다. 오늘 주문이 마감되어도 내일 주문은 입력할 수 있습니다.</li>
         <li>밤 12시가 지나면 내일 주문이 자동으로 오늘 주문이 됩니다.</li>
         <li>주문 날짜가 헷갈리면 주문 카드 위의 날짜와 요일을 먼저 확인해주세요.</li>
@@ -2792,8 +2792,11 @@ const mealMenuCache = {};
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
 let customHolidays = {};
-const FIXED_TODAY_ORDER_DEADLINE = { hour: 9, minute: 10 };
-let orderDeadline = { ...FIXED_TODAY_ORDER_DEADLINE };
+// 관리자 설정(config/settings)을 못 읽을 때 쓰는 기본 마감.
+// 예전에는 이 값으로 고정해두고 설정을 아예 안 읽어서, 관리자 화면에서 마감을 바꿔도
+// 고객 앱은 그대로였다. 안내 문구와 실제 마감이 어긋나 주문을 일찍 막았다.
+const DEFAULT_ORDER_DEADLINE = { hour: 9, minute: 20 };
+let orderDeadline = { ...DEFAULT_ORDER_DEADLINE };
 const DEFAULT_MEAL_PRICE = 8000;
 const MULTI_HOLIDAY_MAX_DATES = 31;
 const MULTI_HOLIDAY_MAX_FUTURE_DAYS = 366;
@@ -2934,7 +2937,27 @@ async function loadCustomHolidays() {
 }
 
 async function loadSettings() {
-  orderDeadline = { ...FIXED_TODAY_ORDER_DEADLINE };
+  orderDeadline = { ...DEFAULT_ORDER_DEADLINE };
+  try {
+    const snap = await db.collection('config').doc('settings').get();
+    const data = snap.exists ? (snap.data() || {}) : {};
+    const hour = Number(data.closeHour);
+    const minute = Number(data.closeMinute);
+    if (Number.isInteger(hour) && hour >= 0 && hour <= 23) orderDeadline.hour = hour;
+    if (Number.isInteger(minute) && minute >= 0 && minute <= 59) orderDeadline.minute = minute;
+  } catch (e) {
+    // 설정을 못 읽어도 고객 화면은 돌아야 한다. 기본 마감을 그대로 쓴다.
+  }
+  applyDeadlineTexts();
+}
+
+// 마감 시각이 적힌 고정 문구들을 실제 설정값으로 맞춘다.
+// 여기서 안 맞춰주면 배너와 사용안내가 옛 시각을 계속 보여준다.
+function applyDeadlineTexts() {
+  const banner = document.getElementById('closed-banner-time');
+  if (banner) banner.textContent = `오늘 주문 마감: ${deadlineText()}`;
+  const help = document.getElementById('help-deadline-text');
+  if (help) help.textContent = deadlineText();
 }
 
 async function isOrderDateLocked(dStr) {
