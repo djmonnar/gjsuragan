@@ -605,3 +605,74 @@ test('구매확정·반품완료 주문은 알림으로 올리지 않는다', as
   assert.equal(result.skipped, 3);
   assert.equal(missedOrders(db).length, 0);
 });
+
+// 함승희님 건: 취소했는데 배송관리에 그대로 남아 있었다.
+// 아임웹은 취소를 주문 최상위가 아니라 별도 클레임 기록(...-C1)에 붙인다.
+// 최상위 claim_status 만 보던 탓에 흔적을 못 찾고, 이미 등록된 주문이라며
+// 상품 줄 조회를 건너뛰어서 고객 문서가 안 지워졌다.
+function orderWithClaim(orderNo, extra = {}) {
+  return order(orderNo, 'PAY_COMPLETE', {
+    claims: [{ claim_no: `${orderNo}-C1`, status: 'CANCEL', reason: '구매 의사 취소', refund_status: '환불완료' }],
+    ...extra
+  });
+}
+
+test('취소가 클레임 기록에만 있어도 찾아서 지운다', async () => {
+  const db = fakeDb({ 'customers/a': { syncKey: '202609145545371', name: '함승희' } });
+  const client = fakeClientWithProdOrders([orderWithClaim('202609145545371')], {
+    '202609145545371': [{ status: 'CANCEL', items: [subItem('주 1회|금 조리|총 4회')] }]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '', fullSweep: false });
+
+  assert.equal(result.deleted, 1);
+  assert.equal(customers(db).length, 0, '취소한 손님이 배송관리에 남으면 안 된다');
+});
+
+test('취소 흔적은 있는데 상품 줄에서 확인이 안 되면 알린다', async () => {
+  // 함부로 지우면 살아 있는 주문이 날아가고, 그냥 넘기면 취소한 손님이 남는다.
+  const db = fakeDb({ 'customers/a': { syncKey: '202609145545371', name: '함승희' } });
+  const client = fakeClientWithProdOrders([orderWithClaim('202609145545371')], {
+    '202609145545371': [{ status: 'PAY_COMPLETE', items: [subItem('주 1회|금 조리|총 4회')] }]
+  });
+
+  const result = await syncImwebOrders({ db, client, env: {}, registerFrom: '', fullSweep: false });
+
+  assert.equal(result.deleted, 0, '확인이 안 되면 지우지 않는다');
+  assert.equal(customers(db).length, 1);
+  const [alert] = missedOrders(db);
+  assert.equal(alert.reasonCode, 'cancel_unclear');
+  assert.match(alert.reason, /배송관리에서 직접 지워/);
+});
+
+test('주문에 흔적이 없고 상품 줄만 취소면 정시 재확인에서 잡는다', async () => {
+  const orders = [order('202609145545371', 'PAY_COMPLETE')];
+  const prodOrders = { '202609145545371': [{ status: 'CANCEL', items: [subItem('주 1회|금 조리|총 4회')] }] };
+  const seed = () => fakeDb({ 'customers/a': { syncKey: '202609145545371', name: '함승희' } });
+
+  const normal = seed();
+  await syncImwebOrders({
+    db: normal, client: fakeClientWithProdOrders(orders, prodOrders), env: {}, registerFrom: '', fullSweep: false
+  });
+  assert.equal(customers(normal).length, 1, '평소 실행은 API 를 아끼려고 건너뛴다');
+
+  const sweep = seed();
+  const result = await syncImwebOrders({
+    db: sweep, client: fakeClientWithProdOrders(orders, prodOrders), env: {}, registerFrom: '', fullSweep: true
+  });
+  assert.equal(result.deleted, 1);
+  assert.equal(customers(sweep).length, 0, '정시 재확인에서는 잡아야 한다');
+});
+
+test('전체 재확인은 정시 실행에서만 켜진다', async () => {
+  const client = fakeClient([order('5000')], { 5000: [subItem('주 3회|월/수/금 조리|총 12회')] });
+  const at = minute => syncImwebOrders({
+    db: fakeDb(), client, env: {}, registerFrom: '',
+    now: new Date(Date.UTC(2026, 8, 16, 1, minute))
+  });
+
+  assert.equal((await at(0)).fullSweep, true);
+  assert.equal((await at(4)).fullSweep, true);
+  assert.equal((await at(5)).fullSweep, false);
+  assert.equal((await at(35)).fullSweep, false);
+});

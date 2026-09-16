@@ -182,6 +182,7 @@ async function deleteCancelledLine(db, orderNo, syncKey, status, order, prodOrde
 // 손님은 주문했는데 우리 쪽에 안 뜨는 경우들. 로그만 남기면 아무도 못 본다.
 const UNREGISTERED_REASONS = {
   unknown_status: '아임웹 주문 상태를 알아보지 못해서 자동으로 등록하지 못했습니다. 상태 이름을 알려주시면 다음부터 자동으로 잡습니다.',
+  cancel_unclear: '아임웹에 취소·환불 흔적이 있는데 어느 상품 줄이 취소됐는지 확인되지 않습니다. 아임웹에서 이 주문을 확인하고, 취소가 맞으면 배송관리에서 직접 지워주세요.',
   unparsed_product: '상품명에서 세트·상품을 알아보지 못해서 자동으로 등록하지 못했습니다. 직접 등록해 주세요.',
   no_items: '아임웹에서 이 주문의 상품 내역을 읽지 못했습니다. 아임웹에서 주문을 확인해 주세요.'
 };
@@ -267,7 +268,13 @@ async function syncImwebOrders(options = {}) {
     : await loadRegisterFrom(db);
   // 기준일이 없어도 '알아보지 못한 주문' 은 알려야 하므로 항상 읽는다.
   const missedRecords = await loadMissedRecords(db);
-  log(`아임웹 ${orders.length}건 / 기존 ${existing.size}건${registerFrom ? ` / 등록 기준일 ${registerFrom}` : ''}`);
+  // 취소 흔적이 주문에 전혀 안 남고 상품 줄에만 찍히는 경우가 있다.
+  // 그건 줄을 조회해야만 알 수 있는데, 매 실행마다 등록된 주문을 전부 조회하면
+  // 아임웹 API 를 5분마다 수십 번 부르게 된다. 정시 실행에서만 한 번씩 전부 훑는다.
+  const fullSweep = options.fullSweep !== undefined
+    ? Boolean(options.fullSweep)
+    : now.getUTCMinutes() < 5;
+  log(`아임웹 ${orders.length}건 / 기존 ${existing.size}건${registerFrom ? ` / 등록 기준일 ${registerFrom}` : ''}${fullSweep ? ' / 전체 재확인' : ''}`);
 
   let saved = 0;
   let deleted = 0;
@@ -320,8 +327,10 @@ async function syncImwebOrders(options = {}) {
 
     // 상품 조회는 주문 하나당 API 한 번이라 이미 등록된 주문은 여기서 끊는다.
     // 다만 claim_* 에 취소 흔적이 있으면 부분취소일 수 있어서 줄 단위로 다시 본다.
-    const claimTrace = parser.hasClaimTrace(claimStatuses);
-    if (!forceRecheck && !claimTrace && existing.has(orderNo)) {
+    // 취소는 주문 최상위가 아니라 클레임 기록에 붙는다. 주문 전체를 훑어야 흔적이 잡힌다.
+    // 흔적이 있으면 이미 등록된 주문이라도 상품 줄을 다시 조회한다.
+    const claimTrace = parser.hasClaimTrace(claimStatuses) || parser.hasCancelTraceDeep(order);
+    if (!forceRecheck && !fullSweep && !claimTrace && existing.has(orderNo)) {
       skipped++;
       continue;
     }
@@ -372,8 +381,10 @@ async function syncImwebOrders(options = {}) {
       return parsedEntries[line.itemIdx - 1];
     };
 
+    let cancelledAnyLine = false;
     for (const line of lines) {
       if (line.cancelStatus) {
+        cancelledAnyLine = true;
         deleted += await deleteCancelledLine(db, orderNo, line.syncKey, line.cancelStatus, order, prodOrders, existing, now, log, cancelledUnregistered);
         continue;
       }
@@ -442,6 +453,17 @@ async function syncImwebOrders(options = {}) {
       saved++;
       log(`✅ ${entry.isSub ? '정기' : '선택'} 등록: ${entry.parsed.name} / ${entry.syncKey} / ${entry.parsed.scheduleName}`);
     }
+
+    // 취소 흔적은 있는데 어느 줄이 취소됐는지 확인이 안 됐다.
+    // 함부로 지우면 살아 있는 주문이 날아가고, 그냥 넘기면 취소한 손님이 배송관리에 남는다.
+    // 어느 쪽도 조용히 해서는 안 되므로 사람이 보게 알린다.
+    if (claimTrace && !cancelledAnyLine && recordsForOrderNo(existing, orderNo).length) {
+      await noteUnregistered({
+        order, syncKey: orderNo, status: claimStatuses.join(' / ') || headStatus,
+        reason: UNREGISTERED_REASONS.cancel_unclear, reasonCode: 'cancel_unclear',
+        parsed: null, orderDate: parser.orderDate(order)
+      });
+    }
   }
 
   if (alertOverflow) {
@@ -453,7 +475,7 @@ async function syncImwebOrders(options = {}) {
   }
   log(`=== 완료: 등록 ${saved}건 / 삭제 ${deleted}건 / 건너뜀 ${skipped}건${missed ? ` / 등록 보류 ${missed}건` : ''}${cancelledUnregistered.length ? ` / 취소 ${cancelledUnregistered.length}건` : ''} ===`);
   return {
-    saved, deleted, skipped, missed,
+    saved, deleted, skipped, missed, fullSweep,
     newAlerts, alertOverflow,
     cancelled: cancelledUnregistered.length,
     cancelledOrderNos: cancelledUnregistered.slice(0, 30),
