@@ -39,6 +39,7 @@
     appId: "1:1009198450175:web:4a55da7c2092dba42613ca"
   };
   const CUSTOMER_FIREBASE_APP_NAME = 'gjsuragan-customer';
+  const FUNCTIONS_API_BASE = 'https://asia-northeast3-gjsuragan-60505.cloudfunctions.net/api';
   const firebaseApp = firebase.initializeApp(firebaseConfig, CUSTOMER_FIREBASE_APP_NAME);
   const auth = firebaseApp.auth();
   auth.languageCode = 'ko';
@@ -3945,6 +3946,14 @@ async function doRegister() {
   }
   try {
     await cred.user.getIdToken(true);
+    // 프로필을 저장하기 전에 본다. 저장한 뒤에 알면 이미 업체가 둘이 된 뒤다.
+    const duplicateName = await findDuplicateSignup(cred.user, bizname, phone);
+    if (duplicateName) {
+      await cancelSignupAccount(cred.user);
+      isRegisteringProfile = false;
+      showError('reg-error', `이미 "${duplicateName}" 업체가 같은 연락처로 가입되어 있습니다.\n로그인 화면에서 기존 계정으로 로그인해주세요.\n비밀번호가 기억나지 않으면 로그인 화면의 비밀번호 재설정을 이용하시면 됩니다.`);
+      return;
+    }
     await saveProfileWithRetry(cred.user.uid, buildProfilePayload);
   } catch(e) {
     console.error('회원 프로필 저장 오류:', e);
@@ -3960,6 +3969,46 @@ async function doRegister() {
   }
 
   await finishRegistration(cred.user);
+}
+
+// 서버에 이미 등록된 업체인지 물어본다. 찾으면 그 업체명을, 아니면 빈 문자열.
+//
+// 답을 못 받으면 '중복 아님'으로 본다. 확인이 안 된다고 손님을 돌려보내면
+// 함수가 한 번 삐끗할 때 진짜 손님이 가입을 못 한다. 그쪽 손해가 훨씬 크다.
+// 놓친 중복은 관리자 화면에 '중복'으로 떠서 거기서 정리할 수 있다.
+const SIGNUP_DUPLICATE_CHECK_TIMEOUT_MS = 8000;
+async function findDuplicateSignup(user, businessName, phone) {
+  // 찬 함수가 깨어나는 동안 가입 화면이 멈춰 있으면 안 된다.
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), SIGNUP_DUPLICATE_CHECK_TIMEOUT_MS) : null;
+  try {
+    const token = await user.getIdToken();
+    const response = await fetch(`${FUNCTIONS_API_BASE}/api/signup/duplicate-check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ businessName, phone }),
+      signal: controller ? controller.signal : undefined
+    });
+    if (!response.ok) return '';
+    const data = await response.json();
+    if (!data || data.ok === false || !data.duplicate) return '';
+    return String(data.businessName || businessName || '');
+  } catch(e) {
+    console.warn('중복 가입 확인을 건너뜁니다:', e);
+    return '';
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+// 가입을 되돌린다. 방금 만든 Auth 계정을 지워서 빈 계정이 남지 않게 한다.
+async function cancelSignupAccount(user) {
+  try {
+    await user.delete();
+  } catch(deleteError) {
+    console.warn('가입 취소 후 Auth 계정 정리 오류:', deleteError);
+    try { await auth.signOut(); } catch(signOutError) { console.warn('가입 취소 후 로그아웃 오류:', signOutError); }
+  }
 }
 
 async function saveProfileWithRetry(uid, buildProfilePayload) {
@@ -3985,6 +4034,17 @@ async function recoverStrandedSignup(email, pw, buildProfilePayload) {
   try {
     const doc = await db.collection('users').doc(cred.user.uid).get();
     if (!doc.exists) {
+      // 프로필이 없는 계정이다. 여기서 만들면 업체가 하나 새로 생기는 것과 같으므로
+      // 새로 가입할 때와 똑같이 중복을 본다.
+      // 다만 Auth 계정은 지우지 않는다. 손님이 비밀번호로 직접 들어온 자기 계정이다.
+      const payload = buildProfilePayload();
+      const duplicateName = await findDuplicateSignup(cred.user, payload.businessName, payload.phone);
+      if (duplicateName) {
+        isRegisteringProfile = false;
+        showError('reg-error', `이미 "${duplicateName}" 업체가 같은 연락처로 가입되어 있습니다.\n로그인 화면에서 기존 계정으로 로그인해주세요.`);
+        try { await auth.signOut(); } catch(signOutError) { console.warn('중복 안내 후 로그아웃 오류:', signOutError); }
+        return;
+      }
       await saveProfileWithRetry(cred.user.uid, buildProfilePayload);
       showToast('이전에 완료되지 않았던 가입을 복구했습니다.', 'success');
     } else {
