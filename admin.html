@@ -14361,10 +14361,8 @@ function normalizedBusinessKey(name) {
 function settlementMergeTargetFor(sourceRow) {
   const key = normalizedBusinessKey(sourceRow?.user?.businessName);
   if (!key) return null;
-  const matches = settlementRows.filter(row => row.uid !== sourceRow.uid
-    && !row.manualOrder
-    && row.type !== 'event'
-    && normalizedBusinessKey(row.user?.businessName) === key);
+  const matches = settlementMergeCandidates(sourceRow)
+    .filter(row => normalizedBusinessKey(row.user?.businessName) === key);
   return matches.length === 1 ? matches[0] : null;
 }
 
@@ -14406,13 +14404,16 @@ function mergedDeliveryRecordFor(targetUid, user, existing, incoming) {
 
 // 합칠 수 있는 대상은 지금 살아 있는 등록 업체뿐이다.
 // 수동 행이나 탈퇴한 계정으로 배송 기록을 옮기면 또 갈라진다.
+//
+// 목록은 정산 행이 아니라 allUsers 에서 만든다. 정산 행은 그 달에 배송이 있어야
+// 생기는데(computeMonthlySettlementRows 끝의 filter), 다시 가입했거나 복구한
+// 계정은 정의상 그 달 배송이 0이다. 정작 합쳐 넣어야 할 계정이 목록에서 빠져
+// '합칠 등록 업체가 없습니다' 로 막혔다. allUsers 에는 삭제·정지된 계정과
+// 관리자가 애초에 들어오지 않으므로 대상 조건은 그대로 지켜진다.
 function settlementMergeCandidates(sourceRow) {
-  return settlementRows
-    .filter(row => row.uid !== sourceRow.uid
-      && !row.manualOrder
-      && !row.removedUser
-      && row.type !== 'event'
-      && Boolean(allUsers[row.uid]))
+  return Object.entries(allUsers)
+    .filter(([uid]) => uid !== sourceRow.uid)
+    .map(([uid, user]) => ({ uid, user: user || {} }))
     .sort((a, b) => (a.user.businessName || '').localeCompare(b.user.businessName || '', 'ko'));
 }
 
@@ -14449,7 +14450,7 @@ function openSettlementMergeModal(sourceUid) {
   }
   const candidates = settlementMergeCandidates(sourceRow);
   if (!candidates.length) {
-    showToast('합칠 등록 업체가 없습니다. 이번 달에 배송이 있는 업체만 고를 수 있습니다.');
+    showToast('합칠 등록 업체가 없습니다.');
     return;
   }
 
@@ -14473,11 +14474,12 @@ async function confirmSettlementMerge() {
   const sourceUid = settlementMergeSourceUid;
   const sourceRow = settlementRows.find(row => row.uid === sourceUid);
   const targetUid = document.getElementById('settlement-merge-target')?.value || '';
-  const targetRow = settlementRows.find(row => row.uid === targetUid);
-  if (!sourceRow || !targetRow) {
+  const targetUser = allUsers[targetUid];
+  if (!sourceRow || !targetUser) {
     showToast('합칠 업체를 고르지 못했습니다.');
     return;
   }
+  const targetName = targetUser.businessName || targetUid;
   const moves = settlementMergeMoves(sourceUid);
   if (!moves.length) {
     showToast('옮길 배송 기록이 없습니다.');
@@ -14486,7 +14488,6 @@ async function confirmSettlementMerge() {
   closeSettlementMergeModal();
 
   try {
-    const user = allUsers[targetRow.uid] || {};
     const tombstone = {
       deleted: true,
       deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -14494,17 +14495,22 @@ async function confirmSettlementMerge() {
     };
     const payload = {};
     moves.forEach(({ date, record }) => {
-      const existing = (cachedDeliveryRecords[date] || {})[targetRow.uid];
-      const merged = mergedDeliveryRecordFor(targetRow.uid, user, existing, record);
-      payload[date] = { [targetRow.uid]: merged, [sourceUid]: tombstone };
+      const existing = (cachedDeliveryRecords[date] || {})[targetUid];
+      const merged = mergedDeliveryRecordFor(targetUid, targetUser, existing, record);
+      payload[date] = { [targetUid]: merged, [sourceUid]: tombstone };
     });
     for (const [date, rows] of Object.entries(payload)) await saveDeliveryRecords(date, rows);
 
-    // 옮긴 쪽 uid로 저장돼 있던 정산 문서도 지운다. (남겨두면 빈 줄로 다시 뜬다)
+    // 저장된 정산 문서를 양쪽 다 배송기록 기준으로 다시 계산한다.
+    // 관리자 정산 탭은 그릴 때마다 배송기록에서 다시 집계하지만 고객 화면은
+    // 저장된 정산 문서를 그대로 읽는다. 여기서 맞추지 않으면 옮겨받은 업체의
+    // 고객 정산표에 이번 달 내역이 통째로 빠져 보인다.
+    // 옮긴 쪽은 배송이 0이 되므로 같은 계산에서 정리된다. 입금이 잡힌 행은
+    // 애초에 합치기를 막았고, 이월·보류 정보가 있으면 계산이 문서를 남긴다.
     const month = document.getElementById('settle-month').value || currentMonthStr();
-    await settlementItemRef(month, sourceUid).delete().catch(() => {});
+    await rebuildSettlementsForUids(month, [sourceUid, targetUid]);
 
-    showToast(`✅ ${moves.length}일치를 ${targetRow.user.businessName}로 합쳤습니다.`);
+    showToast(`✅ ${moves.length}일치를 ${targetName}로 합쳤습니다.`);
     await loadSettlements();
   } catch(e) {
     showToast('합치기 실패: ' + e.message);
