@@ -3146,6 +3146,17 @@ function isUserActiveOnDate(user = {}, dStr = currentDateStr) {
   }
   return !isMealPausedOnDate(user, dStr);
 }
+// 가입 시각을 KST 기준 '2026-09-17 08:12' 로 만든다.
+// 같은 날 두 번 가입한 경우 날짜만으로는 순서를 알 수 없다.
+function memberCreatedTimeStr(user = {}) {
+  const created = timestampToDate(user.createdAt || user.registeredAt || user.joinedAt);
+  const dateStrValue = userCreatedDateStr(user);
+  if (!created || !dateStrValue) return '';
+  const time = new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false
+  }).format(created);
+  return `${dateStrValue} ${time}`;
+}
 const NEW_MEMBER_BADGE_DAYS = 3;
 function isNewMember(user = {}) {
   const createdAt = timestampToDate(user.createdAt || user.registeredAt || user.joinedAt);
@@ -8089,6 +8100,19 @@ function memberOrderSummary(user = {}) {
   return { main: `${lunchLabel} ${lunch} · 샐러드 ${salad}`, sub: `매일 동일 · 주 ${weekly}개` };
 }
 
+// 중복이면 가입 시각까지 보여준다.
+// 같은 업체가 몇 분 사이에 두 번 가입하면 날짜는 둘 다 같아서, 어느 쪽이 먼저인지
+// 화면만 봐서는 알 수 없다. '중복 2' 를 띄워놓고 어느 쪽을 지워야 하는지
+// 알려주지 않으면 관리자가 판단할 근거가 없다.
+function memberCreatedMetaText(user = {}, duplicateCount = 0) {
+  if (duplicateCount > 1) {
+    const stamp = memberCreatedTimeStr(user);
+    if (stamp) return `가입 ${stamp}`;
+  }
+  if (isNewMember(user)) return `가입 ${userCreatedDateStr(user) || '-'}`;
+  return '고객 상세정보 보기';
+}
+
 function memberActiveRowHtml(uid, user = {}, duplicateCounts = new Map()) {
   const address = memberAddressValue(user);
   const phone = String(user.phone || '').trim();
@@ -8101,7 +8125,7 @@ function memberActiveRowHtml(uid, user = {}, duplicateCounts = new Map()) {
       <button class="member-row-main" type="button" onclick="openMemberEdit('${jsString(uid)}')" aria-label="${escapeHtml(user.businessName || user.name || '고객')} 상세정보 열기">
         <span class="member-cell member-identity">
           <span class="member-name-line">${bizNameWithAdminMemoHtml(user.businessName || user.name || '-', adminMemoValue(user))}${memberRowBadgesHtml(user, duplicateCount)}</span>
-          <span class="member-meta">${isNewMember(user) ? `가입 ${escapeHtml(userCreatedDateStr(user) || '-')}` : '고객 상세정보 보기'}</span>
+          <span class="member-meta">${escapeHtml(memberCreatedMetaText(user, duplicateCount))}</span>
         </span>
         <span class="member-cell member-contact">
           <strong class="${phone ? '' : 'missing'}">${escapeHtml(phone || '연락처 미입력')}</strong>
