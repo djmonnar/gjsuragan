@@ -373,8 +373,11 @@ function missedRowHtml(record, index){
     : dup.kind === 'same-phone'
       ? '<span class="badge" style="background:#fff7ed;color:#c2410c;border-color:#fed7aa;font-weight:900;">겹칠 수 있음</span>'
       : '';
+  // 취소 확인 건은 '등록' 이 아니라 '지워야 할지 확인' 이다. 문구를 섞으면 안 된다.
   const manualBadge = manual
-    ? '<span class="badge" style="background:#fef2f2;color:#b91c1c;border-color:#fecaca;font-weight:900;">직접 등록 필요</span>'
+    ? (record.reasonCode === 'cancel_unclear'
+      ? '<span class="badge" style="background:#fef2f2;color:#b91c1c;border-color:#fecaca;font-weight:900;">취소 확인 필요</span>'
+      : '<span class="badge" style="background:#fef2f2;color:#b91c1c;border-color:#fecaca;font-weight:900;">직접 등록 필요</span>')
     : '';
 
   return `<label style="display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);cursor:pointer;">

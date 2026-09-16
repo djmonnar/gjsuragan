@@ -129,6 +129,30 @@ function hasClaimTrace(statuses) {
   return (statuses || []).some(status => CLAIM_TRACE_PATTERN.test(normalizeStatus(status)));
 }
 
+// 아임웹은 취소를 주문 최상위 필드가 아니라 별도 클레임 기록에 붙인다.
+// (관리자 화면의 '취소 완료 202609145545371-C1' 이 그것이다)
+// 최상위 claim_status 만 보면 흔적을 못 찾고, 이미 등록된 주문이라며 상품 줄 조회를
+// 건너뛰어서, 취소한 손님이 배송관리에 그대로 남는다.
+//
+// 그래서 주문 전체를 훑어 클레임·취소 경로에 실린 값이 취소 상태로 읽히는지 본다.
+// 여기서 참이 나오면 상품 줄을 다시 조회할 뿐이고, 실제로 지울지는 줄 상태가 정한다.
+// cancelable: false 처럼 이름만 취소인 값은 취소 상태로 읽히지 않아 걸리지 않는다.
+function hasCancelTraceDeep(node, path = '', depth = 0) {
+  if (!node || depth > 5) return false;
+  if (Array.isArray(node)) {
+    return node.some((item, idx) => hasCancelTraceDeep(item, `${path}[${idx}]`, depth + 1));
+  }
+  if (typeof node !== 'object') return false;
+
+  return Object.keys(node).some(key => {
+    const value = node[key];
+    const nextPath = path ? `${path}.${key}` : String(key);
+    if (value !== null && typeof value === 'object') return hasCancelTraceDeep(value, nextPath, depth + 1);
+    if (!CLAIM_TRACE_PATTERN.test(nextPath.toLowerCase())) return false;
+    return isCancelStatus(value);
+  });
+}
+
 // 상품 줄 하나의 상태. 줄에 상태가 없는 주문도 있어서 주문 상태를 같이 넣는다.
 function lineStatuses(order, prodOrder, item) {
   return [
@@ -670,6 +694,7 @@ module.exports = {
   buildSyncKey,
   cancelInfoForOrder,
   firstShipDate,
+  hasCancelTraceDeep,
   hasClaimTrace,
   isAllowStatus,
   isCancelStatus,
