@@ -87,6 +87,21 @@ test('직원 저장 시 소정근로 기본값이 채워진다', () => {
   assert.equal(시급.monthlyWorkDays, 0);
 });
 
+test('시급 직원을 월급으로 바꿀 때 막히지 않는다', () => {
+  // 시급 직원에게는 소정근로가 0 으로 저장된다. 그 직원을 월급으로 바꾸면
+  // 화면이 저장된 0 을 그대로 돌려보내는데, 0 을 거부하면 유형 변경 자체가 막힌다.
+  const 시급 = M.employeeInput({ name: '박알바', role: '', floor: 2, payType: 'hourly', hourlyRate: 12000, breakMinutes: 0, active: true, note: '' });
+  assert.equal(시급.monthlyWorkHours, 0);
+  const 전환 = M.employeeInput({ ...시급, payType: 'salaried', monthlySalary: 3000000 });
+  assert.equal(전환.monthlyWorkHours, M.DEFAULT_MONTHLY_WORK_HOURS);
+  assert.equal(전환.monthlyWorkDays, M.DEFAULT_MONTHLY_WORK_DAYS);
+  // 0 만 봐주고, 나머지 잘못된 값은 그대로 거부한다.
+  for (const bad of [-5, 0.5, 1000, 'abc', NaN]) {
+    assert.throws(() => M.employeeInput({ ...시급, payType: 'salaried', monthlySalary: 3000000, monthlyWorkHours: bad }), new RegExp('.'), String(bad));
+    assert.throws(() => M.employeeInput({ ...시급, payType: 'salaried', monthlySalary: 3000000, monthlyWorkDays: bad }), new RegExp('.'), String(bad));
+  }
+});
+
 test('잘못된 특수일·결근 입력은 거부한다', () => {
   const ok = { workDate: '2026-09-17', label: '설날', multiplierPercent: 150, appliesTo: 'both', note: '' };
   assert.equal(M.specialDayInput(ok).multiplierPercent, 150);

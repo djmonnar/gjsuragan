@@ -50,6 +50,11 @@ const DEFAULT_MONTHLY_WORK_DAYS = 22;
 const BASE_PERCENT = 100;
 const PAY_TYPE_SCOPES = ['hourly', 'salaried', 'both'];
 
+// 비었거나 0 이면 기본값. 그 밖의 값은 손대지 않고 넘겨서 검증을 받게 한다.
+function unsetTo(value, fallback) {
+  return value === undefined || value === null || value === 0 ? fallback : value;
+}
+
 function workDateString(value, label = '날짜') {
   if (typeof value !== 'string' || !/^20\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(value)) {
     fail(`${label}을(를) 확인해 주세요.`);
@@ -70,10 +75,14 @@ function employeeInput(input) {
     monthlySalary: salaried && input.monthlySalary !== undefined
       ? integer(input.monthlySalary, '월급', 1, 100000000) : null,
     // 비워두면 통상 기준값을 쓴다. 기존 직원은 이 값이 없으므로 여기서 기본값이 채워진다.
+    // 시급 직원에게는 0 으로 저장되는데, 그 직원을 월급으로 바꾸면 화면이 그 0 을
+    // 그대로 되돌려 보낸다. 0 은 '설정 안 함'으로 보고 기본값을 쓴다 —
+    // 0시간·0일은 뜻이 없는 값이고, 이것 때문에 급여 유형 변경이 막히면 안 된다.
+    // 음수나 범위를 벗어난 값은 그대로 거부한다.
     monthlyWorkHours: salaried
-      ? integer(input.monthlyWorkHours ?? DEFAULT_MONTHLY_WORK_HOURS, '월 소정근로시간', 1, 744) : 0,
+      ? integer(unsetTo(input.monthlyWorkHours, DEFAULT_MONTHLY_WORK_HOURS), '월 소정근로시간', 1, 744) : 0,
     monthlyWorkDays: salaried
-      ? integer(input.monthlyWorkDays ?? DEFAULT_MONTHLY_WORK_DAYS, '월 소정근로일수', 1, 31) : 0,
+      ? integer(unsetTo(input.monthlyWorkDays, DEFAULT_MONTHLY_WORK_DAYS), '월 소정근로일수', 1, 31) : 0,
     breakMinutes: integer(input.breakMinutes, '무급 휴게시간', 0, 720),
     active: input.active,
     note: text(input.note, '메모', 500)
