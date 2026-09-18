@@ -68,6 +68,20 @@ test('결근한 날을 고르면 그 줄이 보인다', () => {
   assert.match(html, /특수일 아님/);
 });
 
+test('특수일·결근 줄은 여백 있는 칸 안에 들어간다', () => {
+  // 이 두 줄은 att-day-summary 바깥에 있어서, 감싸는 칸이 없으면 패널 가장자리에
+  // 붙어 위아래 줄과 어긋난다. 실제로 화면이 깨졌던 자리다.
+  const { html } = screen(baseState('calendar'));
+  assert.match(html, /<div class="att-day-meta">/);
+  const meta = /<div class="att-day-meta">([\s\S]*?)<div class="att-day-summary">/.exec(html);
+  assert.ok(meta, 'att-day-meta 와 att-day-summary 순서가 어긋났습니다.');
+  assert.match(meta[1], /설날/);
+  // 특수일이 없는 날에도 칸은 있어야 한다. 빈 칸은 CSS 의 :not(:empty) 가 접는다.
+  const 평일 = baseState('calendar');
+  평일.selectedDate = '2026-09-15';
+  assert.match(screen(평일).html, /<div class="att-day-meta">.*특수일 아님/);
+});
+
 test('급여 정산에 월급 + 가산 − 공제가 줄로 보인다', () => {
   const { html } = screen(baseState('payroll'));
   assert.match(html, /약정 월급/);

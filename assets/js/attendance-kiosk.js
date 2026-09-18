@@ -55,6 +55,16 @@
       $('kiosk-device-name').textContent = `${U.deviceName(data.deviceName, floor)} · ${U.storeName(floor)} 전용`;
       $('kiosk-floor-label').textContent = `${U.storeName(floor)} 직원 출퇴근`;
       showStore(floor);
+      // 연결된 기기는 주소의 store 값을 무시하고 연결할 때 지정한 매장을 따른다.
+      // 아무 말이 없으면 다른 매장 버튼을 눌러도 같은 화면이 나와서 고장으로 보인다.
+      const askedFloor = new URLSearchParams(location.search).has('store') ? setupFloor : floor;
+      const mismatch = $('kiosk-store-mismatch');
+      if (mismatch) {
+        mismatch.hidden = askedFloor === floor;
+        if (askedFloor !== floor) {
+          mismatch.textContent = `이 기기는 ${U.storeName(floor)} 전용으로 연결돼 있어서 ${U.storeName(askedFloor)} 직원은 나오지 않습니다. 매장을 바꾸시려면 관리 페이지의 태블릿 관리에서 '매장 변경'을 눌러 주세요.`;
+        }
+      }
       $('kiosk-error').hidden = true;
       $('kiosk-setup').hidden = true;
       $('kiosk-main').hidden = false;
