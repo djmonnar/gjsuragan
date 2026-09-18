@@ -251,6 +251,8 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       const at = now();
       let ref, record;
       const shared = model.isSharedSlot(employee);
+      // 일당으로 받는 사람은 자리(daily)와 정식 직원(perDiem) 둘 다다. 급여 계산은 같다.
+      const dailyPaid = model.isDailyPaid(employee.payType);
       if (input.kind === 'in') {
         // 일일근무자 자리는 여러 사람이 같이 쓴다. 이미 누가 들어와 있어도 새로 찍을 수 있어야 한다.
         if (!shared && employee.currentShiftId) model.fail('이미 출근한 상태입니다. 화면을 새로고침해 주세요.', 409);
@@ -259,13 +261,16 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
           checkInAt: at, checkOutAt: null, payType: employee.payType, hourlyRate: employee.hourlyRate,
           // 월급 직원의 특수일 가산 기준. 출근 시점의 월급으로 고정한다.
           ordinaryHourlyRate: model.ordinaryHourlyRate(employee),
-          // 일당과 초과 급여 조건은 출근 시점의 자리 설정으로 고정한다.
+          // 일당과 반타임·초과 급여 조건은 출근 시점의 설정으로 고정한다.
           // 정산할 때 기록마다 고칠 수 있다.
-          dailyPay: shared ? (employee.dailyPay || 0) : 0,
-          dailyBaseMinutes: shared ? (employee.dailyBaseMinutes || 0) : 0,
-          overtimeUnitMinutes: shared ? (employee.overtimeUnitMinutes || 0) : 0,
-          overtimePay: shared ? (employee.overtimePay || 0) : 0,
-          withholding: shared ? Boolean(employee.withholding) : false,
+          dailyPay: dailyPaid ? (employee.dailyPay || 0) : 0,
+          halfDayPay: dailyPaid ? (employee.halfDayPay || 0) : 0,
+          halfDayBeforeMinutes: dailyPaid ? (employee.halfDayBeforeMinutes || 0) : 0,
+          dayPortion: 'auto',
+          dailyBaseMinutes: dailyPaid ? (employee.dailyBaseMinutes || 0) : 0,
+          overtimeUnitMinutes: dailyPaid ? (employee.overtimeUnitMinutes || 0) : 0,
+          overtimePay: dailyPaid ? (employee.overtimePay || 0) : 0,
+          withholding: dailyPaid ? Boolean(employee.withholding) : false,
           workerName: '', workerNote: '',
           breakMinutes: employee.breakMinutes, note: '', source: 'kiosk', deviceId: tabletRef.id,
           version: 1, voided: false, createdAt: at, updatedAt: at };
@@ -320,6 +325,7 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       const employee = existing(employeeSnap, '직원');
       if (!before && employee.deletedAt) model.fail('삭제된 직원에게 새 기록을 추가할 수 없습니다.');
       if (!remove && data.checkOutAt === null && (!employee.active || employee.deletedAt)) model.fail('재직 중인 직원만 근무 중으로 설정할 수 있습니다.');
+      const dailyPaidShift = !remove && model.isDailyPaid(data.payType);
       const others = recordsSnap.docs.map(serialize).filter(s => s.id !== ref.id && !s.voided);
       // 일일근무자 자리는 여러 사람이 같은 시간에 일하는 것이 정상이다. 겹침은 오류가 아니다.
       if (!remove && !model.isSharedSlot(employee) && others.some(s => model.overlaps(data, s))) {
@@ -332,23 +338,31 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         // 이미 값이 있는 기록은 그때 값을 지킨다. 시급과 같은 원칙이다.
         ordinaryHourlyRate: data.payType === 'salaried'
           ? (before?.ordinaryHourlyRate || model.ordinaryHourlyRate(employee)) : 0,
-        // 일당을 비우고 저장하면 자리의 기본 일당을 쓴다. 0원으로 저장돼 급여가 빠지면 안 된다.
-        dailyPay: data.payType === 'daily'
+        // 일당을 비우고 저장하면 설정의 기본 일당을 쓴다. 0원으로 저장돼 급여가 빠지면 안 된다.
+        dailyPay: dailyPaidShift
           ? (data.dailyPay || before?.dailyPay || employee.dailyPay || 0) : 0,
-        // 초과 급여 조건도 같다. 화면이 안 보낸 값은 기존 기록 → 자리 설정 순서로 따라간다.
-        // shiftInput 이 이미 기본값(8시간·30분)을 채워두기 때문에, 보냈는지 여부는
-        // 다듬어진 data 가 아니라 원래 input 으로 가려야 자리 설정이 안 덮인다.
-        dailyBaseMinutes: data.payType === 'daily'
+        // 반타임 일당은 0 이 '안 씀' 이라는 뜻이라, 입력이 아예 없을 때만 물려받는다.
+        halfDayPay: dailyPaidShift
+          ? (input.halfDayPay === undefined ? (before?.halfDayPay ?? employee.halfDayPay ?? 0) : data.halfDayPay) : 0,
+        // 나머지 조건은 화면이 안 보낸 값을 기존 기록 → 직원 설정 순서로 따라간다.
+        // shiftInput 이 이미 기본값(오후 5시·8시간·30분)을 채워두기 때문에, 보냈는지 여부는
+        // 다듬어진 data 가 아니라 원래 input 으로 가려야 설정이 안 덮인다.
+        halfDayBeforeMinutes: dailyPaidShift
+          ? (input.halfDayBeforeMinutes !== undefined ? data.halfDayBeforeMinutes
+            : (before?.halfDayBeforeMinutes || employee.halfDayBeforeMinutes || data.halfDayBeforeMinutes)) : 0,
+        dayPortion: dailyPaidShift
+          ? (input.dayPortion !== undefined ? data.dayPortion : (before?.dayPortion || 'auto')) : 'auto',
+        dailyBaseMinutes: dailyPaidShift
           ? (input.dailyBaseMinutes !== undefined ? data.dailyBaseMinutes
             : (before?.dailyBaseMinutes || employee.dailyBaseMinutes || data.dailyBaseMinutes)) : 0,
-        overtimeUnitMinutes: data.payType === 'daily'
+        overtimeUnitMinutes: dailyPaidShift
           ? (input.overtimeUnitMinutes !== undefined ? data.overtimeUnitMinutes
             : (before?.overtimeUnitMinutes || employee.overtimeUnitMinutes || data.overtimeUnitMinutes)) : 0,
         // 추가 급여는 0 이 '안 줌' 이라는 뜻이라, 입력이 아예 없을 때만 물려받는다.
-        overtimePay: data.payType === 'daily'
+        overtimePay: dailyPaidShift
           ? (input.overtimePay === undefined ? (before?.overtimePay ?? employee.overtimePay ?? 0) : data.overtimePay) : 0,
         // 체크를 푼 것과 화면이 안 보낸 것은 다르다. 안 보냈을 때만 물려받는다.
-        withholding: data.payType === 'daily'
+        withholding: dailyPaidShift
           ? (input.withholding === undefined ? Boolean(before?.withholding ?? employee.withholding) : data.withholding) : false,
         source: before?.source || 'admin', voided: false, createdAt: before?.createdAt ?? now(),
         updatedAt: now(), version: (before?.version || 0) + 1

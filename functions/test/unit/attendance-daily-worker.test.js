@@ -78,7 +78,7 @@ test('시급·월급 기록에는 일당과 이름이 붙지 않는다', () => {
 });
 
 test('알 수 없는 급여 유형은 거부한다', () => {
-  assert.deepEqual([...M.PAY_TYPES].sort(), ['daily', 'hourly', 'salaried']);
+  assert.equal([...M.PAY_TYPES].sort().join(','), 'daily,hourly,perDiem,salaried');
   assert.throws(() => M.employeeInput({ name: 'x', role: '', floor: 2, payType: 'weekly', breakMinutes: 0, active: true, note: '' }));
 });
 
@@ -178,4 +178,103 @@ test('원천징수 여부가 직원과 기록에 저장된다', () => {
   assert.equal(M.shiftInput({ ...일당근무, withholding: true }, when).withholding, true);
   // 시급·월급 기록에는 붙지 않는다. 그쪽은 직원 설정을 따른다.
   assert.equal(M.shiftInput({ ...일당근무, payType: 'hourly', hourlyRate: 12000, withholding: true }, when).withholding, false);
+});
+
+// ── 일당 직원 (이름 있는 정식 직원, 하루 단위로 받음) ──
+const 일당직원 = {
+  checkInAt: at('2026-09-17T09:00:00+09:00'), breakMinutes: 0, payType: 'perDiem',
+  hourlyRate: 0, dailyPay: 100000, halfDayPay: 55000, halfDayBeforeMinutes: 17 * 60,
+  dailyBaseMinutes: 480, overtimeUnitMinutes: 30, overtimePay: 10000, note: ''
+};
+const 퇴근시각 = (time, extra = {}) => ({ ...일당직원, checkOutAt: at(`2026-09-17T${time}:00+09:00`), ...extra });
+
+test('오후 5시 전에 퇴근하면 반타임이다', () => {
+  assert.equal(M.DEFAULT_HALF_DAY_BEFORE_MINUTES, 17 * 60);
+  assert.equal(M.totals(퇴근시각('13:00')).dayPortion, 'half');
+  assert.equal(M.totals(퇴근시각('16:59')).dayPortion, 'half');
+  assert.equal(M.totals(퇴근시각('13:00')).amount, 55000);
+  // 정각은 '이전' 이 아니다.
+  assert.equal(M.totals(퇴근시각('17:00')).dayPortion, 'full');
+  assert.equal(M.totals(퇴근시각('17:00')).amount, 100000);
+  assert.equal(M.totals(퇴근시각('18:00')).dayPortion, 'full');
+});
+
+test('반타임 판정은 근무한 시간이 아니라 퇴근 시각이다', () => {
+  // 새벽 4시에 나와 오후 4시에 갔으면 열두 시간을 일했지만 5시 전 퇴근이다.
+  const 긴반타임 = { ...일당직원, checkInAt: at('2026-09-17T04:00:00+09:00'), checkOutAt: at('2026-09-17T16:00:00+09:00') };
+  assert.equal(M.totals(긴반타임).dayPortion, 'half');
+  // 오후 3시에 나와 6시에 갔으면 세 시간이지만 풀타임이다.
+  const 짧은풀타임 = { ...일당직원, checkInAt: at('2026-09-17T15:00:00+09:00'), checkOutAt: at('2026-09-17T18:00:00+09:00') };
+  assert.equal(M.totals(짧은풀타임).dayPortion, 'full');
+});
+
+test('날짜를 넘겨 퇴근하면 반타임이 아니다', () => {
+  // 시각만 보면 새벽 두 시가 오후 5시보다 이르다. 밤새 일한 사람을 반타임으로 치면 안 된다.
+  const 밤샘 = { ...일당직원, checkOutAt: at('2026-09-18T02:00:00+09:00') };
+  assert.equal(M.totals(밤샘).dayPortion, 'full');
+  assert.equal(M.totals(밤샘).baseAmount, 100000);
+});
+
+test('한국시간으로 판정한다 (서버 시간대와 무관)', () => {
+  assert.equal(M.kstMinutesOfDay(at('2026-09-17T17:00:00+09:00')), 17 * 60);
+  assert.equal(M.kstMinutesOfDay(at('2026-09-17T00:00:00+09:00')), 0);
+  // 같은 순간을 UTC 로 적어도 같은 값이어야 한다.
+  assert.equal(M.kstMinutesOfDay(Date.parse('2026-09-17T08:00:00Z')), 17 * 60);
+});
+
+test('기준 시각을 바꾸면 그대로 따른다', () => {
+  // 오후 2시 기준이면 1시 퇴근만 반타임.
+  assert.equal(M.totals(퇴근시각('13:00', { halfDayBeforeMinutes: 14 * 60 })).dayPortion, 'half');
+  assert.equal(M.totals(퇴근시각('15:00', { halfDayBeforeMinutes: 14 * 60 })).dayPortion, 'full');
+});
+
+test('반타임 일당이 0이면 늘 풀타임이다', () => {
+  assert.equal(M.totals(퇴근시각('13:00', { halfDayPay: 0 })).dayPortion, 'full');
+  assert.equal(M.totals(퇴근시각('13:00', { halfDayPay: 0 })).amount, 100000);
+});
+
+test('기록에서 풀타임·반타임을 직접 정할 수 있다', () => {
+  assert.equal(M.totals(퇴근시각('13:00', { dayPortion: 'full' })).amount, 100000);
+  assert.equal(M.totals(퇴근시각('18:00', { dayPortion: 'half' })).amount, 55000);
+  // 직접 정한 반타임에는 초과 급여를 붙이지 않는다.
+  assert.equal(M.totals(퇴근시각('21:00', { dayPortion: 'half' })).extraAmount, 0);
+});
+
+test('반타임에는 초과 급여가 붙지 않는다', () => {
+  // 5시 전에 갔으면 기준 8시간을 넘길 수가 없지만, 강제로라도 안 붙어야 한다.
+  const t = M.totals({ ...일당직원, checkInAt: at('2026-09-17T02:00:00+09:00'), checkOutAt: at('2026-09-17T16:00:00+09:00') });
+  assert.equal(t.dayPortion, 'half');
+  assert.equal(t.extraAmount, 0);
+  assert.equal(t.amount, 55000);
+});
+
+test('일당 직원은 자리가 아니라 사람이다', () => {
+  assert.equal(M.isSharedSlot({ payType: 'perDiem' }), false);
+  assert.equal(M.isSharedSlot({ payType: 'daily' }), true);
+  assert.equal(M.isDailyPaid('perDiem'), true);
+  assert.equal(M.isDailyPaid('daily'), true);
+  assert.equal(M.isDailyPaid('hourly'), false);
+  assert.equal(M.isDailyPaid('salaried'), false);
+});
+
+test('일당 직원 등록에 풀타임·반타임이 저장된다', () => {
+  const base = { name: '김일당', role: '홀', floor: 2, payType: 'perDiem', dailyPay: 100000, breakMinutes: 0, active: true, note: '' };
+  const 기본 = M.employeeInput(base);
+  assert.equal(기본.dailyPay, 100000);
+  assert.equal(기본.halfDayPay, 0);
+  assert.equal(기본.halfDayBeforeMinutes, M.DEFAULT_HALF_DAY_BEFORE_MINUTES);
+  const 지정 = M.employeeInput({ ...base, halfDayPay: 55000, halfDayBeforeMinutes: 14 * 60 });
+  assert.equal(지정.halfDayPay, 55000);
+  assert.equal(지정.halfDayBeforeMinutes, 840);
+  // 0 은 '설정 안 함' 이라 기본값으로 떨어진다. 자정을 기준으로 쓸 일은 없다.
+  assert.equal(M.employeeInput({ ...base, halfDayBeforeMinutes: 0 }).halfDayBeforeMinutes, M.DEFAULT_HALF_DAY_BEFORE_MINUTES);
+  for (const patch of [{ halfDayPay: -1 }, { halfDayBeforeMinutes: -1 }, { halfDayBeforeMinutes: 1441 }, { halfDayBeforeMinutes: 1.5 }, { dailyPay: 0 }]) {
+    assert.throws(() => M.employeeInput({ ...base, ...patch }), new RegExp('.'), JSON.stringify(patch));
+  }
+});
+
+test('일당 직원에게도 특수일 배율은 붙지 않는다', () => {
+  const 설날 = { appliesTo: 'both', multiplierPercent: 150 };
+  assert.equal(M.totals(퇴근시각('18:00'), 설날).amount, M.totals(퇴근시각('18:00')).amount);
+  assert.equal(M.shiftMultiplierPercent(설날, 'perDiem'), M.BASE_PERCENT);
 });
