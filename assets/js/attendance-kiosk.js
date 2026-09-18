@@ -40,7 +40,7 @@
         const open = employee.openShifts || [];
         cards.push({ employee, shiftId: '', working: false, name: employee.name, role, slot: true,
           pill: open.length ? `${open.length}명 근무 중` : '출근 전',
-          detail: '누구든 이 칸으로 출근합니다', action: '출근' });
+          detail: '누구든 이 칸으로', action: '출근' });
         open.forEach((shift, index) => cards.push({ employee, shiftId: shift.id, working: true, slot: true,
           name: shift.workerName || `${employee.name} ${index + 1}`, role,
           pill: '근무 중', checkInAt: shift.checkInAt,
