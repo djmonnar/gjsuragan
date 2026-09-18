@@ -93,6 +93,59 @@ test('급여 정산에 월급 + 가산 − 공제가 줄로 보인다', () => {
   assert.match(html, /144,000원/);
 });
 
+const 일일자리 = { id: 'd1', name: '일일근무자 (홀)', role: '홀', floor: 2, payType: 'daily', dailyPay: 100000, breakMinutes: 0, active: true };
+const 일일근무 = (id, workerName, dailyPay) => ({
+  id, employeeId: 'd1', employeeName: '일일근무자 (홀)', floor: 2, workDate: '2026-09-17',
+  checkInAt: at('2026-09-17T09:00:00+09:00'), checkOutAt: at('2026-09-17T18:00:00+09:00'),
+  breakMinutes: 0, payType: 'daily', hourlyRate: 0, dailyPay, workerName, workerNote: '',
+  payableMinutes: 540, amount: dailyPay, baseAmount: dailyPay, extraAmount: 0, multiplierPercent: 100, note: ''
+});
+
+test('일일근무자는 한 자리라도 기록마다 한 줄로 나온다', () => {
+  // 자리로 묶으면 누구에게 얼마를 줄지 알 수 없다.
+  const state = baseState('payroll');
+  state.data.employees = [일일자리];
+  state.data.shifts = [일일근무('s1', '김일손', 100000), 일일근무('s2', '', 120000)];
+  state.data.absences = [];
+  const { html } = screen(state);
+  assert.match(html, /김일손/);
+  assert.match(html, /이름 미입력/);
+  assert.match(html, /100,000원/);
+  assert.match(html, /120,000원/);
+  assert.match(html, /일일근무자 합계<\/span><strong>220,000원/);
+});
+
+test('이름을 안 적은 일일근무 기록이 몇 건인지 알려준다', () => {
+  const state = baseState('payroll');
+  state.data.employees = [일일자리];
+  state.data.shifts = [일일근무('s1', '김일손', 100000), 일일근무('s2', '', 100000), 일일근무('s3', '', 100000)];
+  state.data.absences = [];
+  const { html } = screen(state);
+  assert.match(html, /이름을 아직 안 적은 기록이 <b>2건<\/b>/);
+});
+
+test('일일근무자 급여가 시급·월급 합계에 섞이지 않는다', () => {
+  const state = baseState('payroll');
+  state.data.employees = [시급직원, 일일자리];
+  state.data.shifts = [시급근무, 일일근무('s1', '김일손', 100000)];
+  state.data.absences = [];
+  const { html, stats } = screen(state);
+  // 시급 합계는 시급 근무만
+  assert.match(stats, /144,000원/);
+  assert.doesNotMatch(stats, /244,000원/);
+  assert.match(html, /시급 직원 기본급 합계<\/span><strong>144,000원/);
+});
+
+test('미퇴근 일일근무 기록은 급여 줄에 안 나온다', () => {
+  // 퇴근을 안 찍었으면 얼마를 줄지 정해지지 않았다.
+  const state = baseState('payroll');
+  state.data.employees = [일일자리];
+  state.data.shifts = [{ ...일일근무('s1', '김일손', 100000), checkOutAt: null, amount: 0, baseAmount: 0 }];
+  state.data.absences = [];
+  const { html } = screen(state);
+  assert.doesNotMatch(html, /일일근무자 합계/);
+});
+
 test('시급 합계에 월급 직원의 특수일 가산이 섞이지 않는다', () => {
   // 예전에는 모든 기록의 amount 를 더해서, 월급 직원 가산까지 시급 합계에 들어갔다.
   const { stats } = screen(baseState('calendar'));

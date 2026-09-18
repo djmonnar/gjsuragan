@@ -40,8 +40,12 @@ test('overlap rejects open or intersecting shifts but allows adjacent shifts', (
   assert.equal(M.overlaps(base, { ...base, voided: true }), false);
 });
 test('kiosk employee serialization omits wage, notes and employment history', () => {
-  const value = M.kioskEmployee({ id: 'e', name: '직원', role: '조리', hourlyRate: 12000, monthlySalary: 3000000, note: 'private', version: 1, deletedAt: null });
-  assert.deepEqual(Object.keys(value).sort(), ['currentShiftId', 'id', 'lastShift', 'name', 'role']);
+  const value = M.kioskEmployee({ id: 'e', name: '직원', role: '조리', payType: 'hourly', hourlyRate: 12000, monthlySalary: 3000000, dailyPay: 100000, note: 'private', version: 1, deletedAt: null });
+  // payType 은 태블릿이 사람인지 일일근무자 자리인지 구분하는 데 쓴다. 금액이 아니다.
+  assert.deepEqual(Object.keys(value).sort(), ['currentShiftId', 'id', 'lastShift', 'name', 'payType', 'role']);
+  for (const leaked of ['hourlyRate', 'monthlySalary', 'dailyPay', 'note', 'monthlyWorkHours']) {
+    assert.equal(leaked in value, false, `${leaked} 가 태블릿으로 나갑니다.`);
+  }
 });
 
 test('monthly salary is a separate positive won amount and unset legacy salary is not zero', () => {

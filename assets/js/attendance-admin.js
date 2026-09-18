@@ -25,6 +25,8 @@
   const dailyDeduction = employee => employee?.payType !== 'salaried' || !(employee.monthlySalary > 0) ? 0
     : Math.round(employee.monthlySalary / (employee.monthlyWorkDays > 0 ? employee.monthlyWorkDays : DEFAULT_WORK_DAYS));
   function transferAmount(row) {
+    // 일일근무자는 기록 하나가 한 사람이라 그 기록의 일당이 그대로 지급액이다.
+    if (row.salaryType === 'daily') return Number(row.amount) || 0;
     if (row.type !== (row.salaryType === 'salaried' ? '월급' : '시급')) return null;
     // 시급 직원의 amount 에는 특수일 배율이 이미 들어 있다.
     if (row.salaryType !== 'salaried') return row.amount;
@@ -163,7 +165,9 @@
     // 두 줄은 att-day-summary 바깥에 있어서 여백을 따로 줘야 한다.
     // 안 그러면 패널 가장자리에 붙어 위아래 줄과 어긋난다.
     const dayMeta = `<div class="att-day-meta">${specialLine}${offLine}</div>`;
-    $('att-content').innerHTML = `<div class="att-layout"><section class="att-panel"><div class="att-panel-head att-row"><h3>${year}년 ${m}월</h3><div class="att-meta">날짜를 누르면 출퇴근 상세가 보여요</div></div><div class="att-calendar">${['일','월','화','수','목','금','토'].map(d => `<div class="att-weekday">${d}</div>`).join('')}${cells.join('')}</div></section><section class="att-panel"><div class="att-panel-head att-row"><h3>${Number(selectedDate.slice(5, 7))}월 ${Number(selectedDate.slice(8))}일</h3><div class="att-row" style="gap:8px"><button class="att-link-button" data-action="mark-absence">결근 표시</button><button class="att-link-button" data-action="new-shift">＋ 기록 추가</button></div></div>${dayMeta}<div class="att-day-summary">${daily.length ? daily.map(s => `<article class="att-shift-item"><div class="att-row"><strong>${U.esc(person(s.employeeId)?.name || s.employeeName)}</strong><span class="att-pill ${s.checkOutAt === null ? 'amber' : 'green'}">${s.checkOutAt === null ? '근무 중' : '퇴근 완료'}</span></div><div class="att-shift-times">${U.time(s.checkInAt)} → ${s.checkOutAt !== null && U.date(s.checkOutAt) !== s.workDate ? '<small>익일 </small>' : ''}${U.time(s.checkOutAt)}</div><div class="att-meta">${s.checkOutAt === null ? '퇴근 후 근무시간과 금액이 계산됩니다.' : `${U.duration(s.payableMinutes)} · 휴게 ${s.breakMinutes}분`}</div><div class="att-row"><span class="att-meta">${s.payType === 'hourly'
+    $('att-content').innerHTML = `<div class="att-layout"><section class="att-panel"><div class="att-panel-head att-row"><h3>${year}년 ${m}월</h3><div class="att-meta">날짜를 누르면 출퇴근 상세가 보여요</div></div><div class="att-calendar">${['일','월','화','수','목','금','토'].map(d => `<div class="att-weekday">${d}</div>`).join('')}${cells.join('')}</div></section><section class="att-panel"><div class="att-panel-head att-row"><h3>${Number(selectedDate.slice(5, 7))}월 ${Number(selectedDate.slice(8))}일</h3><div class="att-row" style="gap:8px"><button class="att-link-button" data-action="mark-absence">결근 표시</button><button class="att-link-button" data-action="new-shift">＋ 기록 추가</button></div></div>${dayMeta}<div class="att-day-summary">${daily.length ? daily.map(s => `<article class="att-shift-item"><div class="att-row"><strong>${U.esc(s.payType === 'daily' && s.workerName ? s.workerName : (person(s.employeeId)?.name || s.employeeName))}</strong><span class="att-pill ${s.checkOutAt === null ? 'amber' : 'green'}">${s.checkOutAt === null ? '근무 중' : '퇴근 완료'}</span></div><div class="att-shift-times">${U.time(s.checkInAt)} → ${s.checkOutAt !== null && U.date(s.checkOutAt) !== s.workDate ? '<small>익일 </small>' : ''}${U.time(s.checkOutAt)}</div><div class="att-meta">${s.checkOutAt === null ? '퇴근 후 근무시간과 금액이 계산됩니다.' : `${U.duration(s.payableMinutes)} · 휴게 ${s.breakMinutes}분`}</div><div class="att-row"><span class="att-meta">${s.payType === 'daily'
+      ? `일일근무자 · ${U.money(s.amount)}${s.workerName ? ` · <strong>${U.esc(s.workerName)}</strong>` : ' · <b>이름 미입력</b>'}`
+      : s.payType === 'hourly'
       ? `${U.money(s.hourlyRate)}/시간 · ${U.money(s.amount)}${s.extraAmount ? ` <strong>(${multiplierText(s.multiplierPercent)} · 가산 ${U.money(s.extraAmount)})</strong>` : ''}`
       : s.extraAmount ? `월급 직원 · 특수일 가산 <strong>${U.money(s.extraAmount)}</strong> (${multiplierText(s.multiplierPercent)})`
       : scopeApplies(special, 'salaried') ? '월급 직원 · 통상시급 미설정이라 가산 없음' : '월급 직원 · 근태 기록'}</span><button class="att-link-button" data-action="edit-shift" data-id="${U.esc(s.id)}">수정</button></div>${s.note ? `<div class="att-meta">${U.esc(s.note)}</div>` : ''}</article>`).join('') : '<div class="att-empty">이 날짜의 근무 기록이 없습니다.</div>'}</div></section></div><p class="att-note">날짜를 넘어 퇴근한 근무도 출근일에 표시됩니다. 빠뜨린 기록은 ‘기록 추가’, 잘못 찍은 시간과 휴게시간은 ‘수정’에서 보정하세요.<br>특수일 배율은 지금 설정을 기준으로 다시 계산합니다. 명절을 뒤늦게 등록해도 지난 기록에 바로 반영됩니다. 결근은 표시한 날만 공제하며, 출근 기록이 없다고 자동으로 결근이 되지는 않습니다.</p>`;
@@ -172,13 +176,33 @@
     const list = people().filter(inFloor).filter(e => !e.deletedAt && (!employeeId || e.id === employeeId));
     $('att-content').innerHTML = `<div class="att-section-heading"><div><h3>직원 목록 <span class="att-meta">${list.length}명</span></h3><p class="att-subtitle">직원 정보와 급여 계좌를 관리하세요.</p></div></div><div class="att-employee-cards">${list.length ? list.map(e => `<article class="att-employee-card">
       <div class="att-row"><div class="att-staff-identity"><span class="att-staff-avatar" aria-hidden="true">${U.esc(e.name.slice(0, 1))}</span><div><h4>${U.esc(e.name)}</h4><p class="att-meta">${U.storeName(e.floor)} · ${U.esc(e.role || '업무 미지정')}</p></div></div><span class="att-pill ${e.currentShiftId ? 'green' : ''}">${e.currentShiftId ? '근무 중' : e.active ? '재직' : '퇴사·휴직'}</span></div>
-      <div class="att-staff-pay"><span>${e.payType === 'hourly' ? '약정 시급' : '약정 월급'}</span><strong>${e.payType === 'hourly' ? U.money(e.hourlyRate) : monthlySalaryText(e)}</strong></div>
+      <div class="att-staff-pay"><span>${e.payType === 'hourly' ? '약정 시급' : e.payType === 'daily' ? '기본 일당' : '약정 월급'}</span><strong>${e.payType === 'hourly' ? U.money(e.hourlyRate) : e.payType === 'daily' ? U.money(e.dailyPay) : monthlySalaryText(e)}</strong></div>
       <div class="att-account-line"><div><span class="att-meta">급여 계좌</span><p>${U.esc(bankLabel(e))}</p></div><button class="att-copy-button" data-action="copy-bank" data-id="${U.esc(e.id)}" ${e.privateSummary?.bankLast4 ? '' : 'disabled'} aria-label="${U.esc(e.name)} 계좌번호 복사">계좌 복사</button></div>
       <div class="att-card-foot"><span class="att-meta">주민등록번호 ${e.privateSummary?.residentRegistered ? '등록됨' : '미등록'} · 휴게 ${e.breakMinutes}분</span><div><button class="att-link-button" data-action="edit-employee" data-id="${U.esc(e.id)}">수정</button><button class="att-link-button att-delete-link" data-action="delete-employee" data-id="${U.esc(e.id)}">삭제</button></div></div>
     </article>`).join('') : '<div class="att-empty"><strong>함께 일할 직원을 등록해 주세요</strong>위의 직원 등록 버튼에서 시작할 수 있어요.</div>'}</div><p class="att-note">시급과 휴게시간 변경은 다음 출근부터 적용됩니다. 기존 근무는 당시 금액을 유지합니다. 주민등록번호는 직원 수정 화면에서 확인할 수 있습니다.<br><b>하루이틀만 일하는 단기 알바도 그대로 등록해서 쓰시면 됩니다.</b> 일이 끝나면 <b>삭제하지 말고 ‘재직 중’ 체크만 해제</b>하세요. 태블릿에서는 이름이 사라지고 근무기록·급여·계좌는 남습니다. 삭제하면 계좌번호가 지워져 급여를 보낼 때 확인할 수 없습니다. 같은 사람이 다시 오면 체크만 다시 켜면 됩니다.</p>`;
   }
+  // 일일근무자는 한 자리를 여러 사람이 쓴다. 자리로 묶으면 누구에게 얼마를 줄지 알 수 없다.
+  // 기록 하나가 곧 한 사람이므로 줄도 기록마다 따로 낸다.
+  function dailyPayrollRows(list) {
+    return list
+      .filter(shift => shift.payType === 'daily' && shift.checkOutAt !== null)
+      .sort((a, b) => a.checkInAt - b.checkInAt)
+      .map(shift => ({
+        id: `daily:${shift.id}`, shiftId: shift.id, salaryType: 'daily', type: '일일',
+        name: shift.workerName || '이름 미입력', named: Boolean(shift.workerName),
+        slotName: person(shift.employeeId)?.name || shift.employeeName || '일일근무자',
+        workDate: shift.workDate, checkInAt: shift.checkInAt, checkOutAt: shift.checkOutAt,
+        workerNote: shift.workerNote || '', deleted: false,
+        days: 1, count: 1, minutes: shift.payableMinutes, breaks: shift.breakMinutes, open: 0,
+        amount: shift.amount, baseAmount: shift.amount, extraAmount: 0, specialDays: 0,
+        absenceDays: 0, deduction: 0, ordinaryRate: 0, monthlySalary: null
+      }));
+  }
   function payrollRows(list) {
-    const ids = new Set([...data.employees.filter(inFloor).filter(e => !e.deletedAt && (!employeeId || e.id === employeeId)).map(e => e.id), ...list.map(s => s.employeeId)]);
+    // 일일근무자 기록은 여기서 빼고 따로 낸다.
+    const regular = list.filter(shift => shift.payType !== 'daily');
+    const ids = new Set([...data.employees.filter(inFloor).filter(e => !e.deletedAt && e.payType !== 'daily' && (!employeeId || e.id === employeeId)).map(e => e.id), ...regular.map(s => s.employeeId)]);
+    list = regular;
     return [...ids].map(id => {
       const employee = person(id), own = list.filter(s => s.employeeId === id), completed = own.filter(s => s.checkOutAt !== null);
       const offDays = (data.absences || []).filter(a => a.employeeId === id).filter(inFloor);
@@ -211,14 +235,32 @@
     if (lines.length < 2) return '';
     return `<div class="att-payout-lines">${lines.map(([label, value]) => `<div class="att-row"><span class="att-meta">${label}</span><span>${value}</span></div>`).join('')}</div>`;
   }
+  // 일일근무자 줄. 이름을 아직 안 적은 것이 위로 오게 해서 빠뜨리지 않게 한다.
+  function dailyPayrollHtml(rows) {
+    if (!rows.length) return '';
+    const total = rows.reduce((sum, row) => sum + row.amount, 0);
+    const unnamed = rows.filter(row => !row.named).length;
+    const sorted = [...rows].sort((a, b) => (a.named === b.named ? a.checkInAt - b.checkInAt : a.named ? 1 : -1));
+    return `<section class="att-payroll att-daily-payroll"><div class="att-section-heading"><div><h3>일일근무자 <span class="att-meta">${rows.length}건</span></h3><p class="att-subtitle">한 건이 한 사람입니다. 이름을 적고 금액을 확인한 뒤 지급하세요.</p></div></div>
+      ${unnamed ? `<div class="att-notice">이름을 아직 안 적은 기록이 <b>${unnamed}건</b> 있습니다. 누구에게 줄 금액인지 알 수 없으니 먼저 적어 주세요.</div>` : ''}
+      <div class="att-payroll-cards">${sorted.map(row => `<article class="att-payroll-card${row.named ? '' : ' is-unnamed'}"><div class="att-payroll-person"><div class="att-row"><strong class="att-staff-name-plain">${U.esc(row.name)}</strong><span class="att-pill">${U.esc(row.slotName)}</span></div><p class="att-meta">${formatDayLabel(row.workDate)} · ${U.time(row.checkInAt)} → ${U.time(row.checkOutAt)} · ${U.duration(row.minutes)}${row.breaks ? ` · 휴게 ${row.breaks}분` : ''}</p>${row.workerNote ? `<p class="att-meta">${U.esc(row.workerNote)}</p>` : ''}</div>
+        <div class="att-payroll-transfer"><div class="att-payout"><div><span class="att-meta">지급액</span><strong>${U.money(row.amount)}</strong></div><button class="att-copy-button att-copy-primary" data-action="copy-amount" data-id="${U.esc(row.id)}" aria-label="${U.esc(row.name)} 지급액 복사">금액 복사</button></div>
+        <button class="att-button" data-action="edit-shift" data-id="${U.esc(row.shiftId)}">${row.named ? '이름·금액 수정' : '이름 적기'}</button></div></article>`).join('')}</div>
+      <div class="att-payroll-total"><span>일일근무자 합계</span><strong>${U.money(total)}</strong></div></section>
+      <p class="att-note">일일근무자는 시간이 아니라 하루 단위로 계산합니다. 특수일 배율은 붙지 않으니, 더 드릴 금액은 그 기록의 <b>이 근무의 일당</b>을 직접 고쳐 주세요.</p>`;
+  }
+  function formatDayLabel(dateStr) {
+    return `${Number(dateStr.slice(5, 7))}월 ${Number(dateStr.slice(8))}일`;
+  }
   function renderPayroll(list) {
     const rows = payrollRows(list), amount = rows.reduce((sum, row) => sum + row.amount, 0);
+    const dailyRows = dailyPayrollRows(list);
     $('att-content').innerHTML = `<section class="att-payroll"><div class="att-section-heading"><div><h3>${Number(month.slice(5))}월 급여 정산</h3><p class="att-subtitle">계좌와 입금 기준액을 복사해서 이체할 때 사용하세요.</p></div><button class="att-button" data-action="export">CSV 내려받기 ↓</button></div><div class="att-payroll-cards">${rows.length ? rows.map(row => {
       const employee = person(row.id), payout = transferAmount(row);
       return `<article class="att-payroll-card"><div class="att-payroll-person"><div class="att-row"><button class="att-staff-name" data-action="employee-calendar" data-id="${U.esc(row.id)}">${U.esc(row.name)}${row.deleted ? ' (삭제)' : ''}</button><span class="att-pill">${row.type}</span></div><p class="att-meta">${floor === 'all' ? '전체 매장' : U.storeName(floor)} · ${month.replace('-', '년 ')}월</p><div class="att-payroll-metrics"><div><span>출근 / 근무</span><strong>${row.days}일 / ${row.count}건</strong></div><div><span>유급 근무</span><strong>${U.duration(row.minutes)}</strong></div><div><span>무급 휴게</span><strong>${row.breaks}분</strong></div><div><span>미퇴근</span><strong class="${row.open ? 'att-amber-text' : ''}">${row.open}건</strong></div></div></div>
         <div class="att-payroll-transfer"><div class="att-account-line"><div><span class="att-meta">${U.esc(employee?.privateSummary?.accountHolder || row.name)} · 급여 계좌</span><p>${U.esc(bankLabel(employee))}</p></div><button class="att-copy-button" data-action="copy-bank" data-id="${U.esc(row.id)}" ${employee?.privateSummary?.bankLast4 && !row.deleted ? '' : 'disabled'} aria-label="${U.esc(row.name)} 계좌번호 복사">계좌 복사</button></div>
         <div class="att-payout"><div><span class="att-meta">${row.salaryType === 'salaried' ? '월급 · 특수일 가산 · 결근 공제 반영' : '시급 근무 급여 (배율 포함)'}</span><strong>${payout === null ? (row.type.includes('/') || row.type !== (row.salaryType === 'salaried' ? '월급' : '시급') ? '급여 유형 확인 필요' : '월급 미설정') : U.money(payout)}</strong></div><button class="att-copy-button att-copy-primary" data-action="copy-amount" data-id="${U.esc(row.id)}" ${payout === null ? 'disabled' : ''} aria-label="${U.esc(row.name)} 입금 기준액 복사">금액 복사</button></div>${payrollBreakdown(row)}${row.type.includes('/') ? `<p class="att-meta">시급 근무 급여 ${U.money(row.amount)} · 월급과 별도로 확인해 주세요.</p>` : ''}</div></article>`;
-    }).join('') : '<div class="att-empty">등록된 직원과 근무 기록이 없습니다.</div>'}</div><div class="att-payroll-total"><span>시급 직원 기본급 합계</span><strong>${U.money(amount)}</strong></div></section><p class="att-note">복사되는 금액은 원 단위 숫자입니다. 시급 직원은 조회 월·매장의 퇴근 완료 급여(특수일 배율 포함), 월급 직원은 약정 월급에 특수일 가산을 더하고 결근 공제를 뺀 금액입니다. 미퇴근 기록과 주휴·연장·야간수당, 세금·4대보험 공제는 포함하지 않습니다.<br>월급 직원의 특수일 가산은 <b>근무시간 × 통상시급 × 배율</b>입니다. 통상시급은 <b>월급 ÷ 월 소정근로시간</b>, 결근 하루치는 <b>월급 ÷ 월 소정근로일수</b>로 내며 두 값은 직원 정보에서 바꿀 수 있습니다.<br>약정 월급은 직원 정보의 최신 설정이며 조회 월의 확정 지급액은 아닙니다. 급여 유형이 바뀐 달은 금액을 직접 확인해 주세요.</p>`;
+    }).join('') : '<div class="att-empty">등록된 직원과 근무 기록이 없습니다.</div>'}</div><div class="att-payroll-total"><span>시급 직원 기본급 합계</span><strong>${U.money(amount)}</strong></div></section>${dailyPayrollHtml(dailyRows)}<p class="att-note">복사되는 금액은 원 단위 숫자입니다. 시급 직원은 조회 월·매장의 퇴근 완료 급여(특수일 배율 포함), 월급 직원은 약정 월급에 특수일 가산을 더하고 결근 공제를 뺀 금액입니다. 미퇴근 기록과 주휴·연장·야간수당, 세금·4대보험 공제는 포함하지 않습니다.<br>월급 직원의 특수일 가산은 <b>근무시간 × 통상시급 × 배율</b>입니다. 통상시급은 <b>월급 ÷ 월 소정근로시간</b>, 결근 하루치는 <b>월급 ÷ 월 소정근로일수</b>로 내며 두 값은 직원 정보에서 바꿀 수 있습니다.<br>약정 월급은 직원 정보의 최신 설정이며 조회 월의 확정 지급액은 아닙니다. 급여 유형이 바뀐 달은 금액을 직접 확인해 주세요.</p>`;
   }
   async function employeeForm(employee = null) {
     let details = { residentNumber: '', bankName: '', bankAccount: '', accountHolder: '' };
@@ -230,9 +272,9 @@
         details = response.privateDetails;
       } catch (error) { feedback(error.message, true); return; }
     }
-    const e = employee || { name: '', role: '', floor: floor === 'all' ? 2 : Number(floor), payType: 'hourly', hourlyRate: '', monthlySalary: '', monthlyWorkHours: '', monthlyWorkDays: '', breakMinutes: 0, active: true, note: '' };
-    const dialog = U.dialog(employee ? '직원 정보 수정' : '새 직원 등록', `<div class="att-form-grid"><label class="att-field">이름<input class="att-input" name="name" value="${U.esc(e.name)}" maxlength="40" required placeholder="예: 김수라"></label><label class="att-field">담당 업무<input class="att-input" name="role" value="${U.esc(e.role)}" maxlength="40" placeholder="예: 조리 / 포장 / 배송"></label></div><div class="att-form-grid"><label class="att-field">급여 유형<select class="att-input" name="payType"><option value="hourly" ${e.payType === 'hourly' ? 'selected' : ''}>시급 아르바이트</option><option value="salaried" ${e.payType === 'salaried' ? 'selected' : ''}>월급 직원</option></select></label><label class="att-field">시급 (원)<input class="att-input" name="hourlyRate" type="number" min="1" max="1000000" step="1" value="${e.hourlyRate || ''}" placeholder="약정 시급 입력" required></label><label class="att-field">월급 (원)<input class="att-input" name="monthlySalary" type="number" min="1" max="100000000" step="1" value="${e.monthlySalary || ''}" placeholder="예: 3000000"><small>한 달 약정 금액을 입력하세요.</small></label></div><div class="att-form-grid att-salaried-only"><label class="att-field">월 소정근로시간<input class="att-input" name="monthlyWorkHours" type="number" min="1" max="744" step="1" value="${e.monthlyWorkHours || ''}" placeholder="${DEFAULT_WORK_HOURS}"><small>특수일 가산의 기준인 통상시급 = 월급 ÷ 이 값. 비우면 ${DEFAULT_WORK_HOURS}시간.</small></label><label class="att-field">월 소정근로일수<input class="att-input" name="monthlyWorkDays" type="number" min="1" max="31" step="1" value="${e.monthlyWorkDays || ''}" placeholder="${DEFAULT_WORK_DAYS}"><small>결근 하루치 = 월급 ÷ 이 값. 비우면 ${DEFAULT_WORK_DAYS}일.</small></label></div><label class="att-field">기본 무급 휴게시간 (분)<input class="att-input" name="breakMinutes" type="number" min="0" max="720" step="1" value="${e.breakMinutes}" required><small>매 근무에서 차감할 시간입니다. 자동 차감을 원하지 않으면 0분으로 두세요.</small></label><label class="att-field">관리자 메모<textarea class="att-input" name="note" maxlength="500" placeholder="태블릿에는 표시되지 않습니다">${U.esc(e.note)}</textarea></label><label class="att-check"><input type="checkbox" name="active" ${e.active ? 'checked' : ''}>재직 중 · 태블릿에 이름 표시</label>`, async form => {
-      await api('employee.save', { id: employee?.id, version: employee?.version, name: form.get('name'), role: form.get('role'), floor: Number(form.get('floor')), payType: form.get('payType'), hourlyRate: Number(form.get('hourlyRate')), monthlySalary: form.has('monthlySalary') ? Number(form.get('monthlySalary')) : undefined, monthlyWorkHours: form.get('monthlyWorkHours') ? Number(form.get('monthlyWorkHours')) : undefined, monthlyWorkDays: form.get('monthlyWorkDays') ? Number(form.get('monthlyWorkDays')) : undefined, breakMinutes: Number(form.get('breakMinutes')), note: form.get('note'), active: form.has('active'), privateDetails: { residentNumber: form.get('residentNumber'), bankName: form.get('bankName'), bankAccount: form.get('bankAccount'), accountHolder: form.get('accountHolder') } });
+    const e = employee || { name: '', role: '', floor: floor === 'all' ? 2 : Number(floor), payType: 'hourly', hourlyRate: '', monthlySalary: '', monthlyWorkHours: '', monthlyWorkDays: '', dailyPay: '', breakMinutes: 0, active: true, note: '' };
+    const dialog = U.dialog(employee ? '직원 정보 수정' : '새 직원 등록', `<div class="att-form-grid"><label class="att-field">이름<input class="att-input" name="name" value="${U.esc(e.name)}" maxlength="40" required placeholder="예: 김수라"></label><label class="att-field">담당 업무<input class="att-input" name="role" value="${U.esc(e.role)}" maxlength="40" placeholder="예: 조리 / 포장 / 배송"></label></div><div class="att-form-grid"><label class="att-field">급여 유형<select class="att-input" name="payType"><option value="hourly" ${e.payType === 'hourly' ? 'selected' : ''}>시급 아르바이트</option><option value="salaried" ${e.payType === 'salaried' ? 'selected' : ''}>월급 직원</option><option value="daily" ${e.payType === 'daily' ? 'selected' : ''}>일일근무자 자리</option></select></label><label class="att-field">시급 (원)<input class="att-input" name="hourlyRate" type="number" min="1" max="1000000" step="1" value="${e.hourlyRate || ''}" placeholder="약정 시급 입력" required></label><label class="att-field">월급 (원)<input class="att-input" name="monthlySalary" type="number" min="1" max="100000000" step="1" value="${e.monthlySalary || ''}" placeholder="예: 3000000"><small>한 달 약정 금액을 입력하세요.</small></label><label class="att-field">기본 일당 (원)<input class="att-input" name="dailyPay" type="number" min="1" max="10000000" step="1" value="${e.dailyPay || ''}" placeholder="예: 100000"><small>이 자리로 출근한 사람에게 줄 기본 금액입니다. 정산할 때 사람마다 고칠 수 있습니다.</small></label></div><div class="att-form-grid att-salaried-only"><label class="att-field">월 소정근로시간<input class="att-input" name="monthlyWorkHours" type="number" min="1" max="744" step="1" value="${e.monthlyWorkHours || ''}" placeholder="${DEFAULT_WORK_HOURS}"><small>특수일 가산의 기준인 통상시급 = 월급 ÷ 이 값. 비우면 ${DEFAULT_WORK_HOURS}시간.</small></label><label class="att-field">월 소정근로일수<input class="att-input" name="monthlyWorkDays" type="number" min="1" max="31" step="1" value="${e.monthlyWorkDays || ''}" placeholder="${DEFAULT_WORK_DAYS}"><small>결근 하루치 = 월급 ÷ 이 값. 비우면 ${DEFAULT_WORK_DAYS}일.</small></label></div><label class="att-field">기본 무급 휴게시간 (분)<input class="att-input" name="breakMinutes" type="number" min="0" max="720" step="1" value="${e.breakMinutes}" required><small>매 근무에서 차감할 시간입니다. 자동 차감을 원하지 않으면 0분으로 두세요.</small></label><label class="att-field">관리자 메모<textarea class="att-input" name="note" maxlength="500" placeholder="태블릿에는 표시되지 않습니다">${U.esc(e.note)}</textarea></label><label class="att-check"><input type="checkbox" name="active" ${e.active ? 'checked' : ''}>재직 중 · 태블릿에 이름 표시</label>`, async form => {
+      await api('employee.save', { id: employee?.id, version: employee?.version, name: form.get('name'), role: form.get('role'), floor: Number(form.get('floor')), payType: form.get('payType'), hourlyRate: Number(form.get('hourlyRate')), monthlySalary: form.has('monthlySalary') ? Number(form.get('monthlySalary')) : undefined, monthlyWorkHours: form.get('monthlyWorkHours') ? Number(form.get('monthlyWorkHours')) : undefined, monthlyWorkDays: form.get('monthlyWorkDays') ? Number(form.get('monthlyWorkDays')) : undefined, dailyPay: Number(form.get('dailyPay')), breakMinutes: Number(form.get('breakMinutes')), note: form.get('note'), active: form.has('active'), privateDetails: { residentNumber: form.get('residentNumber'), bankName: form.get('bankName'), bankAccount: form.get('bankAccount'), accountHolder: form.get('accountHolder') } });
       await load();
     });
     dialog.querySelector('.att-form-grid').insertAdjacentHTML('afterend', `<label class="att-field">근무 매장<select class="att-input" name="floor"><option value="2" ${e.floor === 2 ? 'selected' : ''}>궁중수라간</option><option value="1" ${(e.floor ?? 1) === 1 ? 'selected' : ''}>돌담명가</option></select><small>지정한 매장의 태블릿에만 표시됩니다. 근무 중인 직원은 퇴근 후 매장을 변경하세요.</small></label>`);
@@ -246,20 +288,28 @@
     };
     bindPayType(dialog);
   }
+  // 급여 유형이 세 갈래라 칸도 세 갈래로 나뉜다.
+  // 숨긴 칸은 disabled 로 둬서 폼 검증과 저장값에서 빠지게 한다.
   function bindPayType(dialog) {
     const payType = dialog.querySelector('[name=payType]');
+    const show = (input, on) => {
+      if (!input) return;
+      const box = input.closest('.att-field');
+      if (box) box.hidden = !on;
+      input.disabled = !on;
+      input.required = on;
+    };
     const sync = () => {
-      const hourly = dialog.querySelector('[name=hourlyRate]'), salary = dialog.querySelector('[name=monthlySalary]');
-      const isHourly = payType.value === 'hourly';
-      hourly.disabled = !isHourly; hourly.required = isHourly;
-      if (salary) {
-        hourly.closest('.att-field').hidden = !isHourly;
-        salary.closest('.att-field').hidden = isHourly;
-        salary.disabled = isHourly; salary.required = !isHourly;
-        // 소정근로시간·일수는 월급 직원에게만 쓰인다.
-        dialog.querySelectorAll('.att-salaried-only').forEach(box => { box.hidden = isHourly; });
-        dialog.querySelectorAll('.att-salaried-only input').forEach(input => { input.disabled = isHourly; });
-      }
+      const kind = payType.value;
+      show(dialog.querySelector('[name=hourlyRate]'), kind === 'hourly');
+      show(dialog.querySelector('[name=monthlySalary]'), kind === 'salaried');
+      show(dialog.querySelector('[name=dailyPay]'), kind === 'daily');
+      // 소정근로시간·일수는 월급 직원에게만 쓰인다.
+      dialog.querySelectorAll('.att-salaried-only').forEach(box => { box.hidden = kind !== 'salaried'; });
+      dialog.querySelectorAll('.att-salaried-only input').forEach(input => { input.disabled = kind !== 'salaried'; });
+      // 누가 일했는지는 일일근무자 기록에만 적는다.
+      dialog.querySelectorAll('.att-worker-only').forEach(box => { box.hidden = kind !== 'daily'; });
+      dialog.querySelectorAll('.att-worker-only input').forEach(input => { input.disabled = kind !== 'daily'; });
     };
     payType.onchange = sync; sync();
     return sync;
@@ -269,11 +319,11 @@
     if (!eligible.length) return employeeForm();
     const employee = eligible.find(e => e.id === (record?.employeeId || employeeId)) || eligible[0];
     const defaultIn = new Date(`${selectedDate}T09:00:00+09:00`).getTime();
-    const s = record || { employeeId: employee.id, checkInAt: Math.min(defaultIn, data.serverNow), checkOutAt: null, breakMinutes: employee.breakMinutes, payType: employee.payType, hourlyRate: employee.hourlyRate, note: '' };
-    const dialog = U.dialog(record ? '출퇴근 기록 수정' : '근무 기록 추가', `<label class="att-field">직원<select class="att-input" name="employeeId" ${record ? 'disabled' : ''}>${eligible.map(e => `<option value="${U.esc(e.id)}" ${e.id === s.employeeId ? 'selected' : ''}>${U.esc(e.name)}</option>`).join('')}</select></label><div class="att-form-grid"><label class="att-field">출근 (한국 시간)<input class="att-input" name="checkInAt" type="datetime-local" value="${U.dateTime(s.checkInAt)}" required></label><label class="att-field">퇴근 (한국 시간)<input class="att-input" name="checkOutAt" type="datetime-local" value="${U.dateTime(s.checkOutAt)}"><small>비워두면 근무 중으로 저장됩니다.</small></label></div><div class="att-form-grid"><label class="att-field">급여 유형<select class="att-input" name="payType"><option value="hourly" ${s.payType === 'hourly' ? 'selected' : ''}>시급</option><option value="salaried" ${s.payType === 'salaried' ? 'selected' : ''}>월급 · 근태만</option></select></label><label class="att-field">이 근무의 시급 (원)<input class="att-input" name="hourlyRate" type="number" min="1" max="1000000" step="1" value="${s.hourlyRate}" required></label></div><label class="att-field">이 근무의 무급 휴게시간 (분)<input class="att-input" name="breakMinutes" type="number" min="0" max="720" step="1" value="${s.breakMinutes}" required></label><label class="att-field">수정 사유 / 메모<textarea class="att-input" name="note" maxlength="500" placeholder="예: 퇴근 버튼을 빠뜨려 실제 시간으로 수정">${U.esc(s.note)}</textarea></label>${record ? '<button class="att-link-button" type="button" data-delete-record>이 근무 기록 삭제</button>' : ''}`, async form => {
+    const s = record || { employeeId: employee.id, checkInAt: Math.min(defaultIn, data.serverNow), checkOutAt: null, breakMinutes: employee.breakMinutes, payType: employee.payType, hourlyRate: employee.hourlyRate, dailyPay: employee.dailyPay || '', workerName: '', workerNote: '', note: '' };
+    const dialog = U.dialog(record ? '출퇴근 기록 수정' : '근무 기록 추가', `<label class="att-field">직원<select class="att-input" name="employeeId" ${record ? 'disabled' : ''}>${eligible.map(e => `<option value="${U.esc(e.id)}" ${e.id === s.employeeId ? 'selected' : ''}>${U.esc(e.name)}</option>`).join('')}</select></label><div class="att-form-grid"><label class="att-field">출근 (한국 시간)<input class="att-input" name="checkInAt" type="datetime-local" value="${U.dateTime(s.checkInAt)}" required></label><label class="att-field">퇴근 (한국 시간)<input class="att-input" name="checkOutAt" type="datetime-local" value="${U.dateTime(s.checkOutAt)}"><small>비워두면 근무 중으로 저장됩니다.</small></label></div><div class="att-form-grid"><label class="att-field">급여 유형<select class="att-input" name="payType"><option value="hourly" ${s.payType === 'hourly' ? 'selected' : ''}>시급</option><option value="salaried" ${s.payType === 'salaried' ? 'selected' : ''}>월급 · 근태만</option><option value="daily" ${s.payType === 'daily' ? 'selected' : ''}>일일근무자</option></select></label><label class="att-field">이 근무의 시급 (원)<input class="att-input" name="hourlyRate" type="number" min="1" max="1000000" step="1" value="${s.hourlyRate}" required></label><label class="att-field">이 근무의 일당 (원)<input class="att-input" name="dailyPay" type="number" min="1" max="10000000" step="1" value="${s.dailyPay || ''}"><small>이 사람에게 줄 금액입니다. 자리의 기본 일당과 다르게 줄 수 있습니다.</small></label></div><div class="att-form-grid att-worker-only"><label class="att-field">일한 사람<input class="att-input" name="workerName" maxlength="40" value="${U.esc(s.workerName || '')}" placeholder="예: 김일손"><small>나중에 적어도 됩니다.</small></label><label class="att-field">지급 메모<input class="att-input" name="workerNote" maxlength="200" value="${U.esc(s.workerNote || '')}" placeholder="예: 국민 123-456 / 현금 지급"></label></div><label class="att-field">이 근무의 무급 휴게시간 (분)<input class="att-input" name="breakMinutes" type="number" min="0" max="720" step="1" value="${s.breakMinutes}" required></label><label class="att-field">수정 사유 / 메모<textarea class="att-input" name="note" maxlength="500" placeholder="예: 퇴근 버튼을 빠뜨려 실제 시간으로 수정">${U.esc(s.note)}</textarea></label>${record ? '<button class="att-link-button" type="button" data-delete-record>이 근무 기록 삭제</button>' : ''}`, async form => {
       // Retain original seconds when only the wage, break or note was changed.
       const parse = (name, original) => form.get(name) === U.dateTime(original) ? original : form.get(name) ? new Date(`${form.get(name)}:00+09:00`).getTime() : null;
-      await api('shift.save', { id: record?.id, version: record?.version, employeeId: record?.employeeId || form.get('employeeId'), checkInAt: parse('checkInAt', s.checkInAt), checkOutAt: parse('checkOutAt', s.checkOutAt), payType: form.get('payType'), hourlyRate: Number(form.get('hourlyRate')), breakMinutes: Number(form.get('breakMinutes')), note: form.get('note') });
+      await api('shift.save', { id: record?.id, version: record?.version, employeeId: record?.employeeId || form.get('employeeId'), checkInAt: parse('checkInAt', s.checkInAt), checkOutAt: parse('checkOutAt', s.checkOutAt), payType: form.get('payType'), hourlyRate: Number(form.get('hourlyRate')), dailyPay: Number(form.get('dailyPay')), workerName: form.get('workerName'), workerNote: form.get('workerNote'), breakMinutes: Number(form.get('breakMinutes')), note: form.get('note') });
       await load();
     });
     const sync = bindPayType(dialog);
@@ -379,11 +429,12 @@
   function exportPayroll() {
     if (loading) return;
     const rows = payrollRows(records());
+    const daily = dailyPayrollRows(records());
     const scope = floor === 'all' ? '전체 매장' : U.storeName(floor);
     const values = [['조회월', '조회매장', '직원명', '급여유형', '약정 월급(원)', '출근일수', '완료근무건수', '유급근무(분)', '무급휴게(분)', '미퇴근건수', '기본급(원)', '특수일 가산(원)', '특수일 근무일수', '결근일수', '결근 공제(원)', '입금 기준액(원, 세금·4대보험 제외)'], ...rows.map(r => {
       const payout = transferAmount(r);
       return [month, scope, r.name, r.type, r.salaryType === 'salaried' ? r.monthlySalary ?? '미설정' : '', r.days, r.count, r.minutes, r.breaks, r.open, r.baseAmount, r.extraAmount, r.specialDays, r.absenceDays, r.deduction, payout === null ? '확인 필요' : payout];
-    })];
+    }), ...daily.map(r => [month, scope, `${r.name} (${r.slotName} ${formatDayLabel(r.workDate)})`, r.type, '', 1, 1, r.minutes, r.breaks, 0, r.amount, 0, 0, 0, 0, r.amount])];
     const cell = value => `"${String(value).replace(/^[\s]*[=+@-]/, match => `'${match}`).replace(/"/g, '""')}"`;
     const blob = new Blob(['\uFEFF', values.map(row => row.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -409,7 +460,8 @@
     if (action === 'edit-employee') employeeForm(person(id));
     if (action === 'copy-bank') copyBank(id, button);
     if (action === 'copy-amount') {
-      const row = payrollRows(records()).find(r => r.id === id), amount = row && transferAmount(row);
+      const all = [...payrollRows(records()), ...dailyPayrollRows(records())];
+      const row = all.find(r => r.id === id), amount = row && transferAmount(row);
       if (amount !== null && amount !== undefined) copyText(String(amount), '입금 기준액을');
     }
     if (action === 'delete-employee') {

@@ -84,3 +84,8 @@
 .att-absence-list .att-row{background:#fbe7e7;color:#8f3232;border-radius:8px;padding:7px 10px;font-size:12px}
 .att-payout-lines{display:flex;flex-direction:column;gap:4px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--att-line);font-size:12px}
 .att-payout-lines .att-row{gap:10px}
+.att-person.slot{border-style:dashed}
+.att-daily-payroll{margin-top:22px}
+.att-payroll-card.is-unnamed{border-color:#ecdabc;background:#fffdf7}
+.att-staff-name-plain{font-size:16px;font-weight:800}
+.att-daily-payroll .att-payroll-transfer{display:flex;flex-direction:column;gap:10px}
