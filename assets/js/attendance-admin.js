@@ -330,12 +330,39 @@
     });
   }
 
+  const DEVICE_STORAGE_KEY = 'gjsuragan-attendance-device';
+  async function deviceIdInThisBrowser() {
+    try {
+      const token = localStorage.getItem(DEVICE_STORAGE_KEY) || '';
+      if (!/^[a-f0-9]{64}$/.test(token) || !window.crypto?.subtle) return '';
+      const digest = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+      return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (_) {
+      // 저장소를 막아둔 브라우저거나 http 로 열어 crypto.subtle 이 없는 경우다.
+      // 못 읽으면 안내만 못 할 뿐, 목록과 매장 변경은 그대로 쓸 수 있다.
+      return '';
+    }
+  }
+
+  // 이 브라우저 자체가 태블릿으로 연결돼 있으면 어느 기기인지 알려준다.
+  // 모르면 '궁중수라간 태블릿' 을 눌러도 돌담명가가 열려서 고장으로 보인다.
+  async function markConnectedDeviceHere(el, tablets) {
+    const box = el.querySelector('#att-device-here');
+    if (!box) return;
+    const id = await deviceIdInThisBrowser();
+    const mine = id ? tablets.find(d => d.id === id) : null;
+    if (!mine) return;
+    box.innerHTML = `<div class="att-notice">지금 보고 계신 이 기기는 <b>${U.esc(U.deviceName(mine.name, mine.floor))}</b> 로 연결돼 있습니다. 그래서 아래 두 버튼 중 어느 쪽을 눌러도 <b>${U.storeName(mine.floor)}</b> 화면이 열립니다.<br>이 기기를 다른 매장으로 쓰시려면 아래 목록의 <b>매장 변경</b>을, 다른 매장 태블릿을 새로 두시려면 <b>그 기기에서</b> 아래 버튼을 눌러 주세요.</div>`;
+  }
+
   function devicesDialog() {
     const tablets = data.devices.filter(d => d.enabled);
     const el = U.dialog('연결된 출퇴근 태블릿', `<p class="att-note">태블릿마다 근무 매장을 지정하세요. 지정한 매장의 직원만 표시됩니다. 분실하거나 사용하지 않는 기기는 연결을 해제할 수 있습니다.</p>
-      <p class="att-note"><b>아래 두 버튼은 아직 연결하지 않은 새 기기를 연결할 때 쓰는 것입니다.</b> 이미 연결된 기기는 어느 쪽을 눌러도 <b>연결할 때 지정한 매장</b>이 그대로 열립니다. 매장을 바꾸시려면 아래 목록에서 <b>매장 변경</b>을 누르세요.</p>
+      <div id="att-device-here"></div>
+      <p class="att-note"><b>아래 두 버튼은 아직 연결하지 않은 새 기기에서 눌러야 뜻이 있습니다.</b> 연결된 기기는 어느 쪽을 눌러도 연결할 때 지정한 매장이 열립니다.</p>
       <div class="att-filters"><a class="att-button" href="./attendance.html?store=suragan" target="_blank" rel="noopener">새 기기를 궁중수라간으로 연결 ↗</a><a class="att-button" href="./attendance.html?store=doldam" target="_blank" rel="noopener">새 기기를 돌담명가로 연결 ↗</a></div>
       <div>${tablets.length ? tablets.map(d => `<div class="att-shift-item att-row"><div><strong>${U.esc(U.deviceName(d.name, d.floor))}</strong> <span class="att-pill">${U.storeName(d.floor)}</span><div class="att-meta">${U.date(d.createdAt)} 연결</div></div><div class="att-filters"><button class="att-button" type="button" data-device-floor="${U.esc(d.id)}">매장 변경</button><button class="att-button att-danger" type="button" data-revoke="${U.esc(d.id)}">연결 해제</button></div></div>`).join('') : '<div class="att-empty">연결된 태블릿이 없습니다.</div>'}</div>`, async () => {}, { submitLabel: '닫기' });
+    markConnectedDeviceHere(el, tablets);
     el.querySelectorAll('[data-device-floor]').forEach(button => { button.onclick = () => {
       const device = tablets.find(d => d.id === button.dataset.deviceFloor);
       U.dialog('태블릿 근무 매장 변경', `<p>${U.esc(U.deviceName(device.name, device.floor))}</p><label class="att-field">표시할 직원의 매장<select class="att-input" name="floor"><option value="2" ${device.floor === 2 ? 'selected' : ''}>궁중수라간 직원만 표시</option><option value="1" ${(device.floor ?? 1) === 1 ? 'selected' : ''}>돌담명가 직원만 표시</option></select></label>`, async form => {
