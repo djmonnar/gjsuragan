@@ -438,6 +438,38 @@ test('관리자가 기록을 고쳐도 반타임 설정이 기본값으로 안 �
   assert.equal(shift.dailyPay, 100000);
 });
 
+test('궁중수라간 태블릿은 오늘 주문 집계를 받아온다', async () => {
+  // 주방이 보는 숫자다. 집계를 못 가져와도 출퇴근은 계속 찍혀야 한다.
+  const withTotals = createAttendanceService({ db, now: () => now,
+    vault: require('../../attendancePrivate').createPrivateVault(() => Buffer.alloc(32, 7).toString('base64')),
+    orderTotals: async () => ({ ok: true, date: '2026-09-10', noDelivery: false,
+      totals: { lunch: 124, salad: 28, eventLunch: 0, catering: 0, largeLunch: 0, rice: 1 } }) });
+  const result = await withTotals.kioskOrders(token);
+  assert.equal(result.ok, true);
+  assert.equal(result.totals.lunch, 124);
+  assert.equal(result.totals.rice, 1);
+  assert.equal(result.date, '2026-09-10');
+});
+
+test('주문 집계를 못 가져와도 태블릿이 멈추지 않는다', async () => {
+  const broken = createAttendanceService({ db, now: () => now,
+    vault: require('../../attendancePrivate').createPrivateVault(() => Buffer.alloc(32, 7).toString('base64')),
+    orderTotals: async () => { throw new Error('주문 조회 실패'); } });
+  const result = await broken.kioskOrders(token);
+  assert.equal(result.ok, false);
+  assert.equal(result.totals, null);
+  // 집계가 아예 연결되지 않은 환경에서도 같은 모양으로 답한다.
+  assert.equal((await service.kioskOrders(token)).ok, false);
+  // 출퇴근은 그대로 된다.
+  assert.ok((await service.punch({ employeeId, kind: 'in', requestId: 'still-works' }, token)).shiftId);
+});
+
+test('연결되지 않은 태블릿은 주문 집계를 볼 수 없다', async () => {
+  await assert.rejects(service.kioskOrders('0'.repeat(64)), { status: 401 });
+  await service.revokeDevice({ id: deviceId }, 'admin');
+  await assert.rejects(service.kioskOrders(token), { status: 401 });
+});
+
 // 출퇴근 시각이 사실상 정해져 있는 일당 직원. 6시간 근무에 일당 75,000원.
 const 비례Input = { name: '화성댁', role: '홀', active: true, payType: 'perDiem', dailyMode: 'prorate',
   dailyPay: 75000, halfDayPay: 0, dailyBaseMinutes: 360, earlyGraceMinutes: 30, breakMinutes: 0, note: '' };

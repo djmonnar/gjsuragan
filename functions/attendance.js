@@ -5,7 +5,8 @@ const model = require('./attendanceModel');
 const privateData = require('./attendancePrivate');
 
 // All attendance writes go through this service. Browser Firestore writes are denied.
-function createAttendanceService({ db, now = Date.now, vault = privateData.createPrivateVault() }) {
+function createAttendanceService({ db, now = Date.now, vault = privateData.createPrivateVault(),
+  orderTotals = null }) {
   const employees = db.collection('staffEmployees');
   const privateEmployees = db.collection('staffPrivate');
   const shifts = db.collection('staffShifts');
@@ -204,6 +205,22 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
     });
     return {};
   }
+  // 궁중수라간 태블릿은 예약 대신 오늘 주문 집계를 띄운다.
+  // 주방이 보는 숫자라 관리 화면의 주문 탭과 같아야 하고,
+  // 집계를 못 가져와도 출퇴근은 계속 찍혀야 한다.
+  async function kioskOrders(token) {
+    checkDevice(await deviceRef(token).get());
+    if (typeof orderTotals !== 'function') return { ok: false, totals: null, reason: 'unavailable' };
+    try {
+      const result = await orderTotals();
+      return result?.ok
+        ? { ok: true, date: result.date, noDelivery: Boolean(result.noDelivery), totals: result.totals }
+        : { ok: false, totals: null, reason: 'error' };
+    } catch (_) {
+      return { ok: false, totals: null, reason: 'error' };
+    }
+  }
+
   async function listKiosk(token) {
     const device = checkDevice(await deviceRef(token).get());
     const [snap, openSnap] = await Promise.all([
@@ -390,7 +407,7 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       return { id: ref.id };
     });
   }
-  return { listAdmin, saveEmployee, getEmployeePrivate, deleteEmployee, createDevice, setDeviceFloor, revokeDevice, listKiosk, punch, saveShift, authorizeDevice, saveSpecialDay, deleteSpecialDay, saveAbsence, deleteAbsence };
+  return { listAdmin, saveEmployee, getEmployeePrivate, deleteEmployee, createDevice, setDeviceFloor, revokeDevice, listKiosk, kioskOrders, punch, saveShift, authorizeDevice, saveSpecialDay, deleteSpecialDay, saveAbsence, deleteAbsence };
 }
 
 function createAttendanceHandler({ service, verifyToken, logError = console.error }) {
@@ -404,9 +421,11 @@ function createAttendanceHandler({ service, verifyToken, logError = console.erro
     try {
       const input = req.body || {};
       let result;
-      if (input.action === 'kiosk.list' || input.action === 'kiosk.punch') {
+      if (input.action === 'kiosk.list' || input.action === 'kiosk.punch' || input.action === 'kiosk.orders') {
         const token = req.headers['x-attendance-device'];
-        result = input.action === 'kiosk.list' ? await service.listKiosk(token) : await service.punch(input, token);
+        if (input.action === 'kiosk.list') result = await service.listKiosk(token);
+        else if (input.action === 'kiosk.orders') result = await service.kioskOrders(token);
+        else result = await service.punch(input, token);
       } else {
         const token = String(req.headers.authorization || '').match(/^Bearer (.+)$/i)?.[1];
         if (!token) model.fail('관리자 로그인이 필요합니다.', 401);

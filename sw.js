@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v82-prorate';
+const CACHE = 'gjsuragan-v83-kiosk-orders';
 const PRECACHE = [
   './customer.html',
   './admin.html',
@@ -7,12 +7,12 @@ const PRECACHE = [
   './staff-admin-manifest.json',
   './assets/css/staff-admin.css?v=20260918-prorate',
   './assets/js/staff-admin.js?v=20260918-manual',
-  './assets/js/staff-manual.js?v=20260918-prorate',
+  './assets/js/staff-manual.js?v=20260918-orders',
   './assets/js/staff-admin-redirect.js?v=20260910-stores',
-  './assets/css/attendance.css?v=20260918-compact',
+  './assets/css/attendance.css?v=20260918-orders',
   './assets/js/attendance-ui.js?v=20260910-calendar',
   './assets/js/attendance-admin.js?v=20260918-prorate',
-  './assets/js/attendance-kiosk.js?v=20260918-compact',
+  './assets/js/attendance-kiosk.js?v=20260918-orders',
   './assets/js/attendance-bookings.js?v=20260910',
   './assets/js/attendance-booking-form.js?v=20260910',
   './assets/js/attendance-bookings-admin.js?v=20260910-calendar',

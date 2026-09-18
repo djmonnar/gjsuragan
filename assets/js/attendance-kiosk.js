@@ -6,10 +6,18 @@
   let device = '', employees = [], filter = 'all', offset = 0, loading = false, dialogOpen = false;
   let setupAuth, floor = 1;
   const setupFloor = U.setupStore(location.search);
+  // 궁중수라간은 예약을 안 받는다. 그 자리에 오늘 주문 집계를 띄운다.
+  const SURAGAN = 2;
   function showStore(value) {
     document.title = `출퇴근 · ${U.storeName(value)}`;
     $('kiosk-store-name').textContent = U.storeName(value);
     $('kiosk-seal').textContent = Number(value) === 1 ? '石' : '宮';
+    const kitchen = Number(value) === SURAGAN;
+    const orders = $('kiosk-orders');
+    const bookings = document.querySelector('.att-bookings');
+    if (orders) orders.hidden = !kitchen;
+    if (bookings) bookings.hidden = kitchen;
+    if (orders) $('orders-store').textContent = `${U.storeName(value)} · 주문`;
   }
   showStore(setupFloor);
   $('kiosk-setup-floor').value = String(setupFloor);
@@ -97,7 +105,8 @@
       $('kiosk-main').hidden = false;
       connection(true, '출퇴근 기록 가능');
       tick(); render();
-      window.AttendanceBookings?.connect(device, () => Date.now() + offset);
+      if (Number(floor) === SURAGAN) loadOrders();
+      else window.AttendanceBookings?.connect(device, () => Date.now() + offset);
     } catch (error) {
       connection(false, '연결 확인 필요');
       if (error.status === 401) {
@@ -113,6 +122,43 @@
         $('kiosk-error').hidden = false;
       }
     } finally { loading = false; }
+  }
+  // 주문 집계는 자주 바뀌지 않고 조회가 무겁다. 3분에 한 번만 가져온다.
+  const ORDERS_MS = 180000;
+  const ORDER_FIELDS = [['orders-lunch', 'lunch'], ['orders-salad', 'salad'],
+    ['orders-event-lunch', 'eventLunch'], ['orders-catering', 'catering'],
+    ['orders-large-lunch', 'largeLunch'], ['orders-rice', 'rice']];
+  let ordersAt = 0, ordersBusy = false;
+  function renderOrders(data) {
+    const status = $('orders-status');
+    const totals = data && data.ok ? data.totals : null;
+    ORDER_FIELDS.forEach(([id, key]) => {
+      const value = totals ? Number(totals[key]) : NaN;
+      $(id).textContent = Number.isFinite(value) ? value.toLocaleString('ko-KR') : '–';
+    });
+    // 2026-09-18 → 9월 18일. 어제 숫자를 보고 만드는 일이 없어야 한다.
+    const day = String(data?.date || '').match(/^\d{4}-(\d{2})-(\d{2})$/);
+    $('orders-date').textContent = day ? `${Number(day[1])}월 ${Number(day[2])}일` : '';
+    if (!totals) {
+      status.textContent = '주문을 불러오지 못했습니다. 잠시 뒤 다시 확인합니다.';
+      status.hidden = false;
+    } else if (data.noDelivery) {
+      status.textContent = '오늘은 배송하지 않는 날입니다.';
+      status.hidden = false;
+    } else {
+      status.hidden = true;
+    }
+  }
+  async function loadOrders(force) {
+    if (!device || Number(floor) !== SURAGAN || ordersBusy) return;
+    if (!force && Date.now() - ordersAt < ORDERS_MS) return;
+    ordersBusy = true;
+    try {
+      renderOrders(await U.request('kiosk.orders', {}, { device }));
+      ordersAt = Date.now();
+    } catch (_) {
+      // 집계를 못 가져와도 출퇴근은 계속 찍혀야 한다. 화면의 숫자만 그대로 둔다.
+    } finally { ordersBusy = false; }
   }
   function choose(card) {
     if (dialogOpen) return;
@@ -180,9 +226,9 @@
   };
   window.addEventListener('online', load);
   window.addEventListener('offline', () => { connection(false, '인터넷 연결 끊김'); $('kiosk-error').textContent = '인터넷 연결 후 출퇴근 버튼을 다시 눌러 주세요. 오프라인 상태에서는 기록되지 않습니다.'; $('kiosk-error').hidden = false; });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { load(); loadOrders(); } });
   tick();
   setInterval(tick, 1000);
-  setInterval(() => { if (!document.hidden && !dialogOpen) load(); }, 15000);
+  setInterval(() => { if (!document.hidden && !dialogOpen) { load(); loadOrders(); } }, 15000);
   if (device) load(); else { $('kiosk-setup').hidden = false; connection(false, '태블릿 연결 필요'); }
 })();
