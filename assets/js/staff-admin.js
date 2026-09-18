@@ -14,24 +14,27 @@
     isActive(panel) { return signedIn && activePanel === panel; }
   };
   function dispose() {
-    window.AttendanceAdmin.dispose(); window.AttendanceReservations.dispose();
+    window.AttendanceAdmin.dispose(); window.AttendanceReservations.dispose(); window.StaffManual?.dispose();
     document.querySelectorAll('dialog.att-dialog').forEach(el => el.close());
     activePanel = '';
   }
   function showPanel() {
     if (!signedIn) return;
-    const panel = location.hash === '#reservations' ? 'reservations' : 'attendance';
+    const panel = location.hash === '#reservations' ? 'reservations' : location.hash === '#manual' ? 'manual' : 'attendance';
     if (activePanel === panel) return;
     dispose(); activePanel = panel;
     $('staff-attendance-panel').hidden = panel !== 'attendance';
     $('staff-reservations-panel').hidden = panel !== 'reservations';
+    $('staff-manual-panel').hidden = panel !== 'manual';
     document.querySelectorAll('[data-panel]').forEach(link => {
       if (link.dataset.panel === panel) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');
     });
-    document.title = `${panel === 'reservations' ? '돌담명가 예약' : '직원 · 근태'} · 매장 관리`;
+    const titles = { reservations: '돌담명가 예약', manual: '사용 안내', attendance: '직원 · 근태' };
+    document.title = `${titles[panel]} · 매장 관리`;
     if (panel === 'attendance') window.AttendanceAdmin.init();
-    else window.AttendanceReservations.init();
+    else if (panel === 'reservations') window.AttendanceReservations.init();
+    else window.StaffManual?.init();
   }
   auth.onAuthStateChanged(user => {
     signedIn = allowed(user);
