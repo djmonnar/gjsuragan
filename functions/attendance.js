@@ -12,6 +12,8 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
   const devices = db.collection('attendanceDevices');
   const requests = db.collection('attendanceRequests');
   const audit = db.collection('attendanceAudit');
+  const specialDays = db.collection('attendanceSpecialDays');
+  const absences = db.collection('attendanceAbsences');
   const serialize = snap => ({ ...snap.data(), id: snap.id });
   const digest = token => crypto.createHash('sha256').update(token).digest('hex');
   const lastShift = shift => shift ? { id: shift.id, checkInAt: shift.checkInAt, checkOutAt: shift.checkOutAt } : null;
@@ -35,17 +37,77 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
   }
   async function listAdmin(month) {
     const range = model.monthRange(month);
-    const [people, records, active, tablets] = await Promise.all([
+    const [people, records, active, tablets, holidays, offDays] = await Promise.all([
       employees.get(), shifts.where('workDate', '>=', range.start).where('workDate', '<', range.end).get(),
-      shifts.where('checkOutAt', '==', null).get(), devices.get()
+      shifts.where('checkOutAt', '==', null).get(), devices.get(),
+      // 특수일은 조회 월 것만 읽으면 된다. 배율은 근무일 기준으로만 붙는다.
+      specialDays.where('workDate', '>=', range.start).where('workDate', '<', range.end).get(),
+      absences.where('workDate', '>=', range.start).where('workDate', '<', range.end).get()
     ]);
+    const specialByDate = new Map(holidays.docs.map(serialize).map(d => [d.workDate, d]));
     return {
       employees: people.docs.map(serialize).map(e => ({ ...e, floor: model.floor(e.floor) })),
-      shifts: records.docs.map(serialize).filter(s => !s.voided).map(s => ({ ...s, floor: model.floor(s.floor), ...model.totals(s) })),
+      shifts: records.docs.map(serialize).filter(s => !s.voided)
+        .map(s => ({ ...s, floor: model.floor(s.floor), ...model.totals(s, specialByDate.get(s.workDate) || null) })),
       openShifts: active.docs.map(serialize).filter(s => !s.voided).map(s => ({ ...s, floor: model.floor(s.floor) })),
       devices: tablets.docs.map(serialize).map(d => ({ id: d.id, name: d.name, floor: model.floor(d.floor), version: d.version || 1, enabled: d.enabled, createdAt: d.createdAt })),
+      specialDays: [...specialByDate.values()].sort((a, b) => a.workDate.localeCompare(b.workDate)),
+      absences: offDays.docs.map(serialize).sort((a, b) => a.workDate.localeCompare(b.workDate)),
       serverNow: now()
     };
+  }
+
+  // 특수일은 날짜 하나에 하나만 둔다. 문서 id 를 날짜로 써서 같은 날이 둘 생길 수 없게 한다.
+  async function saveSpecialDay(input, actor) {
+    const data = model.specialDayInput(input);
+    const ref = specialDays.doc(data.workDate);
+    return db.runTransaction(async tx => {
+      const snap = await tx.get(ref);
+      const before = snap.exists ? serialize(snap) : null;
+      if (before && input.version !== undefined) revision(input, before);
+      const after = { ...data, createdAt: before?.createdAt ?? now(), updatedAt: now(), version: (before?.version || 0) + 1 };
+      tx.set(ref, after);
+      log(tx, actor, 'specialDay.save', ref.id, before, after);
+      return { id: ref.id };
+    });
+  }
+
+  async function deleteSpecialDay(input, actor) {
+    const ref = specialDays.doc(model.workDateString(input.workDate, '날짜'));
+    return db.runTransaction(async tx => {
+      const before = existing(await tx.get(ref), '특수일');
+      tx.delete(ref);
+      log(tx, actor, 'specialDay.delete', ref.id, before, null);
+      return { id: ref.id };
+    });
+  }
+
+  // 결근도 직원·날짜당 하나다. 같은 날을 두 번 찍어 두 배로 깎이면 안 된다.
+  async function saveAbsence(input, actor) {
+    const data = model.absenceInput(input);
+    const ref = absences.doc(`${data.employeeId}_${data.workDate}`);
+    return db.runTransaction(async tx => {
+      const [snap, employeeSnap] = await Promise.all([tx.get(ref), tx.get(employees.doc(data.employeeId))]);
+      const employee = existing(employeeSnap, '직원');
+      if (employee.deletedAt) model.fail('삭제된 직원에게는 결근을 표시할 수 없습니다.');
+      const before = snap.exists ? serialize(snap) : null;
+      if (before && input.version !== undefined) revision(input, before);
+      const after = { ...data, employeeName: employee.name, floor: model.floor(employee.floor),
+        createdAt: before?.createdAt ?? now(), updatedAt: now(), version: (before?.version || 0) + 1 };
+      tx.set(ref, after);
+      log(tx, actor, 'absence.save', ref.id, before, after);
+      return { id: ref.id };
+    });
+  }
+
+  async function deleteAbsence(input, actor) {
+    const ref = absences.doc(model.id(input.id));
+    return db.runTransaction(async tx => {
+      const before = existing(await tx.get(ref), '결근 기록');
+      tx.delete(ref);
+      log(tx, actor, 'absence.delete', ref.id, before, null);
+      return { id: ref.id };
+    });
   }
   async function saveEmployee(input, actor) {
     const data = model.employeeInput(input);
@@ -166,6 +228,8 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         ref = newShiftRef;
         record = { employeeId: employee.id, employeeName: employee.name, floor: model.floor(employee.floor), workDate: model.workDate(at),
           checkInAt: at, checkOutAt: null, payType: employee.payType, hourlyRate: employee.hourlyRate,
+          // 월급 직원의 특수일 가산 기준. 출근 시점의 월급으로 고정한다.
+          ordinaryHourlyRate: model.ordinaryHourlyRate(employee),
           breakMinutes: employee.breakMinutes, note: '', source: 'kiosk', deviceId: tabletRef.id,
           version: 1, voided: false, createdAt: at, updatedAt: at };
         // Employee document serializes concurrent punches and admin corrections.
@@ -178,6 +242,9 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         if (at - before.checkInAt > model.MAX_SHIFT_MS) model.fail('출근 후 36시간이 지났습니다. 관리자에게 시간 수정을 요청해 주세요.', 409);
         if (at <= before.checkInAt) model.fail('출근 시간 이후에 퇴근할 수 있습니다.', 409);
         record = { ...before, checkOutAt: at, updatedAt: at, version: before.version + 1 };
+        // 이 기능이 붙기 전에 출근한 기록에는 통상시급이 없다. 퇴근할 때 채워 준다.
+        // 없는 채로 두면 그날이 특수일이어도 가산이 0으로 계산된다.
+        if (before.payType === 'salaried' && !before.ordinaryHourlyRate) record.ordinaryHourlyRate = model.ordinaryHourlyRate(employee);
         if (record.breakMinutes > Math.floor((at - before.checkInAt) / model.MINUTE)) model.fail('설정된 휴게시간보다 근무시간이 짧습니다. 관리자에게 수정을 요청해 주세요.', 409);
       }
       const result = { kind: input.kind, employeeId: employee.id, name: employee.name, at, shiftId: ref.id };
@@ -208,6 +275,10 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       const after = remove ? { ...before, voided: true, updatedAt: now(), version: before.version + 1 } : {
         ...before, ...data, employeeId, employeeName: before?.employeeName || employee.name,
         floor: model.floor(before ? before.floor : employee.floor),
+        // 관리자 화면은 통상시급을 따로 묻지 않는다. 저장 시점의 직원 설정에서 낸다.
+        // 이미 값이 있는 기록은 그때 값을 지킨다. 시급과 같은 원칙이다.
+        ordinaryHourlyRate: data.payType === 'salaried'
+          ? (before?.ordinaryHourlyRate || model.ordinaryHourlyRate(employee)) : 0,
         source: before?.source || 'admin', voided: false, createdAt: before?.createdAt ?? now(),
         updatedAt: now(), version: (before?.version || 0) + 1
       };
@@ -219,7 +290,7 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       return { id: ref.id };
     });
   }
-  return { listAdmin, saveEmployee, getEmployeePrivate, deleteEmployee, createDevice, setDeviceFloor, revokeDevice, listKiosk, punch, saveShift, authorizeDevice };
+  return { listAdmin, saveEmployee, getEmployeePrivate, deleteEmployee, createDevice, setDeviceFloor, revokeDevice, listKiosk, punch, saveShift, authorizeDevice, saveSpecialDay, deleteSpecialDay, saveAbsence, deleteAbsence };
 }
 
 function createAttendanceHandler({ service, verifyToken, logError = console.error }) {
@@ -253,6 +324,10 @@ function createAttendanceHandler({ service, verifyToken, logError = console.erro
           case 'device.create': result = await service.createDevice(input, user.uid); break;
           case 'device.floor': result = await service.setDeviceFloor(input, user.uid); break;
           case 'device.revoke': result = await service.revokeDevice(input, user.uid); break;
+          case 'specialDay.save': result = await service.saveSpecialDay(input, user.uid); break;
+          case 'specialDay.delete': result = await service.deleteSpecialDay(input, user.uid); break;
+          case 'absence.save': result = await service.saveAbsence(input, user.uid); break;
+          case 'absence.delete': result = await service.deleteAbsence(input, user.uid); break;
           default: model.fail('지원하지 않는 요청입니다.', 404);
         }
       }

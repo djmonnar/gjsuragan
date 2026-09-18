@@ -7,14 +7,14 @@ const at = value => new Date(value).getTime();
 const base = { checkInAt: at('2026-09-01T09:00:00+09:00'), checkOutAt: at('2026-09-01T18:00:00+09:00'), breakMinutes: 60, payType: 'hourly', hourlyRate: 12000, note: '' };
 
 test('hourly pay deducts explicit unpaid break and excludes unfinished and salaried shifts', () => {
-  assert.deepEqual(M.totals(base), { workedMinutes: 540, payableMinutes: 480, amount: 96000 });
+  assert.deepEqual(M.totals(base), { workedMinutes: 540, payableMinutes: 480, amount: 96000, baseAmount: 96000, extraAmount: 0, multiplierPercent: 100 });
   assert.equal(M.totals({ ...base, payType: 'salaried' }).amount, 0);
   assert.equal(M.totals({ ...base, checkOutAt: null }).amount, 0);
   assert.equal(M.totals({ ...base, voided: true }).amount, 0);
 });
 test('elapsed minutes truncate once and money rounds per shift', () => {
   const shift = { ...base, checkOutAt: base.checkInAt + 61 * 60000 + 59000, breakMinutes: 0, hourlyRate: 10321 };
-  assert.deepEqual(M.totals(shift), { workedMinutes: 61, payableMinutes: 61, amount: 10493 });
+  assert.deepEqual(M.totals(shift), { workedMinutes: 61, payableMinutes: 61, amount: 10493, baseAmount: 10493, extraAmount: 0, multiplierPercent: 100 });
 });
 test('KST date, leap February and December rollover do not depend on host timezone', () => {
   assert.equal(M.workDate(at('2026-08-31T15:00:00Z')), '2026-09-01');

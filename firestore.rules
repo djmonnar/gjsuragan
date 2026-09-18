@@ -520,6 +520,14 @@ service cloud.firestore {
     match /attendanceRequests/{id} {
       allow read, write: if false;
     }
+    match /attendanceSpecialDays/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /attendanceAbsences/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
