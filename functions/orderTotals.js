@@ -10,7 +10,11 @@
 // 곱빼기도시락과 공기밥은 행사도시락 카탈로그로 주문받지만 주방이 따로 세므로
 // 행사도시락 수량에 섞지 않는다 (catering-catalog 의 splitLargeLunch 와 같은 규칙).
 
-const catering = require('../assets/js/catering-catalog.js');
+// functions/ 밖의 파일은 배포본에 안 들어간다. firebase.json 이 이 폴더만 싣는다.
+// 그래서 assets/js/catering-catalog.js 를 여기로 복사해 두고 쓴다.
+// 두 벌이 갈라지지 않게 catering-catalog.test.js 가 글자까지 대조한다.
+// 원본을 고쳤으면 functions/ 에서 npm run build:catering 을 돌린다.
+const catering = require('./cateringCatalog.js');
 
 function count(value) {
   const number = Math.floor(Number(value));
