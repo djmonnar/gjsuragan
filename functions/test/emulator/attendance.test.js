@@ -438,6 +438,85 @@ test('관리자가 기록을 고쳐도 반타임 설정이 기본값으로 안 �
   assert.equal(shift.dailyPay, 100000);
 });
 
+// 출퇴근 시각이 사실상 정해져 있는 일당 직원. 6시간 근무에 일당 75,000원.
+const 비례Input = { name: '화성댁', role: '홀', active: true, payType: 'perDiem', dailyMode: 'prorate',
+  dailyPay: 75000, halfDayPay: 0, dailyBaseMinutes: 360, earlyGraceMinutes: 30, breakMinutes: 0, note: '' };
+
+test('비례 지급 설정이 출근 기록에 실린다', async () => {
+  const id = (await service.saveEmployee(비례Input, 'admin')).id;
+  const shift = await service.punch({ employeeId: id, kind: 'in', requestId: 'in' }, token);
+  const saved = await getShift(shift.shiftId);
+  assert.equal(saved.dailyMode, 'prorate');
+  assert.equal(saved.earlyGraceMinutes, 30);
+  assert.equal(saved.dailyBaseMinutes, 360);
+});
+
+test('정해진 시간을 못 채우고 퇴근하면 일한 만큼만 나간다', async () => {
+  const id = (await service.saveEmployee(비례Input, 'admin')).id;
+  now = at('2026-09-10T11:00:00+09:00');
+  const shift = await service.punch({ employeeId: id, kind: 'in', requestId: 'in' }, token);
+  now = at('2026-09-10T14:00:00+09:00');
+  await service.punch({ employeeId: id, kind: 'out', requestId: 'out', shiftId: shift.shiftId }, token);
+  const saved = (await service.listAdmin('2026-09')).shifts.find(s => s.id === shift.shiftId);
+  assert.equal(saved.dayPortion, 'part');
+  assert.equal(saved.amount, 37500);
+});
+
+test('30분 일찍 퇴근한 날은 일당 전액이 나간다', async () => {
+  const id = (await service.saveEmployee(비례Input, 'admin')).id;
+  now = at('2026-09-10T11:00:00+09:00');
+  const shift = await service.punch({ employeeId: id, kind: 'in', requestId: 'in' }, token);
+  now = at('2026-09-10T16:30:00+09:00');
+  await service.punch({ employeeId: id, kind: 'out', requestId: 'out', shiftId: shift.shiftId }, token);
+  const saved = (await service.listAdmin('2026-09')).shifts.find(s => s.id === shift.shiftId);
+  assert.equal(saved.dayPortion, 'full');
+  assert.equal(saved.amount, 75000);
+});
+
+test('관리자가 기록을 고쳐도 지급 방식과 유예가 기본값으로 안 되돌아간다', async () => {
+  // 화면이 안 보낸 값이 shiftInput 의 기본값으로 덮이면 금액이 조용히 바뀐다.
+  const id = (await service.saveEmployee({ ...비례Input, earlyGraceMinutes: 45 }, 'admin')).id;
+  now = at('2026-09-11T09:00:00+09:00');
+  const saved = await service.saveShift({ employeeId: id, payType: 'perDiem', breakMinutes: 0, note: '',
+    checkInAt: at('2026-09-10T11:00:00+09:00'), checkOutAt: at('2026-09-10T16:20:00+09:00') }, 'admin');
+  const shift = await getShift(saved.id);
+  assert.equal(shift.dailyMode, 'prorate', '지급 방식이 반타임·풀타임으로 되돌아갔습니다');
+  assert.equal(shift.earlyGraceMinutes, 45, '유예가 30분으로 되돌아갔습니다');
+  assert.equal(shift.dailyBaseMinutes, 360);
+  // 40분 일찍 갔지만 유예가 45분이라 전액.
+  const row = (await service.listAdmin('2026-09')).shifts.find(s => s.id === saved.id);
+  assert.equal(row.amount, 75000);
+});
+
+test('유예를 0으로 둔 직원은 1분만 일찍 가도 깎인다', async () => {
+  const id = (await service.saveEmployee({ ...비례Input, earlyGraceMinutes: 0 }, 'admin')).id;
+  assert.equal((await db.collection('staffEmployees').doc(id).get()).data().earlyGraceMinutes, 0);
+  now = at('2026-09-11T09:00:00+09:00');
+  const saved = await service.saveShift({ employeeId: id, payType: 'perDiem', breakMinutes: 0, note: '',
+    checkInAt: at('2026-09-10T11:00:00+09:00'), checkOutAt: at('2026-09-10T16:59:00+09:00') }, 'admin');
+  const row = (await service.listAdmin('2026-09')).shifts.find(s => s.id === saved.id);
+  assert.equal(row.dayPortion, 'part');
+  assert.ok(row.amount < 75000 && row.amount > 0, `${row.amount}원`);
+});
+
+test('지급 방식을 바꿔도 지난 기록의 금액은 그대로다', async () => {
+  // 이미 정산해서 돈이 나간 달의 숫자가 나중에 움직이면 안 된다.
+  const id = (await service.saveEmployee(perDiemInput, 'admin')).id;
+  now = at('2026-09-10T09:00:00+09:00');
+  const shift = await service.punch({ employeeId: id, kind: 'in', requestId: 'in' }, token);
+  now = at('2026-09-10T16:30:00+09:00');
+  await service.punch({ employeeId: id, kind: 'out', requestId: 'out', shiftId: shift.shiftId }, token);
+  const before = (await service.listAdmin('2026-09')).shifts.find(s => s.id === shift.shiftId);
+  assert.equal(before.amount, 55000);
+  // 이제 비례 지급으로 바꾼다.
+  const employee = (await db.collection('staffEmployees').doc(id).get()).data();
+  await service.saveEmployee({ ...perDiemInput, id, version: employee.version,
+    dailyMode: 'prorate', dailyBaseMinutes: 360, earlyGraceMinutes: 30 }, 'admin');
+  const after = (await service.listAdmin('2026-09')).shifts.find(s => s.id === shift.shiftId);
+  assert.equal(after.amount, 55000, '지난 기록의 금액이 바뀌었습니다');
+  assert.equal(after.dayPortion, 'half');
+});
+
 test('기록에서 풀타임·반타임을 직접 정하면 그대로 간다', async () => {
   const id = (await service.saveEmployee(perDiemInput, 'admin')).id;
   now = at('2026-09-11T09:00:00+09:00');

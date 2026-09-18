@@ -271,3 +271,47 @@ test('월급 미설정 직원은 입금액 대신 안내가 나온다', () => {
   assert.match(html, /월급 미설정/);
   assert.doesNotMatch(html, /NaN/);
 });
+
+// 비례 지급으로 바꾼 일당 직원
+const 비례직원 = { id: 'p2', name: '화성댁', role: '홀', floor: 2, payType: 'perDiem',
+  dailyMode: 'prorate', dailyPay: 75000, halfDayPay: 0, dailyBaseMinutes: 360,
+  earlyGraceMinutes: 30, breakMinutes: 0, active: true };
+// 6시간 중 3시간만 일하고 간 날 (서버가 계산해 보내는 모양 그대로)
+const 비례근무 = { id: 'x9', employeeId: 'p2', employeeName: '화성댁', floor: 2, workDate: '2026-09-17',
+  checkInAt: at('2026-09-17T11:00:00+09:00'), checkOutAt: at('2026-09-17T14:00:00+09:00'),
+  breakMinutes: 0, payType: 'perDiem', hourlyRate: 0, payableMinutes: 180,
+  amount: 37500, baseAmount: 37500, extraAmount: 0, dayPortion: 'part', note: '' };
+
+test('일찍 간 날이 급여 정산에서 따로 보인다', () => {
+  // 풀타임과 한 줄로 합쳐지면 왜 금액이 다른지 알 수 없다.
+  const state = baseState('payroll');
+  state.data.employees = [비례직원];
+  state.data.shifts = [비례근무];
+  const { html } = screen(state);
+  assert.match(html, /일찍 퇴근 1일/);
+  assert.match(html, /37,500원/);
+  assert.doesNotMatch(html, /NaN/);
+  assert.doesNotMatch(html, /undefined/);
+});
+
+test('일당 직원 카드에 일당과 지급 방식이 나온다', () => {
+  // '약정 월급 —' 이라고 나오면 얼마 주기로 한 사람인지 알 수 없다.
+  const state = baseState('employees');
+  state.data.employees = [비례직원];
+  const { html } = screen(state);
+  assert.match(html, /기본 일당/);
+  assert.match(html, /75,000원/);
+  assert.match(html, /일한 시간 비례/);
+  assert.match(html, /30분까지는 전액/);
+  assert.doesNotMatch(html, /약정 월급/);
+});
+
+test('반타임 방식 일당 직원 카드에는 반타임 조건이 나온다', () => {
+  const state = baseState('employees');
+  state.data.employees = [일당직원];
+  const { html } = screen(state);
+  assert.match(html, /기본 일당/);
+  assert.match(html, /17:00 전 퇴근은 반타임/);
+  assert.match(html, /55,000원/);
+  assert.doesNotMatch(html, /NaN/);
+});

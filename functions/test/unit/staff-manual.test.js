@@ -171,6 +171,33 @@ test('일당 직원 예시가 실제 판정과 맞는다', () => {
   assert.match(html, new RegExp(`오후 ${Math.floor(M.DEFAULT_HALF_DAY_BEFORE_MINUTES / 60) - 12}시 전에 퇴근하면 반타임`));
 });
 
+test('비례 지급 예시가 실제 계산과 맞는다', () => {
+  // 안내에 적은 금액을 실제 계산 함수로 다시 내서 대조한다.
+  // 계산을 고치고 안내를 안 고치면 여기서 깨진다.
+  const { html } = render();
+  const 출근 = new Date('2026-09-18T11:00:00+09:00').getTime();
+  const 근무 = (시간, 분 = 0) => ({
+    payType: 'perDiem', dailyMode: 'prorate', dayPortion: 'auto',
+    checkInAt: 출근, checkOutAt: 출근 + (시간 * 60 + 분) * 60000, breakMinutes: 0,
+    dailyPay: 75000, halfDayPay: 0, dailyBaseMinutes: 360,
+    earlyGraceMinutes: M.DEFAULT_EARLY_GRACE_MINUTES,
+    overtimeUnitMinutes: M.DEFAULT_OVERTIME_UNIT_MINUTES, overtimePay: 5000
+  });
+  for (const [시간, 분] of [[3, 0], [5, 0], [5, 29]]) {
+    const t = M.totals(근무(시간, 분));
+    assert.equal(t.dayPortion, 'part');
+    assert.match(html, new RegExp(t.amount.toLocaleString('en-US')));
+  }
+  // 유예 안쪽은 전액이어야 하고, 그 값이 안내에도 적혀 있어야 한다.
+  assert.equal(M.totals(근무(5, 30)).dayPortion, 'full');
+  assert.equal(M.totals(근무(5, 30)).amount, 75000);
+  assert.match(html, /75,000원/);
+  // 기준을 넘긴 몫은 추가 급여로 붙는다.
+  assert.equal(M.totals(근무(6, 30)).extraAmount, 5000);
+  assert.match(html, new RegExp(`유예 ${M.DEFAULT_EARLY_GRACE_MINUTES}분`));
+  assert.match(html, new RegExp(`기본 ${M.DEFAULT_EARLY_GRACE_MINUTES}분`));
+});
+
 test('다시 열어도 내용이 겹치지 않는다', () => {
   const { api, root } = render();
   const once = (root.innerHTML.match(/id="sm-absence"/g) || []).length;

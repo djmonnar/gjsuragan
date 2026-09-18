@@ -52,3 +52,4 @@
 .sm-sub p{margin:4px 0 0;color:var(--att-muted);font-size:13px;line-height:1.7}
 .sm-example{margin:0 0 16px}
 .sm-example figcaption{margin-top:7px;color:var(--att-muted);font-size:12px}
+.sm-example>.sm-table-wrap{margin-bottom:0}

@@ -266,6 +266,10 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
           dailyPay: dailyPaid ? (employee.dailyPay || 0) : 0,
           halfDayPay: dailyPaid ? (employee.halfDayPay || 0) : 0,
           halfDayBeforeMinutes: dailyPaid ? (employee.halfDayBeforeMinutes || 0) : 0,
+          dailyMode: dailyPaid ? (employee.dailyMode || 'portion') : 'portion',
+          // 0 은 '유예 없음'이라 뜻이 있다. 없을 때만 기본값을 채운다.
+          earlyGraceMinutes: dailyPaid
+            ? (employee.earlyGraceMinutes ?? model.DEFAULT_EARLY_GRACE_MINUTES) : 0,
           dayPortion: 'auto',
           dailyBaseMinutes: dailyPaid ? (employee.dailyBaseMinutes || 0) : 0,
           overtimeUnitMinutes: dailyPaid ? (employee.overtimeUnitMinutes || 0) : 0,
@@ -352,6 +356,14 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
             : (before?.halfDayBeforeMinutes || employee.halfDayBeforeMinutes || data.halfDayBeforeMinutes)) : 0,
         dayPortion: dailyPaidShift
           ? (input.dayPortion !== undefined ? data.dayPortion : (before?.dayPortion || 'auto')) : 'auto',
+        dailyMode: dailyPaidShift
+          ? (input.dailyMode !== undefined ? data.dailyMode
+            : (before?.dailyMode || employee.dailyMode || 'portion')) : 'portion',
+        // 유예도 0 이 뜻이 있는 값이라, 입력이 아예 없을 때만 물려받는다.
+        earlyGraceMinutes: dailyPaidShift
+          ? (input.earlyGraceMinutes === undefined
+            ? (before?.earlyGraceMinutes ?? employee.earlyGraceMinutes ?? data.earlyGraceMinutes)
+            : data.earlyGraceMinutes) : 0,
         dailyBaseMinutes: dailyPaidShift
           ? (input.dailyBaseMinutes !== undefined ? data.dailyBaseMinutes
             : (before?.dailyBaseMinutes || employee.dailyBaseMinutes || data.dailyBaseMinutes)) : 0,
