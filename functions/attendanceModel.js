@@ -50,6 +50,15 @@ const DEFAULT_MONTHLY_WORK_DAYS = 22;
 const BASE_PERCENT = 100;
 const PAY_TYPE_SCOPES = ['hourly', 'salaried', 'both'];
 
+// 일일근무자(daily)는 사람이 아니라 '자리'다.
+// 누가 올지 모르는 하루 일손을 위해 태블릿에 미리 띄워두는 칸이고,
+// 한 자리를 여러 사람이 같은 날 같이 쓴다. 그래서 출퇴근 기록마다 따로 떨어져야 한다.
+// 이름은 나중에 정산할 때 기록별로 적는다.
+const PAY_TYPES = ['hourly', 'salaried', 'daily'];
+function isSharedSlot(employee = {}) {
+  return employee.payType === 'daily';
+}
+
 // 비었거나 0 이면 기본값. 그 밖의 값은 손대지 않고 넘겨서 검증을 받게 한다.
 function unsetTo(value, fallback) {
   return value === undefined || value === null || value === 0 ? fallback : value;
@@ -63,7 +72,7 @@ function workDateString(value, label = '날짜') {
 }
 
 function employeeInput(input) {
-  if (!['hourly', 'salaried'].includes(input.payType)) fail('급여 유형을 선택해 주세요.');
+  if (!PAY_TYPES.includes(input.payType)) fail('급여 유형을 선택해 주세요.');
   if (typeof input.active !== 'boolean') fail('재직 상태를 확인해 주세요.');
   const salaried = input.payType === 'salaried';
   return {
@@ -83,6 +92,9 @@ function employeeInput(input) {
       ? integer(unsetTo(input.monthlyWorkHours, DEFAULT_MONTHLY_WORK_HOURS), '월 소정근로시간', 1, 744) : 0,
     monthlyWorkDays: salaried
       ? integer(unsetTo(input.monthlyWorkDays, DEFAULT_MONTHLY_WORK_DAYS), '월 소정근로일수', 1, 31) : 0,
+    // 일일근무자 자리의 기본 일당. 기록마다 관리자가 고칠 수 있는 '기본값'이다.
+    // 명절이나 흥정한 금액은 정산할 때 그 기록에서 바꾼다.
+    dailyPay: input.payType === 'daily' ? integer(input.dailyPay, '일당', 1, 10000000) : 0,
     breakMinutes: integer(input.breakMinutes, '무급 휴게시간', 0, 720),
     active: input.active,
     note: text(input.note, '메모', 500)
@@ -132,7 +144,7 @@ function absenceInput(input) {
 
 // 이 근무에 적용할 배율(퍼센트). 해당 없으면 100.
 function shiftMultiplierPercent(specialDay, payType) {
-  if (!specialDay) return BASE_PERCENT;
+  if (!specialDay || payType === 'daily') return BASE_PERCENT;
   const scope = specialDay.appliesTo;
   if (scope !== 'both' && scope !== payType) return BASE_PERCENT;
   const percent = Number(specialDay.multiplierPercent);
@@ -147,7 +159,7 @@ function shiftInput(input, now) {
     if (checkOutAt - checkInAt > MAX_SHIFT_MS) fail('한 근무 기록은 36시간 이내로 입력해 주세요.');
     if (breakMinutes > Math.floor((checkOutAt - checkInAt) / MINUTE)) fail('휴게시간이 전체 근무시간보다 깁니다.');
   }
-  if (!['hourly', 'salaried'].includes(input.payType)) fail('급여 유형을 확인해 주세요.');
+  if (!PAY_TYPES.includes(input.payType)) fail('급여 유형을 확인해 주세요.');
   return {
     checkInAt, checkOutAt, breakMinutes,
     workDate: workDate(checkInAt),
@@ -157,6 +169,12 @@ function shiftInput(input, now) {
     // 나중에 월급이 바뀌어도 지난 근무의 금액은 그대로 남는다.
     ordinaryHourlyRate: input.payType === 'salaried'
       ? integer(input.ordinaryHourlyRate ?? 0, '통상시급', 0, 1000000) : 0,
+    // 일일근무자는 시간이 아니라 하루 단위로 준다. 기록마다 금액을 따로 들고 있어야
+    // 같은 자리에 온 사람마다 다른 금액을 줄 수 있다.
+    dailyPay: input.payType === 'daily' ? integer(input.dailyPay ?? 0, '일당', 0, 10000000) : 0,
+    // 누가 왔는지는 나중에 적는다. 미리 알 수 없으니 비어 있어도 저장된다.
+    workerName: input.payType === 'daily' ? text(input.workerName ?? '', '일한 사람', 40) : '',
+    workerNote: input.payType === 'daily' ? text(input.workerNote ?? '', '지급 메모', 200) : '',
     note: text(input.note, '메모', 500)
   };
 }
@@ -177,6 +195,12 @@ function totals(shift, specialDay = null) {
     const baseAmount = Math.round(payableMinutes * shift.hourlyRate / 60);
     return { workedMinutes, payableMinutes, amount, baseAmount, extraAmount: amount - baseAmount, multiplierPercent };
   }
+  if (shift.payType === 'daily') {
+    // 일당은 시간이 아니라 하루 단위다. 배율은 붙이지 않는다 —
+    // 명절에 더 드릴 금액은 그 기록의 일당을 직접 고쳐서 정한다.
+    const amount = Math.max(0, Number(shift.dailyPay) || 0);
+    return { workedMinutes, payableMinutes, amount, baseAmount: amount, extraAmount: 0, multiplierPercent: BASE_PERCENT };
+  }
   // 월급 직원의 소정근로는 월급에 이미 들어 있다. 특수일 근무분만 따로 얹는다.
   const rate = Number(shift.ordinaryHourlyRate) > 0 ? Number(shift.ordinaryHourlyRate) : 0;
   const extraAmount = multiplierPercent === BASE_PERCENT || rate === 0
@@ -190,14 +214,14 @@ function overlaps(a, b) {
 
 function kioskEmployee(employee) {
   return {
-    id: employee.id, name: employee.name, role: employee.role,
+    id: employee.id, name: employee.name, role: employee.role, payType: employee.payType,
     currentShiftId: employee.currentShiftId || null,
     lastShift: employee.lastShift || null
   };
 }
 
 module.exports = {
-  MINUTE, MAX_SHIFT_MS, BASE_PERCENT, DEFAULT_MONTHLY_WORK_HOURS, DEFAULT_MONTHLY_WORK_DAYS,
+  MINUTE, MAX_SHIFT_MS, BASE_PERCENT, DEFAULT_MONTHLY_WORK_HOURS, DEFAULT_MONTHLY_WORK_DAYS, PAY_TYPES, isSharedSlot,
   fail, text, integer, id, floor, workDate, workDateString, monthRange,
   employeeInput, shiftInput, totals, overlaps, kioskEmployee,
   ordinaryHourlyRate, dailyDeduction, specialDayInput, absenceInput, shiftMultiplierPercent

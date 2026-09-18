@@ -249,3 +249,88 @@ test('clearing private fields deletes the encrypted document and invalid input s
   assert.equal((await db.collection('staffPrivate').doc(employeeId).get()).exists, false);
   assert.equal((await getEmployee()).privateSummary.bankLast4, '');
 });
+
+// ── 일일근무자 자리 ──
+// 사람이 아니라 칸이다. 한 칸을 여러 사람이 같은 날 같이 쓴다.
+const slotInput = { name: '일일근무자 (홀)', role: '홀', active: true, payType: 'daily', dailyPay: 100000, breakMinutes: 0, note: '' };
+const makeSlot = async () => (await service.saveEmployee(slotInput, 'admin')).id;
+
+test('한 자리에 여러 사람이 동시에 출근하고 각자 자기 기록으로 퇴근한다', async () => {
+  const slotId = await makeSlot();
+  const punchSlot = (kind, requestId, shiftId) => service.punch({ employeeId: slotId, kind, requestId, shiftId }, token);
+  // 보통 직원이라면 두 번째 출근이 막힌다. 자리는 둘 다 들어가야 한다.
+  const first = await punchSlot('in', 'a');
+  now += 10 * 60000;
+  const second = await punchSlot('in', 'b');
+  assert.notEqual(first.shiftId, second.shiftId);
+  assert.equal((await db.collection('staffShifts').where('employeeId', '==', slotId).get()).size, 2);
+  // 자리에는 '지금 근무 중인 한 명'을 물리지 않는다.
+  assert.equal((await db.collection('staffEmployees').doc(slotId).get()).data().currentShiftId, null);
+
+  // 태블릿에는 출근 칸 하나가 아니라 들어와 있는 사람이 전부 보여야 한다.
+  const kiosk = await service.listKiosk(token);
+  const slotCard = kiosk.employees.find(e => e.id === slotId);
+  assert.equal(slotCard.payType, 'daily');
+  assert.equal(slotCard.openShifts.length, 2);
+  assert.deepEqual(slotCard.openShifts.map(s => s.id).sort(), [first.shiftId, second.shiftId].sort());
+
+  // 각자 자기 기록을 지정해 퇴근한다.
+  now += 8 * hour;
+  await punchSlot('out', 'a-out', first.shiftId);
+  assert.equal((await service.listKiosk(token)).employees.find(e => e.id === slotId).openShifts.length, 1);
+  now += hour;
+  await punchSlot('out', 'b-out', second.shiftId);
+  const report = await service.listAdmin('2026-09');
+  const shifts = report.shifts.filter(s => s.employeeId === slotId);
+  assert.equal(shifts.length, 2);
+  // 일당은 시간과 무관하게 기록마다 하루치.
+  assert.deepEqual(shifts.map(s => s.amount), [100000, 100000]);
+});
+
+test('다른 자리의 기록으로는 퇴근시킬 수 없다', async () => {
+  const slotId = await makeSlot();
+  const mine = await service.punch({ employeeId: slotId, kind: 'in', requestId: 'mine' }, token);
+  now += hour;
+  await assert.rejects(
+    service.punch({ employeeId, kind: 'out', requestId: 'steal', shiftId: mine.shiftId }, token),
+    /이 자리의 출근 기록이 아닙니다|근무 상태가 변경/
+  );
+});
+
+test('사람이 들어와 있는 자리는 내리거나 지울 수 없다', async () => {
+  const slotId = await makeSlot();
+  await service.punch({ employeeId: slotId, kind: 'in', requestId: 'in' }, token);
+  const slot = async () => ({ ...(await db.collection('staffEmployees').doc(slotId).get()).data(), id: slotId });
+  // currentShiftId 가 안 물리므로 열린 기록을 직접 세야 잡힌다.
+  await assert.rejects(service.saveEmployee({ ...(await slot()), active: false }, 'admin'), /퇴근 처리 후/);
+  await assert.rejects(service.deleteEmployee({ id: slotId, version: (await slot()).version }, 'admin'), /퇴근 처리 후/);
+  // 퇴근하면 풀린다.
+  now += hour;
+  const open = (await service.listKiosk(token)).employees.find(e => e.id === slotId).openShifts[0];
+  await service.punch({ employeeId: slotId, kind: 'out', requestId: 'out', shiftId: open.id }, token);
+  await service.saveEmployee({ ...(await slot()), active: false }, 'admin');
+  assert.equal((await slot()).active, false);
+});
+
+test('같은 자리의 겹치는 근무는 오류가 아니다', async () => {
+  const slotId = await makeSlot();
+  const base = { employeeId: slotId, payType: 'daily', dailyPay: 100000, breakMinutes: 0, note: '',
+    checkInAt: at('2026-09-10T09:00:00+09:00'), checkOutAt: at('2026-09-10T18:00:00+09:00') };
+  now = at('2026-09-11T09:00:00+09:00');
+  await service.saveShift({ ...base, workerName: '김일손' }, 'admin');
+  // 보통 직원이라면 겹친다고 막힌다. 자리는 둘 다 들어가야 한다.
+  await service.saveShift({ ...base, workerName: '이일손', dailyPay: 120000 }, 'admin');
+  const shifts = (await service.listAdmin('2026-09')).shifts.filter(s => s.employeeId === slotId);
+  assert.equal(shifts.length, 2);
+  assert.deepEqual(shifts.map(s => s.workerName).sort(), ['김일손', '이일손']);
+  // 사람마다 다른 금액을 줄 수 있다.
+  assert.deepEqual(shifts.map(s => s.amount).sort((a, b) => a - b), [100000, 120000]);
+});
+
+test('일당을 비우고 저장하면 자리의 기본 일당을 쓴다', async () => {
+  const slotId = await makeSlot();
+  now = at('2026-09-11T09:00:00+09:00');
+  const saved = await service.saveShift({ employeeId: slotId, payType: 'daily', breakMinutes: 0, note: '',
+    checkInAt: at('2026-09-10T09:00:00+09:00'), checkOutAt: at('2026-09-10T18:00:00+09:00') }, 'admin');
+  assert.equal((await getShift(saved.id)).dailyPay, 100000);
+});

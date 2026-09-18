@@ -31,7 +31,7 @@ function shell() {
   let listener;
   const auth = { currentUser: null, onAuthStateChanged: fn => { listener = fn; }, signOut: async () => { auth.currentUser = null; listener(null); } };
   const document = { getElementById: element, querySelectorAll: () => [] };
-  const window = { AttendanceAdmin: { init: () => calls.push('attendance.init'), dispose: () => calls.push('attendance.dispose') }, AttendanceReservations: { init: () => calls.push('reservations.init'), dispose: () => calls.push('reservations.dispose') }, addEventListener: (name, fn) => events[name] = fn };
+  const window = { AttendanceAdmin: { init: () => calls.push('attendance.init'), dispose: () => calls.push('attendance.dispose') }, AttendanceReservations: { init: () => calls.push('reservations.init'), dispose: () => calls.push('reservations.dispose') }, StaffManual: { init: () => calls.push('manual.init'), dispose: () => calls.push('manual.dispose') }, addEventListener: (name, fn) => events[name] = fn };
   const location = { hash: '#attendance' };
   vm.runInNewContext(fs.readFileSync(path.join(root, 'assets/js/staff-admin.js'), 'utf8'), { window, document, location, navigator: {}, firebase: { initializeApp: () => ({ auth: () => auth }) } });
   return { window, calls, events, location, element, setUser: user => { auth.currentUser = user; listener(user); } };
@@ -59,6 +59,36 @@ test('standalone manager loads no employee data until allowed login and clears s
   assert.equal(page.window.AttendanceSession.isActive('reservations'), false);
   await assert.rejects(page.window.AttendanceSession.getToken());
 });
+test('사용 안내 탭은 다른 화면을 내리고 혼자 뜬다', () => {
+  const page = shell();
+  page.setUser({ email: 'sun1562@naver.com' });
+  assert.ok(page.calls.includes('attendance.init'));
+  page.location.hash = '#manual';
+  page.events.hashchange();
+  assert.equal(page.element('staff-manual-panel').hidden, false);
+  assert.equal(page.element('staff-attendance-panel').hidden, true);
+  assert.equal(page.element('staff-reservations-panel').hidden, true);
+  assert.ok(page.calls.includes('manual.init'));
+  // 안내에서 근태로 돌아오면 안내는 내려가야 한다. 급여 화면 위에 겹치면 안 된다.
+  page.location.hash = '#attendance';
+  page.events.hashchange();
+  assert.ok(page.calls.includes('manual.dispose'));
+  assert.equal(page.element('staff-manual-panel').hidden, true);
+  assert.equal(page.element('staff-attendance-panel').hidden, false);
+});
+
+test('사용 안내가 안 실려도 근태 화면은 열린다', () => {
+  // 안내는 없어도 되는 화면이고 급여는 없으면 안 되는 화면이다.
+  const page = shell();
+  delete page.window.StaffManual;
+  page.setUser({ email: 'sun1562@naver.com' });
+  assert.equal(page.element('staff-attendance-panel').hidden, false);
+  assert.ok(page.calls.includes('attendance.init'));
+  page.location.hash = '#manual';
+  page.events.hashchange();
+  assert.equal(page.element('staff-manual-panel').hidden, false);
+});
+
 test('only legacy staff and reservation admin links redirect to the standalone manager', () => {
   const source = fs.readFileSync(path.join(root, 'assets/js/staff-admin-redirect.js'), 'utf8');
   for (const hash of ['#attendance', '#reservations', '#orders', '#settlements', '']) {

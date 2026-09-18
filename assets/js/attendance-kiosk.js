@@ -28,19 +28,46 @@
     $('kiosk-clock').textContent = U.time(now);
     $('kiosk-date').textContent = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'long' }).format(now);
   }
-  function render() {
+  // 화면에 뜨는 칸 목록. 직원 한 명은 칸 하나지만,
+  // 일일근무자 자리는 '출근 칸 하나 + 지금 들어와 있는 사람마다 퇴근 칸 하나'가 된다.
+  // 한 자리를 여러 명이 같이 쓰므로 각자 자기 것을 눌러 퇴근해야 한다.
+  function buildCards() {
     const today = U.date(Date.now() + offset);
-    $('kiosk-total').textContent = employees.length;
-    $('kiosk-working').textContent = employees.filter(e => e.currentShiftId).length;
-    const query = $('kiosk-search').value.trim().toLowerCase();
-    const visible = employees.filter(e => e.name.toLowerCase().includes(query) && (filter === 'all' || (filter === 'working' ? e.currentShiftId : !e.currentShiftId)));
-    $('kiosk-grid').innerHTML = visible.map(e => {
-      const working = Boolean(e.currentShiftId);
-      const last = e.lastShift;
+    const cards = [];
+    employees.forEach(employee => {
+      const role = employee.role || `${U.storeName(floor)} ${employee.payType === 'daily' ? '일일근무자' : '직원'}`;
+      if (employee.payType === 'daily') {
+        const open = employee.openShifts || [];
+        cards.push({ employee, shiftId: '', working: false, name: employee.name, role, slot: true,
+          pill: open.length ? `${open.length}명 근무 중` : '출근 전',
+          detail: '누구든 이 칸으로 출근합니다', action: '출근' });
+        open.forEach((shift, index) => cards.push({ employee, shiftId: shift.id, working: true, slot: true,
+          name: shift.workerName || `${employee.name} ${index + 1}`, role,
+          pill: '근무 중', checkInAt: shift.checkInAt,
+          detail: `${U.date(shift.checkInAt) !== today ? `${U.date(shift.checkInAt).slice(5)} ` : ''}${U.time(shift.checkInAt)} 출근`,
+          action: '퇴근' }));
+        return;
+      }
+      const working = Boolean(employee.currentShiftId);
+      const last = employee.lastShift;
       const finishedToday = !working && last?.checkOutAt && U.date(last.checkOutAt) === today;
-      const detail = working ? `${U.date(last.checkInAt) !== today ? `${U.date(last.checkInAt).slice(5)} ` : ''}${U.time(last.checkInAt)} 출근` : finishedToday ? `${U.time(last.checkOutAt)} 퇴근` : '오늘도 반갑습니다';
-      return `<button class="att-person ${working ? 'working' : ''}" data-employee="${U.esc(e.id)}" aria-label="${U.esc(e.name)}, ${working ? '퇴근하기' : '출근하기'}"><div class="att-person-head"><span class="att-avatar" aria-hidden="true">${U.esc(Array.from(e.name)[0])}</span><span class="att-pill ${working ? 'green' : ''}">${working ? '근무 중' : finishedToday ? '퇴근 완료' : '출근 전'}</span></div><div class="att-person-name">${U.esc(e.name)}</div><div class="att-person-role">${U.esc(e.role || `${U.storeName(floor)} 직원`)}</div><div class="att-person-bottom"><span>${U.esc(detail)}</span><span class="att-person-action">${working ? '퇴근' : '출근'} →</span></div></button>`;
-    }).join('');
+      cards.push({ employee, shiftId: employee.currentShiftId || '', working, name: employee.name, role,
+        pill: working ? '근무 중' : finishedToday ? '퇴근 완료' : '출근 전',
+        checkInAt: working ? last.checkInAt : null,
+        detail: working
+          ? `${U.date(last.checkInAt) !== today ? `${U.date(last.checkInAt).slice(5)} ` : ''}${U.time(last.checkInAt)} 출근`
+          : finishedToday ? `${U.time(last.checkOutAt)} 퇴근` : '오늘도 반갑습니다',
+        action: working ? '퇴근' : '출근' });
+    });
+    return cards;
+  }
+  function render() {
+    const cards = buildCards();
+    $('kiosk-total').textContent = cards.length;
+    $('kiosk-working').textContent = cards.filter(card => card.working).length;
+    const query = $('kiosk-search').value.trim().toLowerCase();
+    const visible = cards.filter(card => card.name.toLowerCase().includes(query) && (filter === 'all' || (filter === 'working' ? card.working : !card.working)));
+    $('kiosk-grid').innerHTML = visible.map(card => `<button class="att-person ${card.working ? 'working' : ''}${card.slot ? ' slot' : ''}" data-employee="${U.esc(card.employee.id)}" data-shift="${U.esc(card.shiftId)}" aria-label="${U.esc(card.name)}, ${card.action}하기"><div class="att-person-head"><span class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</span><span class="att-pill ${card.working ? 'green' : ''}">${U.esc(card.pill)}</span></div><div class="att-person-name">${U.esc(card.name)}</div><div class="att-person-role">${U.esc(card.role)}</div><div class="att-person-bottom"><span>${U.esc(card.detail)}</span><span class="att-person-action">${card.action} →</span></div></button>`).join('');
     $('kiosk-empty').hidden = visible.length > 0;
     $('kiosk-empty').innerHTML = employees.length ? '<strong>해당하는 직원이 없어요</strong>이름이나 근무 상태를 다시 확인해 주세요.' : `<strong>${U.storeName(floor)}에 등록된 직원이 아직 없어요</strong>별도 관리 페이지에서 직원의 근무 매장을 ${U.storeName(floor)}로 지정해 주세요.`;
   }
@@ -87,13 +114,13 @@
       }
     } finally { loading = false; }
   }
-  function choose(employee) {
+  function choose(card) {
     if (dialogOpen) return;
     dialogOpen = true;
-    const working = Boolean(employee.currentShiftId);
-    const pending = { employeeId: employee.id, kind: working ? 'out' : 'in', shiftId: employee.currentShiftId, requestId: crypto.randomUUID() };
-    const el = U.dialog(employee.name,
-      `<div class="att-avatar" aria-hidden="true">${U.esc(Array.from(employee.name)[0])}</div><h2>${U.esc(employee.name)} 님</h2><p class="att-confirm-kind">${working ? '오늘도 수고하셨습니다' : '좋은 하루 시작해요'}</p><p class="att-meta">${working ? `${U.date(employee.lastShift.checkInAt).slice(5)} ${U.time(employee.lastShift.checkInAt)} 출근 · 지금 퇴근을 기록할까요?` : '지금 출근을 기록할까요?'}</p>`,
+    const working = card.working;
+    const pending = { employeeId: card.employee.id, kind: working ? 'out' : 'in', shiftId: card.shiftId, requestId: crypto.randomUUID() };
+    const el = U.dialog(card.name,
+      `<div class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</div><h2>${U.esc(card.name)} 님</h2><p class="att-confirm-kind">${working ? '오늘도 수고하셨습니다' : '좋은 하루 시작해요'}</p><p class="att-meta">${working ? `${U.date(card.checkInAt).slice(5)} ${U.time(card.checkInAt)} 출근 · 지금 퇴근을 기록할까요?` : card.slot ? '지금 출근을 기록할까요? 이 칸은 여러 분이 같이 쓸 수 있습니다.' : '지금 출근을 기록할까요?'}</p>`,
       async (_form, dialog) => {
         const result = await U.request('kiosk.punch', pending, { device });
         dialog.querySelector('form').innerHTML = `<div class="att-kiosk-success" role="status"><div class="att-success-mark">✓</div><h2>${U.esc(result.name)} 님</h2><p class="att-confirm-kind">${result.kind === 'in' ? '출근' : '퇴근'}이 기록되었어요</p><div class="att-shift-times">${U.time(result.at)}</div><p class="att-meta">잠시 후 직원 목록으로 돌아갑니다.</p></div>`;
@@ -106,8 +133,9 @@
   }
   $('kiosk-grid').onclick = event => {
     const button = event.target.closest('[data-employee]');
-    const employee = employees.find(e => e.id === button?.dataset.employee);
-    if (employee) choose(employee);
+    if (!button) return;
+    const card = buildCards().find(item => item.employee.id === button.dataset.employee && item.shiftId === button.dataset.shift);
+    if (card) choose(card);
   };
   document.querySelectorAll('[data-filter]').forEach(button => { button.onclick = () => {
     filter = button.dataset.filter;

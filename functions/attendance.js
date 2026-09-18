@@ -109,6 +109,11 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       return { id: ref.id };
     });
   }
+  async function openShiftCount(tx, employeeId) {
+    const snap = await tx.get(shifts.where('employeeId', '==', employeeId).where('checkOutAt', '==', null));
+    return snap.docs.map(serialize).filter(s => !s.voided).length;
+  }
+
   async function saveEmployee(input, actor) {
     const data = model.employeeInput(input);
     const details = input.privateDetails === undefined ? undefined : privateData.privateInput(input.privateDetails);
@@ -118,9 +123,14 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       const before = snap.exists ? serialize(snap) : null;
       if (input.id) { existing(snap, '직원'); revision(input, before); }
       if (before?.deletedAt) model.fail('삭제된 직원은 수정할 수 없습니다.');
-      if (before?.currentShiftId && !data.active) model.fail('퇴근 처리 후 재직 상태를 변경해 주세요.');
       const floor = input.floor === undefined ? model.floor(before?.floor) : data.floor;
-      if (before?.currentShiftId && floor !== model.floor(before.floor)) model.fail('퇴근 처리 후 근무 매장을 변경해 주세요.');
+      // 일일근무자 자리는 currentShiftId 를 안 쓰므로 열린 기록을 직접 센다.
+      // 사람이 들어와 있는데 자리를 내리면 그 사람이 퇴근을 못 찍는다.
+      const working = before && model.isSharedSlot(before)
+        ? (!data.active || floor !== model.floor(before.floor)) && await openShiftCount(tx, ref.id) > 0
+        : Boolean(before?.currentShiftId);
+      if (working && !data.active) model.fail('퇴근 처리 후 재직 상태를 변경해 주세요.');
+      if (working && floor !== model.floor(before.floor)) model.fail('퇴근 처리 후 근무 매장을 변경해 주세요.');
       // An older admin screen can edit other fields without erasing a saved salary.
       const monthlySalary = data.payType === 'salaried' && input.monthlySalary === undefined && before?.payType === 'salaried'
         ? before.monthlySalary ?? null : data.monthlySalary;
@@ -154,7 +164,8 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
     return db.runTransaction(async tx => {
       const before = existing(await tx.get(ref), '직원');
       revision(input, before);
-      if (before.currentShiftId) model.fail('퇴근 처리 후 직원을 삭제해 주세요.');
+      const working = model.isSharedSlot(before) ? await openShiftCount(tx, ref.id) > 0 : Boolean(before.currentShiftId);
+      if (working) model.fail('퇴근 처리 후 직원을 삭제해 주세요.');
       const after = { ...before, privateSummary: privateData.privateSummary(privateData.empty()), active: false, deletedAt: now(), version: before.version + 1, updatedAt: now() };
       tx.delete(privateEmployees.doc(ref.id));
       tx.set(ref, after);
@@ -195,9 +206,25 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
   }
   async function listKiosk(token) {
     const device = checkDevice(await deviceRef(token).get());
-    const snap = await employees.where('active', '==', true).get();
+    const [snap, openSnap] = await Promise.all([
+      employees.where('active', '==', true).get(),
+      // 일일근무자 자리는 한 번에 여러 명이 쓴다. 누가 몇 시에 들어와 있는지
+      // 태블릿에 보여줘야 각자 자기 것을 눌러 퇴근할 수 있다.
+      shifts.where('checkOutAt', '==', null).get()
+    ]);
     const floor = model.floor(device.floor);
-    return { employees: snap.docs.map(serialize).filter(e => !e.deletedAt && model.floor(e.floor) === floor).map(model.kioskEmployee), deviceName: device.name, floor, serverNow: now() };
+    const people = snap.docs.map(serialize).filter(e => !e.deletedAt && model.floor(e.floor) === floor);
+    const sharedIds = new Set(people.filter(model.isSharedSlot).map(e => e.id));
+    const openBySlot = new Map();
+    openSnap.docs.map(serialize).filter(s => !s.voided && sharedIds.has(s.employeeId)).forEach(s => {
+      if (!openBySlot.has(s.employeeId)) openBySlot.set(s.employeeId, []);
+      openBySlot.get(s.employeeId).push({ id: s.id, checkInAt: s.checkInAt, workerName: s.workerName || '' });
+    });
+    openBySlot.forEach(list => list.sort((a, b) => a.checkInAt - b.checkInAt));
+    return {
+      employees: people.map(e => ({ ...model.kioskEmployee(e), openShifts: openBySlot.get(e.id) || [] })),
+      deviceName: device.name, floor, serverNow: now()
+    };
   }
   async function authorizeDevice(token) {
     return checkDevice(await deviceRef(token).get()).id;
@@ -223,21 +250,33 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       if (model.floor(employee.floor) !== model.floor(tablet.floor)) model.fail('이 태블릿에 지정된 매장의 직원만 출퇴근할 수 있습니다. 목록을 새로고침해 주세요.', 403);
       const at = now();
       let ref, record;
+      const shared = model.isSharedSlot(employee);
       if (input.kind === 'in') {
-        if (employee.currentShiftId) model.fail('이미 출근한 상태입니다. 화면을 새로고침해 주세요.', 409);
+        // 일일근무자 자리는 여러 사람이 같이 쓴다. 이미 누가 들어와 있어도 새로 찍을 수 있어야 한다.
+        if (!shared && employee.currentShiftId) model.fail('이미 출근한 상태입니다. 화면을 새로고침해 주세요.', 409);
         ref = newShiftRef;
         record = { employeeId: employee.id, employeeName: employee.name, floor: model.floor(employee.floor), workDate: model.workDate(at),
           checkInAt: at, checkOutAt: null, payType: employee.payType, hourlyRate: employee.hourlyRate,
           // 월급 직원의 특수일 가산 기준. 출근 시점의 월급으로 고정한다.
           ordinaryHourlyRate: model.ordinaryHourlyRate(employee),
+          // 일당은 출근 시점의 자리 설정으로 고정한다. 정산할 때 기록마다 고칠 수 있다.
+          dailyPay: shared ? (employee.dailyPay || 0) : 0, workerName: '', workerNote: '',
           breakMinutes: employee.breakMinutes, note: '', source: 'kiosk', deviceId: tabletRef.id,
           version: 1, voided: false, createdAt: at, updatedAt: at };
         // Employee document serializes concurrent punches and admin corrections.
-        if (employee.lastShift && employee.lastShift.checkOutAt > at) model.fail('마지막 퇴근 이후에 출근해 주세요.', 409);
+        // 일일근무자 자리는 사람이 아니라 칸이라 이 순서 검사가 뜻이 없다.
+        if (!shared && employee.lastShift && employee.lastShift.checkOutAt > at) model.fail('마지막 퇴근 이후에 출근해 주세요.', 409);
       } else {
-        if (!employee.currentShiftId || employee.currentShiftId !== expectedShiftId) model.fail('근무 상태가 변경되었습니다. 화면을 새로고침해 주세요.', 409);
-        ref = shifts.doc(employee.currentShiftId);
+        if (shared) {
+          if (!expectedShiftId) model.fail('퇴근할 출근 기록을 선택해 주세요.', 409);
+          ref = shifts.doc(expectedShiftId);
+        } else {
+          if (!employee.currentShiftId || employee.currentShiftId !== expectedShiftId) model.fail('근무 상태가 변경되었습니다. 화면을 새로고침해 주세요.', 409);
+          ref = shifts.doc(employee.currentShiftId);
+        }
         const before = existing(await tx.get(ref), '출근 기록');
+        // 다른 자리의 기록을 지정해 퇴근시키지 못하게 한다.
+        if (before.employeeId !== employee.id) model.fail('이 자리의 출근 기록이 아닙니다.', 409);
         if (before.voided || before.checkOutAt !== null) model.fail('이미 처리된 근무입니다.', 409);
         if (at - before.checkInAt > model.MAX_SHIFT_MS) model.fail('출근 후 36시간이 지났습니다. 관리자에게 시간 수정을 요청해 주세요.', 409);
         if (at <= before.checkInAt) model.fail('출근 시간 이후에 퇴근할 수 있습니다.', 409);
@@ -249,7 +288,12 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       }
       const result = { kind: input.kind, employeeId: employee.id, name: employee.name, at, shiftId: ref.id };
       tx.set(ref, record);
-      tx.update(employeeRef, { currentShiftId: input.kind === 'in' ? ref.id : null, lastShift: lastShift({ ...record, id: ref.id }), updatedAt: at });
+      // 일일근무자 자리는 '지금 누가 들어와 있다'를 한 칸으로 표현할 수 없다.
+      // 열린 기록은 목록에서 직접 읽는다.
+      tx.update(employeeRef, {
+        currentShiftId: shared ? null : (input.kind === 'in' ? ref.id : null),
+        lastShift: lastShift({ ...record, id: ref.id }), updatedAt: at
+      });
       tx.create(requestRef, { payload, result, createdAt: at });
       log(tx, `device:${tabletRef.id}`, `punch.${input.kind}`, ref.id, null, result);
       return result;
@@ -271,7 +315,10 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       if (!before && employee.deletedAt) model.fail('삭제된 직원에게 새 기록을 추가할 수 없습니다.');
       if (!remove && data.checkOutAt === null && (!employee.active || employee.deletedAt)) model.fail('재직 중인 직원만 근무 중으로 설정할 수 있습니다.');
       const others = recordsSnap.docs.map(serialize).filter(s => s.id !== ref.id && !s.voided);
-      if (!remove && others.some(s => model.overlaps(data, s))) model.fail('이 직원의 다른 근무시간과 겹칩니다. 기존 기록을 확인해 주세요.', 409);
+      // 일일근무자 자리는 여러 사람이 같은 시간에 일하는 것이 정상이다. 겹침은 오류가 아니다.
+      if (!remove && !model.isSharedSlot(employee) && others.some(s => model.overlaps(data, s))) {
+        model.fail('이 직원의 다른 근무시간과 겹칩니다. 기존 기록을 확인해 주세요.', 409);
+      }
       const after = remove ? { ...before, voided: true, updatedAt: now(), version: before.version + 1 } : {
         ...before, ...data, employeeId, employeeName: before?.employeeName || employee.name,
         floor: model.floor(before ? before.floor : employee.floor),
@@ -279,13 +326,19 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         // 이미 값이 있는 기록은 그때 값을 지킨다. 시급과 같은 원칙이다.
         ordinaryHourlyRate: data.payType === 'salaried'
           ? (before?.ordinaryHourlyRate || model.ordinaryHourlyRate(employee)) : 0,
+        // 일당을 비우고 저장하면 자리의 기본 일당을 쓴다. 0원으로 저장돼 급여가 빠지면 안 된다.
+        dailyPay: data.payType === 'daily'
+          ? (data.dailyPay || before?.dailyPay || employee.dailyPay || 0) : 0,
         source: before?.source || 'admin', voided: false, createdAt: before?.createdAt ?? now(),
         updatedAt: now(), version: (before?.version || 0) + 1
       };
       const all = [...others, ...(!remove ? [{ ...after, id: ref.id }] : [])].sort((a, b) => b.checkInAt - a.checkInAt);
       const open = all.find(s => s.checkOutAt === null);
       tx.set(ref, after);
-      tx.update(employeeRef, { currentShiftId: open?.id || null, lastShift: lastShift(all[0]), updatedAt: now() });
+      tx.update(employeeRef, {
+        currentShiftId: model.isSharedSlot(employee) ? null : (open?.id || null),
+        lastShift: lastShift(all[0]), updatedAt: now()
+      });
       log(tx, actor, remove ? 'shift.delete' : 'shift.save', ref.id, before, after);
       return { id: ref.id };
     });
