@@ -160,7 +160,10 @@
     const offLine = offList.length
       ? `<div class="att-absence-list">${offList.map(a => `<div class="att-row"><span>결근 · <strong>${U.esc(person(a.employeeId)?.name || a.employeeName)}</strong>${a.note ? ` <span class="att-meta">${U.esc(a.note)}</span>` : ''}</span><button class="att-link-button" data-action="delete-absence" data-id="${U.esc(a.id)}">취소</button></div>`).join('')}</div>`
       : '';
-    $('att-content').innerHTML = `<div class="att-layout"><section class="att-panel"><div class="att-panel-head att-row"><h3>${year}년 ${m}월</h3><div class="att-meta">날짜를 누르면 출퇴근 상세가 보여요</div></div><div class="att-calendar">${['일','월','화','수','목','금','토'].map(d => `<div class="att-weekday">${d}</div>`).join('')}${cells.join('')}</div></section><section class="att-panel"><div class="att-panel-head att-row"><h3>${Number(selectedDate.slice(5, 7))}월 ${Number(selectedDate.slice(8))}일</h3><div class="att-row" style="gap:8px"><button class="att-link-button" data-action="mark-absence">결근 표시</button><button class="att-link-button" data-action="new-shift">＋ 기록 추가</button></div></div>${specialLine}${offLine}<div class="att-day-summary">${daily.length ? daily.map(s => `<article class="att-shift-item"><div class="att-row"><strong>${U.esc(person(s.employeeId)?.name || s.employeeName)}</strong><span class="att-pill ${s.checkOutAt === null ? 'amber' : 'green'}">${s.checkOutAt === null ? '근무 중' : '퇴근 완료'}</span></div><div class="att-shift-times">${U.time(s.checkInAt)} → ${s.checkOutAt !== null && U.date(s.checkOutAt) !== s.workDate ? '<small>익일 </small>' : ''}${U.time(s.checkOutAt)}</div><div class="att-meta">${s.checkOutAt === null ? '퇴근 후 근무시간과 금액이 계산됩니다.' : `${U.duration(s.payableMinutes)} · 휴게 ${s.breakMinutes}분`}</div><div class="att-row"><span class="att-meta">${s.payType === 'hourly'
+    // 두 줄은 att-day-summary 바깥에 있어서 여백을 따로 줘야 한다.
+    // 안 그러면 패널 가장자리에 붙어 위아래 줄과 어긋난다.
+    const dayMeta = `<div class="att-day-meta">${specialLine}${offLine}</div>`;
+    $('att-content').innerHTML = `<div class="att-layout"><section class="att-panel"><div class="att-panel-head att-row"><h3>${year}년 ${m}월</h3><div class="att-meta">날짜를 누르면 출퇴근 상세가 보여요</div></div><div class="att-calendar">${['일','월','화','수','목','금','토'].map(d => `<div class="att-weekday">${d}</div>`).join('')}${cells.join('')}</div></section><section class="att-panel"><div class="att-panel-head att-row"><h3>${Number(selectedDate.slice(5, 7))}월 ${Number(selectedDate.slice(8))}일</h3><div class="att-row" style="gap:8px"><button class="att-link-button" data-action="mark-absence">결근 표시</button><button class="att-link-button" data-action="new-shift">＋ 기록 추가</button></div></div>${dayMeta}<div class="att-day-summary">${daily.length ? daily.map(s => `<article class="att-shift-item"><div class="att-row"><strong>${U.esc(person(s.employeeId)?.name || s.employeeName)}</strong><span class="att-pill ${s.checkOutAt === null ? 'amber' : 'green'}">${s.checkOutAt === null ? '근무 중' : '퇴근 완료'}</span></div><div class="att-shift-times">${U.time(s.checkInAt)} → ${s.checkOutAt !== null && U.date(s.checkOutAt) !== s.workDate ? '<small>익일 </small>' : ''}${U.time(s.checkOutAt)}</div><div class="att-meta">${s.checkOutAt === null ? '퇴근 후 근무시간과 금액이 계산됩니다.' : `${U.duration(s.payableMinutes)} · 휴게 ${s.breakMinutes}분`}</div><div class="att-row"><span class="att-meta">${s.payType === 'hourly'
       ? `${U.money(s.hourlyRate)}/시간 · ${U.money(s.amount)}${s.extraAmount ? ` <strong>(${multiplierText(s.multiplierPercent)} · 가산 ${U.money(s.extraAmount)})</strong>` : ''}`
       : s.extraAmount ? `월급 직원 · 특수일 가산 <strong>${U.money(s.extraAmount)}</strong> (${multiplierText(s.multiplierPercent)})`
       : scopeApplies(special, 'salaried') ? '월급 직원 · 통상시급 미설정이라 가산 없음' : '월급 직원 · 근태 기록'}</span><button class="att-link-button" data-action="edit-shift" data-id="${U.esc(s.id)}">수정</button></div>${s.note ? `<div class="att-meta">${U.esc(s.note)}</div>` : ''}</article>`).join('') : '<div class="att-empty">이 날짜의 근무 기록이 없습니다.</div>'}</div></section></div><p class="att-note">날짜를 넘어 퇴근한 근무도 출근일에 표시됩니다. 빠뜨린 기록은 ‘기록 추가’, 잘못 찍은 시간과 휴게시간은 ‘수정’에서 보정하세요.<br>특수일 배율은 지금 설정을 기준으로 다시 계산합니다. 명절을 뒤늦게 등록해도 지난 기록에 바로 반영됩니다. 결근은 표시한 날만 공제하며, 출근 기록이 없다고 자동으로 결근이 되지는 않습니다.</p>`;
@@ -327,11 +330,39 @@
     });
   }
 
+  const DEVICE_STORAGE_KEY = 'gjsuragan-attendance-device';
+  async function deviceIdInThisBrowser() {
+    try {
+      const token = localStorage.getItem(DEVICE_STORAGE_KEY) || '';
+      if (!/^[a-f0-9]{64}$/.test(token) || !window.crypto?.subtle) return '';
+      const digest = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+      return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (_) {
+      // 저장소를 막아둔 브라우저거나 http 로 열어 crypto.subtle 이 없는 경우다.
+      // 못 읽으면 안내만 못 할 뿐, 목록과 매장 변경은 그대로 쓸 수 있다.
+      return '';
+    }
+  }
+
+  // 이 브라우저 자체가 태블릿으로 연결돼 있으면 어느 기기인지 알려준다.
+  // 모르면 '궁중수라간 태블릿' 을 눌러도 돌담명가가 열려서 고장으로 보인다.
+  async function markConnectedDeviceHere(el, tablets) {
+    const box = el.querySelector('#att-device-here');
+    if (!box) return;
+    const id = await deviceIdInThisBrowser();
+    const mine = id ? tablets.find(d => d.id === id) : null;
+    if (!mine) return;
+    box.innerHTML = `<div class="att-notice">지금 보고 계신 이 기기는 <b>${U.esc(U.deviceName(mine.name, mine.floor))}</b> 로 연결돼 있습니다. 그래서 아래 두 버튼 중 어느 쪽을 눌러도 <b>${U.storeName(mine.floor)}</b> 화면이 열립니다.<br>이 기기를 다른 매장으로 쓰시려면 아래 목록의 <b>매장 변경</b>을, 다른 매장 태블릿을 새로 두시려면 <b>그 기기에서</b> 아래 버튼을 눌러 주세요.</div>`;
+  }
+
   function devicesDialog() {
     const tablets = data.devices.filter(d => d.enabled);
     const el = U.dialog('연결된 출퇴근 태블릿', `<p class="att-note">태블릿마다 근무 매장을 지정하세요. 지정한 매장의 직원만 표시됩니다. 분실하거나 사용하지 않는 기기는 연결을 해제할 수 있습니다.</p>
-      <div class="att-filters"><a class="att-button" href="./attendance.html?store=suragan" target="_blank" rel="noopener">궁중수라간 태블릿 ↗</a><a class="att-button" href="./attendance.html?store=doldam" target="_blank" rel="noopener">돌담명가 태블릿 ↗</a></div>
+      <div id="att-device-here"></div>
+      <p class="att-note"><b>아래 두 버튼은 아직 연결하지 않은 새 기기에서 눌러야 뜻이 있습니다.</b> 연결된 기기는 어느 쪽을 눌러도 연결할 때 지정한 매장이 열립니다.</p>
+      <div class="att-filters"><a class="att-button" href="./attendance.html?store=suragan" target="_blank" rel="noopener">새 기기를 궁중수라간으로 연결 ↗</a><a class="att-button" href="./attendance.html?store=doldam" target="_blank" rel="noopener">새 기기를 돌담명가로 연결 ↗</a></div>
       <div>${tablets.length ? tablets.map(d => `<div class="att-shift-item att-row"><div><strong>${U.esc(U.deviceName(d.name, d.floor))}</strong> <span class="att-pill">${U.storeName(d.floor)}</span><div class="att-meta">${U.date(d.createdAt)} 연결</div></div><div class="att-filters"><button class="att-button" type="button" data-device-floor="${U.esc(d.id)}">매장 변경</button><button class="att-button att-danger" type="button" data-revoke="${U.esc(d.id)}">연결 해제</button></div></div>`).join('') : '<div class="att-empty">연결된 태블릿이 없습니다.</div>'}</div>`, async () => {}, { submitLabel: '닫기' });
+    markConnectedDeviceHere(el, tablets);
     el.querySelectorAll('[data-device-floor]').forEach(button => { button.onclick = () => {
       const device = tablets.find(d => d.id === button.dataset.deviceFloor);
       U.dialog('태블릿 근무 매장 변경', `<p>${U.esc(U.deviceName(device.name, device.floor))}</p><label class="att-field">표시할 직원의 매장<select class="att-input" name="floor"><option value="2" ${device.floor === 2 ? 'selected' : ''}>궁중수라간 직원만 표시</option><option value="1" ${(device.floor ?? 1) === 1 ? 'selected' : ''}>돌담명가 직원만 표시</option></select></label>`, async form => {

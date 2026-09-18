@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v75-attendance-holiday';
+const CACHE = 'gjsuragan-v76-attendance-store-fix';
 const PRECACHE = [
   './customer.html',
   './admin.html',
@@ -8,10 +8,10 @@ const PRECACHE = [
   './assets/css/staff-admin.css?v=20260910-calendar',
   './assets/js/staff-admin.js?v=20260910-stores',
   './assets/js/staff-admin-redirect.js?v=20260910-stores',
-  './assets/css/attendance.css?v=20260918-holiday',
+  './assets/css/attendance.css?v=20260918-store-fix',
   './assets/js/attendance-ui.js?v=20260910-calendar',
-  './assets/js/attendance-admin.js?v=20260918-holiday',
-  './assets/js/attendance-kiosk.js?v=20260910-stores',
+  './assets/js/attendance-admin.js?v=20260918-store-fix',
+  './assets/js/attendance-kiosk.js?v=20260918-store-fix',
   './assets/js/attendance-bookings.js?v=20260910',
   './assets/js/attendance-booking-form.js?v=20260910',
   './assets/js/attendance-bookings-admin.js?v=20260910-calendar',
