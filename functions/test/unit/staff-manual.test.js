@@ -75,7 +75,7 @@ test('단기 알바 안내가 삭제하면 계좌가 지워진다고 알린다',
 
 test('급여 안내가 세금·4대보험이 빠져 있지 않다고 밝힌다', () => {
   const { html } = render();
-  assert.match(html, /세금과 4대보험은 빠져 있지 않습니다/);
+  assert.match(html, /4대보험과 주휴·연장·야간수당은 빠져 있지 않습니다/);
 });
 
 test('일일근무자 안내가 자리와 사람을 구분해 적고 있다', () => {
@@ -93,6 +93,46 @@ test('일일근무자 안내가 자리와 사람을 구분해 적고 있다', ()
   assert.match(body, /특수일 배율은 붙지 않습니다/);
   // 시간과 무관하다는 것
   assert.match(body, /시간과 상관없이 하루치/);
+});
+
+test('일일근무자 추가 급여 예시가 실제 계산과 맞는다', () => {
+  // 매뉴얼에 적힌 숫자를 실제 계산 함수로 다시 내서 대조한다.
+  // 계산을 바꾸고 매뉴얼을 안 고치면 여기서 깨진다.
+  const { html } = render();
+  const 일당 = 100000, 단위급여 = 10000;
+  const at = value => new Date(value).getTime();
+  const 근무 = out => ({
+    checkInAt: at('2026-09-17T09:00:00+09:00'), checkOutAt: at(out), breakMinutes: 60,
+    payType: 'daily', hourlyRate: 0, dailyPay: 일당,
+    dailyBaseMinutes: M.DEFAULT_DAILY_BASE_MINUTES,
+    overtimeUnitMinutes: M.DEFAULT_OVERTIME_UNIT_MINUTES, overtimePay: 단위급여
+  });
+  const 예시 = [
+    ['2026-09-17T18:00:00+09:00', 0],
+    ['2026-09-17T18:20:00+09:00', 0],
+    ['2026-09-17T18:30:00+09:00', 1],
+    ['2026-09-17T19:00:00+09:00', 2],
+    ['2026-09-17T21:00:00+09:00', 6]
+  ];
+  for (const [out, 회] of 예시) {
+    const t = M.totals(근무(out));
+    assert.equal(t.overtimeUnits, 회, `${out} 는 ${회}회여야 합니다`);
+    // 일당 + 추가 금액이 표에 그대로 있어야 한다.
+    assert.match(html, new RegExp(t.amount.toLocaleString('en-US')), `${t.amount} 가 표에 없습니다`);
+    // 3.3% 를 뗀 금액도.
+    assert.match(html, new RegExp(M.netPay(t.amount, true).toLocaleString('en-US')), `${M.netPay(t.amount, true)} 가 표에 없습니다`);
+  }
+  // 기본값도 문서와 같아야 한다.
+  assert.match(html, new RegExp(`기본 ${M.DEFAULT_DAILY_BASE_MINUTES / 60}시간`));
+  assert.match(html, new RegExp(`기본 ${M.DEFAULT_OVERTIME_UNIT_MINUTES}분`));
+});
+
+test('원천징수 안내가 세율과 맞고 무엇이 안 빠지는지 밝힌다', () => {
+  const { html } = render();
+  assert.match(html, new RegExp(`${M.WITHHOLDING_PER_MILLE / 10}% 원천징수`));
+  // 4대보험은 여전히 안 빠진다는 것 — 그대로 이체하면 안 된다.
+  assert.match(html, /4대보험.{0,20}빠져 있지 않습니다/);
+  assert.match(html, /세무 신고를 대신하지 않습니다/);
 });
 
 test('다시 열어도 내용이 겹치지 않는다', () => {

@@ -55,6 +55,40 @@ const PAY_TYPE_SCOPES = ['hourly', 'salaried', 'both'];
 // 한 자리를 여러 사람이 같은 날 같이 쓴다. 그래서 출퇴근 기록마다 따로 떨어져야 한다.
 // 이름은 나중에 정산할 때 기록별로 적는다.
 const PAY_TYPES = ['hourly', 'salaried', 'daily'];
+
+// 일당이 덮는 근무시간과, 그 뒤로 얼마마다 얼마를 더 줄지.
+// 기본은 '8시간까지가 일당, 넘고 나서 30분마다 추가'다.
+const DEFAULT_DAILY_BASE_MINUTES = 480;
+const DEFAULT_OVERTIME_UNIT_MINUTES = 30;
+
+// 원천징수 3.3% (소득세 3% + 지방소득세 0.3%).
+// 천분율 정수로 둔다. 0.033 같은 소수를 곱하면 원 단위가 어긋난다.
+const WITHHOLDING_PER_MILLE = 33;
+
+// 떼는 금액. 원 단위로 버린다 — 덜 떼는 쪽이 받는 사람에게 유리하고,
+// 더 떼서 모자라게 주는 것보다 낫다.
+function withholdingTax(amount) {
+  const gross = Number(amount);
+  if (!Number.isFinite(gross) || gross <= 0) return 0;
+  return Math.floor(gross * WITHHOLDING_PER_MILLE / 1000);
+}
+
+// 실제로 건네줄 금액.
+function netPay(amount, withhold) {
+  const gross = Math.max(0, Number(amount) || 0);
+  return withhold ? gross - withholdingTax(gross) : gross;
+}
+
+// 기준을 넘긴 뒤 추가 급여가 몇 번 붙는지.
+// 30분 단위면 20분 초과는 0번, 35분 초과는 1번, 70분 초과는 2번이다.
+// '30분을 넘었을 때부터' 주는 것이라 모자란 자투리는 세지 않는다.
+function overtimeUnits(payableMinutes, baseMinutes, unitMinutes) {
+  const unit = Number(unitMinutes) > 0 ? Number(unitMinutes) : DEFAULT_OVERTIME_UNIT_MINUTES;
+  const base = Number(baseMinutes) > 0 ? Number(baseMinutes) : DEFAULT_DAILY_BASE_MINUTES;
+  const over = Number(payableMinutes) - base;
+  if (!Number.isFinite(over) || over < unit) return 0;
+  return Math.floor(over / unit);
+}
 function isSharedSlot(employee = {}) {
   return employee.payType === 'daily';
 }
@@ -95,6 +129,15 @@ function employeeInput(input) {
     // 일일근무자 자리의 기본 일당. 기록마다 관리자가 고칠 수 있는 '기본값'이다.
     // 명절이나 흥정한 금액은 정산할 때 그 기록에서 바꾼다.
     dailyPay: input.payType === 'daily' ? integer(input.dailyPay, '일당', 1, 10000000) : 0,
+    // 일당이 덮는 근무시간. 이 시간을 넘겨야 추가 급여가 붙는다.
+    dailyBaseMinutes: input.payType === 'daily'
+      ? integer(unsetTo(input.dailyBaseMinutes, DEFAULT_DAILY_BASE_MINUTES), '기준 근무시간', 1, 1440) : 0,
+    overtimeUnitMinutes: input.payType === 'daily'
+      ? integer(unsetTo(input.overtimeUnitMinutes, DEFAULT_OVERTIME_UNIT_MINUTES), '추가 급여 단위', 1, 1440) : 0,
+    // 0 이면 추가 급여를 아예 주지 않는다. 안 쓰는 자리가 실수로 돈이 붙으면 안 된다.
+    overtimePay: input.payType === 'daily' ? integer(input.overtimePay ?? 0, '추가 급여', 0, 10000000) : 0,
+    // 급여에서 3.3% 를 떼고 줄지. 급여 유형과 상관없이 사람마다 정한다.
+    withholding: Boolean(input.withholding),
     breakMinutes: integer(input.breakMinutes, '무급 휴게시간', 0, 720),
     active: input.active,
     note: text(input.note, '메모', 500)
@@ -172,6 +215,15 @@ function shiftInput(input, now) {
     // 일일근무자는 시간이 아니라 하루 단위로 준다. 기록마다 금액을 따로 들고 있어야
     // 같은 자리에 온 사람마다 다른 금액을 줄 수 있다.
     dailyPay: input.payType === 'daily' ? integer(input.dailyPay ?? 0, '일당', 0, 10000000) : 0,
+    // 초과 급여 조건도 기록마다 들고 있다. 사람마다 다르게 정할 수 있어야 하고,
+    // 나중에 자리 설정이 바뀌어도 지난 기록의 금액은 그대로여야 한다.
+    dailyBaseMinutes: input.payType === 'daily'
+      ? integer(unsetTo(input.dailyBaseMinutes, DEFAULT_DAILY_BASE_MINUTES), '기준 근무시간', 1, 1440) : 0,
+    overtimeUnitMinutes: input.payType === 'daily'
+      ? integer(unsetTo(input.overtimeUnitMinutes, DEFAULT_OVERTIME_UNIT_MINUTES), '추가 급여 단위', 1, 1440) : 0,
+    overtimePay: input.payType === 'daily' ? integer(input.overtimePay ?? 0, '추가 급여', 0, 10000000) : 0,
+    // 기록마다 정한다. 같은 자리에 와도 3.3% 를 떼는 사람과 아닌 사람이 있다.
+    withholding: input.payType === 'daily' ? Boolean(input.withholding) : false,
     // 누가 왔는지는 나중에 적는다. 미리 알 수 없으니 비어 있어도 저장된다.
     workerName: input.payType === 'daily' ? text(input.workerName ?? '', '일한 사람', 40) : '',
     workerNote: input.payType === 'daily' ? text(input.workerNote ?? '', '지급 메모', 200) : '',
@@ -183,7 +235,7 @@ function shiftInput(input, now) {
 // 배율은 저장된 값이 아니라 계산할 때 찾는다. 명절을 나중에 등록해도 지난 기록에
 // 바로 반영돼야 한다. 관리자가 달력을 뒤늦게 채우는 것이 정상적인 사용이다.
 function totals(shift, specialDay = null) {
-  const empty = { workedMinutes: 0, payableMinutes: 0, amount: 0, baseAmount: 0, extraAmount: 0, multiplierPercent: BASE_PERCENT };
+  const empty = { workedMinutes: 0, payableMinutes: 0, amount: 0, baseAmount: 0, extraAmount: 0, overtimeUnits: 0, multiplierPercent: BASE_PERCENT };
   if (shift.voided || shift.checkOutAt === null) return empty;
   const workedMinutes = Math.floor((shift.checkOutAt - shift.checkInAt) / MINUTE);
   const payableMinutes = Math.max(0, workedMinutes - shift.breakMinutes);
@@ -196,10 +248,16 @@ function totals(shift, specialDay = null) {
     return { workedMinutes, payableMinutes, amount, baseAmount, extraAmount: amount - baseAmount, multiplierPercent };
   }
   if (shift.payType === 'daily') {
-    // 일당은 시간이 아니라 하루 단위다. 배율은 붙이지 않는다 —
+    // 일당은 시간이 아니라 하루 단위다. 특수일 배율은 붙이지 않는다 —
     // 명절에 더 드릴 금액은 그 기록의 일당을 직접 고쳐서 정한다.
-    const amount = Math.max(0, Number(shift.dailyPay) || 0);
-    return { workedMinutes, payableMinutes, amount, baseAmount: amount, extraAmount: 0, multiplierPercent: BASE_PERCENT };
+    const baseAmount = Math.max(0, Number(shift.dailyPay) || 0);
+    // 기준 근무시간을 넘겨 일한 만큼만 따로 더한다.
+    // 추가 급여가 0 이면 아예 계산하지 않는다.
+    const unitPay = Math.max(0, Number(shift.overtimePay) || 0);
+    const units = unitPay > 0 ? overtimeUnits(payableMinutes, shift.dailyBaseMinutes, shift.overtimeUnitMinutes) : 0;
+    const extraAmount = units * unitPay;
+    return { workedMinutes, payableMinutes, amount: baseAmount + extraAmount, baseAmount, extraAmount,
+      overtimeUnits: units, multiplierPercent: BASE_PERCENT };
   }
   // 월급 직원의 소정근로는 월급에 이미 들어 있다. 특수일 근무분만 따로 얹는다.
   const rate = Number(shift.ordinaryHourlyRate) > 0 ? Number(shift.ordinaryHourlyRate) : 0;
@@ -222,6 +280,8 @@ function kioskEmployee(employee) {
 
 module.exports = {
   MINUTE, MAX_SHIFT_MS, BASE_PERCENT, DEFAULT_MONTHLY_WORK_HOURS, DEFAULT_MONTHLY_WORK_DAYS, PAY_TYPES, isSharedSlot,
+  DEFAULT_DAILY_BASE_MINUTES, DEFAULT_OVERTIME_UNIT_MINUTES, overtimeUnits,
+  WITHHOLDING_PER_MILLE, withholdingTax, netPay,
   fail, text, integer, id, floor, workDate, workDateString, monthRange,
   employeeInput, shiftInput, totals, overlaps, kioskEmployee,
   ordinaryHourlyRate, dailyDeduction, specialDayInput, absenceInput, shiftMultiplierPercent
