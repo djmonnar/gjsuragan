@@ -107,3 +107,20 @@ test('split handles empty and catering-only orders', () => {
   assert.equal(cateringOnly.largeLunch.totalQty, 0);
   assert.equal(cateringOnly.catering.totalQty, 2);
 });
+
+test('배포본에 실리는 복사본이 원본과 같다', () => {
+  // functions/ 밖의 파일은 배포본에 안 들어간다. firebase.json 이 이 폴더만 싣는다.
+  // 그래서 화면이 쓰는 assets/js/catering-catalog.js 를 functions/ 로 복사해 두고,
+  // 서버는 그 복사본을 쓴다. 두 벌이 갈라지면 태블릿 주방 집계가 화면과 달라진다.
+  // 원본을 고쳤으면 functions/ 에서 `npm run build:catering` 을 돌린다.
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const 원본 = fs.readFileSync(path.join(__dirname, '../../../assets/js/catering-catalog.js'), 'utf8');
+  const 복사본 = fs.readFileSync(path.join(__dirname, '../../cateringCatalog.js'), 'utf8');
+  assert.equal(복사본, 원본, 'functions 에서 npm run build:catering 을 돌려 주세요');
+  // 복사본만 따로 불러도 같은 값이 나와야 한다.
+  const vendored = require('../../cateringCatalog.js');
+  assert.equal(vendored.catalog.length, catering.catalog.length);
+  assert.equal(vendored.LARGE_LUNCH_MENU_ID, catering.LARGE_LUNCH_MENU_ID);
+  assert.equal(vendored.RICE_MENU_ID, catering.RICE_MENU_ID);
+});
