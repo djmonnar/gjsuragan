@@ -21,6 +21,7 @@ admin.initializeApp();
 
 const db = admin.firestore();
 const { createAttendanceService, createAttendanceHandler } = require('./attendance');
+const orderTotals = require('./orderTotals');
 const { createBookingReader, createBookingsHandler, createBookingWriter } = require('./attendanceBookings');
 const ownervistaBookingsToken = defineSecret('OWNERVISTA_BOOKINGS_TOKEN');
 const attendancePrivateKey = defineSecret('ATTENDANCE_PRIVATE_KEY');
@@ -35,7 +36,8 @@ exports.attendanceBookingsApi = onRequest({ region: 'asia-northeast3', invoker: 
 }));
 exports.attendanceApi = onRequest({ region: 'asia-northeast3', invoker: 'public', maxInstances: 10, secrets: [attendancePrivateKey] },
   createAttendanceHandler({
-    service: createAttendanceService({ db, vault: createPrivateVault(() => attendancePrivateKey.value()) }),
+    service: createAttendanceService({ db, vault: createPrivateVault(() => attendancePrivateKey.value()),
+      orderTotals: () => fetchDailyOrderTotals(kakaoToday()) }),
     verifyToken: token => admin.auth().verifyIdToken(token, true),
     logError: (message, detail) => logger.error(message, detail)
   }));
@@ -1551,7 +1553,11 @@ async function kakaoFetchMonthlyMealSummary(dateStr) {
   }
 }
 
-async function kakaoFetchMonthlyMealRows(dateStr) {
+// options.keepCatering = true 면 곱빼기·공기밥만 시킨 업체도 줄에 남기고
+// 행사 추가주문(cateringItems)을 같이 싣는다. 태블릿 주방 집계가 쓴다.
+// 카카오 알림은 배달할 줄만 필요해서 기본값 그대로 쓴다.
+async function kakaoFetchMonthlyMealRows(dateStr, options = {}) {
+  const keepCatering = options.keepCatering === true;
   try {
     const [usersSnap, privateSnap, ordersSnap, lockDoc, defaultSnap, holidaysDoc] = await Promise.all([
       db.collection('users').limit(1000).get(),
@@ -1598,7 +1604,9 @@ async function kakaoFetchMonthlyMealRows(dateStr) {
     const addRow = (uid, row = {}) => {
       const user = users[uid] || deletedUsers[uid] || {};
       const counts = kakaoNormalizeQtyForUser(user, row);
-      if ((counts.lunch + counts.salad + counts.disposable) <= 0) return;
+      const cateringItems = keepCatering && Array.isArray(row.cateringItems) ? row.cateringItems : [];
+      const hasCatering = keepCatering && orderTotals.hasAnyOrder({ cateringItems });
+      if ((counts.lunch + counts.salad + counts.disposable) <= 0 && !hasCatering) return;
       const addressSource = {
         deliveryPlace: row.deliveryPlace || user.deliveryPlace,
         deliveryAddress: row.deliveryAddress || user.deliveryAddress,
@@ -1616,7 +1624,8 @@ async function kakaoFetchMonthlyMealRows(dateStr) {
         deliveryTime: row.deliveryTime || user.deliveryTime || row.mealTime || user.mealTime || '',
         lunchCount: counts.lunch,
         saladCount: counts.salad,
-        eventLunchCount: counts.disposable
+        eventLunchCount: counts.disposable,
+        cateringItems
       };
     };
 
@@ -1630,7 +1639,8 @@ async function kakaoFetchMonthlyMealRows(dateStr) {
           lunchCount: kakaoParseCount(data.lunchCount ?? data.lunch, 0, 999),
           saladCount: kakaoParseCount(data.saladCount ?? data.salad, 0, 999),
           eventLunchCount: kakaoParseCount(data.eventLunchCount ?? data.eventLunchQty, 0, 999),
-          disposableLunch: data.disposableLunch
+          disposableLunch: data.disposableLunch,
+          cateringItems: data.cateringItems
         };
         addRow(uid, delivered || defaults);
       });
@@ -1671,6 +1681,7 @@ async function kakaoFetchMonthlyMealRows(dateStr) {
         saladCount: deliveredOverride ? kakaoOrderSaladQty(delivered) : salad,
         eventLunchCount: deliveredOverride ? kakaoOrderEventLunchQty(delivered) : eventLunch,
         disposableLunch: deliveredOverride ? delivered.disposableLunch : order.disposableLunch,
+        cateringItems: deliveredOverride ? delivered.cateringItems : order.cateringItems,
         deliveryPlace: order.deliveryPlace,
         deliveryPlaceDetail: order.deliveryPlaceDetail,
         deliveryTime: order.deliveryTime
@@ -1690,11 +1701,42 @@ async function kakaoFetchMonthlyMealRows(dateStr) {
       lunch: rows.reduce((sum, row) => sum + kakaoOrderLunchQty(row), 0),
       salad: rows.reduce((sum, row) => sum + kakaoOrderSaladQty(row), 0),
       disposable: rows.reduce((sum, row) => sum + kakaoOrderEventLunchQty(row), 0),
-      count: rows.length
+      count: rows.length,
+      adminData
     };
   } catch (error) {
-    return { ok: false, noDelivery: false, rows: [], lunch: 0, salad: 0, disposable: 0, count: 0, error: error.message };
+    return { ok: false, noDelivery: false, rows: [], lunch: 0, salad: 0, disposable: 0, count: 0, adminData: {}, error: error.message };
   }
+}
+
+// 태블릿 주방 화면에 띄울 오늘의 주문 집계.
+// 월식 업체 주문은 카카오 알림과 같은 경로로 모으고(잠금·기본값·배달기록 반영),
+// 단독 행사도시락 주문은 관리자 문서와 eventOrders 에서 따로 가져온다.
+async function fetchDailyOrderTotals(dateStr) {
+  const result = await kakaoFetchMonthlyMealRows(dateStr, { keepCatering: true });
+  if (!result.ok) return { ok: false, date: dateStr, noDelivery: false, totals: null, error: result.error };
+  if (result.noDelivery) {
+    return { ok: true, date: dateStr, noDelivery: true,
+      totals: { lunch: 0, salad: 0, eventLunch: 0, catering: 0, largeLunch: 0, rice: 0 } };
+  }
+  let eventRows = [];
+  try {
+    const admin = result.adminData || {};
+    const events = { ...(admin.adminEvents || {}) };
+    Object.entries(admin).forEach(([key, value]) => {
+      if (key.startsWith('adminEvents.')) events[key.slice('adminEvents.'.length)] = value;
+    });
+    eventRows = Object.values(events).filter(item => item && item.eventDate === dateStr);
+    const publicSnap = await db.collection('eventOrders').where('eventDate', '==', dateStr).get();
+    publicSnap.forEach(doc => {
+      const item = doc.data() || {};
+      if (item.status === 'registered' || item.status === 'deleted') return;
+      eventRows.push(item);
+    });
+  } catch (error) {
+    logger.warn('daily order totals: event orders unavailable', { error: error.message });
+  }
+  return { ok: true, date: dateStr, noDelivery: false, totals: orderTotals.totalsFromRows(result.rows, eventRows) };
 }
 
 function kakaoMonthlyMealAddress(item = {}) {
