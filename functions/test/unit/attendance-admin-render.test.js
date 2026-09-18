@@ -193,6 +193,57 @@ test('미퇴근 일일근무 기록은 급여 줄에 안 나온다', () => {
   assert.doesNotMatch(html, /일일근무자 합계/);
 });
 
+const 일당직원 = { id: 'p1', name: '김일당', role: '홀', floor: 2, payType: 'perDiem', dailyPay: 100000, halfDayPay: 55000, halfDayBeforeMinutes: 1020, breakMinutes: 0, active: true };
+const 일당근무 = (id, date, portion, baseAmount, extraAmount = 0) => ({
+  id, employeeId: 'p1', employeeName: '김일당', floor: 2, workDate: date,
+  checkInAt: at(`${date}T09:00:00+09:00`), checkOutAt: at(`${date}T18:00:00+09:00`),
+  breakMinutes: 0, payType: 'perDiem', hourlyRate: 0, payableMinutes: 540,
+  amount: baseAmount + extraAmount, baseAmount, extraAmount, dayPortion: portion,
+  overtimeUnits: extraAmount / 10000, multiplierPercent: 100, note: ''
+});
+
+test('일당 직원은 풀타임·반타임 일수가 줄로 보인다', () => {
+  const state = baseState('payroll');
+  state.data.employees = [일당직원];
+  state.data.shifts = [
+    일당근무('a', '2026-09-14', 'full', 100000),
+    일당근무('b', '2026-09-15', 'full', 100000, 20000),
+    일당근무('c', '2026-09-16', 'half', 55000)
+  ];
+  state.data.absences = [];
+  const { html } = screen(state);
+  assert.match(html, /풀타임 2일<\/span><span>200,000원/);
+  assert.match(html, /반타임 1일<\/span><span>55,000원/);
+  assert.match(html, /초과 근무 추가 급여<\/span><span>\+ 20,000원/);
+  // 합계 275,000원이 입금 기준액
+  assert.match(html, /275,000원/);
+});
+
+test('일당 직원은 기록마다가 아니라 사람마다 한 줄이다', () => {
+  // 일일근무자 자리와 달리 이름 있는 직원이라 합쳐서 보여준다.
+  const state = baseState('payroll');
+  state.data.employees = [일당직원];
+  state.data.shifts = [일당근무('a', '2026-09-14', 'full', 100000), 일당근무('b', '2026-09-15', 'full', 100000)];
+  state.data.absences = [];
+  const { html } = screen(state);
+  // 이름은 aria-label 에도 들어가므로 카드 수로 센다.
+  // 감싸는 att-payroll-cards 까지 세지 않도록 article 만 센다.
+  assert.equal((html.match(/<article class="att-payroll-card/g) || []).length, 1, '일당 직원이 여러 줄로 나왔습니다.');
+  assert.match(html, /200,000원/);
+  // 일일근무자 자리가 아니라 보통 직원 줄에 들어간다.
+  assert.doesNotMatch(html, /일일근무자 실지급 합계/);
+});
+
+test('일당 직원에게 3.3% 를 체크하면 뗀 금액이 나온다', () => {
+  const state = baseState('payroll');
+  state.data.employees = [{ ...일당직원, withholding: true }];
+  state.data.shifts = [일당근무('a', '2026-09-14', 'full', 100000)];
+  state.data.absences = [];
+  const { html } = screen(state);
+  assert.match(html, /원천징수 3\.3%<\/span><span>− 3,300원/);
+  assert.match(html, /96,700원/);
+});
+
 test('시급 합계에 월급 직원의 특수일 가산이 섞이지 않는다', () => {
   // 예전에는 모든 기록의 amount 를 더해서, 월급 직원 가산까지 시급 합계에 들어갔다.
   const { stats } = screen(baseState('calendar'));

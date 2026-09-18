@@ -135,6 +135,42 @@ test('원천징수 안내가 세율과 맞고 무엇이 안 빠지는지 밝힌�
   assert.match(html, /세무 신고를 대신하지 않습니다/);
 });
 
+test('일당 직원 안내가 퇴근 시각 기준을 분명히 적는다', () => {
+  const { html } = render();
+  const section = /id="sm-perdiem"([\s\S]*?)<\/section>/.exec(html);
+  assert.ok(section, '일당 직원 항목이 없습니다.');
+  const body = section[1];
+  // 근무시간이 아니라 퇴근 시각이라는 것 — 이걸 모르면 계산이 왜 그런지 못 읽는다.
+  assert.match(body, /몇 시간 일했는지가 아니라 몇 시에 갔는지/);
+  assert.match(body, /한국시간/);
+  // 밤샘이 반타임이 되지 않는다는 것
+  assert.match(body, /날짜를 넘겨 퇴근하면 풀타임/);
+  // 결근 공제가 없다는 것
+  assert.match(body, /결근 공제는 없습니다/);
+});
+
+test('일당 직원 예시가 실제 판정과 맞는다', () => {
+  // 표에 적은 시각별 구분을 실제 계산 함수로 다시 내서 대조한다.
+  const { html } = render();
+  const at = value => new Date(value).getTime();
+  const 근무 = time => ({
+    checkInAt: at('2026-09-17T09:00:00+09:00'), checkOutAt: at(`2026-09-17T${time}:00+09:00`),
+    breakMinutes: 0, payType: 'perDiem', hourlyRate: 0, dailyPay: 100000, halfDayPay: 55000,
+    halfDayBeforeMinutes: M.DEFAULT_HALF_DAY_BEFORE_MINUTES,
+    dailyBaseMinutes: M.DEFAULT_DAILY_BASE_MINUTES, overtimeUnitMinutes: M.DEFAULT_OVERTIME_UNIT_MINUTES, overtimePay: 10000
+  });
+  assert.equal(M.totals(근무('13:00')).dayPortion, 'half');
+  assert.equal(M.totals(근무('16:59')).dayPortion, 'half');
+  assert.equal(M.totals(근무('17:00')).dayPortion, 'full');
+  // 표의 금액이 실제 계산과 같아야 한다.
+  assert.match(html, new RegExp(M.totals(근무('13:00')).amount.toLocaleString('en-US')));
+  assert.match(html, new RegExp(M.totals(근무('17:00')).amount.toLocaleString('en-US')));
+  // 기준 시각도 문서와 같아야 한다.
+  const 시 = String(Math.floor(M.DEFAULT_HALF_DAY_BEFORE_MINUTES / 60)).padStart(2, '0');
+  assert.match(html, new RegExp(`${시}:00`));
+  assert.match(html, new RegExp(`오후 ${Math.floor(M.DEFAULT_HALF_DAY_BEFORE_MINUTES / 60) - 12}시 전에 퇴근하면 반타임`));
+});
+
 test('다시 열어도 내용이 겹치지 않는다', () => {
   const { api, root } = render();
   const once = (root.innerHTML.match(/id="sm-absence"/g) || []).length;
