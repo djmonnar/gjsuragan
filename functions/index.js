@@ -10,6 +10,7 @@ const { mapCustomerToLogenOrder, orderNumber } = require('./logenMapper');
 const { parseMealPlanOcr } = require('./mealPlanParser');
 const kakaoAuth = require('./kakaoAuth');
 const imwebSync = require('./imwebSync');
+const signupGuard = require('./signupGuard');
 
 const logenSecretKey = defineSecret('LOGEN_SECRET_KEY');
 const logenHealthToken = defineSecret('LOGEN_HEALTH_TOKEN');
@@ -277,6 +278,12 @@ exports.api = onRequest({
       sendJson(res, 200, { ok: true, ...result });
       return;
     }
+    if (pathname === '/api/signup/duplicate-check' || pathname === '/signup/duplicate-check') {
+      // 가입 중인 고객이 부른다. 관리자 검증보다 앞에 둬야 한다.
+      const result = await handleSignupDuplicateCheck(req);
+      sendJson(res, 200, { ok: true, ...result });
+      return;
+    }
     const user = pathname === '/api/route/optimize' || pathname === '/route/optimize'
       ? await verifyRouteRequest(req)
       : await verifyAdminRequest(req);
@@ -317,6 +324,35 @@ exports.api = onRequest({
   }
 });
 
+
+// 가입하려는 업체가 이미 등록돼 있는지 본다.
+// 로그인한 사람만 부를 수 있게 해서 아무나 전화번호를 넣어보지 못하게 한다.
+// (가입 흐름에서는 Auth 계정을 만든 직후, 프로필을 저장하기 전에 부른다)
+async function handleSignupDuplicateCheck(req) {
+  const auth = String(req.headers.authorization || '');
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    const error = new Error('Missing Firebase ID token');
+    error.status = 401;
+    throw error;
+  }
+  const decoded = await admin.auth().verifyIdToken(match[1]);
+  const body = req.body || {};
+  const candidate = { businessName: body.businessName, phone: body.phone };
+  if (!signupGuard.duplicateKey(candidate.businessName, candidate.phone)) {
+    return { duplicate: false };
+  }
+  // 업체 수가 백 단위라 전체를 읽어 비교한다. 전화번호를 적는 형식이 제각각이라
+  // where 로는 010-1234-5678 과 01012345678 을 같은 번호로 잡지 못한다.
+  const snap = await db.collection('users').limit(2000).get();
+  const users = snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+  const found = signupGuard.findDuplicateAccount(users, candidate, decoded.uid);
+  if (!found) return { duplicate: false };
+  logger.info('중복 가입 차단', { uid: decoded.uid, existingUid: found.uid });
+  // 기존 계정의 이메일이나 주소는 돌려주지 않는다. 번호만 아는 사람에게
+  // 남의 정보가 넘어가면 안 된다.
+  return { duplicate: true, businessName: String(found.businessName || '') };
+}
 
 function setCorsHeaders(res) {
   res.set('Access-Control-Allow-Origin', '*');
