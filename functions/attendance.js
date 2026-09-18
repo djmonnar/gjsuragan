@@ -259,8 +259,14 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
           checkInAt: at, checkOutAt: null, payType: employee.payType, hourlyRate: employee.hourlyRate,
           // 월급 직원의 특수일 가산 기준. 출근 시점의 월급으로 고정한다.
           ordinaryHourlyRate: model.ordinaryHourlyRate(employee),
-          // 일당은 출근 시점의 자리 설정으로 고정한다. 정산할 때 기록마다 고칠 수 있다.
-          dailyPay: shared ? (employee.dailyPay || 0) : 0, workerName: '', workerNote: '',
+          // 일당과 초과 급여 조건은 출근 시점의 자리 설정으로 고정한다.
+          // 정산할 때 기록마다 고칠 수 있다.
+          dailyPay: shared ? (employee.dailyPay || 0) : 0,
+          dailyBaseMinutes: shared ? (employee.dailyBaseMinutes || 0) : 0,
+          overtimeUnitMinutes: shared ? (employee.overtimeUnitMinutes || 0) : 0,
+          overtimePay: shared ? (employee.overtimePay || 0) : 0,
+          withholding: shared ? Boolean(employee.withholding) : false,
+          workerName: '', workerNote: '',
           breakMinutes: employee.breakMinutes, note: '', source: 'kiosk', deviceId: tabletRef.id,
           version: 1, voided: false, createdAt: at, updatedAt: at };
         // Employee document serializes concurrent punches and admin corrections.
@@ -329,6 +335,21 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         // 일당을 비우고 저장하면 자리의 기본 일당을 쓴다. 0원으로 저장돼 급여가 빠지면 안 된다.
         dailyPay: data.payType === 'daily'
           ? (data.dailyPay || before?.dailyPay || employee.dailyPay || 0) : 0,
+        // 초과 급여 조건도 같다. 화면이 안 보낸 값은 기존 기록 → 자리 설정 순서로 따라간다.
+        // shiftInput 이 이미 기본값(8시간·30분)을 채워두기 때문에, 보냈는지 여부는
+        // 다듬어진 data 가 아니라 원래 input 으로 가려야 자리 설정이 안 덮인다.
+        dailyBaseMinutes: data.payType === 'daily'
+          ? (input.dailyBaseMinutes !== undefined ? data.dailyBaseMinutes
+            : (before?.dailyBaseMinutes || employee.dailyBaseMinutes || data.dailyBaseMinutes)) : 0,
+        overtimeUnitMinutes: data.payType === 'daily'
+          ? (input.overtimeUnitMinutes !== undefined ? data.overtimeUnitMinutes
+            : (before?.overtimeUnitMinutes || employee.overtimeUnitMinutes || data.overtimeUnitMinutes)) : 0,
+        // 추가 급여는 0 이 '안 줌' 이라는 뜻이라, 입력이 아예 없을 때만 물려받는다.
+        overtimePay: data.payType === 'daily'
+          ? (input.overtimePay === undefined ? (before?.overtimePay ?? employee.overtimePay ?? 0) : data.overtimePay) : 0,
+        // 체크를 푼 것과 화면이 안 보낸 것은 다르다. 안 보냈을 때만 물려받는다.
+        withholding: data.payType === 'daily'
+          ? (input.withholding === undefined ? Boolean(before?.withholding ?? employee.withholding) : data.withholding) : false,
         source: before?.source || 'admin', voided: false, createdAt: before?.createdAt ?? now(),
         updatedAt: now(), version: (before?.version || 0) + 1
       };

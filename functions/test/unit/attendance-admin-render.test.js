@@ -112,7 +112,54 @@ test('일일근무자는 한 자리라도 기록마다 한 줄로 나온다', ()
   assert.match(html, /이름 미입력/);
   assert.match(html, /100,000원/);
   assert.match(html, /120,000원/);
-  assert.match(html, /일일근무자 합계<\/span><strong>220,000원/);
+  assert.match(html, /일일근무자 실지급 합계<\/span><strong>220,000원/);
+});
+
+test('일일근무자 초과 급여가 내역 줄로 보인다', () => {
+  const state = baseState('payroll');
+  state.data.employees = [일일자리];
+  // 9시간 10분 일해서 30분 단위로 2회 붙었다 (일당 10만 + 2만)
+  state.data.shifts = [{ ...일일근무('s1', '김일손', 100000), payableMinutes: 550,
+    amount: 120000, baseAmount: 100000, extraAmount: 20000, overtimeUnits: 2, overtimeUnitMinutes: 30 }];
+  state.data.absences = [];
+  const { html } = screen(state);
+  assert.match(html, /일당<\/span><span>100,000원/);
+  assert.match(html, /추가 급여 \(30분 × 2회\)<\/span><span>\+ 20,000원/);
+  assert.match(html, /120,000원/);
+});
+
+test('3.3% 를 체크한 일일근무 기록은 뗀 금액을 보여준다', () => {
+  const state = baseState('payroll');
+  state.data.employees = [일일자리];
+  state.data.shifts = [{ ...일일근무('s1', '김일손', 100000), withholding: true }];
+  state.data.absences = [];
+  const { html } = screen(state);
+  assert.match(html, /원천징수 3\.3%<\/span><span>− 3,300원/);
+  // 실지급액이 앞에 나오고 합계도 그 금액이어야 한다.
+  assert.match(html, /실지급액 \(3\.3% 뗀 금액\)<\/span><strong>96,700원/);
+  assert.match(html, /일일근무자 실지급 합계<\/span><strong>96,700원/);
+});
+
+test('3.3% 를 체크한 월급 직원은 뗀 금액이 입금 기준액이 된다', () => {
+  const state = baseState('payroll');
+  state.data.employees = [{ ...월급직원, withholding: true }];
+  state.data.shifts = [{ ...월급근무, extraAmount: 0, amount: 0, multiplierPercent: 100 }];
+  state.data.absences = [];
+  const { html } = screen(state);
+  // 300만원 → 세금 99,000 → 실지급 2,901,000
+  assert.match(html, /원천징수 3\.3%<\/span><span>− 99,000원/);
+  assert.match(html, /2,901,000원/);
+});
+
+test('3.3% 를 안 체크하면 예전 그대로다', () => {
+  const state = baseState('payroll');
+  state.data.employees = [월급직원];
+  state.data.shifts = [{ ...월급근무, extraAmount: 0, amount: 0, multiplierPercent: 100 }];
+  state.data.absences = [];
+  const { html } = screen(state);
+  // 화면 아래 안내문에는 '원천징수' 라는 말이 늘 있다. 공제 줄만 없어야 한다.
+  assert.doesNotMatch(html, /원천징수 3\.3%<\/span><span>−/);
+  assert.match(html, /3,000,000원/);
 });
 
 test('이름을 안 적은 일일근무 기록이 몇 건인지 알려준다', () => {

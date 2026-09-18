@@ -110,6 +110,21 @@
         ['퇴근할 때는 자기 칸을 누릅니다', '출근 시각이 적힌 칸이 사람마다 따로 뜹니다. 자기 시각의 칸을 누르면 됩니다.'],
         ['정산할 때 누구였는지 적습니다', '<b>급여 정산 → 일일근무자</b> 에서 기록마다 <b>이름 적기</b>. 금액도 그 자리에서 바꿀 수 있습니다.']
       ],
+      sub: [
+        ['오래 일하면 추가 급여를 붙입니다', '자리에 <b>기준 근무시간</b>(기본 8시간)과 <b>추가 급여 단위</b>(기본 30분), <b>단위당 추가 급여</b>를 정해둡니다. 기준을 넘긴 뒤 단위마다 금액이 더 붙습니다. <b>단위를 채워야 첫 회가 붙습니다</b> — 30분 단위라면 20분 초과는 안 붙고, 30분 초과부터 1회입니다.'],
+        ['3.3%를 떼고 드릴 수 있습니다', '자리나 기록에서 <b>3.3% 원천징수</b>를 체크하면 그만큼 뺀 <b>실지급액</b>이 표시되고, <b>금액 복사</b>도 그 금액으로 복사됩니다. 사람마다 다르면 기록에서 따로 체크하세요.']
+      ],
+      example: {
+        head: ['유급 근무', '기준 초과', '추가 급여', '일당 + 추가', '3.3% 체크 시'],
+        rows: [
+          ['8시간 00분', '0분', '0회 · 0원', '100,000원', '96,700원'],
+          ['8시간 20분', '20분', '<b>0회</b> · 0원', '100,000원', '96,700원'],
+          ['8시간 30분', '30분', '<b>1회</b> · 10,000원', '110,000원', '106,370원'],
+          ['9시간 00분', '60분', '2회 · 20,000원', '120,000원', '116,040원'],
+          ['11시간 00분', '3시간', '6회 · 60,000원', '160,000원', '154,720원']
+        ],
+        caption: '기본 일당 100,000원 · 기준 8시간 · 30분마다 10,000원일 때'
+      },
       table: {
         head: ['', '보통 직원', '일일근무자 자리'],
         rows: [
@@ -124,6 +139,8 @@
         '<b>매장·업무별로 자리를 여러 개 만드셔도 됩니다.</b> 홀과 주방의 일당이 다르면 <code>일일근무자 (홀)</code>, <code>일일근무자 (주방)</code> 처럼 따로 만들어 각각 다른 일당을 넣으세요. 매장마다 따로 만드는 것도 같습니다.',
         '<b>일당은 시간과 상관없이 하루치</b>입니다. 몇 시간 일했는지는 기록에 남지만 금액에는 영향이 없습니다.',
         '<b>특수일 배율은 붙지 않습니다.</b> 명절에 더 드릴 금액은 그 기록의 <b>이 근무의 일당</b>을 직접 고치세요.',
+        '<b>추가 급여를 안 쓰시려면 비워두거나 0으로</b> 두세요. 0이면 아무리 오래 일해도 안 붙습니다.',
+        '<b>무급 휴게시간은 초과 계산에서 빠집니다.</b> 열 시간 있었어도 휴게가 두 시간이면 유급 여덟 시간입니다.',
         '이름을 안 적은 기록이 있으면 급여 정산 화면 위에 <b>몇 건 남았는지</b> 알려줍니다. 누구에게 줄 돈인지 모르는 채로 넘어가지 않게 하려는 것입니다.',
         '계좌는 자리에 등록하지 마세요. 사람이 매번 달라집니다. <b>지급 메모</b>에 계좌나 현금 지급 여부를 적어두시면 됩니다.',
         '아무도 안 들어와 있으면 <b>연결 해제</b>나 <b>재직 해제</b>를 할 수 있습니다. 누가 근무 중이면 막힙니다 — 그 사람이 퇴근을 못 찍게 되기 때문입니다.'
@@ -146,7 +163,8 @@
         ]
       },
       notes: [
-        '<b>세금과 4대보험은 빠져 있지 않습니다.</b> 주휴·연장·야간수당도 포함되지 않습니다. 그대로 이체하지 마시고 확인하신 뒤 쓰세요.',
+        '<b>3.3% 원천징수는 체크한 사람만</b> 빼고 보여줍니다. 직원 수정(또는 일일근무 기록)에서 <b>3.3% 원천징수하고 지급</b>을 체크하면, 계산 내역에 공제 줄이 생기고 <b>금액 복사</b>도 뗀 금액으로 복사됩니다.',
+        '<b>4대보험과 주휴·연장·야간수당은 빠져 있지 않습니다.</b> 그대로 이체하지 마시고 확인하신 뒤 쓰세요. 3.3%는 단순 계산이며 세무 신고를 대신하지 않습니다.',
         '<b>미퇴근 기록은 빠집니다.</b> 미퇴근 건수가 0이 아니면 먼저 정리해주세요.',
         '금액 밑에 <b>계산 내역</b>이 줄로 나옵니다. 왜 이 금액인지 여기서 확인하실 수 있습니다.',
         '급여 유형을 중간에 바꾼 달은 <b>급여 유형 확인 필요</b>로 나옵니다. 금액을 직접 계산해주세요.',
@@ -198,6 +216,10 @@
     return `<div class="sm-table-wrap"><table class="sm-table"><thead><tr>${table.head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${table.rows.map(row => `<tr>${row.map((cell, i) => i === 0 ? `<th scope="row">${cell}</th>` : `<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
 
+  function exampleHtml(example) {
+    if (!example) return '';
+    return `<figure class="sm-example"><table class="sm-table"><thead><tr>${example.head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${example.rows.map(row => `<tr>${row.map((cell, i) => i === 0 ? `<th scope="row">${cell}</th>` : `<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody></table>${example.caption ? `<figcaption>${example.caption}</figcaption>` : ''}</figure>`;
+  }
   function sectionHtml(section, index) {
     const steps = section.steps?.length
       ? `<ol class="sm-steps">${section.steps.map(([title, detail]) => `<li><strong>${title}</strong>${detail ? `<p>${detail}</p>` : ''}</li>`).join('')}</ol>`
@@ -208,10 +230,13 @@
     const notes = section.notes?.length
       ? `<ul class="sm-notes">${section.notes.map(note => `<li>${note}</li>`).join('')}</ul>`
       : '';
+    const sub = section.sub?.length
+      ? `<div class="sm-sub">${section.sub.map(([title, detail]) => `<div><strong>${title}</strong><p>${detail}</p></div>`).join('')}</div>`
+      : '';
     return `<section class="sm-section" id="sm-${section.id}" tabindex="-1">
       <div class="sm-section-head"><span class="sm-index" aria-hidden="true">${index + 1}</span><h3>${section.title}</h3></div>
       ${section.lead ? `<p class="sm-lead">${section.lead}</p>` : ''}
-      ${steps}${tableHtml(section.table)}${qa}${notes}
+      ${steps}${sub}${exampleHtml(section.example)}${tableHtml(section.table)}${qa}${notes}
     </section>`;
   }
 

@@ -334,3 +334,53 @@ test('일당을 비우고 저장하면 자리의 기본 일당을 쓴다', async
     checkInAt: at('2026-09-10T09:00:00+09:00'), checkOutAt: at('2026-09-10T18:00:00+09:00') }, 'admin');
   assert.equal((await getShift(saved.id)).dailyPay, 100000);
 });
+
+test('초과 급여 조건과 3.3% 체크가 출근 기록에 그대로 실린다', async () => {
+  const slotId = (await service.saveEmployee({ ...slotInput, dailyBaseMinutes: 360, overtimeUnitMinutes: 60, overtimePay: 15000, withholding: true }, 'admin')).id;
+  const first = await service.punch({ employeeId: slotId, kind: 'in', requestId: 'in' }, token);
+  const saved = await getShift(first.shiftId);
+  assert.equal(saved.dailyPay, 100000);
+  assert.equal(saved.dailyBaseMinutes, 360);
+  assert.equal(saved.overtimeUnitMinutes, 60);
+  assert.equal(saved.overtimePay, 15000);
+  assert.equal(saved.withholding, true);
+  // 유급 8시간 → 기준 6시간 초과 2시간 → 1시간 단위 2회 → 30,000원
+  now += 8 * hour;
+  await service.punch({ employeeId: slotId, kind: 'out', requestId: 'out', shiftId: first.shiftId }, token);
+  const shift = (await service.listAdmin('2026-09')).shifts.find(s => s.id === first.shiftId);
+  assert.equal(shift.extraAmount, 30000);
+  assert.equal(shift.amount, 130000);
+});
+
+test('관리자가 기록을 고쳐도 자리의 초과 급여 조건이 기본값으로 안 되돌아간다', async () => {
+  // shiftInput 이 8시간·30분을 기본으로 채우므로, 화면이 안 보낸 값은 자리 설정을 따라야 한다.
+  const slotId = (await service.saveEmployee({ ...slotInput, dailyBaseMinutes: 360, overtimeUnitMinutes: 60, overtimePay: 15000, withholding: true }, 'admin')).id;
+  now = at('2026-09-11T09:00:00+09:00');
+  const saved = await service.saveShift({ employeeId: slotId, payType: 'daily', breakMinutes: 0, note: '', workerName: '김일손',
+    checkInAt: at('2026-09-10T09:00:00+09:00'), checkOutAt: at('2026-09-10T17:00:00+09:00') }, 'admin');
+  const shift = await getShift(saved.id);
+  assert.equal(shift.dailyBaseMinutes, 360, '기준 근무시간이 8시간으로 되돌아갔습니다');
+  assert.equal(shift.overtimeUnitMinutes, 60);
+  assert.equal(shift.overtimePay, 15000);
+  assert.equal(shift.withholding, true);
+});
+
+test('기록마다 초과 급여와 3.3% 를 다르게 정할 수 있다', async () => {
+  const slotId = (await service.saveEmployee({ ...slotInput, overtimePay: 10000, withholding: true }, 'admin')).id;
+  now = at('2026-09-11T09:00:00+09:00');
+  const base = { employeeId: slotId, payType: 'daily', breakMinutes: 0, note: '',
+    checkInAt: at('2026-09-10T09:00:00+09:00'), checkOutAt: at('2026-09-10T18:00:00+09:00') };
+  const a = await service.saveShift({ ...base, workerName: '김일손' }, 'admin');
+  const b = await service.saveShift({ ...base, workerName: '이일손', withholding: false, overtimePay: 0, dailyPay: 120000 }, 'admin');
+  assert.equal((await getShift(a.id)).withholding, true);
+  assert.equal((await getShift(b.id)).withholding, false);
+  assert.equal((await getShift(b.id)).overtimePay, 0);
+  assert.equal((await getShift(b.id)).dailyPay, 120000);
+});
+
+test('3.3% 체크는 급여 유형과 상관없이 직원에 저장된다', async () => {
+  await service.saveEmployee({ ...(await getEmployee()), withholding: true }, 'admin');
+  assert.equal((await getEmployee()).withholding, true);
+  await service.saveEmployee({ ...(await getEmployee()), withholding: false }, 'admin');
+  assert.equal((await getEmployee()).withholding, false);
+});
