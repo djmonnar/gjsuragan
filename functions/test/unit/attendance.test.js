@@ -7,14 +7,61 @@ const at = value => new Date(value).getTime();
 const base = { checkInAt: at('2026-09-01T09:00:00+09:00'), checkOutAt: at('2026-09-01T18:00:00+09:00'), breakMinutes: 60, payType: 'hourly', hourlyRate: 12000, note: '' };
 
 test('hourly pay deducts explicit unpaid break and excludes unfinished and salaried shifts', () => {
-  assert.deepEqual(M.totals(base), { workedMinutes: 540, payableMinutes: 480, amount: 96000, baseAmount: 96000, extraAmount: 0, multiplierPercent: 100 });
+  assert.deepEqual(M.totals(base), { workedMinutes: 540, payableMinutes: 480, earlyMinutes: 0, amount: 96000, baseAmount: 96000, extraAmount: 0, multiplierPercent: 100 });
   assert.equal(M.totals({ ...base, payType: 'salaried' }).amount, 0);
   assert.equal(M.totals({ ...base, checkOutAt: null }).amount, 0);
   assert.equal(M.totals({ ...base, voided: true }).amount, 0);
 });
+test('시급 직원도 예정 출근 시각보다 일찍 찍은 시간은 급여에서 뺀다', () => {
+  // 7시 출근인 사람이 6시 50분에 찍고 3시에 갔다.
+  const 시급근무 = { checkInAt: at('2026-09-01T06:50:00+09:00'), checkOutAt: at('2026-09-01T15:00:00+09:00'),
+    breakMinutes: 0, payType: 'hourly', hourlyRate: 12000, scheduledStartMinutes: 7 * 60, note: '' };
+  const t = M.totals(시급근무);
+  // 찍힌 시간은 8시간 10분으로 남지만 급여는 8시간이다.
+  assert.equal(t.workedMinutes, 490);
+  assert.equal(t.earlyMinutes, 10);
+  assert.equal(t.payableMinutes, 480);
+  assert.equal(t.amount, 96000);
+  // 예정 시각을 안 쓰면 찍힌 대로 준다.
+  const 그대로 = M.totals({ ...시급근무, scheduledStartMinutes: 0 });
+  assert.equal(그대로.payableMinutes, 490);
+  assert.equal(그대로.amount, 98000);
+  // 늦게 온 날은 실제 출근부터 센다. 늦은 만큼 급여가 줄어든다.
+  const 지각 = M.totals({ ...시급근무, checkInAt: at('2026-09-01T07:20:00+09:00') });
+  assert.equal(지각.earlyMinutes, 0);
+  assert.equal(지각.payableMinutes, 460);
+  // 무급 휴게시간과 같이 빠진다.
+  const 휴게 = M.totals({ ...시급근무, breakMinutes: 60 });
+  assert.equal(휴게.payableMinutes, 420);
+  assert.equal(휴게.amount, 84000);
+});
+
+test('예정보다 한참 일찍 찍힌 시급 근무는 손대지 않는다', () => {
+  // 오후 5시 출근으로 정해둔 사람이 아침 9시에 왔으면 다른 시간대 근무다.
+  const 저녁예정 = { checkInAt: at('2026-09-01T09:00:00+09:00'), checkOutAt: at('2026-09-01T13:00:00+09:00'),
+    breakMinutes: 0, payType: 'hourly', hourlyRate: 12000, scheduledStartMinutes: 17 * 60, note: '' };
+  assert.equal(M.totals(저녁예정).earlyMinutes, 0);
+  assert.equal(M.totals(저녁예정).payableMinutes, 240);
+  assert.equal(M.totals(저녁예정).amount, 48000);
+});
+
+test('예정 출근 시각은 급여 유형과 상관없이 저장된다', () => {
+  const person = { name: '박알바', role: '포장', payType: 'hourly', hourlyRate: 12000, active: true, breakMinutes: 0, note: '' };
+  assert.equal(M.employeeInput(person).scheduledStartMinutes, 0);
+  assert.equal(M.employeeInput({ ...person, scheduledStartMinutes: 7 * 60 }).scheduledStartMinutes, 420);
+  assert.equal(M.employeeInput({ ...person, payType: 'salaried', monthlySalary: 3000000, scheduledStartMinutes: 9 * 60 }).scheduledStartMinutes, 540);
+  for (const bad of [-1, 1441, 1.5]) {
+    assert.throws(() => M.employeeInput({ ...person, scheduledStartMinutes: bad }), new RegExp('.'), String(bad));
+  }
+  const when = at('2026-09-02T00:00:00+09:00');
+  const 기록 = M.shiftInput({ ...base, checkOutAt: null, scheduledStartMinutes: 420 }, when);
+  assert.equal(기록.scheduledStartMinutes, 420);
+  assert.equal(M.shiftInput({ ...base, checkOutAt: null }, when).scheduledStartMinutes, 0);
+});
+
 test('elapsed minutes truncate once and money rounds per shift', () => {
   const shift = { ...base, checkOutAt: base.checkInAt + 61 * 60000 + 59000, breakMinutes: 0, hourlyRate: 10321 };
-  assert.deepEqual(M.totals(shift), { workedMinutes: 61, payableMinutes: 61, amount: 10493, baseAmount: 10493, extraAmount: 0, multiplierPercent: 100 });
+  assert.deepEqual(M.totals(shift), { workedMinutes: 61, payableMinutes: 61, earlyMinutes: 0, amount: 10493, baseAmount: 10493, extraAmount: 0, multiplierPercent: 100 });
 });
 test('KST date, leap February and December rollover do not depend on host timezone', () => {
   assert.equal(M.workDate(at('2026-08-31T15:00:00Z')), '2026-09-01');
@@ -62,7 +109,8 @@ test('홀·주방 파트가 직원 설정에 저장된다', () => {
   for (const bad of ['홀', 'HALL', '', null, 0, {}]) {
     assert.equal(M.employeeInput({ ...base, part: bad }).part, 'none', JSON.stringify(bad));
   }
-  assert.deepEqual(M.WORK_PARTS, ['none', 'hall', 'kitchen']);
+  assert.deepEqual(M.WORK_PARTS, ['none', 'hall', 'kitchen', 'delivery']);
+  assert.equal(M.employeeInput({ ...base, part: 'delivery' }).part, 'delivery');
   // 급여 유형과 무관하다. 일당 직원도 일일근무자 자리도 파트를 가진다.
   assert.equal(M.employeeInput({ ...base, payType: 'daily', dailyPay: 100000, part: 'kitchen' }).part, 'kitchen');
 });

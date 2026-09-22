@@ -240,8 +240,10 @@ test('예정 출근 시각과 초과 시급이 직원·기록에 저장된다', 
   const 지정 = M.employeeInput({ ...base, scheduledStartMinutes: 7 * 60, overtimeHourlyRate: 12000 });
   assert.equal(지정.scheduledStartMinutes, 420);
   assert.equal(지정.overtimeHourlyRate, 12000);
-  // 시급·월급 직원에게는 붙지 않는다.
-  assert.equal(M.employeeInput({ ...base, payType: 'hourly', hourlyRate: 12000, scheduledStartMinutes: 420, overtimeHourlyRate: 12000 }).scheduledStartMinutes, 0);
+  // 초과 시급은 일당 계열에만 붙는다. 예정 출근 시각은 시급 직원도 쓴다.
+  const 시급 = M.employeeInput({ ...base, payType: 'hourly', hourlyRate: 12000, scheduledStartMinutes: 420, overtimeHourlyRate: 12000 });
+  assert.equal(시급.overtimeHourlyRate, 0);
+  assert.equal(시급.scheduledStartMinutes, 420);
   for (const patch of [{ scheduledStartMinutes: -1 }, { scheduledStartMinutes: 1441 }, { scheduledStartMinutes: 1.5 }, { overtimeHourlyRate: -1 }, { overtimeHourlyRate: 1.5 }]) {
     assert.throws(() => M.employeeInput({ ...base, ...patch }), new RegExp('.'), JSON.stringify(patch));
   }

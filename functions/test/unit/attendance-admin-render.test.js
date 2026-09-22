@@ -323,6 +323,17 @@ test('직원 목록도 홀·주방으로 나뉜다', () => {
   assert.ok(html.indexOf('>홀<') < html.indexOf('>주방<'));
 });
 
+test('배송 파트도 직원 목록에서 제목을 가진다', () => {
+  const state = baseState('employees');
+  state.data.employees = [
+    { ...일당직원, id: 'p1', name: '최배송', part: 'delivery' },
+    { ...일당직원, id: 'p2', name: '김홀', part: 'hall' }
+  ];
+  const { html } = screen(state);
+  assert.match(html, /att-part-title att-part-row">배송<span>1명</);
+  assert.ok(html.indexOf('>홀<') < html.indexOf('>배송<'), '홀이 배송보다 먼저 나와야 합니다');
+});
+
 test('파트를 안 고른 직원만 있으면 제목 줄이 없다', () => {
   const state = baseState('employees');
   state.data.employees = [일당직원];
