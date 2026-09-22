@@ -159,9 +159,39 @@ const DEFAULT_OVERTIME_UNIT_MINUTES = 30;
 // 급여 계산에서 뺀다 — 7시 출근인 사람이 6시 50분에 찍었다고 시급 10분이 붙거나,
 // 20분 늦게 퇴근한 날에 30분치 추가 급여가 붙으면 안 된다.
 // 실제 출퇴근 시각과 근무시간 기록은 그대로 남는다. 기록은 사실이어야 한다.
-// 예정보다 이만큼 넘게 일찍 찍혔으면 아예 다른 시간대의 근무로 본다. 일일근무자
-// 자리는 아침 사람과 저녁 사람이 같이 쓰는데 예정 시각은 하나뿐이다.
-const EARLY_CLOCK_IN_WINDOW_MINUTES = 180;
+//
+// 한 사람이 점심(11시)과 저녁(5시)을 번갈아 나오므로 예정 시각은 여러 개다.
+// 찍힌 시각에 가장 가까운 예정 시각을 그날의 기준으로 본다. 오후 5시를 경계로
+// 가르면 4시 50분에 찍는 저녁 근무가 점심 기준으로 잡혀 매일 구멍이 열린다.
+//
+// 어느 예정 시각보다도 이만큼 넘게 일찍 찍혔으면 아예 다른 근무로 보고 손대지 않는다.
+// 사장님이 예외적으로 일찍 부른 날이 여기 해당하고, 그런 날 급여를 조용히 깎는 것이
+// 더 위험하다. 일일근무자 자리를 아침·저녁이 나눠 쓰는 경우도 이 창으로 걸러진다.
+const EARLY_CLOCK_IN_WINDOW_MINUTES = 60;
+// 한 사람의 예정 출근 시각 개수. 점심·저녁이면 둘이고, 넉넉히 넷까지 받는다.
+const MAX_SCHEDULED_STARTS = 4;
+
+// 정해진 출근 시각 목록. 중복을 걷고 순서대로 세운다.
+// 빈 배열은 '예정 시각 안 씀' 이고, 그러면 찍힌 시각 그대로 계산한다.
+function scheduledStarts(value, fallback = 0) {
+  const list = Array.isArray(value) ? value
+    : (Number(fallback) > 0 ? [Number(fallback)] : []);
+  const minutes = [...new Set(list.map(Number).filter(m => Number.isSafeInteger(m) && m > 0 && m <= 1440))];
+  return minutes.sort((a, b) => a - b).slice(0, MAX_SCHEDULED_STARTS);
+}
+
+// 화면이 보낸 목록을 검증한다. 하나라도 이상하면 급여가 어긋나므로 그대로 거부한다.
+function scheduledStartsInput(value, fallback) {
+  if (value === undefined || value === null) {
+    // 옛 화면은 시각 하나만 보낸다. 0 은 '안 씀' 이고, 범위를 벗어난 값은 거부한다.
+    if (fallback === undefined || fallback === null) return [];
+    return scheduledStarts([integer(fallback, '예정 출근 시각', 0, 1440)].filter(minute => minute > 0));
+  }
+  if (!Array.isArray(value)) fail('예정 출근 시각을 확인해 주세요.');
+  if (value.length > MAX_SCHEDULED_STARTS) fail(`예정 출근 시각은 ${MAX_SCHEDULED_STARTS}개까지 넣을 수 있습니다.`);
+  value.forEach(minute => integer(minute, '예정 출근 시각', 1, 1440));
+  return scheduledStarts(value);
+}
 
 // 원천징수 3.3% (소득세 3% + 지방소득세 0.3%).
 // 천분율 정수로 둔다. 0.033 같은 소수를 곱하면 원 단위가 어긋난다.
@@ -200,11 +230,15 @@ function overtimeUnits(basisMinutes, baseMinutes, unitMinutes) {
 }
 
 // 예정 출근 시각보다 일찍 찍은 분. 예정 시각을 안 쓰면 0.
+// 예정 시각이 여러 개면 창(1시간) 안에서 가장 가까운 것을 쓴다 — 4시 50분에 찍으면
+// 11시가 아니라 5시가 기준이다. 늦게 온 예정 시각은 음수라 저절로 빠진다.
 function earlyClockInMinutes(shift = {}) {
-  const scheduled = Number(shift.scheduledStartMinutes);
-  if (!(scheduled > 0) || shift.checkInAt === null || shift.checkInAt === undefined) return 0;
-  const early = scheduled - kstMinutesOfDay(shift.checkInAt);
-  return early > 0 && early <= EARLY_CLOCK_IN_WINDOW_MINUTES ? early : 0;
+  if (shift.checkInAt === null || shift.checkInAt === undefined) return 0;
+  const started = kstMinutesOfDay(shift.checkInAt);
+  const early = scheduledStarts(shift.scheduledStarts, shift.scheduledStartMinutes)
+    .map(minute => minute - started)
+    .filter(gap => gap > 0 && gap <= EARLY_CLOCK_IN_WINDOW_MINUTES);
+  return early.length ? Math.min(...early) : 0;
 }
 
 // 추가 급여를 셀 때만 쓰는 근무 분. 일찍 온 시간은 빼고 센다.
@@ -255,9 +289,10 @@ function employeeInput(input) {
     role: text(input.role, '담당 업무', 40),
     // 홀·주방. 안 고르면 '미지정'이고, 태블릿에서는 '그 외'로 모인다.
     part: workPart(input.part),
-    // 정해진 출근 시각. 0 이면 안 쓴다. 급여 유형과 상관없이 사람마다 정한다 —
+    // 정해진 출근 시각. 비우면 안 쓴다. 급여 유형과 상관없이 사람마다 정한다 —
     // 시급 직원은 급여 시간에서, 일당 직원은 초과 급여에서 일찍 온 시간이 빠진다.
-    scheduledStartMinutes: integer(input.scheduledStartMinutes ?? 0, '예정 출근 시각', 0, 1440),
+    // 점심·저녁을 번갈아 나오는 사람은 시각을 여러 개 넣는다.
+    scheduledStarts: scheduledStartsInput(input.scheduledStarts, input.scheduledStartMinutes),
     floor: floor(input.floor),
     payType: input.payType,
     hourlyRate: input.payType === 'hourly' ? integer(input.hourlyRate, '시급', 1, 1000000) : 0,
@@ -365,8 +400,8 @@ function shiftInput(input, now) {
     checkInAt, checkOutAt, breakMinutes,
     workDate: workDate(checkInAt),
     payType: input.payType,
-    // 0 은 '예정 시각 안 씀' 이라는 뜻이다. 그날만 다른 시각에 나온 근무는 여기서 고친다.
-    scheduledStartMinutes: integer(input.scheduledStartMinutes ?? 0, '예정 출근 시각', 0, 1440),
+    // 빈 목록은 '예정 시각 안 씀' 이다. 그날만 다른 시각에 나온 근무는 여기서 고친다.
+    scheduledStarts: scheduledStartsInput(input.scheduledStarts, input.scheduledStartMinutes),
     hourlyRate: input.payType === 'hourly' ? integer(input.hourlyRate, '시급', 1, 1000000) : 0,
     // 월급 직원의 특수일 가산은 당시 통상시급으로 계산한다. 시급과 같은 원칙이다 —
     // 나중에 월급이 바뀌어도 지난 근무의 금액은 그대로 남는다.
@@ -481,7 +516,8 @@ module.exports = {
   WORK_PARTS, workPart,
   DEFAULT_DAILY_BASE_MINUTES, DEFAULT_OVERTIME_UNIT_MINUTES, DEFAULT_HALF_DAY_BEFORE_MINUTES,
   DAY_PORTIONS, DAILY_MODES, DEFAULT_EARLY_GRACE_MINUTES, overtimeUnits, isDailyPaid, moneyValue,
-  EARLY_CLOCK_IN_WINDOW_MINUTES, earlyClockInMinutes, overtimeBasisMinutes, overtimeAmount,
+  EARLY_CLOCK_IN_WINDOW_MINUTES, MAX_SCHEDULED_STARTS, scheduledStarts, earlyClockInMinutes,
+  overtimeBasisMinutes, overtimeAmount,
   dayPortionOf, dailyModeOf, earlyGraceOf, payableMinutesOf, proratedPay, kstMinutesOfDay,
   WITHHOLDING_PER_MILLE, withholdingTax, netPay,
   fail, text, integer, id, floor, workDate, workDateString, monthRange,

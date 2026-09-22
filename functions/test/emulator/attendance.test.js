@@ -366,10 +366,12 @@ test('관리자가 기록을 고쳐도 자리의 초과 급여 조건이 기본�
 });
 
 test('시급 직원의 예정 출근 시각이 출근 기록에 실려 급여에서 빠진다', async () => {
-  await service.saveEmployee({ ...(await getEmployee()), scheduledStartMinutes: 7 * 60 }, 'admin');
+  // 점심 11시·저녁 7시 두 교대인 사람. 6시 50분 출근은 7시 교대로 잡혀야 한다.
+  await service.saveEmployee({ ...(await getEmployee()), scheduledStarts: [11 * 60, 7 * 60] }, 'admin');
+  assert.deepEqual((await getEmployee()).scheduledStarts, [420, 660]);
   now = at('2026-09-17T06:50:00+09:00');
   const first = await punch('in', 'in');
-  assert.equal((await getShift(first.shiftId)).scheduledStartMinutes, 420);
+  assert.deepEqual((await getShift(first.shiftId)).scheduledStarts, [420, 660]);
   now = at('2026-09-17T15:00:00+09:00');
   await punch('out', 'out', first.shiftId);
   const shift = (await service.listAdmin('2026-09')).shifts.find(s => s.id === first.shiftId);
@@ -378,6 +380,11 @@ test('시급 직원의 예정 출근 시각이 출근 기록에 실려 급여에
   assert.equal(shift.earlyMinutes, 10);
   assert.equal(shift.payableMinutes, 480);
   assert.equal(shift.amount, 96000);
+  // 예정 시각 목록을 안 보내는 옛 화면이 다른 항목을 저장해도 사라지지 않는다.
+  const withoutSchedule = await getEmployee();
+  delete withoutSchedule.scheduledStarts;
+  await service.saveEmployee(withoutSchedule, 'admin');
+  assert.deepEqual((await getEmployee()).scheduledStarts, [420, 660], '예정 출근 시각이 사라졌습니다');
 });
 
 test('홀·주방 파트가 저장되고 태블릿 목록에 실린다', async () => {
@@ -402,7 +409,7 @@ test('예정 출근 시각과 초과 시급이 출근 기록에 실려 계산에
   now = at('2026-09-17T06:50:00+09:00');
   const first = await service.punch({ employeeId: slotId, kind: 'in', requestId: 'in' }, token);
   const saved = await getShift(first.shiftId);
-  assert.equal(saved.scheduledStartMinutes, 420);
+  assert.deepEqual(saved.scheduledStarts, [420], '옛 화면이 보낸 단일 시각이 목록으로 안 들어갔습니다');
   assert.equal(saved.overtimeHourlyRate, 12000);
   // 10분 일찍 찍고 20분 늦게 퇴근 — 정해진 퇴근보다 20분이라 추가 급여가 없다.
   now = at('2026-09-17T14:20:00+09:00');
@@ -419,7 +426,7 @@ test('관리자가 기록을 고쳐도 예정 출근 시각과 초과 시급이 
   const saved = await service.saveShift({ employeeId: slotId, payType: 'daily', breakMinutes: 0, note: '',
     checkInAt: at('2026-09-17T06:50:00+09:00'), checkOutAt: at('2026-09-17T15:00:00+09:00') }, 'admin');
   const shift = await getShift(saved.id);
-  assert.equal(shift.scheduledStartMinutes, 420, '예정 출근 시각이 사라졌습니다');
+  assert.deepEqual(shift.scheduledStarts, [420], '예정 출근 시각이 사라졌습니다');
   assert.equal(shift.overtimeHourlyRate, 12000, '초과 시급이 사라졌습니다');
   // 7시부터 3시까지 8시간 → 기준 7시간 초과 60분 → 2회 → 10,000 + 시급 30분치 6,000
   const listed = (await service.listAdmin('2026-09')).shifts.find(s => s.id === saved.id);

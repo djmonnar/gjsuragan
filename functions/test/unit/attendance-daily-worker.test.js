@@ -171,18 +171,40 @@ test('늦게 온 날은 실제 출근 시각부터 센다', () => {
   assert.equal(M.totals(예정근무('07:00', '15:00')).extraAmount, 20000);
 });
 
-test('예정보다 한참 일찍 찍혔으면 다른 시간대 근무로 본다', () => {
-  // 일일근무자 자리는 아침 사람과 저녁 사람이 같이 쓰는데 예정 시각은 하나뿐이다.
-  assert.equal(M.EARLY_CLOCK_IN_WINDOW_MINUTES, 180);
+test('예정보다 한참 일찍 찍혔으면 다른 근무로 본다', () => {
+  // 사장님이 예외적으로 일찍 부른 날이다. 그런 날 급여를 조용히 깎는 것이 더 위험하다.
+  assert.equal(M.EARLY_CLOCK_IN_WINDOW_MINUTES, 60);
   assert.equal(M.earlyClockInMinutes(예정근무('06:50', '14:20')), 10);
-  assert.equal(M.earlyClockInMinutes(예정근무('04:00', '12:00')), 180);
-  assert.equal(M.earlyClockInMinutes(예정근무('03:59', '12:00')), 0);
+  assert.equal(M.earlyClockInMinutes(예정근무('06:00', '14:00')), 60);
+  assert.equal(M.earlyClockInMinutes(예정근무('05:59', '14:00')), 0);
+  assert.equal(M.earlyClockInMinutes(예정근무('04:00', '12:00')), 0);
   // 예정보다 늦게 왔으면 뺄 것이 없다.
   assert.equal(M.earlyClockInMinutes(예정근무('07:20', '15:00')), 0);
   assert.equal(M.earlyClockInMinutes({ ...예정근무('06:50', '14:20'), scheduledStartMinutes: 0 }), 0);
 });
 
 // ── 첫 단위는 정액, 그 뒤부터 초과 시급 ──
+test('예정 시각이 여러 개면 찍힌 시각에 가장 가까운 것을 쓴다', () => {
+  // 점심 11시와 저녁 5시를 번갈아 나오는 사람. 한 사람에게 예정 시각이 둘이다.
+  const 두교대 = (inTime, outTime) => ({ ...예정, scheduledStartMinutes: 0, scheduledStarts: [11 * 60, 17 * 60],
+    checkInAt: at(`2026-09-17T${inTime}:00+09:00`), checkOutAt: at(`2026-09-17T${outTime}:00+09:00`) });
+  assert.equal(M.earlyClockInMinutes(두교대('10:50', '15:00')), 10);
+  // 4시 50분은 저녁 근무다. 오후 5시를 경계로 가르면 여기가 매일 구멍이었다.
+  assert.equal(M.earlyClockInMinutes(두교대('16:45', '21:00')), 15);
+  // 지각은 채워주지 않는다.
+  assert.equal(M.earlyClockInMinutes(두교대('11:20', '15:00')), 0);
+  assert.equal(M.earlyClockInMinutes(두교대('17:10', '21:00')), 0);
+  // 두 시각 모두 한 시간 넘게 차이나면 손대지 않는다.
+  assert.equal(M.earlyClockInMinutes(두교대('14:00', '18:00')), 0);
+  assert.equal(M.earlyClockInMinutes(두교대('09:00', '13:00')), 0);
+  // 순서를 거꾸로 넣거나 같은 시각을 두 번 넣어도 같다.
+  assert.equal(M.earlyClockInMinutes({ ...두교대('16:45', '21:00'), scheduledStarts: [17 * 60, 11 * 60, 17 * 60] }), 15);
+  assert.deepEqual(M.scheduledStarts([17 * 60, 11 * 60, 17 * 60]), [660, 1020]);
+  // 옛 기록은 시각 하나만 들고 있다. 그대로 읽어야 지난 달 금액이 안 움직인다.
+  assert.deepEqual(M.scheduledStarts(undefined, 420), [420]);
+  assert.deepEqual(M.scheduledStarts(undefined, 0), []);
+});
+
 test('첫 회 정액을 따로 정하면 그 회만 정액이고 뒤는 시급이다', () => {
   // 기준 8시간 · 30분 단위 · 첫 회 10,000원 · 초과 시급 12,000원(30분이면 6,000원)
   const 시급초과 = time => ({ ...퇴근(time), overtimeHourlyRate: 12000 });
@@ -235,23 +257,23 @@ test('예정 출근 시각과 초과 시급이 직원·기록에 저장된다', 
   const base = { name: '일일근무자 (홀)', role: '', floor: 2, payType: 'daily', dailyPay: 100000, breakMinutes: 0, active: true, note: '' };
   const 기본 = M.employeeInput(base);
   // 둘 다 0 이 '안 씀' 이다. 기본값을 채우면 안 된다.
-  assert.equal(기본.scheduledStartMinutes, 0);
+  assert.deepEqual(기본.scheduledStarts, []);
   assert.equal(기본.overtimeHourlyRate, 0);
-  const 지정 = M.employeeInput({ ...base, scheduledStartMinutes: 7 * 60, overtimeHourlyRate: 12000 });
-  assert.equal(지정.scheduledStartMinutes, 420);
+  const 지정 = M.employeeInput({ ...base, scheduledStarts: [7 * 60], overtimeHourlyRate: 12000 });
+  assert.deepEqual(지정.scheduledStarts, [420]);
   assert.equal(지정.overtimeHourlyRate, 12000);
   // 초과 시급은 일당 계열에만 붙는다. 예정 출근 시각은 시급 직원도 쓴다.
-  const 시급 = M.employeeInput({ ...base, payType: 'hourly', hourlyRate: 12000, scheduledStartMinutes: 420, overtimeHourlyRate: 12000 });
+  const 시급 = M.employeeInput({ ...base, payType: 'hourly', hourlyRate: 12000, scheduledStarts: [420], overtimeHourlyRate: 12000 });
   assert.equal(시급.overtimeHourlyRate, 0);
-  assert.equal(시급.scheduledStartMinutes, 420);
+  assert.deepEqual(시급.scheduledStarts, [420]);
   for (const patch of [{ scheduledStartMinutes: -1 }, { scheduledStartMinutes: 1441 }, { scheduledStartMinutes: 1.5 }, { overtimeHourlyRate: -1 }, { overtimeHourlyRate: 1.5 }]) {
     assert.throws(() => M.employeeInput({ ...base, ...patch }), new RegExp('.'), JSON.stringify(patch));
   }
   const when = at('2026-09-18T00:00:00+09:00');
-  const 기록 = M.shiftInput({ ...일당근무, scheduledStartMinutes: 420, overtimeHourlyRate: 12000 }, when);
-  assert.equal(기록.scheduledStartMinutes, 420);
+  const 기록 = M.shiftInput({ ...일당근무, scheduledStarts: [420], overtimeHourlyRate: 12000 }, when);
+  assert.deepEqual(기록.scheduledStarts, [420]);
   assert.equal(기록.overtimeHourlyRate, 12000);
-  assert.equal(M.shiftInput(일당근무, when).scheduledStartMinutes, 0);
+  assert.deepEqual(M.shiftInput(일당근무, when).scheduledStarts, []);
   assert.equal(M.shiftInput(일당근무, when).overtimeHourlyRate, 0);
 });
 
