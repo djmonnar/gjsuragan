@@ -365,6 +365,21 @@ test('관리자가 기록을 고쳐도 자리의 초과 급여 조건이 기본�
   assert.equal(shift.withholding, true);
 });
 
+test('홀·주방 파트가 저장되고 태블릿 목록에 실린다', async () => {
+  await service.saveEmployee({ ...(await getEmployee()), part: 'kitchen' }, 'admin');
+  assert.equal((await getEmployee()).part, 'kitchen');
+  assert.equal((await service.listKiosk(token)).employees[0].part, 'kitchen');
+  // 파트 칸이 없는 옛 화면이 다른 항목을 저장해도 골라둔 파트가 미지정으로 돌아가면 안 된다.
+  const withoutPart = await getEmployee();
+  delete withoutPart.part;
+  await service.saveEmployee(withoutPart, 'admin');
+  assert.equal((await getEmployee()).part, 'kitchen', '파트가 미지정으로 되돌아갔습니다');
+  // 화면에서 미지정을 골라 보내면 지워진다.
+  await service.saveEmployee({ ...(await getEmployee()), part: 'none' }, 'admin');
+  assert.equal((await getEmployee()).part, 'none');
+  assert.equal((await service.listKiosk(token)).employees[0].part, 'none');
+});
+
 test('예정 출근 시각과 초과 시급이 출근 기록에 실려 계산에 쓰인다', async () => {
   // 7시 출근 · 기준 7시간 · 30분마다 첫 회 10,000원 · 그 뒤 시급 12,000원인 자리.
   const slotId = (await service.saveEmployee({ ...slotInput, dailyBaseMinutes: 420,

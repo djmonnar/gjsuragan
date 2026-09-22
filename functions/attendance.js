@@ -135,7 +135,9 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       // An older admin screen can edit other fields without erasing a saved salary.
       const monthlySalary = data.payType === 'salaried' && input.monthlySalary === undefined && before?.payType === 'salaried'
         ? before.monthlySalary ?? null : data.monthlySalary;
-      const after = { ...data, floor, monthlySalary,
+      // 파트도 같다. 안 보낸 화면이 저장하면 골라둔 홀·주방이 미지정으로 돌아가면 안 된다.
+      const part = input.part === undefined ? model.workPart(before?.part) : data.part;
+      const after = { ...data, floor, monthlySalary, part,
         privateSummary: details ? privateData.privateSummary(details) : before?.privateSummary || privateData.privateSummary(privateData.empty()),
         currentShiftId: before?.currentShiftId || null, lastShift: before?.lastShift || null,
         createdAt: before?.createdAt ?? now(), updatedAt: now(), deletedAt: null, version: (before?.version || 0) + 1 };
