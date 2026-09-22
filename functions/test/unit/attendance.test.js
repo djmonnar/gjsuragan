@@ -42,10 +42,29 @@ test('overlap rejects open or intersecting shifts but allows adjacent shifts', (
 test('kiosk employee serialization omits wage, notes and employment history', () => {
   const value = M.kioskEmployee({ id: 'e', name: '직원', role: '조리', payType: 'hourly', hourlyRate: 12000, monthlySalary: 3000000, dailyPay: 100000, note: 'private', version: 1, deletedAt: null });
   // payType 은 태블릿이 사람인지 일일근무자 자리인지 구분하는 데 쓴다. 금액이 아니다.
-  assert.deepEqual(Object.keys(value).sort(), ['currentShiftId', 'id', 'lastShift', 'name', 'payType', 'role']);
+  assert.deepEqual(Object.keys(value).sort(), ['currentShiftId', 'id', 'lastShift', 'name', 'part', 'payType', 'role']);
+  // 파트를 안 고른 기존 직원은 '그 외'로 나간다. 태블릿에서 빠지면 출퇴근을 못 찍는다.
+  assert.equal(value.part, 'none');
+  assert.equal(M.kioskEmployee({ id: 'e', name: '직원', part: 'hall' }).part, 'hall');
+  assert.equal(M.kioskEmployee({ id: 'e', name: '직원', part: '주방' }).part, 'none');
   for (const leaked of ['hourlyRate', 'monthlySalary', 'dailyPay', 'note', 'monthlyWorkHours']) {
     assert.equal(leaked in value, false, `${leaked} 가 태블릿으로 나갑니다.`);
   }
+});
+
+test('홀·주방 파트가 직원 설정에 저장된다', () => {
+  const base = { name: '김수라', role: '조리', payType: 'hourly', hourlyRate: 12000, active: true, breakMinutes: 0, note: '' };
+  // 안 고르면 미지정이다. 기존 직원이 여기 들어온다.
+  assert.equal(M.employeeInput(base).part, 'none');
+  assert.equal(M.employeeInput({ ...base, part: 'hall' }).part, 'hall');
+  assert.equal(M.employeeInput({ ...base, part: 'kitchen' }).part, 'kitchen');
+  // 모르는 값은 거부가 아니라 미지정이다. 급여 저장이 파트 때문에 막히면 안 된다.
+  for (const bad of ['홀', 'HALL', '', null, 0, {}]) {
+    assert.equal(M.employeeInput({ ...base, part: bad }).part, 'none', JSON.stringify(bad));
+  }
+  assert.deepEqual(M.WORK_PARTS, ['none', 'hall', 'kitchen']);
+  // 급여 유형과 무관하다. 일당 직원도 일일근무자 자리도 파트를 가진다.
+  assert.equal(M.employeeInput({ ...base, payType: 'daily', dailyPay: 100000, part: 'kitchen' }).part, 'kitchen');
 });
 
 test('monthly salary is a separate positive won amount and unset legacy salary is not zero', () => {

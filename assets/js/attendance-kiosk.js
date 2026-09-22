@@ -8,6 +8,11 @@
   const setupFloor = U.setupStore(location.search);
   // 궁중수라간은 예약을 안 받는다. 그 자리에 오늘 주문 집계를 띄운다.
   const SURAGAN = 2;
+  // 태블릿에서 위아래로 나눠 보여줄 순서. 'none' 은 파트를 아직 안 고른 사람이다.
+  const PARTS = [{ key: 'hall', label: '홀' }, { key: 'kitchen', label: '주방' }, { key: 'none', label: '그 외' }];
+  // 모르는 값은 '그 외'로 본다. 어느 묶음에도 안 들어가면 그 사람 칸이 화면에서 사라지고,
+  // 그러면 출퇴근을 찍을 수가 없다. 사람을 잃는 것보다 엉뚱한 칸에 두는 것이 낫다.
+  const partKey = card => PARTS.some(part => part.key === card.employee.part) ? card.employee.part : 'none';
   function showStore(value) {
     document.title = `출퇴근 · ${U.storeName(value)}`;
     $('kiosk-store-name').textContent = U.storeName(value);
@@ -75,7 +80,17 @@
     $('kiosk-working').textContent = cards.filter(card => card.working).length;
     const query = $('kiosk-search').value.trim().toLowerCase();
     const visible = cards.filter(card => card.name.toLowerCase().includes(query) && (filter === 'all' || (filter === 'working' ? card.working : !card.working)));
-    $('kiosk-grid').innerHTML = visible.map(card => `<button class="att-person ${card.working ? 'working' : ''}${card.slot ? ' slot' : ''}" data-employee="${U.esc(card.employee.id)}" data-shift="${U.esc(card.shiftId)}" aria-label="${U.esc(card.name)}, ${card.action}하기"><div class="att-person-head"><span class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</span><span class="att-pill ${card.working ? 'green' : ''}">${U.esc(card.pill)}</span></div><div class="att-person-name">${U.esc(card.name)}</div><div class="att-person-role">${U.esc(card.role)}</div><div class="att-person-bottom"><span>${U.esc(card.detail)}</span><span class="att-person-action">${card.action} →</span></div></button>`).join('');
+    const cardHtml = card => `<button class="att-person ${card.working ? 'working' : ''}${card.slot ? ' slot' : ''}" data-employee="${U.esc(card.employee.id)}" data-shift="${U.esc(card.shiftId)}" aria-label="${U.esc(card.name)}, ${card.action}하기"><div class="att-person-head"><span class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</span><span class="att-pill ${card.working ? 'green' : ''}">${U.esc(card.pill)}</span></div><div class="att-person-name">${U.esc(card.name)}</div><div class="att-person-role">${U.esc(card.role)}</div><div class="att-person-bottom"><span>${U.esc(card.detail)}</span><span class="att-person-action">${card.action} →</span></div></button>`;
+    // 홀과 주방을 위아래로 나눈다. 보이는 파트가 하나뿐이면 제목 없이 예전처럼 한 덩어리로 둔다 —
+    // 파트를 아직 안 고른 매장에서 '그 외' 제목만 하나 뜨는 것은 군더더기다.
+    const groups = PARTS
+      .map(part => ({ label: part.label, list: visible.filter(card => partKey(card) === part.key) }))
+      .filter(group => group.list.length);
+    const grid = $('kiosk-grid');
+    grid.className = groups.length > 1 ? 'att-kiosk-parts' : 'att-kiosk-grid';
+    grid.innerHTML = groups.length > 1
+      ? groups.map(group => `<section class="att-part"><h2 class="att-part-title">${group.label}<span>${group.list.length}명</span></h2><div class="att-kiosk-grid">${group.list.map(cardHtml).join('')}</div></section>`).join('')
+      : visible.map(cardHtml).join('');
     $('kiosk-empty').hidden = visible.length > 0;
     $('kiosk-empty').innerHTML = employees.length ? '<strong>해당하는 직원이 없어요</strong>이름이나 근무 상태를 다시 확인해 주세요.' : `<strong>${U.storeName(floor)}에 등록된 직원이 아직 없어요</strong>별도 관리 페이지에서 직원의 근무 매장을 ${U.storeName(floor)}로 지정해 주세요.`;
   }

@@ -140,12 +140,13 @@ test('이른 출근·초과 시급 안내가 실제 계산과 맞는다', () => 
   assert.equal(M.totals(일찍('2026-09-17T14:20:00+09:00')).extraAmount, 0);
   assert.equal(M.totals(일찍('2026-09-17T14:50:00+09:00')).extraAmount, 10000);
   assert.match(html, /6시 50분에 찍고 2시 20분에 가면 추가 급여가 없습니다/);
-  // 첫 회 10,000원 + 초과 시급 12,000원이면 1시간 초과는 16,000원.
-  const 시급초과 = { ...일찍('2026-09-17T15:00:00+09:00'),
-    checkInAt: at('2026-09-17T07:00:00+09:00'), overtimeHourlyRate: 12000 };
+  // 초과 시급 12,000원이면 30분 초과는 6,000원, 1시간 초과는 12,000원.
+  const 시급초과 = { ...일찍('2026-09-17T15:00:00+09:00'), checkInAt: at('2026-09-17T07:00:00+09:00'),
+    overtimePay: 0, overtimeHourlyRate: 12000 };
   assert.equal(M.totals(시급초과).overtimeUnits, 2);
-  assert.equal(M.totals(시급초과).extraAmount, 16000);
-  assert.match(html, /30분 초과는 10,000원, 1시간 초과는 16,000원/);
+  assert.equal(M.totals(시급초과).extraAmount, 12000);
+  assert.equal(M.totals({ ...시급초과, checkOutAt: at('2026-09-17T14:30:00+09:00') }).extraAmount, 6000);
+  assert.match(html, /30분 초과는 6,000원, 1시간 초과는 12,000원/);
 });
 
 test('원천징수 안내가 세율과 맞고 무엇이 안 빠지는지 밝힌다', () => {

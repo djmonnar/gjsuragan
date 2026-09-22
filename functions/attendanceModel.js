@@ -134,6 +134,16 @@ function dayPortionOf(shift) {
   return kstMinutesOfDay(shift.checkInAt) >= before ? 'half' : 'full';
 }
 
+// 홀과 주방은 같은 매장 안에서도 따로 움직인다. 태블릿에서 자기 이름을 찾을 때
+// 전체를 훑는 것보다 파트로 갈라 보는 것이 빠르다.
+// 'none' 은 아직 안 고른 사람이다. 기존 직원이 모두 여기 들어오므로
+// 화면에서 빠지지 않고 '그 외'로 모여야 한다.
+const WORK_PARTS = ['none', 'hall', 'kitchen'];
+
+function workPart(value) {
+  return WORK_PARTS.includes(value) ? value : 'none';
+}
+
 // 일일근무자(daily)는 사람이 아니라 '자리'다.
 // 누가 올지 모르는 하루 일손을 위해 태블릿에 미리 띄워두는 칸이고,
 // 한 자리를 여러 사람이 같은 날 같이 쓴다. 그래서 출퇴근 기록마다 따로 떨어져야 한다.
@@ -203,17 +213,21 @@ function overtimeBasisMinutes(shift = {}) {
   return Math.max(0, payableMinutesOf(shift) - earlyClockInMinutes(shift));
 }
 
-// 기준을 넘긴 뒤 붙는 금액. 첫 단위는 정해 둔 정액이고, 그 뒤부터는 초과 시급으로 센다.
-// 초과 시급이 없으면 단위마다 정액이다 — 옛 설정의 금액은 그대로 나온다.
+// 기준을 넘긴 뒤 붙는 금액. 세 가지로 갈린다.
+//  초과 시급만    초과분 전부를 시급으로 센다. 기준 뒤는 시급이라는 뜻이고, 이게 기본이다.
+//  정액만        단위마다 그 금액. 초과 시급이 없던 옛 설정의 금액이 그대로 나온다.
+//  둘 다         첫 단위만 정액이고 그 뒤부터 시급. 첫 회를 다르게 줄 때만 쓴다.
 // 단위당 시급 몫은 시급 × 단위분 / 60 이라, 30분 단위면 시급의 절반이다.
+// 둘 다 0 이면 추가 급여를 주지 않는다. 안 쓰는 자리에 실수로 돈이 붙으면 안 된다.
 function overtimeAmount(units, shift = {}) {
   const unitPay = moneyValue(shift.overtimePay);
-  if (!(units > 0) || unitPay <= 0) return 0;
   const rate = moneyValue(shift.overtimeHourlyRate);
+  if (!(units > 0) || (unitPay <= 0 && rate <= 0)) return 0;
   if (rate <= 0) return units * unitPay;
   const unit = Number(shift.overtimeUnitMinutes) > 0
     ? Number(shift.overtimeUnitMinutes) : DEFAULT_OVERTIME_UNIT_MINUTES;
-  return unitPay + Math.round(rate * (units - 1) * unit / 60);
+  const hourly = paid => Math.round(rate * paid * unit / 60);
+  return unitPay <= 0 ? hourly(units) : unitPay + hourly(units - 1);
 }
 function isSharedSlot(employee = {}) {
   return employee.payType === 'daily';
@@ -238,6 +252,8 @@ function employeeInput(input) {
   return {
     name: text(input.name, '이름', 40, true),
     role: text(input.role, '담당 업무', 40),
+    // 홀·주방. 안 고르면 '미지정'이고, 태블릿에서는 '그 외'로 모인다.
+    part: workPart(input.part),
     floor: floor(input.floor),
     payType: input.payType,
     hourlyRate: input.payType === 'hourly' ? integer(input.hourlyRate, '시급', 1, 1000000) : 0,
@@ -273,9 +289,9 @@ function employeeInput(input) {
       ? integer(input.scheduledStartMinutes ?? 0, '예정 출근 시각', 0, 1440) : 0,
     overtimeUnitMinutes: isDailyPaid(input.payType)
       ? integer(unsetTo(input.overtimeUnitMinutes, DEFAULT_OVERTIME_UNIT_MINUTES), '추가 급여 단위', 1, 1440) : 0,
-    // 0 이면 추가 급여를 아예 주지 않는다. 안 쓰는 자리가 실수로 돈이 붙으면 안 된다.
+    // 첫 단위만 다르게 줄 때 쓰는 정액. 0 이면 초과분 전부를 초과 시급으로 센다.
     overtimePay: isDailyPaid(input.payType) ? integer(input.overtimePay ?? 0, '추가 급여', 0, 10000000) : 0,
-    // 첫 단위 뒤부터 적용할 초과 시급. 0 이면 단위마다 위의 정액을 준다.
+    // 기준을 넘긴 시간에 적용할 시급. 이것과 위의 정액이 둘 다 0 이면 추가 급여가 없다.
     overtimeHourlyRate: isDailyPaid(input.payType)
       ? integer(input.overtimeHourlyRate ?? 0, '초과 시급', 0, 1000000) : 0,
     // 급여에서 3.3% 를 떼고 줄지. 급여 유형과 상관없이 사람마다 정한다.
@@ -425,9 +441,9 @@ function totals(shift, specialDay = null) {
     // 기준 근무시간을 넘겨 일한 만큼만 따로 더한다. 예정 출근 시각을 정해 두었으면
     // 그보다 일찍 찍은 시간은 세지 않는다.
     // 반타임·비례는 기준에 못 미치므로 초과 급여를 계산하지 않는다.
-    // 추가 급여가 0 이면 아예 계산하지 않는다.
-    const unitPay = moneyValue(shift.overtimePay);
-    const units = portion === 'full' && unitPay > 0
+    // 초과 시급과 정액이 둘 다 0 이면 아예 계산하지 않는다.
+    const paysOvertime = moneyValue(shift.overtimePay) > 0 || moneyValue(shift.overtimeHourlyRate) > 0;
+    const units = portion === 'full' && paysOvertime
       ? overtimeUnits(overtimeBasisMinutes(shift), shift.dailyBaseMinutes, shift.overtimeUnitMinutes) : 0;
     const extraAmount = overtimeAmount(units, shift);
     return { workedMinutes, payableMinutes, amount: baseAmount + extraAmount, baseAmount, extraAmount,
@@ -447,6 +463,8 @@ function overlaps(a, b) {
 function kioskEmployee(employee) {
   return {
     id: employee.id, name: employee.name, role: employee.role, payType: employee.payType,
+    // 파트는 금액이 아니라 화면을 나누는 값이다. 담당 업무와 같은 급으로 내보낸다.
+    part: workPart(employee.part),
     currentShiftId: employee.currentShiftId || null,
     lastShift: employee.lastShift || null
   };
@@ -454,6 +472,7 @@ function kioskEmployee(employee) {
 
 module.exports = {
   MINUTE, MAX_SHIFT_MS, BASE_PERCENT, DEFAULT_MONTHLY_WORK_HOURS, DEFAULT_MONTHLY_WORK_DAYS, PAY_TYPES, isSharedSlot,
+  WORK_PARTS, workPart,
   DEFAULT_DAILY_BASE_MINUTES, DEFAULT_OVERTIME_UNIT_MINUTES, DEFAULT_HALF_DAY_BEFORE_MINUTES,
   DAY_PORTIONS, DAILY_MODES, DEFAULT_EARLY_GRACE_MINUTES, overtimeUnits, isDailyPaid, moneyValue,
   EARLY_CLOCK_IN_WINDOW_MINUTES, earlyClockInMinutes, overtimeBasisMinutes, overtimeAmount,

@@ -183,7 +183,7 @@ test('예정보다 한참 일찍 찍혔으면 다른 시간대 근무로 본다'
 });
 
 // ── 첫 단위는 정액, 그 뒤부터 초과 시급 ──
-test('첫 단위 뒤부터는 초과 시급으로 계산한다', () => {
+test('첫 회 정액을 따로 정하면 그 회만 정액이고 뒤는 시급이다', () => {
   // 기준 8시간 · 30분 단위 · 첫 회 10,000원 · 초과 시급 12,000원(30분이면 6,000원)
   const 시급초과 = time => ({ ...퇴근(time), overtimeHourlyRate: 12000 });
   assert.equal(M.totals(시급초과('18:20')).extraAmount, 0);      // 20분 초과 — 아직 아님
@@ -201,8 +201,27 @@ test('초과 시급이 없으면 단위마다 정액이다', () => {
   assert.equal(M.totals({ ...퇴근('21:00'), overtimeHourlyRate: undefined }).extraAmount, 60000);
 });
 
-test('추가 급여가 0이면 초과 시급이 있어도 안 붙는다', () => {
-  assert.equal(M.totals({ ...퇴근('23:00'), overtimePay: 0, overtimeHourlyRate: 12000 }).extraAmount, 0);
+test('초과 시급만 정해 두면 초과분 전부를 시급으로 센다', () => {
+  // 기준 뒤는 시급이라는 뜻이다. 30분 단위면 회당 시급의 절반(6,000원).
+  const 시급만 = time => ({ ...퇴근(time), overtimePay: 0, overtimeHourlyRate: 12000 });
+  assert.equal(M.totals(시급만('18:20')).extraAmount, 0);      // 20분 초과 — 단위 미달
+  assert.equal(M.totals(시급만('18:30')).extraAmount, 6000);   // 1회
+  assert.equal(M.totals(시급만('19:00')).extraAmount, 12000);  // 2회 = 1시간
+  assert.equal(M.totals(시급만('21:00')).extraAmount, 36000);  // 6회 = 3시간
+  assert.equal(M.totals(시급만('19:00')).amount, 112000);
+});
+
+test('초과 시급과 정액이 둘 다 0이면 추가 급여가 없다', () => {
+  assert.equal(M.totals({ ...퇴근('23:00'), overtimePay: 0, overtimeHourlyRate: 0 }).extraAmount, 0);
+  assert.equal(M.totals({ ...퇴근('23:00'), overtimePay: 0, overtimeHourlyRate: 0 }).overtimeUnits, 0);
+  assert.equal(M.totals({ ...퇴근('23:00'), overtimePay: undefined, overtimeHourlyRate: undefined }).extraAmount, 0);
+});
+
+test('정액을 시급의 단위 몫으로 넣으면 시급 계산과 같다', () => {
+  // 30분 단위에 6,000원은 시급 12,000원과 같은 금액이다. 두 칸은 같은 것을 다르게 적는다.
+  const 정액 = { ...퇴근('21:00'), overtimePay: 6000, overtimeHourlyRate: 0 };
+  const 시급 = { ...퇴근('21:00'), overtimePay: 0, overtimeHourlyRate: 12000 };
+  assert.equal(M.totals(정액).extraAmount, M.totals(시급).extraAmount);
 });
 
 test('단위가 1시간이면 첫 회 뒤로 시급 한 시간치씩 붙는다', () => {

@@ -306,6 +306,32 @@ test('일당 직원 카드에 일당과 지급 방식이 나온다', () => {
   assert.doesNotMatch(html, /약정 월급/);
 });
 
+test('직원 목록도 홀·주방으로 나뉜다', () => {
+  const state = baseState('employees');
+  state.data.employees = [
+    { ...일당직원, id: 'p1', name: '김홀', part: 'hall' },
+    { ...일당직원, id: 'p2', name: '박주방', part: 'kitchen' },
+    { ...일당직원, id: 'p3', name: '이주방', part: 'kitchen' }
+  ];
+  const { html } = screen(state);
+  // 제목 줄은 카드 그리드 한 줄을 다 쓴다.
+  assert.match(html, /att-part-title att-part-row">홀<span>1명</);
+  assert.match(html, /att-part-title att-part-row">주방<span>2명</);
+  // 나눈다고 사람이 빠지면 안 된다.
+  for (const name of ['김홀', '박주방', '이주방']) assert.match(html, new RegExp(name));
+  // 홀이 주방보다 먼저 나온다.
+  assert.ok(html.indexOf('>홀<') < html.indexOf('>주방<'));
+});
+
+test('파트를 안 고른 직원만 있으면 제목 줄이 없다', () => {
+  const state = baseState('employees');
+  state.data.employees = [일당직원];
+  const { html } = screen(state);
+  assert.doesNotMatch(html, /att-part-row/);
+  // 카드에는 아직 안 골랐다고 적어 준다.
+  assert.match(html, /파트 미지정/);
+});
+
 test('반타임 방식 일당 직원 카드에는 반타임 조건이 나온다', () => {
   const state = baseState('employees');
   state.data.employees = [일당직원];
