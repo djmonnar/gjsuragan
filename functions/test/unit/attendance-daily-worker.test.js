@@ -145,6 +145,95 @@ test('자리 설정에 기준·단위·추가 급여가 저장된다', () => {
   }
 });
 
+// ── 예정 출근 시각: 일찍 찍은 시간은 초과로 세지 않는다 ──
+// 7시 출근 · 기준 7시간 · 휴게 없음 → 정해진 퇴근은 오후 2시다.
+const 예정 = { ...일당근무, breakMinutes: 0, dailyBaseMinutes: 420, overtimeUnitMinutes: 30,
+  overtimePay: 10000, scheduledStartMinutes: 7 * 60 };
+const 예정근무 = (inTime, outTime, extra = {}) => ({ ...예정,
+  checkInAt: at(`2026-09-17T${inTime}:00+09:00`), checkOutAt: at(`2026-09-17T${outTime}:00+09:00`), ...extra });
+
+test('예정보다 일찍 찍은 시간은 추가 급여로 세지 않는다', () => {
+  // 6시 50분에 찍고 2시 20분에 갔으면 정해진 퇴근보다 20분 더 일한 것이다.
+  assert.equal(M.totals(예정근무('06:50', '14:20')).extraAmount, 0);
+  // 예정 시각을 안 쓰면 유급 7시간 30분이 되어 30분치가 붙던 자리다.
+  assert.equal(M.totals(예정근무('06:50', '14:20', { scheduledStartMinutes: 0 })).extraAmount, 10000);
+  // 정말로 30분을 넘겼으면 붙는다.
+  assert.equal(M.totals(예정근무('06:50', '14:50')).extraAmount, 10000);
+  assert.equal(M.totals(예정근무('06:50', '15:20')).extraAmount, 20000);
+  // 일당과 근무시간은 그대로다. 일찍 온 것으로 깎지 않는다.
+  assert.equal(M.totals(예정근무('06:50', '14:20')).baseAmount, 100000);
+  assert.equal(M.totals(예정근무('06:50', '14:20')).payableMinutes, 450);
+});
+
+test('늦게 온 날은 실제 출근 시각부터 센다', () => {
+  // 7시 20분에 와서 3시에 갔으면 40분 초과. 늦게 온 만큼을 채워주지 않는다.
+  assert.equal(M.totals(예정근무('07:20', '15:00')).extraAmount, 10000);
+  assert.equal(M.totals(예정근무('07:00', '15:00')).extraAmount, 20000);
+});
+
+test('예정보다 한참 일찍 찍혔으면 다른 시간대 근무로 본다', () => {
+  // 일일근무자 자리는 아침 사람과 저녁 사람이 같이 쓰는데 예정 시각은 하나뿐이다.
+  assert.equal(M.EARLY_CLOCK_IN_WINDOW_MINUTES, 180);
+  assert.equal(M.earlyClockInMinutes(예정근무('06:50', '14:20')), 10);
+  assert.equal(M.earlyClockInMinutes(예정근무('04:00', '12:00')), 180);
+  assert.equal(M.earlyClockInMinutes(예정근무('03:59', '12:00')), 0);
+  // 예정보다 늦게 왔으면 뺄 것이 없다.
+  assert.equal(M.earlyClockInMinutes(예정근무('07:20', '15:00')), 0);
+  assert.equal(M.earlyClockInMinutes({ ...예정근무('06:50', '14:20'), scheduledStartMinutes: 0 }), 0);
+});
+
+// ── 첫 단위는 정액, 그 뒤부터 초과 시급 ──
+test('첫 단위 뒤부터는 초과 시급으로 계산한다', () => {
+  // 기준 8시간 · 30분 단위 · 첫 회 10,000원 · 초과 시급 12,000원(30분이면 6,000원)
+  const 시급초과 = time => ({ ...퇴근(time), overtimeHourlyRate: 12000 });
+  assert.equal(M.totals(시급초과('18:20')).extraAmount, 0);      // 20분 초과 — 아직 아님
+  assert.equal(M.totals(시급초과('18:30')).extraAmount, 10000);  // 1회 — 정액
+  assert.equal(M.totals(시급초과('19:00')).extraAmount, 16000);  // 2회 — 정액 + 30분
+  assert.equal(M.totals(시급초과('19:30')).extraAmount, 22000);  // 3회 — 정액 + 1시간
+  assert.equal(M.totals(시급초과('21:00')).extraAmount, 40000);  // 6회 — 정액 + 2시간 30분
+  assert.equal(M.totals(시급초과('19:00')).amount, 116000);
+});
+
+test('초과 시급이 없으면 단위마다 정액이다', () => {
+  // 옛 설정 그대로여야 한다. 이미 정산한 달의 금액이 움직이면 안 된다.
+  assert.equal(M.totals(퇴근('21:00')).extraAmount, 60000);
+  assert.equal(M.totals({ ...퇴근('21:00'), overtimeHourlyRate: 0 }).extraAmount, 60000);
+  assert.equal(M.totals({ ...퇴근('21:00'), overtimeHourlyRate: undefined }).extraAmount, 60000);
+});
+
+test('추가 급여가 0이면 초과 시급이 있어도 안 붙는다', () => {
+  assert.equal(M.totals({ ...퇴근('23:00'), overtimePay: 0, overtimeHourlyRate: 12000 }).extraAmount, 0);
+});
+
+test('단위가 1시간이면 첫 회 뒤로 시급 한 시간치씩 붙는다', () => {
+  // 유급 11시간 → 기준 8시간 초과 3시간 → 3회 → 15,000 + 12,000 × 2
+  const t = M.totals({ ...퇴근('21:00'), overtimeUnitMinutes: 60, overtimePay: 15000, overtimeHourlyRate: 12000 });
+  assert.equal(t.overtimeUnits, 3);
+  assert.equal(t.extraAmount, 39000);
+});
+
+test('예정 출근 시각과 초과 시급이 직원·기록에 저장된다', () => {
+  const base = { name: '일일근무자 (홀)', role: '', floor: 2, payType: 'daily', dailyPay: 100000, breakMinutes: 0, active: true, note: '' };
+  const 기본 = M.employeeInput(base);
+  // 둘 다 0 이 '안 씀' 이다. 기본값을 채우면 안 된다.
+  assert.equal(기본.scheduledStartMinutes, 0);
+  assert.equal(기본.overtimeHourlyRate, 0);
+  const 지정 = M.employeeInput({ ...base, scheduledStartMinutes: 7 * 60, overtimeHourlyRate: 12000 });
+  assert.equal(지정.scheduledStartMinutes, 420);
+  assert.equal(지정.overtimeHourlyRate, 12000);
+  // 시급·월급 직원에게는 붙지 않는다.
+  assert.equal(M.employeeInput({ ...base, payType: 'hourly', hourlyRate: 12000, scheduledStartMinutes: 420, overtimeHourlyRate: 12000 }).scheduledStartMinutes, 0);
+  for (const patch of [{ scheduledStartMinutes: -1 }, { scheduledStartMinutes: 1441 }, { scheduledStartMinutes: 1.5 }, { overtimeHourlyRate: -1 }, { overtimeHourlyRate: 1.5 }]) {
+    assert.throws(() => M.employeeInput({ ...base, ...patch }), new RegExp('.'), JSON.stringify(patch));
+  }
+  const when = at('2026-09-18T00:00:00+09:00');
+  const 기록 = M.shiftInput({ ...일당근무, scheduledStartMinutes: 420, overtimeHourlyRate: 12000 }, when);
+  assert.equal(기록.scheduledStartMinutes, 420);
+  assert.equal(기록.overtimeHourlyRate, 12000);
+  assert.equal(M.shiftInput(일당근무, when).scheduledStartMinutes, 0);
+  assert.equal(M.shiftInput(일당근무, when).overtimeHourlyRate, 0);
+});
+
 // ── 3.3% 원천징수 ──
 test('3.3% 는 원 단위로 버리고 뗀다', () => {
   assert.equal(M.WITHHOLDING_PER_MILLE, 33);
@@ -228,9 +317,44 @@ test('기준 시각을 바꾸면 그대로 따른다', () => {
   assert.equal(M.totals(퇴근시각('15:00', { halfDayBeforeMinutes: 14 * 60 })).dayPortion, 'full');
 });
 
+test('기준 시각에 출근해 저녁까지 하면 반타임이다', () => {
+  // 오후 5시에 나와 마감까지 하는 저녁 반타임. 퇴근 시각만 보면 풀타임으로 잡힌다.
+  const 저녁출근 = (time, extra = {}) => ({ ...일당직원, checkInAt: at('2026-09-17T17:00:00+09:00'),
+    checkOutAt: at(`2026-09-17T${time}:00+09:00`), ...extra });
+  assert.equal(M.totals(저녁출근('21:00')).dayPortion, 'half');
+  assert.equal(M.totals(저녁출근('21:00')).amount, 55000);
+  assert.equal(M.totals(저녁출근('22:30')).dayPortion, 'half');
+  // 기준 시각 전에 출근해 뒤에 퇴근했으면 선을 걸쳐 일한 것이라 풀타임이다.
+  const 걸친근무 = { ...일당직원, checkInAt: at('2026-09-17T16:30:00+09:00'), checkOutAt: at('2026-09-17T21:00:00+09:00') };
+  assert.equal(M.totals(걸친근무).dayPortion, 'full');
+  assert.equal(M.totals(걸친근무).amount, 100000);
+});
+
+test('저녁 반타임에도 초과 급여가 붙지 않는다', () => {
+  // 기준 근무시간을 넘겨 일해도 반타임은 반타임 일당까지다.
+  const 저녁 = { ...일당직원, dailyBaseMinutes: 240,
+    checkInAt: at('2026-09-17T17:00:00+09:00'), checkOutAt: at('2026-09-17T23:00:00+09:00') };
+  const t = M.totals(저녁);
+  assert.equal(t.dayPortion, 'half');
+  assert.equal(t.extraAmount, 0);
+  assert.equal(t.amount, 55000);
+});
+
+test('저녁 출근 판정도 기준 시각을 따라간다', () => {
+  const 저녁 = extra => ({ ...일당직원, checkInAt: at('2026-09-17T17:00:00+09:00'),
+    checkOutAt: at('2026-09-17T21:00:00+09:00'), ...extra });
+  // 오후 6시 기준이면 5시 출근은 선을 걸친 것이라 풀타임.
+  assert.equal(M.totals(저녁({ halfDayBeforeMinutes: 18 * 60 })).dayPortion, 'full');
+  assert.equal(M.totals(저녁({ halfDayBeforeMinutes: 16 * 60 })).dayPortion, 'half');
+});
+
 test('반타임 일당이 0이면 늘 풀타임이다', () => {
   assert.equal(M.totals(퇴근시각('13:00', { halfDayPay: 0 })).dayPortion, 'full');
   assert.equal(M.totals(퇴근시각('13:00', { halfDayPay: 0 })).amount, 100000);
+  // 저녁 출근도 마찬가지다. 반타임을 안 쓰는 자리에는 반타임이 없다.
+  const 저녁 = { ...일당직원, halfDayPay: 0,
+    checkInAt: at('2026-09-17T17:00:00+09:00'), checkOutAt: at('2026-09-17T21:00:00+09:00') };
+  assert.equal(M.totals(저녁).dayPortion, 'full');
 });
 
 test('기록에서 풀타임·반타임을 직접 정할 수 있다', () => {

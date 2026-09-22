@@ -365,6 +365,38 @@ test('관리자가 기록을 고쳐도 자리의 초과 급여 조건이 기본�
   assert.equal(shift.withholding, true);
 });
 
+test('예정 출근 시각과 초과 시급이 출근 기록에 실려 계산에 쓰인다', async () => {
+  // 7시 출근 · 기준 7시간 · 30분마다 첫 회 10,000원 · 그 뒤 시급 12,000원인 자리.
+  const slotId = (await service.saveEmployee({ ...slotInput, dailyBaseMinutes: 420,
+    scheduledStartMinutes: 7 * 60, overtimePay: 10000, overtimeHourlyRate: 12000 }, 'admin')).id;
+  now = at('2026-09-17T06:50:00+09:00');
+  const first = await service.punch({ employeeId: slotId, kind: 'in', requestId: 'in' }, token);
+  const saved = await getShift(first.shiftId);
+  assert.equal(saved.scheduledStartMinutes, 420);
+  assert.equal(saved.overtimeHourlyRate, 12000);
+  // 10분 일찍 찍고 20분 늦게 퇴근 — 정해진 퇴근보다 20분이라 추가 급여가 없다.
+  now = at('2026-09-17T14:20:00+09:00');
+  await service.punch({ employeeId: slotId, kind: 'out', requestId: 'out', shiftId: first.shiftId }, token);
+  const shift = (await service.listAdmin('2026-09')).shifts.find(s => s.id === first.shiftId);
+  assert.equal(shift.extraAmount, 0, '일찍 찍은 10분으로 추가 급여가 붙었습니다');
+  assert.equal(shift.amount, 100000);
+});
+
+test('관리자가 기록을 고쳐도 예정 출근 시각과 초과 시급이 사라지지 않는다', async () => {
+  const slotId = (await service.saveEmployee({ ...slotInput, dailyBaseMinutes: 420,
+    scheduledStartMinutes: 7 * 60, overtimePay: 10000, overtimeHourlyRate: 12000 }, 'admin')).id;
+  now = at('2026-09-18T09:00:00+09:00');
+  const saved = await service.saveShift({ employeeId: slotId, payType: 'daily', breakMinutes: 0, note: '',
+    checkInAt: at('2026-09-17T06:50:00+09:00'), checkOutAt: at('2026-09-17T15:00:00+09:00') }, 'admin');
+  const shift = await getShift(saved.id);
+  assert.equal(shift.scheduledStartMinutes, 420, '예정 출근 시각이 사라졌습니다');
+  assert.equal(shift.overtimeHourlyRate, 12000, '초과 시급이 사라졌습니다');
+  // 7시부터 3시까지 8시간 → 기준 7시간 초과 60분 → 2회 → 10,000 + 시급 30분치 6,000
+  const listed = (await service.listAdmin('2026-09')).shifts.find(s => s.id === saved.id);
+  assert.equal(listed.overtimeUnits, 2);
+  assert.equal(listed.extraAmount, 16000);
+});
+
 test('기록마다 초과 급여와 3.3% 를 다르게 정할 수 있다', async () => {
   const slotId = (await service.saveEmployee({ ...slotInput, overtimePay: 10000, withholding: true }, 'admin')).id;
   now = at('2026-09-11T09:00:00+09:00');
