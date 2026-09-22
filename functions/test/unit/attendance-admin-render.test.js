@@ -124,7 +124,7 @@ test('일일근무자 초과 급여가 내역 줄로 보인다', () => {
   state.data.absences = [];
   const { html } = screen(state);
   assert.match(html, /일당<\/span><span>100,000원/);
-  assert.match(html, /추가 급여 \(30분 × 2회\)<\/span><span>\+ 20,000원/);
+  assert.match(html, /추가 급여 \(기준 초과 60분\)<\/span><span>\+ 20,000원/);
   assert.match(html, /120,000원/);
 });
 
@@ -311,7 +311,7 @@ test('반타임 방식 일당 직원 카드에는 반타임 조건이 나온다'
   state.data.employees = [일당직원];
   const { html } = screen(state);
   assert.match(html, /기본 일당/);
-  assert.match(html, /17:00 전 퇴근은 반타임/);
+  assert.match(html, /17:00 전 퇴근·이후 출근은 반타임/);
   assert.match(html, /55,000원/);
   assert.doesNotMatch(html, /NaN/);
 });

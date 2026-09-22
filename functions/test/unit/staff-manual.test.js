@@ -127,6 +127,27 @@ test('일일근무자 추가 급여 예시가 실제 계산과 맞는다', () =>
   assert.match(html, new RegExp(`기본 ${M.DEFAULT_OVERTIME_UNIT_MINUTES}분`));
 });
 
+test('이른 출근·초과 시급 안내가 실제 계산과 맞는다', () => {
+  const { html } = render();
+  const at = value => new Date(value).getTime();
+  // 7시 출근 · 기준 7시간 · 예정 출근 07:00 · 30분마다 10,000원 — 6시 50분에 찍은 날.
+  const 일찍 = out => ({
+    checkInAt: at('2026-09-17T06:50:00+09:00'), checkOutAt: at(out), breakMinutes: 0,
+    payType: 'perDiem', hourlyRate: 0, dailyPay: 100000, halfDayPay: 0,
+    dailyBaseMinutes: 420, scheduledStartMinutes: 7 * 60,
+    overtimeUnitMinutes: M.DEFAULT_OVERTIME_UNIT_MINUTES, overtimePay: 10000
+  });
+  assert.equal(M.totals(일찍('2026-09-17T14:20:00+09:00')).extraAmount, 0);
+  assert.equal(M.totals(일찍('2026-09-17T14:50:00+09:00')).extraAmount, 10000);
+  assert.match(html, /6시 50분에 찍고 2시 20분에 가면 추가 급여가 없습니다/);
+  // 첫 회 10,000원 + 초과 시급 12,000원이면 1시간 초과는 16,000원.
+  const 시급초과 = { ...일찍('2026-09-17T15:00:00+09:00'),
+    checkInAt: at('2026-09-17T07:00:00+09:00'), overtimeHourlyRate: 12000 };
+  assert.equal(M.totals(시급초과).overtimeUnits, 2);
+  assert.equal(M.totals(시급초과).extraAmount, 16000);
+  assert.match(html, /30분 초과는 10,000원, 1시간 초과는 16,000원/);
+});
+
 test('원천징수 안내가 세율과 맞고 무엇이 안 빠지는지 밝힌다', () => {
   const { html } = render();
   assert.match(html, new RegExp(`${M.WITHHOLDING_PER_MILLE / 10}% 원천징수`));
@@ -140,8 +161,11 @@ test('일당 직원 안내가 퇴근 시각 기준을 분명히 적는다', () =
   const section = /id="sm-perdiem"([\s\S]*?)<\/section>/.exec(html);
   assert.ok(section, '일당 직원 항목이 없습니다.');
   const body = section[1];
-  // 근무시간이 아니라 퇴근 시각이라는 것 — 이걸 모르면 계산이 왜 그런지 못 읽는다.
-  assert.match(body, /몇 시간 일했는지가 아니라 몇 시에 갔는지/);
+  // 근무시간이 아니라 시각이라는 것 — 이걸 모르면 계산이 왜 그런지 못 읽는다.
+  assert.match(body, /몇 시간 일했는지가 아니라 언제 일했는지/);
+  // 점심 반타임과 저녁 반타임 둘 다 적혀 있어야 한다.
+  assert.match(body, /오후 5시 전에 퇴근하면 반타임/);
+  assert.match(body, /오후 5시 이후에 출근하면 반타임/);
   assert.match(body, /한국시간/);
   // 밤샘이 반타임이 되지 않는다는 것
   assert.match(body, /날짜를 넘겨 퇴근하면 풀타임/);
@@ -162,6 +186,10 @@ test('일당 직원 예시가 실제 판정과 맞는다', () => {
   assert.equal(M.totals(근무('13:00')).dayPortion, 'half');
   assert.equal(M.totals(근무('16:59')).dayPortion, 'half');
   assert.equal(M.totals(근무('17:00')).dayPortion, 'full');
+  // 저녁 반타임 — 기준 시각에 출근해 마감까지 한 경우.
+  const 저녁 = { ...근무('21:00'), checkInAt: at('2026-09-17T17:00:00+09:00') };
+  assert.equal(M.totals(저녁).dayPortion, 'half');
+  assert.equal(M.totals(저녁).amount, M.totals(근무('13:00')).amount);
   // 표의 금액이 실제 계산과 같아야 한다.
   assert.match(html, new RegExp(M.totals(근무('13:00')).amount.toLocaleString('en-US')));
   assert.match(html, new RegExp(M.totals(근무('17:00')).amount.toLocaleString('en-US')));
