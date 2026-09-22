@@ -365,6 +365,21 @@ test('관리자가 기록을 고쳐도 자리의 초과 급여 조건이 기본�
   assert.equal(shift.withholding, true);
 });
 
+test('시급 직원의 예정 출근 시각이 출근 기록에 실려 급여에서 빠진다', async () => {
+  await service.saveEmployee({ ...(await getEmployee()), scheduledStartMinutes: 7 * 60 }, 'admin');
+  now = at('2026-09-17T06:50:00+09:00');
+  const first = await punch('in', 'in');
+  assert.equal((await getShift(first.shiftId)).scheduledStartMinutes, 420);
+  now = at('2026-09-17T15:00:00+09:00');
+  await punch('out', 'out', first.shiftId);
+  const shift = (await service.listAdmin('2026-09')).shifts.find(s => s.id === first.shiftId);
+  // 찍힌 시간은 8시간 10분으로 남지만 급여는 7시부터 8시간이다. 시급 12,000원 → 96,000원
+  assert.equal(shift.workedMinutes, 490);
+  assert.equal(shift.earlyMinutes, 10);
+  assert.equal(shift.payableMinutes, 480);
+  assert.equal(shift.amount, 96000);
+});
+
 test('홀·주방 파트가 저장되고 태블릿 목록에 실린다', async () => {
   await service.saveEmployee({ ...(await getEmployee()), part: 'kitchen' }, 'admin');
   assert.equal((await getEmployee()).part, 'kitchen');

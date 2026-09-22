@@ -9,7 +9,8 @@
   // 궁중수라간은 예약을 안 받는다. 그 자리에 오늘 주문 집계를 띄운다.
   const SURAGAN = 2;
   // 태블릿에서 위아래로 나눠 보여줄 순서. 'none' 은 파트를 아직 안 고른 사람이다.
-  const PARTS = [{ key: 'hall', label: '홀' }, { key: 'kitchen', label: '주방' }, { key: 'none', label: '그 외' }];
+  const PARTS = [{ key: 'hall', label: '홀' }, { key: 'kitchen', label: '주방' },
+    { key: 'delivery', label: '배송' }, { key: 'none', label: '그 외' }];
   // 모르는 값은 '그 외'로 본다. 어느 묶음에도 안 들어가면 그 사람 칸이 화면에서 사라지고,
   // 그러면 출퇴근을 찍을 수가 없다. 사람을 잃는 것보다 엉뚱한 칸에 두는 것이 낫다.
   const partKey = card => PARTS.some(part => part.key === card.employee.part) ? card.employee.part : 'none';

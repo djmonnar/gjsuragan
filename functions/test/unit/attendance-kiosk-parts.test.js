@@ -48,6 +48,16 @@ test('홀과 주방이 섞여 있으면 위아래로 나눈다', () => {
   for (const name of ['김홀', '박주방', '이홀']) assert.match(html, new RegExp(name));
 });
 
+test('배송까지 세 파트가 정해진 순서로 나온다', () => {
+  const { className, titles } = kiosk([
+    사람('d1', '최배송', 'delivery'), 사람('k1', '박주방', 'kitchen'),
+    사람('h1', '김홀', 'hall'), 사람('x1', '이미정')
+  ]);
+  assert.equal(className, 'att-kiosk-parts');
+  // 입력 순서가 아니라 홀 → 주방 → 배송 → 그 외 순서다.
+  assert.deepEqual(titles, ['홀', '주방', '배송', '그 외']);
+});
+
 test('파트가 하나뿐이면 제목 없이 예전 그대로다', () => {
   const 한파트 = kiosk([사람('h1', '김홀', 'hall'), 사람('h2', '이홀', 'hall')]);
   assert.equal(한파트.className, 'att-kiosk-grid');

@@ -134,11 +134,11 @@ function dayPortionOf(shift) {
   return kstMinutesOfDay(shift.checkInAt) >= before ? 'half' : 'full';
 }
 
-// 홀과 주방은 같은 매장 안에서도 따로 움직인다. 태블릿에서 자기 이름을 찾을 때
+// 홀·주방·배송은 같은 매장 안에서도 따로 움직인다. 태블릿에서 자기 이름을 찾을 때
 // 전체를 훑는 것보다 파트로 갈라 보는 것이 빠르다.
 // 'none' 은 아직 안 고른 사람이다. 기존 직원이 모두 여기 들어오므로
 // 화면에서 빠지지 않고 '그 외'로 모여야 한다.
-const WORK_PARTS = ['none', 'hall', 'kitchen'];
+const WORK_PARTS = ['none', 'hall', 'kitchen', 'delivery'];
 
 function workPart(value) {
   return WORK_PARTS.includes(value) ? value : 'none';
@@ -155,9 +155,10 @@ const PAY_TYPES = ['hourly', 'salaried', 'daily', 'perDiem'];
 const DEFAULT_DAILY_BASE_MINUTES = 480;
 const DEFAULT_OVERTIME_UNIT_MINUTES = 30;
 
-// 추가 급여는 '정해진 시각을 넘겨 더 일한 것'에만 붙는다. 그래서 예정 출근 시각보다
-// 일찍 찍은 시간은 초과로 세지 않는다 — 7시 출근인 사람이 6시 50분에 찍었다고
-// 20분 늦게 퇴근한 날에 30분치가 붙으면 안 된다.
+// 돈은 '정해진 시각부터' 센다. 그래서 예정 출근 시각보다 일찍 찍은 시간은
+// 급여 계산에서 뺀다 — 7시 출근인 사람이 6시 50분에 찍었다고 시급 10분이 붙거나,
+// 20분 늦게 퇴근한 날에 30분치 추가 급여가 붙으면 안 된다.
+// 실제 출퇴근 시각과 근무시간 기록은 그대로 남는다. 기록은 사실이어야 한다.
 // 예정보다 이만큼 넘게 일찍 찍혔으면 아예 다른 시간대의 근무로 본다. 일일근무자
 // 자리는 아침 사람과 저녁 사람이 같이 쓰는데 예정 시각은 하나뿐이다.
 const EARLY_CLOCK_IN_WINDOW_MINUTES = 180;
@@ -254,6 +255,9 @@ function employeeInput(input) {
     role: text(input.role, '담당 업무', 40),
     // 홀·주방. 안 고르면 '미지정'이고, 태블릿에서는 '그 외'로 모인다.
     part: workPart(input.part),
+    // 정해진 출근 시각. 0 이면 안 쓴다. 급여 유형과 상관없이 사람마다 정한다 —
+    // 시급 직원은 급여 시간에서, 일당 직원은 초과 급여에서 일찍 온 시간이 빠진다.
+    scheduledStartMinutes: integer(input.scheduledStartMinutes ?? 0, '예정 출근 시각', 0, 1440),
     floor: floor(input.floor),
     payType: input.payType,
     hourlyRate: input.payType === 'hourly' ? integer(input.hourlyRate, '시급', 1, 1000000) : 0,
@@ -283,10 +287,6 @@ function employeeInput(input) {
     // 일당이 덮는 근무시간. 이 시간을 넘겨야 추가 급여가 붙는다.
     dailyBaseMinutes: isDailyPaid(input.payType)
       ? integer(unsetTo(input.dailyBaseMinutes, DEFAULT_DAILY_BASE_MINUTES), '기준 근무시간', 1, 1440) : 0,
-    // 정해진 출근 시각. 0 이면 안 쓴다. 초과 급여를 셀 때만 본다 —
-    // 일찍 찍어서 추가 급여를 만들어내지 못하게 하는 기준이다.
-    scheduledStartMinutes: isDailyPaid(input.payType)
-      ? integer(input.scheduledStartMinutes ?? 0, '예정 출근 시각', 0, 1440) : 0,
     overtimeUnitMinutes: isDailyPaid(input.payType)
       ? integer(unsetTo(input.overtimeUnitMinutes, DEFAULT_OVERTIME_UNIT_MINUTES), '추가 급여 단위', 1, 1440) : 0,
     // 첫 단위만 다르게 줄 때 쓰는 정액. 0 이면 초과분 전부를 초과 시급으로 센다.
@@ -365,6 +365,8 @@ function shiftInput(input, now) {
     checkInAt, checkOutAt, breakMinutes,
     workDate: workDate(checkInAt),
     payType: input.payType,
+    // 0 은 '예정 시각 안 씀' 이라는 뜻이다. 그날만 다른 시각에 나온 근무는 여기서 고친다.
+    scheduledStartMinutes: integer(input.scheduledStartMinutes ?? 0, '예정 출근 시각', 0, 1440),
     hourlyRate: input.payType === 'hourly' ? integer(input.hourlyRate, '시급', 1, 1000000) : 0,
     // 월급 직원의 특수일 가산은 당시 통상시급으로 계산한다. 시급과 같은 원칙이다 —
     // 나중에 월급이 바뀌어도 지난 근무의 금액은 그대로 남는다.
@@ -387,9 +389,6 @@ function shiftInput(input, now) {
     // 나중에 설정이 바뀌어도 지난 기록의 금액은 그대로여야 한다.
     dailyBaseMinutes: isDailyPaid(input.payType)
       ? integer(unsetTo(input.dailyBaseMinutes, DEFAULT_DAILY_BASE_MINUTES), '기준 근무시간', 1, 1440) : 0,
-    // 0 은 '예정 시각 안 씀' 이라는 뜻이다. 그날만 다른 시각에 나온 근무는 여기서 고친다.
-    scheduledStartMinutes: isDailyPaid(input.payType)
-      ? integer(input.scheduledStartMinutes ?? 0, '예정 출근 시각', 0, 1440) : 0,
     overtimeUnitMinutes: isDailyPaid(input.payType)
       ? integer(unsetTo(input.overtimeUnitMinutes, DEFAULT_OVERTIME_UNIT_MINUTES), '추가 급여 단위', 1, 1440) : 0,
     overtimePay: isDailyPaid(input.payType) ? integer(input.overtimePay ?? 0, '추가 급여', 0, 10000000) : 0,
@@ -408,18 +407,23 @@ function shiftInput(input, now) {
 // 배율은 저장된 값이 아니라 계산할 때 찾는다. 명절을 나중에 등록해도 지난 기록에
 // 바로 반영돼야 한다. 관리자가 달력을 뒤늦게 채우는 것이 정상적인 사용이다.
 function totals(shift, specialDay = null) {
-  const empty = { workedMinutes: 0, payableMinutes: 0, amount: 0, baseAmount: 0, extraAmount: 0, overtimeUnits: 0, dayPortion: 'full', multiplierPercent: BASE_PERCENT };
+  const empty = { workedMinutes: 0, payableMinutes: 0, earlyMinutes: 0, amount: 0, baseAmount: 0, extraAmount: 0, overtimeUnits: 0, dayPortion: 'full', multiplierPercent: BASE_PERCENT };
   if (shift.voided || shift.checkOutAt === null) return empty;
   const workedMinutes = Math.floor((shift.checkOutAt - shift.checkInAt) / MINUTE);
   const payableMinutes = payableMinutesOf(shift);
   const multiplierPercent = shiftMultiplierPercent(specialDay, shift.payType);
+  // 예정 출근 시각보다 일찍 찍은 만큼은 급여에서 뺀다. 안 정해 두었으면 0 이라 그대로다.
+  // 늦게 온 날은 실제 출근부터 세므로 늦은 만큼 급여가 줄어든다.
+  const earlyMinutes = earlyClockInMinutes(shift);
+  const paidMinutes = Math.max(0, payableMinutes - earlyMinutes);
   if (shift.payType === 'hourly') {
     // 총액을 먼저 반올림하고 기본급을 빼서 가산분을 낸다.
     // 따로 반올림하면 기본급 + 가산분이 총액과 1원씩 어긋난다.
     const rate = moneyValue(shift.hourlyRate);
-    const amount = Math.round(payableMinutes * rate * multiplierPercent / (60 * BASE_PERCENT));
-    const baseAmount = Math.round(payableMinutes * rate / 60);
-    return { workedMinutes, payableMinutes, amount, baseAmount, extraAmount: amount - baseAmount, multiplierPercent };
+    const amount = Math.round(paidMinutes * rate * multiplierPercent / (60 * BASE_PERCENT));
+    const baseAmount = Math.round(paidMinutes * rate / 60);
+    // 급여로 센 시간을 유급 근무 분으로 낸다. 금액과 시간이 어긋나면 정산에서 읽을 수 없다.
+    return { workedMinutes, payableMinutes: paidMinutes, earlyMinutes, amount, baseAmount, extraAmount: amount - baseAmount, multiplierPercent };
   }
   if (isDailyPaid(shift.payType)) {
     // 일당은 시간이 아니라 하루 단위다. 특수일 배율은 붙이지 않는다 —
@@ -444,16 +448,18 @@ function totals(shift, specialDay = null) {
     // 초과 시급과 정액이 둘 다 0 이면 아예 계산하지 않는다.
     const paysOvertime = moneyValue(shift.overtimePay) > 0 || moneyValue(shift.overtimeHourlyRate) > 0;
     const units = portion === 'full' && paysOvertime
-      ? overtimeUnits(overtimeBasisMinutes(shift), shift.dailyBaseMinutes, shift.overtimeUnitMinutes) : 0;
+      ? overtimeUnits(paidMinutes, shift.dailyBaseMinutes, shift.overtimeUnitMinutes) : 0;
     const extraAmount = overtimeAmount(units, shift);
-    return { workedMinutes, payableMinutes, amount: baseAmount + extraAmount, baseAmount, extraAmount,
+    // 일당·비례는 하루 단위라 유급 근무 분을 실제 근무시간 그대로 둔다.
+    // 일찍 온 시간은 초과 급여를 셀 때만 뺀다.
+    return { workedMinutes, payableMinutes, earlyMinutes, amount: baseAmount + extraAmount, baseAmount, extraAmount,
       overtimeUnits: units, dayPortion: portion, multiplierPercent: BASE_PERCENT };
   }
   // 월급 직원의 소정근로는 월급에 이미 들어 있다. 특수일 근무분만 따로 얹는다.
   const rate = moneyValue(shift.ordinaryHourlyRate);
   const extraAmount = multiplierPercent === BASE_PERCENT || rate === 0
-    ? 0 : Math.round(payableMinutes * rate * multiplierPercent / (60 * BASE_PERCENT));
-  return { workedMinutes, payableMinutes, amount: extraAmount, baseAmount: 0, extraAmount, multiplierPercent };
+    ? 0 : Math.round(paidMinutes * rate * multiplierPercent / (60 * BASE_PERCENT));
+  return { workedMinutes, payableMinutes: paidMinutes, earlyMinutes, amount: extraAmount, baseAmount: 0, extraAmount, multiplierPercent };
 }
 
 function overlaps(a, b) {

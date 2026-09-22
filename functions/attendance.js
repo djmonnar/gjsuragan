@@ -291,8 +291,9 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
             ? (employee.earlyGraceMinutes ?? model.DEFAULT_EARLY_GRACE_MINUTES) : 0,
           dayPortion: 'auto',
           dailyBaseMinutes: dailyPaid ? (employee.dailyBaseMinutes || 0) : 0,
-          // 0 은 '예정 시각 안 씀'. 초과 급여를 셀 때만 본다.
-          scheduledStartMinutes: dailyPaid ? (employee.scheduledStartMinutes || 0) : 0,
+          // 0 은 '예정 시각 안 씀'. 급여 유형과 상관없이 복사한다 — 시급 직원은 급여 시간에서,
+          // 일당 직원은 초과 급여에서 예정보다 일찍 찍은 시간이 빠진다.
+          scheduledStartMinutes: employee.scheduledStartMinutes || 0,
           overtimeUnitMinutes: dailyPaid ? (employee.overtimeUnitMinutes || 0) : 0,
           overtimePay: dailyPaid ? (employee.overtimePay || 0) : 0,
           // 0 이면 단위마다 정액. 첫 단위 뒤부터 이 시급으로 센다.
@@ -397,10 +398,10 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         overtimePay: dailyPaidShift
           ? (input.overtimePay === undefined ? (before?.overtimePay ?? employee.overtimePay ?? 0) : data.overtimePay) : 0,
         // 예정 출근 시각과 초과 시급도 0 이 '안 씀' 이라는 뜻이다.
-        scheduledStartMinutes: dailyPaidShift
-          ? (input.scheduledStartMinutes === undefined
-            ? (before?.scheduledStartMinutes ?? employee.scheduledStartMinutes ?? 0)
-            : data.scheduledStartMinutes) : 0,
+        // 예정 출근 시각은 시급 기록에도 쓰므로 급여 유형으로 막지 않는다.
+        scheduledStartMinutes: input.scheduledStartMinutes === undefined
+          ? (before?.scheduledStartMinutes ?? employee.scheduledStartMinutes ?? 0)
+          : data.scheduledStartMinutes,
         overtimeHourlyRate: dailyPaidShift
           ? (input.overtimeHourlyRate === undefined
             ? (before?.overtimeHourlyRate ?? employee.overtimeHourlyRate ?? 0)
