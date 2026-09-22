@@ -47,16 +47,27 @@ test('예정보다 한참 일찍 찍힌 시급 근무는 손대지 않는다', (
 
 test('예정 출근 시각은 급여 유형과 상관없이 저장된다', () => {
   const person = { name: '박알바', role: '포장', payType: 'hourly', hourlyRate: 12000, active: true, breakMinutes: 0, note: '' };
-  assert.equal(M.employeeInput(person).scheduledStartMinutes, 0);
-  assert.equal(M.employeeInput({ ...person, scheduledStartMinutes: 7 * 60 }).scheduledStartMinutes, 420);
-  assert.equal(M.employeeInput({ ...person, payType: 'salaried', monthlySalary: 3000000, scheduledStartMinutes: 9 * 60 }).scheduledStartMinutes, 540);
+  assert.deepEqual(M.employeeInput(person).scheduledStarts, []);
+  assert.deepEqual(M.employeeInput({ ...person, scheduledStarts: [7 * 60] }).scheduledStarts, [420]);
+  assert.deepEqual(M.employeeInput({ ...person, scheduledStarts: [17 * 60, 11 * 60] }).scheduledStarts, [660, 1020]);
+  assert.deepEqual(M.employeeInput({ ...person, payType: 'salaried', monthlySalary: 3000000, scheduledStarts: [9 * 60] }).scheduledStarts, [540]);
+  // 옛 화면은 시각 하나만 보낸다.
+  assert.deepEqual(M.employeeInput({ ...person, scheduledStartMinutes: 7 * 60 }).scheduledStarts, [420]);
+  // 개수 제한을 넘기거나 배열이 아니면 거부한다.
+  assert.equal(M.MAX_SCHEDULED_STARTS, 4);
+  assert.throws(() => M.employeeInput({ ...person, scheduledStarts: [60, 120, 180, 240, 300] }), new RegExp('.'));
+  assert.throws(() => M.employeeInput({ ...person, scheduledStarts: '11:00' }), new RegExp('.'));
+  for (const bad of [[0], [-1], [1441], [1.5]]) {
+    assert.throws(() => M.employeeInput({ ...person, scheduledStarts: bad }), new RegExp('.'), JSON.stringify(bad));
+  }
   for (const bad of [-1, 1441, 1.5]) {
     assert.throws(() => M.employeeInput({ ...person, scheduledStartMinutes: bad }), new RegExp('.'), String(bad));
   }
+  assert.deepEqual(M.employeeInput({ ...person, scheduledStartMinutes: 0 }).scheduledStarts, []);
   const when = at('2026-09-02T00:00:00+09:00');
-  const 기록 = M.shiftInput({ ...base, checkOutAt: null, scheduledStartMinutes: 420 }, when);
-  assert.equal(기록.scheduledStartMinutes, 420);
-  assert.equal(M.shiftInput({ ...base, checkOutAt: null }, when).scheduledStartMinutes, 0);
+  const 기록 = M.shiftInput({ ...base, checkOutAt: null, scheduledStarts: [420, 1020] }, when);
+  assert.deepEqual(기록.scheduledStarts, [420, 1020]);
+  assert.deepEqual(M.shiftInput({ ...base, checkOutAt: null }, when).scheduledStarts, []);
 });
 
 test('elapsed minutes truncate once and money rounds per shift', () => {

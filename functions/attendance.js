@@ -137,7 +137,10 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         ? before.monthlySalary ?? null : data.monthlySalary;
       // 파트도 같다. 안 보낸 화면이 저장하면 골라둔 홀·주방이 미지정으로 돌아가면 안 된다.
       const part = input.part === undefined ? model.workPart(before?.part) : data.part;
-      const after = { ...data, floor, monthlySalary, part,
+      // 예정 출근 시각도 안 보낸 화면이 저장하면 사라진다. 같은 원칙으로 물려받는다.
+      const scheduledStarts = input.scheduledStarts === undefined && input.scheduledStartMinutes === undefined
+        ? model.scheduledStarts(before?.scheduledStarts, before?.scheduledStartMinutes) : data.scheduledStarts;
+      const after = { ...data, floor, monthlySalary, part, scheduledStarts,
         privateSummary: details ? privateData.privateSummary(details) : before?.privateSummary || privateData.privateSummary(privateData.empty()),
         currentShiftId: before?.currentShiftId || null, lastShift: before?.lastShift || null,
         createdAt: before?.createdAt ?? now(), updatedAt: now(), deletedAt: null, version: (before?.version || 0) + 1 };
@@ -291,9 +294,10 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
             ? (employee.earlyGraceMinutes ?? model.DEFAULT_EARLY_GRACE_MINUTES) : 0,
           dayPortion: 'auto',
           dailyBaseMinutes: dailyPaid ? (employee.dailyBaseMinutes || 0) : 0,
-          // 0 은 '예정 시각 안 씀'. 급여 유형과 상관없이 복사한다 — 시급 직원은 급여 시간에서,
+          // 빈 목록은 '예정 시각 안 씀'. 급여 유형과 상관없이 복사한다 — 시급 직원은 급여 시간에서,
           // 일당 직원은 초과 급여에서 예정보다 일찍 찍은 시간이 빠진다.
-          scheduledStartMinutes: employee.scheduledStartMinutes || 0,
+          // 옛 직원 문서는 시각 하나만 들고 있어 그 값도 같이 읽는다.
+          scheduledStarts: model.scheduledStarts(employee.scheduledStarts, employee.scheduledStartMinutes),
           overtimeUnitMinutes: dailyPaid ? (employee.overtimeUnitMinutes || 0) : 0,
           overtimePay: dailyPaid ? (employee.overtimePay || 0) : 0,
           // 0 이면 단위마다 정액. 첫 단위 뒤부터 이 시급으로 센다.
@@ -397,11 +401,12 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         // 추가 급여는 0 이 '안 줌' 이라는 뜻이라, 입력이 아예 없을 때만 물려받는다.
         overtimePay: dailyPaidShift
           ? (input.overtimePay === undefined ? (before?.overtimePay ?? employee.overtimePay ?? 0) : data.overtimePay) : 0,
-        // 예정 출근 시각과 초과 시급도 0 이 '안 씀' 이라는 뜻이다.
-        // 예정 출근 시각은 시급 기록에도 쓰므로 급여 유형으로 막지 않는다.
-        scheduledStartMinutes: input.scheduledStartMinutes === undefined
-          ? (before?.scheduledStartMinutes ?? employee.scheduledStartMinutes ?? 0)
-          : data.scheduledStartMinutes,
+        // 예정 출근 시각은 빈 목록이 '안 씀' 이고, 시급 기록에도 쓰므로 급여 유형으로 막지 않는다.
+        // 목록도 옛 단일 시각도 안 보냈을 때만 기존 기록 → 직원 설정 순서로 물려받는다.
+        scheduledStarts: input.scheduledStarts === undefined && input.scheduledStartMinutes === undefined
+          ? model.scheduledStarts(before?.scheduledStarts ?? employee.scheduledStarts,
+            before?.scheduledStartMinutes ?? employee.scheduledStartMinutes)
+          : data.scheduledStarts,
         overtimeHourlyRate: dailyPaidShift
           ? (input.overtimeHourlyRate === undefined
             ? (before?.overtimeHourlyRate ?? employee.overtimeHourlyRate ?? 0)
