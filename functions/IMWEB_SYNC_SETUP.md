@@ -295,3 +295,40 @@ await imwebSync.syncImwebOrders({ db, onlyOrderNos: ['202608240989736'] });
 전환이 안정된 뒤에 앱스스크립트 프로젝트의 스크립트 속성에서 Firebase 서비스 계정 키
 (`FIREBASE_PRIVATE_KEY` 등)를 지운다. 안 쓰는 비공개 키를 남겨둘 이유가 없다.
 `appscript/Code.gs` 는 되돌릴 길을 남겨두기 위해 당분간 레포에 그대로 둔다.
+
+## 홈페이지 배송 회차 조회창
+
+손님이 홈페이지(gjsuragan.co.kr)에서 **주문자 이름 + 전화번호**로 남은 배송 횟수를 본다.
+주문번호로 찾지 않는다. 네이버페이로 결제한 손님은 네이버가 매긴 번호만 알고,
+직접 등록한 주문에는 아임웹 주문번호가 없기 때문이다.
+
+| 파일 | 역할 |
+| --- | --- |
+| `assets/js/delivery-lookup-widget.js` | 아임웹에 넣는 조회창. GitHub Pages 에서 싣는다 |
+| `functions/deliveryLookup.js` | 조회 본체. `api` 함수의 `/api/delivery/lookup` 경로 |
+| `functions/test/unit/delivery-lookup.test.js` | 조회·잠금·요약 테스트 |
+
+아임웹 **디자인 모드 → 위젯 추가 → 코드** 에 아래 두 줄을 넣는다. 설치 순서와 복사 버튼은
+`imwebmanual.html` 맨 아래 부록에 있다.
+
+```html
+<div data-gjs-delivery-lookup></div>
+<script src="https://djmonnar.github.io/gjsuragan/assets/js/delivery-lookup-widget.js"></script>
+```
+
+- 문서의 `name`/`phone` 은 받는 분이다. 동기화가 주문자를 `ordererName`/`ordererPhone` 에
+  따로 적는다 (아임웹 `orderer.name` / `orderer.call`). 이 전에 등록된 문서와 직접 등록한
+  주문에는 이 필드가 없다.
+- 로그인 없이 부르는 경로다. `customers` 를 `ordererPhone in [...]`, `phone in [...]` 두 번 찾은 뒤
+  (주문자 이름, 주문자 번호) 또는 (받는 분 이름, 받는 분 번호) 한 쌍이 맞는 문서만 돌려준다.
+  이름은 띄어쓰기·대소문자를 무시한다. 쌍을 섞어서는 맞추지 않는다. 정규화한 전화번호 필드가 없어서
+  `01012345678`, `010-1234-5678`, 공백·점 구분을 모두 만들어 넣는다.
+  이 밖의 모양(괄호 등)으로 적힌 번호는 못 찾는다.
+- 번호가 없을 때와 이름이 틀렸을 때 같은 답(404)을 준다.
+- 돌려주는 값은 상품, 일정 이름, 주문일, 전체·남은 횟수, 마지막 배송일, 첫 배송일, 상태뿐이다.
+  주소·전화번호·주문번호는 내보내지 않는다. 진행 중인 주문부터 최대 10건까지 보낸다.
+- 한 전화번호로 5번 틀리면 30분 동안 막는다 (429). 같은 IP 에서 20번 틀려도 30분 막는다.
+  틀린 횟수는 `deliveryLookupLimits` 컬렉션에 해시로 적는다. 규칙에 없는 컬렉션이라
+  함수만 읽고 쓴다.
+- 조회창 파일을 고치면 머지만으로 반영된다. 서버 쪽(`deliveryLookup.js`)을 고치면
+  Deploy Functions → `functions:api` 를 누른다.

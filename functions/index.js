@@ -11,6 +11,7 @@ const { parseMealPlanOcr } = require('./mealPlanParser');
 const kakaoAuth = require('./kakaoAuth');
 const imwebSync = require('./imwebSync');
 const signupGuard = require('./signupGuard');
+const deliveryLookup = require('./deliveryLookup');
 
 const logenSecretKey = defineSecret('LOGEN_SECRET_KEY');
 const logenHealthToken = defineSecret('LOGEN_HEALTH_TOKEN');
@@ -283,6 +284,14 @@ exports.api = onRequest({
     if (pathname === '/api/signup/duplicate-check' || pathname === '/signup/duplicate-check') {
       // 가입 중인 고객이 부른다. 관리자 검증보다 앞에 둬야 한다.
       const result = await handleSignupDuplicateCheck(req);
+      sendJson(res, 200, { ok: true, ...result });
+      return;
+    }
+    if (pathname === '/api/delivery/lookup' || pathname === '/delivery/lookup') {
+      // 홈페이지(gjsuragan.co.kr)에 넣은 조회창이 부른다. 손님은 로그인하지 않는다.
+      // 맨 앞 값은 손님 브라우저가 마음대로 적어 보낼 수 있다. 구글이 뒤에 붙인 맨 끝 값을 쓴다.
+      const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').pop().trim();
+      const result = await deliveryLookup.lookupDelivery(db, req.body || {}, { ip: forwarded || req.ip || '' });
       sendJson(res, 200, { ok: true, ...result });
       return;
     }

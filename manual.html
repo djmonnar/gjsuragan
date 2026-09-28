@@ -630,6 +630,23 @@ tr:hover td { background: #f8fafb; }
         <span class="tip-icon">ℹ️</span>
         <div><strong>직배송</strong> 고객은 <span class="badge-demo bd-direct">직배송</span> 뱃지가 표시됩니다. 사천·진주 지역 등 당일 직접 배달하는 고객입니다.</div>
       </div>
+
+      <div class="card" id="delivery-lookup">
+        <div class="card-title"><span class="icon">🔎</span> 손님이 홈페이지에서 남은 회차 보기</div>
+        <p>홈페이지(gjsuragan.co.kr)의 <strong>남은 배송 회차 조회</strong> 창에서 손님이 <strong>주문자 이름</strong>과 <strong>주문자 전화번호</strong>를 넣으면, 그 사람의 주문이 상품별로 보입니다. 선물 주문은 받는 분도 자기 이름·번호로 조회할 수 있습니다. 아임웹 주문, 네이버페이 주문, 직접 등록한 주문 모두 같은 방법으로 찾습니다.</p>
+        <ul>
+          <li><strong>남은 배송 / 전체</strong>: 고객 관리의 잔여 게이지와 같은 값입니다. 받으신 배송 = 전체 − 남은 배송.</li>
+          <li><strong>주문일</strong>, <strong>최근 배송</strong>: 최근 배송은 배송완료로 처리한 마지막 날짜입니다. 아직 없으면 첫 배송 예정일이 나옵니다.</li>
+          <li><strong>상태</strong>: 남은 횟수가 0이면 <em>배송 완료</em>, 일시정지·확인 필요 주문은 <em>일시정지 · 일정 확인 중</em>, 나머지는 <em>배송 진행 중</em>입니다.</li>
+          <li>진행 중인 주문이 먼저, 그 안에서는 최근 주문이 먼저 나옵니다. 최대 <strong>10건</strong>까지만 보이고 나머지는 건수만 알려줍니다.</li>
+        </ul>
+        <p>주소·전화번호·주문번호는 손님 화면에 나오지 않습니다. 한 전화번호로 <strong>5번</strong> 틀리게 조회하면 <strong>30분</strong> 동안 그 번호 조회를 막습니다.</p>
+      </div>
+
+      <div class="tip-box warn">
+        <span class="tip-icon">⚠️</span>
+        <div>아임웹 자동등록 주문은 주문자 이름·번호를 따로 저장해 두므로 그대로 조회됩니다. <strong>직접 등록한 주문과 2026년 9월 이전 자동등록 주문</strong>은 고객 정보의 <strong>고객명·연락처</strong>로만 찾으니, 이 두 칸이 손님이 넣을 이름·번호와 같아야 합니다. 이름에 "(선물)" 같은 메모를 붙이거나 연락처를 지우면 손님이 찾을 수 없어요. 띄어쓰기와 하이픈(-)은 달라도 괜찮습니다. 손님은 <strong>배송완료 처리한 만큼만</strong> 줄어든 횟수를 봅니다.</div>
+      </div>
     </section>
 
     <!-- ══ 고객 관리 ══ -->
