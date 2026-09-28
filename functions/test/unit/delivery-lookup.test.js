@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const lookup = require('../../deliveryLookup');
 
-// customers 는 phone in 조회만, deliveryLookupLimits 는 get/set 만 흉내 낸다.
+// customers 는 phone·ordererPhone in 조회만, deliveryLookupLimits 는 get/set 만 흉내 낸다.
 function fakeDb(customers = []) {
   const store = { limits: {}, queries: [] };
   return {
@@ -13,7 +13,7 @@ function fakeDb(customers = []) {
       if (name === 'customers') {
         return {
           where(field, op, values) {
-            assert.equal(field, 'phone');
+            assert.ok(['phone', 'ordererPhone'].includes(field));
             assert.equal(op, 'in');
             assert.ok(values.length <= 30, 'Firestore in 은 30개까지');
             store.queries.push(values);
@@ -22,8 +22,9 @@ function fakeDb(customers = []) {
                 return {
                   async get() {
                     const docs = customers
-                      .filter(c => values.includes(c.phone))
-                      .map(c => ({ data: () => c }));
+                      .map((c, i) => ({ id: `doc${i}`, c }))
+                      .filter(({ c }) => values.includes(c[field]))
+                      .map(({ id, c }) => ({ id, data: () => c }));
                     return { docs };
                   }
                 };
@@ -108,6 +109,24 @@ test('주소·전화번호·주문번호는 돌려주지 않는다', async () =>
   assert.ok(!text.includes('서울시'));
   assert.ok(!text.includes('5678'));
   assert.ok(!text.includes('202609281234567'));
+});
+
+test('선물 주문은 주문자 이름·번호로 찾는다', async () => {
+  const 선물 = { ...정기, name: '차진', phone: '010-4146-8860', ordererName: '홍길동', ordererPhone: '010-1234-5678' };
+  const result = await lookup.lookupDelivery(fakeDb([선물]), 손님);
+  assert.equal(result.lines.length, 1);
+  // 받는 분도 자기 이름·번호로 볼 수 있다.
+  const 받는분 = await lookup.lookupDelivery(fakeDb([선물]), { name: '차진', phone: '01041468860' });
+  assert.equal(받는분.lines.length, 1);
+  // 주문자 이름에 받는 분 번호처럼 쌍을 섞으면 찾지 않는다.
+  const 섞음 = await lookup.lookupDelivery(fakeDb([선물]), { name: '홍길동', phone: '01041468860' }).catch(e => e);
+  assert.equal(섞음.status, 404);
+});
+
+test('주문자와 받는 분이 같은 주문은 한 번만 보여준다', async () => {
+  const 본인 = { ...정기, ordererName: '홍길동', ordererPhone: '01012345678' };
+  const result = await lookup.lookupDelivery(fakeDb([본인]), 손님);
+  assert.equal(result.lines.length, 1);
 });
 
 test('같은 번호라도 이름이 다르면 없는 번호와 같은 답을 준다', async () => {

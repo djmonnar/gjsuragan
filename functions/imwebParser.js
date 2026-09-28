@@ -352,6 +352,9 @@ function buildBase(order, isDirect, prod, memo, door, actualOrderNum, syncKey, n
   const base = {
     name: address.name || order?.orderer?.name || '',
     phone: address.phone || order?.orderer?.call || '',
+    // 선물 주문이면 받는 분과 주문자가 다르다. 손님은 주문자 이름·번호로 배송 회차를 조회한다.
+    ordererName: String(order?.orderer?.name || ''),
+    ordererPhone: String(order?.orderer?.call || ''),
     addr: [address.address, address.address_detail].filter(Boolean).join(' '),
     door,
     request: memo,

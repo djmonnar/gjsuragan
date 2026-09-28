@@ -299,3 +299,18 @@ test('취소 삭제 대상은 주문번호와 하위 줄까지 찾는다', () =>
   const ids = imwebSync.recordsForOrderNo(existing, '202608240989736').map(r => r.id);
   assert.deepEqual(ids.sort(), ['a', 'b']);
 });
+
+test('주문자 이름·번호를 받는 분과 따로 적어둔다', () => {
+  // 선물 주문: 받는 분은 차진, 주문한 사람은 김주문
+  const order = { ...chajinOrder(), orderer: { name: '김주문', call: '010-2222-3333' } };
+  const [entry] = parser.parseOrderItems(order, order.order_no, [
+    subItem('반찬 정기구독 A세트', '주 3회|월/수/금 조리|총 12회')
+  ]);
+  assert.equal(entry.parsed.name, '차진');
+  assert.equal(entry.parsed.ordererName, '김주문');
+  assert.equal(entry.parsed.ordererPhone, '010-2222-3333');
+  const [noOrderer] = parser.parseOrderItems(chajinOrder(), '202608240989736', [
+    subItem('반찬 정기구독 A세트', '주 3회|월/수/금 조리|총 12회')
+  ]);
+  assert.equal(noOrderer.parsed.ordererName, '');
+});

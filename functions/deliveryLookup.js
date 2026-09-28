@@ -1,8 +1,13 @@
 'use strict';
 
-// 손님이 홈페이지(gjsuragan.co.kr)에서 받는 분 이름과 전화번호로 남은 배송 회차를 본다.
+// 손님이 홈페이지(gjsuragan.co.kr)에서 주문자 이름과 전화번호로 남은 배송 회차를 본다.
 // 주문번호로 찾지 않는 까닭: 네이버페이로 결제한 손님은 네이버가 매긴 번호만 알고,
 // 관리자가 손으로 등록한 주문에는 아임웹 주문번호가 없다.
+//
+// 문서의 name/phone 은 받는 분이다. 주문자는 ordererName/ordererPhone 에 따로 있다.
+// 이 두 필드는 2026-09 부터 적기 시작해서 그 전 문서와 직접 등록한 주문에는 없다.
+// 그래서 (주문자 이름, 주문자 번호) 또는 (받는 분 이름, 받는 분 번호) 한 쌍이 맞으면 보여준다.
+// 선물 주문을 받은 사람도 자기 이름·번호로 조회할 수 있다. 쌍을 섞어서는 맞추지 않는다.
 // 로그인 없이 부르는 경로라 이렇게 지킨다.
 //   1. 이름과 전화번호가 둘 다 맞아야 보여준다.
 //   2. 주소·전화번호는 돌려주지 않는다. 상품과 회차만 보여준다.
@@ -18,7 +23,7 @@ const MAX_FAILS = 5;
 const MAX_FAILS_PER_IP = 20;
 const LOCK_WINDOW_MS = 30 * 60 * 1000;
 const MAX_LINES = 10;
-const NOT_FOUND_MESSAGE = '받는 분 이름과 전화번호를 다시 확인해주세요.';
+const NOT_FOUND_MESSAGE = '주문자 이름과 전화번호를 다시 확인해주세요.';
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function httpError(status, message) {
@@ -127,11 +132,32 @@ async function readLimit(ref) {
   return snap.exists ? snap.data() : null;
 }
 
+function personMatches(record, name, phone) {
+  const orderer = normalizeName(record.ordererName) === name && normalizePhone(record.ordererPhone) === phone;
+  const recipient = normalizeName(record.name) === name && normalizePhone(record.phone) === phone;
+  return orderer || recipient;
+}
+
+async function findByPerson(db, name, phone) {
+  const variants = phoneVariants(phone);
+  const customers = db.collection(CUSTOMERS);
+  const [byOrderer, byRecipient] = await Promise.all([
+    customers.where('ordererPhone', 'in', variants).limit(100).get(),
+    customers.where('phone', 'in', variants).limit(100).get()
+  ]);
+  const found = new Map();
+  [...byOrderer.docs, ...byRecipient.docs].forEach(doc => {
+    const record = doc.data() || {};
+    if (personMatches(record, name, phone)) found.set(doc.id, record);
+  });
+  return [...found.values()];
+}
+
 async function lookupDelivery(db, body, options = {}) {
   const now = options.now || new Date();
   const name = normalizeName(body?.name);
   const phone = normalizePhone(body?.phone);
-  if (!name) throw httpError(400, '받는 분 이름을 입력해주세요.');
+  if (!name) throw httpError(400, '주문자 이름을 입력해주세요.');
   if (!isValidPhone(phone)) throw httpError(400, '전화번호를 010으로 시작하는 숫자로 입력해주세요.');
 
   const nowMs = now.getTime();
@@ -145,10 +171,7 @@ async function lookupDelivery(db, body, options = {}) {
     throw httpError(429, '조회를 여러 번 틀려 잠시 막아두었습니다. 30분 뒤에 다시 시도해주세요.');
   }
 
-  const snap = await db.collection(CUSTOMERS).where('phone', 'in', phoneVariants(phone)).limit(100).get();
-  const matches = snap.docs
-    .map(doc => doc.data() || {})
-    .filter(record => normalizeName(record.name) === name);
+  const matches = await findByPerson(db, name, phone);
 
   if (!matches.length) {
     // 번호가 없을 때와 이름이 틀렸을 때 같은 답을 준다. 어느 번호가 손님인지 알려주지 않는다.
@@ -173,6 +196,7 @@ module.exports = {
   nextLimit,
   normalizeName,
   normalizePhone,
+  personMatches,
   phoneVariants,
   sortLines,
   summarizeLine,

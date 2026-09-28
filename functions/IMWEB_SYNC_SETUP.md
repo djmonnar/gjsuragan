@@ -298,7 +298,7 @@ await imwebSync.syncImwebOrders({ db, onlyOrderNos: ['202608240989736'] });
 
 ## 홈페이지 배송 회차 조회창
 
-손님이 홈페이지(gjsuragan.co.kr)에서 **받는 분 이름 + 전화번호**로 남은 배송 횟수를 본다.
+손님이 홈페이지(gjsuragan.co.kr)에서 **주문자 이름 + 전화번호**로 남은 배송 횟수를 본다.
 주문번호로 찾지 않는다. 네이버페이로 결제한 손님은 네이버가 매긴 번호만 알고,
 직접 등록한 주문에는 아임웹 주문번호가 없기 때문이다.
 
@@ -316,8 +316,12 @@ await imwebSync.syncImwebOrders({ db, onlyOrderNos: ['202608240989736'] });
 <script src="https://djmonnar.github.io/gjsuragan/assets/js/delivery-lookup-widget.js"></script>
 ```
 
-- 로그인 없이 부르는 경로다. `customers` 를 `phone in [적는 법 여러 개]` 로 찾은 뒤
-  이름(띄어쓰기·대소문자 무시)이 같은 문서만 돌려준다. 정규화한 전화번호 필드가 없어서
+- 문서의 `name`/`phone` 은 받는 분이다. 동기화가 주문자를 `ordererName`/`ordererPhone` 에
+  따로 적는다 (아임웹 `orderer.name` / `orderer.call`). 이 전에 등록된 문서와 직접 등록한
+  주문에는 이 필드가 없다.
+- 로그인 없이 부르는 경로다. `customers` 를 `ordererPhone in [...]`, `phone in [...]` 두 번 찾은 뒤
+  (주문자 이름, 주문자 번호) 또는 (받는 분 이름, 받는 분 번호) 한 쌍이 맞는 문서만 돌려준다.
+  이름은 띄어쓰기·대소문자를 무시한다. 쌍을 섞어서는 맞추지 않는다. 정규화한 전화번호 필드가 없어서
   `01012345678`, `010-1234-5678`, 공백·점 구분을 모두 만들어 넣는다.
   이 밖의 모양(괄호 등)으로 적힌 번호는 못 찾는다.
 - 번호가 없을 때와 이름이 틀렸을 때 같은 답(404)을 준다.

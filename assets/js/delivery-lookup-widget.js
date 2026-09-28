@@ -1,5 +1,6 @@
 // 홈페이지(gjsuragan.co.kr, 아임웹)에 넣는 '남은 배송 회차 조회' 창.
-// 손님은 받는 분 이름과 전화번호로 조회한다. 네이버페이 주문도 같은 방법으로 찾는다.
+// 손님은 주문자 이름과 전화번호로 조회한다. 네이버페이 주문도 같은 방법으로 찾는다.
+// 선물 받은 분은 받는 분 이름·번호로도 찾을 수 있다.
 // 아임웹 HTML 코드 위젯에 아래 두 줄만 넣으면 그 자리에 조회창이 그려진다.
 //   <div data-gjs-delivery-lookup></div>
 //   <script src="https://djmonnar.github.io/gjsuragan/assets/js/delivery-lookup-widget.js"></script>
@@ -103,11 +104,11 @@
     root.innerHTML = `
       <form class="gjs-dl" novalidate>
         <p class="gjs-dl-title">남은 배송 회차 조회</p>
-        <p class="gjs-dl-desc">배송지에 적은 받는 분 이름과 전화번호를 넣어주세요. 네이버페이로 주문하셨어도 똑같이 조회됩니다.</p>
-        <label class="gjs-dl-label">받는 분 이름
+        <p class="gjs-dl-desc">주문하실 때 적은 주문자 이름과 전화번호를 넣어주세요. 네이버페이로 주문하셨어도 똑같이 조회됩니다.</p>
+        <label class="gjs-dl-label">주문자 이름
           <input class="gjs-dl-input" name="name" autocomplete="name" placeholder="예) 홍길동" required>
         </label>
-        <label class="gjs-dl-label">받는 분 전화번호
+        <label class="gjs-dl-label">주문자 전화번호
           <input class="gjs-dl-input" name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="예) 010-1234-5678" required>
         </label>
         <button class="gjs-dl-btn" type="submit">조회하기</button>
@@ -130,7 +131,7 @@
       result.innerHTML = '';
       const name = form.elements.name.value.trim();
       const phone = form.elements.phone.value.replace(/\D/g, '');
-      if(!name) return showError('받는 분 이름을 입력해주세요.');
+      if(!name) return showError('주문자 이름을 입력해주세요.');
       if(phone.length < 10) return showError('전화번호를 010부터 모두 입력해주세요.');
       button.disabled = true;
       button.textContent = '조회 중…';
