@@ -1,4 +1,5 @@
-// 아임웹 홈페이지에 넣는 '남은 배송 회차 조회' 창.
+// 홈페이지(gjsuragan.co.kr, 아임웹)에 넣는 '남은 배송 회차 조회' 창.
+// 손님은 받는 분 이름과 전화번호로 조회한다. 네이버페이 주문도 같은 방법으로 찾는다.
 // 아임웹 HTML 코드 위젯에 아래 두 줄만 넣으면 그 자리에 조회창이 그려진다.
 //   <div data-gjs-delivery-lookup></div>
 //   <script src="https://djmonnar.github.io/gjsuragan/assets/js/delivery-lookup-widget.js"></script>
@@ -64,7 +65,10 @@
     const used = total - remain;
     const status = STATUS_TEXT[line.status] ? line.status : 'active';
     const percent = total > 0 ? Math.round(used / total * 100) : 0;
-    const meta = [`받으신 배송 ${used}회`];
+    const meta = [];
+    const ordered = formatDate(line.orderDate);
+    if(ordered) meta.push(`주문일 ${ordered}`);
+    meta.push(`받으신 배송 ${used}회`);
     const last = formatDate(line.lastDeliveredDate);
     if(last) meta.push(`최근 배송 ${last}`);
     else if(line.startDate && status !== 'done') meta.push(`첫 배송 예정 ${formatDate(line.startDate)}`);
@@ -86,7 +90,9 @@
   function renderResult(data){
     const lines = Array.isArray(data.lines) ? data.lines : [];
     if(!lines.length) return '';
+    const hidden = count(data.hiddenCount);
     return lines.map(renderLine).join('') +
+      (hidden ? `<p class="gjs-dl-note">이전 주문 ${hidden}건이 더 있습니다. 자세한 내용은 매장으로 문의해주세요.</p>` : '') +
       '<p class="gjs-dl-note">배송을 마친 뒤 매장에서 확인 처리하면 횟수가 줄어듭니다. 당일 배송분은 조금 늦게 반영될 수 있어요.</p>';
   }
 
@@ -97,12 +103,12 @@
     root.innerHTML = `
       <form class="gjs-dl" novalidate>
         <p class="gjs-dl-title">남은 배송 회차 조회</p>
-        <p class="gjs-dl-desc">주문번호와 받는 분 전화번호 뒤 4자리를 넣어주세요.</p>
-        <label class="gjs-dl-label">주문번호
-          <input class="gjs-dl-input" name="orderNo" inputmode="numeric" autocomplete="off" placeholder="예) 202609281234567" required>
+        <p class="gjs-dl-desc">배송지에 적은 받는 분 이름과 전화번호를 넣어주세요. 네이버페이로 주문하셨어도 똑같이 조회됩니다.</p>
+        <label class="gjs-dl-label">받는 분 이름
+          <input class="gjs-dl-input" name="name" autocomplete="name" placeholder="예) 홍길동" required>
         </label>
-        <label class="gjs-dl-label">받는 분 전화번호 뒤 4자리
-          <input class="gjs-dl-input" name="phoneLast4" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="예) 5678" required>
+        <label class="gjs-dl-label">받는 분 전화번호
+          <input class="gjs-dl-input" name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="예) 010-1234-5678" required>
         </label>
         <button class="gjs-dl-btn" type="submit">조회하기</button>
         <p class="gjs-dl-msg" role="alert" hidden></p>
@@ -122,17 +128,17 @@
       event.preventDefault();
       message.hidden = true;
       result.innerHTML = '';
-      const orderNo = form.orderNo.value.replace(/\s+/g, '');
-      const phoneLast4 = form.phoneLast4.value.replace(/\D/g, '');
-      if(!orderNo) return showError('주문번호를 입력해주세요.');
-      if(phoneLast4.length !== 4) return showError('전화번호 뒤 4자리를 숫자로 입력해주세요.');
+      const name = form.elements.name.value.trim();
+      const phone = form.elements.phone.value.replace(/\D/g, '');
+      if(!name) return showError('받는 분 이름을 입력해주세요.');
+      if(phone.length < 10) return showError('전화번호를 010부터 모두 입력해주세요.');
       button.disabled = true;
       button.textContent = '조회 중…';
       try{
         const response = await fetch(api, {
           method:'POST',
           headers:{ 'Content-Type':'application/json' },
-          body:JSON.stringify({ orderNo, phoneLast4 })
+          body:JSON.stringify({ name, phone })
         });
         const data = await response.json().catch(() => ({}));
         if(!response.ok || !data.ok) {

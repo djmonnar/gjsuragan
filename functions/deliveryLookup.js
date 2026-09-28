@@ -1,11 +1,13 @@
 'use strict';
 
-// 손님이 아임웹 홈페이지에서 주문번호로 남은 배송 회차를 본다.
-// 로그인 없이 부르는 경로라 두 가지를 지킨다.
-//   1. 주문번호만으로는 안 보여준다. 받는 분 전화번호 뒤 4자리가 맞아야 한다.
-//      아임웹 주문번호는 날짜 + 일련번호라 짐작할 수 있다.
-//   2. 이름·주소·전화번호는 돌려주지 않는다. 상품과 회차만 보여준다.
-// 한 주문번호에 틀린 조회가 몰리면 잠시 막는다. 4자리는 만 번이면 다 넣어볼 수 있다.
+// 손님이 홈페이지(gjsuragan.co.kr)에서 받는 분 이름과 전화번호로 남은 배송 회차를 본다.
+// 주문번호로 찾지 않는 까닭: 네이버페이로 결제한 손님은 네이버가 매긴 번호만 알고,
+// 관리자가 손으로 등록한 주문에는 아임웹 주문번호가 없다.
+// 로그인 없이 부르는 경로라 이렇게 지킨다.
+//   1. 이름과 전화번호가 둘 다 맞아야 보여준다.
+//   2. 주소·전화번호는 돌려주지 않는다. 상품과 회차만 보여준다.
+//   3. 틀린 조회가 몰리면 잠시 막는다. 같은 번호로 몰리는 것과 같은 곳(IP)에서
+//      여러 번호를 넣어보는 것을 따로 센다.
 
 const crypto = require('crypto');
 const { PRODUCT_LABELS } = require('./imwebParser');
@@ -13,8 +15,11 @@ const { PRODUCT_LABELS } = require('./imwebParser');
 const CUSTOMERS = 'customers';
 const LIMITS = 'deliveryLookupLimits';
 const MAX_FAILS = 5;
+const MAX_FAILS_PER_IP = 20;
 const LOCK_WINDOW_MS = 30 * 60 * 1000;
-const NOT_FOUND_MESSAGE = '주문번호와 전화번호 뒤 4자리를 다시 확인해주세요.';
+const MAX_LINES = 10;
+const NOT_FOUND_MESSAGE = '받는 분 이름과 전화번호를 다시 확인해주세요.';
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function httpError(status, message) {
   const error = new Error(message);
@@ -22,22 +27,32 @@ function httpError(status, message) {
   return error;
 }
 
-// 아임웹 주문번호는 숫자뿐이지만, 직접 등록한 주문은 다른 모양일 수 있어 글자와 - 도 받는다.
-function normalizeOrderNo(value) {
-  return String(value || '').replace(/\s+/g, '');
+function normalizePhone(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (digits.startsWith('82')) return `0${digits.slice(2)}`;
+  return digits;
 }
 
-function isValidOrderNo(orderNo) {
-  return /^[A-Za-z0-9-]{4,40}$/.test(orderNo);
+function isValidPhone(digits) {
+  return /^01\d{8,9}$/.test(digits);
 }
 
-function phoneDigits(value) {
-  return String(value || '').replace(/\D/g, '');
+function normalizeName(value) {
+  return String(value || '').replace(/\s+/g, '').toLowerCase();
 }
 
-function phoneMatches(phone, last4) {
-  const digits = phoneDigits(phone);
-  return last4.length === 4 && digits.length >= 4 && digits.endsWith(last4);
+// 문서의 phone 은 '010-1234-5678' 이기도 하고 '01012345678' 이기도 하다.
+// 정규화한 값을 따로 들고 있지 않으니, 흔한 적는 법을 모두 만들어 in 으로 찾는다.
+function phoneVariants(digits) {
+  const splits = digits.length === 11
+    ? [[3, 4, 4]]
+    : [[3, 3, 4], [3, 4, 3]];
+  const variants = new Set([digits]);
+  splits.forEach(([a, b]) => {
+    const parts = [digits.slice(0, a), digits.slice(a, a + b), digits.slice(a + b)];
+    ['-', ' ', '.'].forEach(sep => variants.add(parts.join(sep)));
+  });
+  return [...variants];
 }
 
 // 관리자가 손으로 고친 문서에는 숫자가 문자열이거나 비어 있을 수 있다.
@@ -45,6 +60,11 @@ function phoneMatches(phone, last4) {
 function toCount(value) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
+}
+
+function dateOrEmpty(value) {
+  const text = String(value || '');
+  return DATE.test(text) ? text : '';
 }
 
 function lineStatus(record, remain) {
@@ -56,34 +76,44 @@ function lineStatus(record, remain) {
 function summarizeLine(record) {
   const data = record || {};
   const remain = toCount(data.remain);
-  // 남은 횟수가 전체보다 크게 고쳐진 문서가 있어도 '배송 완료'가 음수가 되지 않게 한다.
+  // 남은 횟수가 전체보다 크게 고쳐진 문서가 있어도 '받으신 배송'이 음수가 되지 않게 한다.
   const total = Math.max(toCount(data.total), remain);
   const deliveredDates = (Array.isArray(data.deliveredDates) ? data.deliveredDates : [])
     .map(String)
-    .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date))
+    .filter(date => DATE.test(date))
     .sort();
   return {
     product: PRODUCT_LABELS[data.set] || String(data.set || ''),
     scheduleName: String(data.scheduleName || ''),
     orderType: data.orderType === 'once' ? 'once' : 'sub',
+    orderDate: dateOrEmpty(data.orderDate),
     total,
     remain,
     used: total - remain,
     lastDeliveredDate: deliveredDates[deliveredDates.length - 1] || '',
-    startDate: /^\d{4}-\d{2}-\d{2}$/.test(String(data.startDate || '')) ? String(data.startDate) : '',
+    startDate: dateOrEmpty(data.startDate),
     status: lineStatus(data, remain)
   };
 }
 
-function limitDocId(orderNo) {
-  return crypto.createHash('sha256').update(orderNo).digest('hex').slice(0, 40);
+// 진행 중인 주문을 먼저, 그 안에서는 최근 주문을 먼저 보여준다.
+// 오래 받은 손님은 끝난 주문이 수십 건이라 최근 것만 자른다.
+function sortLines(lines) {
+  const rank = { active: 0, pause: 1, done: 2 };
+  const recent = line => line.orderDate || line.startDate || line.lastDeliveredDate;
+  return [...lines].sort((a, b) =>
+    (rank[a.status] - rank[b.status]) || recent(b).localeCompare(recent(a)));
 }
 
-function isLocked(limit, nowMs) {
+function limitDocId(kind, key) {
+  return `${kind}_${crypto.createHash('sha256').update(key).digest('hex').slice(0, 40)}`;
+}
+
+function isLocked(limit, nowMs, maxFails = MAX_FAILS) {
   if (!limit) return false;
   const fails = Number(limit.fails) || 0;
   const since = Number(limit.windowStartMs) || 0;
-  return fails >= MAX_FAILS && nowMs - since < LOCK_WINDOW_MS;
+  return fails >= maxFails && nowMs - since < LOCK_WINDOW_MS;
 }
 
 function nextLimit(limit, nowMs) {
@@ -92,47 +122,59 @@ function nextLimit(limit, nowMs) {
   return { fails: (Number(limit.fails) || 0) + 1, windowStartMs: since };
 }
 
-async function lookupDelivery(db, body, now = new Date()) {
-  const orderNo = normalizeOrderNo(body?.orderNo);
-  const last4 = phoneDigits(body?.phoneLast4);
-  if (!isValidOrderNo(orderNo)) throw httpError(400, '주문번호를 확인해주세요.');
-  if (last4.length !== 4) throw httpError(400, '전화번호 뒤 4자리를 숫자로 입력해주세요.');
+async function readLimit(ref) {
+  const snap = await ref.get();
+  return snap.exists ? snap.data() : null;
+}
+
+async function lookupDelivery(db, body, options = {}) {
+  const now = options.now || new Date();
+  const name = normalizeName(body?.name);
+  const phone = normalizePhone(body?.phone);
+  if (!name) throw httpError(400, '받는 분 이름을 입력해주세요.');
+  if (!isValidPhone(phone)) throw httpError(400, '전화번호를 010으로 시작하는 숫자로 입력해주세요.');
 
   const nowMs = now.getTime();
-  const limitRef = db.collection(LIMITS).doc(limitDocId(orderNo));
-  const limitSnap = await limitRef.get();
-  const limit = limitSnap.exists ? limitSnap.data() : null;
-  if (isLocked(limit, nowMs)) {
+  const limits = db.collection(LIMITS);
+  const phoneRef = limits.doc(limitDocId('phone', phone));
+  const ip = String(options.ip || '').trim();
+  const ipRef = ip ? limits.doc(limitDocId('ip', ip)) : null;
+  const phoneLimit = await readLimit(phoneRef);
+  const ipLimit = ipRef ? await readLimit(ipRef) : null;
+  if (isLocked(phoneLimit, nowMs) || isLocked(ipLimit, nowMs, MAX_FAILS_PER_IP)) {
     throw httpError(429, '조회를 여러 번 틀려 잠시 막아두었습니다. 30분 뒤에 다시 시도해주세요.');
   }
 
-  const snap = await db.collection(CUSTOMERS).where('orderNum', '==', orderNo).limit(20).get();
+  const snap = await db.collection(CUSTOMERS).where('phone', 'in', phoneVariants(phone)).limit(100).get();
   const matches = snap.docs
     .map(doc => doc.data() || {})
-    .filter(record => phoneMatches(record.phone, last4));
+    .filter(record => normalizeName(record.name) === name);
 
   if (!matches.length) {
-    // 주문이 없을 때와 번호가 틀렸을 때 같은 답을 준다. 어느 주문번호가 있는지 알려주지 않는다.
-    await limitRef.set(nextLimit(limit, nowMs));
+    // 번호가 없을 때와 이름이 틀렸을 때 같은 답을 준다. 어느 번호가 손님인지 알려주지 않는다.
+    await phoneRef.set(nextLimit(phoneLimit, nowMs));
+    if (ipRef) await ipRef.set(nextLimit(ipLimit, nowMs));
     throw httpError(404, NOT_FOUND_MESSAGE);
   }
 
-  const lines = matches
-    .map(summarizeLine)
-    .sort((a, b) => a.startDate.localeCompare(b.startDate));
-  return { orderNo, lines };
+  const lines = sortLines(matches.map(summarizeLine));
+  return { lines: lines.slice(0, MAX_LINES), hiddenCount: Math.max(0, lines.length - MAX_LINES) };
 }
 
 module.exports = {
   LIMITS,
   LOCK_WINDOW_MS,
   MAX_FAILS,
+  MAX_FAILS_PER_IP,
+  MAX_LINES,
   NOT_FOUND_MESSAGE,
   isLocked,
   lookupDelivery,
   nextLimit,
-  normalizeOrderNo,
-  phoneMatches,
+  normalizeName,
+  normalizePhone,
+  phoneVariants,
+  sortLines,
   summarizeLine,
   toCount
 };

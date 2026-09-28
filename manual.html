@@ -633,18 +633,19 @@ tr:hover td { background: #f8fafb; }
 
       <div class="card" id="delivery-lookup">
         <div class="card-title"><span class="icon">🔎</span> 손님이 홈페이지에서 남은 회차 보기</div>
-        <p>아임웹 홈페이지의 <strong>남은 배송 회차 조회</strong> 창에서 손님이 <strong>주문번호</strong>와 <strong>받는 분 전화번호 뒤 4자리</strong>를 넣으면 그 주문의 상품별로 아래 값이 보입니다.</p>
+        <p>홈페이지(gjsuragan.co.kr)의 <strong>남은 배송 회차 조회</strong> 창에서 손님이 <strong>받는 분 이름</strong>과 <strong>받는 분 전화번호</strong>를 넣으면, 그 이름·번호로 등록된 주문이 상품별로 보입니다. 아임웹 주문, 네이버페이 주문, 직접 등록한 주문 모두 같은 방법으로 찾습니다.</p>
         <ul>
-          <li><strong>남은 배송 / 전체</strong> — 고객 관리의 잔여 게이지와 같은 값입니다. 받으신 배송 = 전체 − 남은 배송.</li>
-          <li><strong>최근 배송</strong> — 배송완료로 처리한 마지막 날짜. 아직 없으면 첫 배송 예정일.</li>
-          <li><strong>상태</strong> — 남은 횟수가 0이면 <em>배송 완료</em>, 일시정지·확인 필요 주문은 <em>일시정지 · 일정 확인 중</em>, 나머지는 <em>배송 진행 중</em>.</li>
+          <li><strong>남은 배송 / 전체</strong>: 고객 관리의 잔여 게이지와 같은 값입니다. 받으신 배송 = 전체 − 남은 배송.</li>
+          <li><strong>주문일</strong>, <strong>최근 배송</strong>: 최근 배송은 배송완료로 처리한 마지막 날짜입니다. 아직 없으면 첫 배송 예정일이 나옵니다.</li>
+          <li><strong>상태</strong>: 남은 횟수가 0이면 <em>배송 완료</em>, 일시정지·확인 필요 주문은 <em>일시정지 · 일정 확인 중</em>, 나머지는 <em>배송 진행 중</em>입니다.</li>
+          <li>진행 중인 주문이 먼저, 그 안에서는 최근 주문이 먼저 나옵니다. 최대 <strong>10건</strong>까지만 보이고 나머지는 건수만 알려줍니다.</li>
         </ul>
-        <p>이름·주소·전화번호는 손님 화면에 나오지 않습니다. 한 주문번호로 <strong>5번</strong> 틀리게 조회하면 <strong>30분</strong> 동안 그 주문번호 조회를 막습니다.</p>
+        <p>주소·전화번호·주문번호는 손님 화면에 나오지 않습니다. 한 전화번호로 <strong>5번</strong> 틀리게 조회하면 <strong>30분</strong> 동안 그 번호 조회를 막습니다.</p>
       </div>
 
       <div class="tip-box warn">
         <span class="tip-icon">⚠️</span>
-        <div>손님은 <strong>배송완료 처리한 만큼만</strong> 줄어든 횟수를 봅니다. 완료 처리를 미루면 손님 화면의 남은 횟수도 그만큼 늦게 줄어요. 고객 정보에서 <strong>주문번호나 연락처를 지우거나 바꾸면</strong> 손님이 그 주문을 조회할 수 없습니다.</div>
+        <div>고객 정보의 <strong>이름·연락처가 배송지의 받는 분과 같아야</strong> 조회됩니다. 이름에 "(선물)" 같은 메모를 붙이거나 연락처를 지우면 손님이 찾을 수 없어요. 띄어쓰기와 하이픈(-)은 달라도 괜찮습니다. 손님은 <strong>배송완료 처리한 만큼만</strong> 줄어든 횟수를 봅니다.</div>
       </div>
     </section>
 

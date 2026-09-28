@@ -288,8 +288,10 @@ exports.api = onRequest({
       return;
     }
     if (pathname === '/api/delivery/lookup' || pathname === '/delivery/lookup') {
-      // 아임웹 홈페이지에 넣은 조회창이 부른다. 손님은 로그인하지 않는다.
-      const result = await deliveryLookup.lookupDelivery(db, req.body || {});
+      // 홈페이지(gjsuragan.co.kr)에 넣은 조회창이 부른다. 손님은 로그인하지 않는다.
+      // 맨 앞 값은 손님 브라우저가 마음대로 적어 보낼 수 있다. 구글이 뒤에 붙인 맨 끝 값을 쓴다.
+      const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').pop().trim();
+      const result = await deliveryLookup.lookupDelivery(db, req.body || {}, { ip: forwarded || req.ip || '' });
       sendJson(res, 200, { ok: true, ...result });
       return;
     }

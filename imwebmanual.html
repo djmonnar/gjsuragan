@@ -623,13 +623,14 @@
             </div>
             <article class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                 <p class="text-slate-700 leading-relaxed mb-4">
-                    손님이 <strong>주문번호</strong>와 <strong>받는 분 전화번호 뒤 4자리</strong>로 남은 배송 횟수를 직접 확인하는 창입니다.
+                    손님이 홈페이지(gjsuragan.co.kr)에서 <strong>받는 분 이름</strong>과 <strong>받는 분 전화번호</strong>로 남은 배송 횟수를 직접 확인하는 창입니다.
+                    네이버페이로 결제한 손님도 같은 방법으로 조회됩니다.
                     매주 하는 일이 아니라 <strong>한 번만 넣어두면</strong> 됩니다. 조회창 모양을 고쳐도 아임웹은 다시 건드릴 필요가 없습니다.
                 </p>
                 <ol class="list-decimal pl-5 space-y-2 text-slate-700 mb-4">
                     <li>아임웹 <strong>디자인 모드</strong>에서 조회창을 둘 페이지를 엽니다. (예: 새 페이지 '배송 조회'를 만들어 메뉴에 연결)</li>
                     <li><strong>위젯 추가 → 코드</strong> 위젯을 넣고, 아래 두 줄을 그대로 붙여넣습니다.</li>
-                    <li><strong>저장 → 사이트에 적용</strong>을 누른 뒤, 실제 홈페이지에서 아는 주문번호로 한 번 조회해 봅니다.</li>
+                    <li><strong>저장 → 사이트에 적용</strong>을 누른 뒤, 실제 홈페이지에서 아는 손님 이름·전화번호로 한 번 조회해 봅니다.</li>
                 </ol>
                 <div class="relative">
                     <pre id="delivery-lookup-snippet" class="bg-slate-900 text-slate-100 text-sm rounded-lg p-4 overflow-x-auto">&lt;div data-gjs-delivery-lookup&gt;&lt;/div&gt;
@@ -637,8 +638,9 @@
                     <button type="button" id="delivery-lookup-copy" class="absolute top-2 right-2 bg-white/90 text-slate-800 text-xs font-bold px-3 py-1 rounded">복사</button>
                 </div>
                 <ul class="list-disc pl-5 space-y-1 text-sm text-slate-600 mt-4">
-                    <li>손님 화면에는 상품, 남은 배송 / 전체 횟수, 받으신 횟수, 최근 배송일(없으면 첫 배송 예정일), 상태만 나옵니다. 이름·주소·전화번호는 나오지 않습니다.</li>
-                    <li>한 주문번호로 <strong>5번</strong> 틀리면 <strong>30분</strong> 동안 그 주문번호 조회가 막힙니다.</li>
+                    <li>손님 화면에는 상품, 주문일, 남은 배송 / 전체 횟수, 받으신 횟수, 최근 배송일(없으면 첫 배송 예정일), 상태만 나옵니다. 주소·전화번호·주문번호는 나오지 않습니다.</li>
+                    <li>진행 중인 주문부터 최대 <strong>10건</strong>까지 보여줍니다.</li>
+                    <li>한 전화번호로 <strong>5번</strong> 틀리면 <strong>30분</strong> 동안 그 번호 조회가 막힙니다.</li>
                     <li>남은 횟수는 관리자 화면에서 <strong>배송완료 처리한 만큼</strong> 줄어듭니다.</li>
                 </ul>
                 <div class="mt-6">
@@ -661,7 +663,7 @@
         </div>
     </div>
 
-    <script src="./assets/js/delivery-lookup-widget.js?v=20260928-lookup"></script>
+    <script src="./assets/js/delivery-lookup-widget.js?v=20260928-namephone"></script>
     <script>
         document.getElementById('delivery-lookup-copy').addEventListener('click', async (e) => {
             const text = document.getElementById('delivery-lookup-snippet').textContent;
