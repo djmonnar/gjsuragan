@@ -616,6 +616,38 @@
             </p>
         </div>
 
+        <!-- 부록: 홈페이지 배송 회차 조회창 (한 번만 설치, 체크리스트 아님) -->
+        <div class="mb-12" id="delivery-lookup">
+            <div class="flex items-center gap-3 mb-6">
+                <h2 class="text-2xl font-bold text-slate-800">부록. 홈페이지에 '남은 배송 회차 조회' 넣기</h2>
+            </div>
+            <article class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <p class="text-slate-700 leading-relaxed mb-4">
+                    손님이 <strong>주문번호</strong>와 <strong>받는 분 전화번호 뒤 4자리</strong>로 남은 배송 횟수를 직접 확인하는 창입니다.
+                    매주 하는 일이 아니라 <strong>한 번만 넣어두면</strong> 됩니다. 조회창 모양을 고쳐도 아임웹은 다시 건드릴 필요가 없습니다.
+                </p>
+                <ol class="list-decimal pl-5 space-y-2 text-slate-700 mb-4">
+                    <li>아임웹 <strong>디자인 모드</strong>에서 조회창을 둘 페이지를 엽니다. (예: 새 페이지 '배송 조회'를 만들어 메뉴에 연결)</li>
+                    <li><strong>위젯 추가 → 코드</strong> 위젯을 넣고, 아래 두 줄을 그대로 붙여넣습니다.</li>
+                    <li><strong>저장 → 사이트에 적용</strong>을 누른 뒤, 실제 홈페이지에서 아는 주문번호로 한 번 조회해 봅니다.</li>
+                </ol>
+                <div class="relative">
+                    <pre id="delivery-lookup-snippet" class="bg-slate-900 text-slate-100 text-sm rounded-lg p-4 overflow-x-auto">&lt;div data-gjs-delivery-lookup&gt;&lt;/div&gt;
+&lt;script src="https://djmonnar.github.io/gjsuragan/assets/js/delivery-lookup-widget.js"&gt;&lt;/script&gt;</pre>
+                    <button type="button" id="delivery-lookup-copy" class="absolute top-2 right-2 bg-white/90 text-slate-800 text-xs font-bold px-3 py-1 rounded">복사</button>
+                </div>
+                <ul class="list-disc pl-5 space-y-1 text-sm text-slate-600 mt-4">
+                    <li>손님 화면에는 상품, 남은 배송 / 전체 횟수, 받으신 횟수, 최근 배송일(없으면 첫 배송 예정일), 상태만 나옵니다. 이름·주소·전화번호는 나오지 않습니다.</li>
+                    <li>한 주문번호로 <strong>5번</strong> 틀리면 <strong>30분</strong> 동안 그 주문번호 조회가 막힙니다.</li>
+                    <li>남은 횟수는 관리자 화면에서 <strong>배송완료 처리한 만큼</strong> 줄어듭니다.</li>
+                </ul>
+                <div class="mt-6">
+                    <div class="text-sm font-bold text-slate-700 mb-2">미리보기 (실제 주문으로 조회됩니다)</div>
+                    <div data-gjs-delivery-lookup></div>
+                </div>
+            </article>
+        </div>
+
     </main>
 
     <!-- Floating Progress Indicator -->
@@ -629,6 +661,18 @@
         </div>
     </div>
 
+    <script src="./assets/js/delivery-lookup-widget.js?v=20260928-lookup"></script>
+    <script>
+        document.getElementById('delivery-lookup-copy').addEventListener('click', async (e) => {
+            const text = document.getElementById('delivery-lookup-snippet').textContent;
+            try {
+                await navigator.clipboard.writeText(text);
+                e.target.textContent = '복사됨';
+            } catch (error) {
+                e.target.textContent = '직접 선택해 복사해주세요';
+            }
+        });
+    </script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const checkboxes = document.querySelectorAll('.step-checkbox');

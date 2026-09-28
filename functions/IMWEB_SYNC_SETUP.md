@@ -295,3 +295,31 @@ await imwebSync.syncImwebOrders({ db, onlyOrderNos: ['202608240989736'] });
 전환이 안정된 뒤에 앱스스크립트 프로젝트의 스크립트 속성에서 Firebase 서비스 계정 키
 (`FIREBASE_PRIVATE_KEY` 등)를 지운다. 안 쓰는 비공개 키를 남겨둘 이유가 없다.
 `appscript/Code.gs` 는 되돌릴 길을 남겨두기 위해 당분간 레포에 그대로 둔다.
+
+## 홈페이지 배송 회차 조회창
+
+손님이 아임웹 홈페이지에서 **주문번호 + 받는 분 전화번호 뒤 4자리**로 남은 배송 횟수를 본다.
+동기화가 만든 `customers` 문서의 `orderNum` 으로 찾으므로, 아임웹 주문번호가 그대로 열쇠가 된다.
+
+| 파일 | 역할 |
+| --- | --- |
+| `assets/js/delivery-lookup-widget.js` | 아임웹에 넣는 조회창. GitHub Pages 에서 싣는다 |
+| `functions/deliveryLookup.js` | 조회 본체. `api` 함수의 `/api/delivery/lookup` 경로 |
+| `functions/test/unit/delivery-lookup.test.js` | 조회·잠금·요약 테스트 |
+
+아임웹 **디자인 모드 → 위젯 추가 → 코드** 에 아래 두 줄을 넣는다. 설치 순서와 복사 버튼은
+`imwebmanual.html` 맨 아래 부록에 있다.
+
+```html
+<div data-gjs-delivery-lookup></div>
+<script src="https://djmonnar.github.io/gjsuragan/assets/js/delivery-lookup-widget.js"></script>
+```
+
+- 로그인 없이 부르는 경로다. 전화번호 뒤 4자리가 `phone` 끝과 맞는 문서만 돌려준다.
+  주문이 없을 때와 번호가 틀렸을 때 같은 답(404)을 준다.
+- 돌려주는 값은 상품, 일정 이름, 전체·남은 횟수, 마지막 배송일, 첫 배송일, 상태뿐이다.
+  이름·주소·전화번호는 내보내지 않는다.
+- 한 주문번호로 5번 틀리면 30분 동안 막는다 (429). 틀린 횟수는 `deliveryLookupLimits`
+  컬렉션에 주문번호 해시로 적는다. 규칙에 없는 컬렉션이라 함수만 읽고 쓴다.
+- 조회창 파일을 고치면 머지만으로 반영된다. 서버 쪽(`deliveryLookup.js`)을 고치면
+  Deploy Functions → `functions:api` 를 누른다.
