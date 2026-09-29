@@ -74,19 +74,28 @@
     : Math.round(employee.monthlySalary / (employee.monthlyWorkHours > 0 ? employee.monthlyWorkHours : DEFAULT_WORK_HOURS));
   const dailyDeduction = employee => employee?.payType !== 'salaried' || !(employee.monthlySalary > 0) ? 0
     : Math.round(employee.monthlySalary / (employee.monthlyWorkDays > 0 ? employee.monthlyWorkDays : DEFAULT_WORK_DAYS));
+  // 근무 하나에 적어둔 차감액. 서버가 다듬어 보내지만, 값이 빠진 기록이 와도 NaN 이 되면 안 된다.
+  const shiftDeduction = shift => {
+    const value = Math.floor(Number(shift?.deductionAmount));
+    return Number.isSafeInteger(value) && value > 0 ? value : 0;
+  };
+  // 빠진 시간으로 차감액 내기. attendanceModel.deductionForMinutes 와 같은 식이다.
+  const deductionForMinutes = (minutes, rate) => Math.round(Math.max(0, Math.floor(Number(rate) || 0)) * Math.max(0, Math.floor(Number(minutes) || 0)) / 60);
   // 3.3% 를 떼기 전 금액.
   function grossAmount(row) {
+    // 조퇴 등으로 관리자가 근무마다 적어둔 차감. 급여 유형과 상관없이 뺀다.
+    const cut = Number(row.shiftDeduction) || 0;
     // 일일근무자는 기록 하나가 한 사람이다. 일당에 초과 급여가 이미 더해져 있다.
-    if (row.salaryType === 'daily') return Number(row.amount) || 0;
+    if (row.salaryType === 'daily') return Math.max(0, (Number(row.amount) || 0) - cut);
     // 한 달 안에서 급여 유형이 바뀌었으면 금액을 자동으로 낼 수 없다.
     if (row.type !== payTypeLabel(row.salaryType)) return null;
     // 시급 직원은 특수일 배율이, 일당 직원은 반타임·초과 급여가 amount 에 이미 들어 있다.
-    if (row.salaryType !== 'salaried') return Number(row.amount) || 0;
+    if (row.salaryType !== 'salaried') return Math.max(0, (Number(row.amount) || 0) - cut);
     if (!(Number.isSafeInteger(row.monthlySalary) && row.monthlySalary > 0)) return null;
-    // 월급은 소정근로만 덮는다. 특수일 근무는 더하고, 결근은 뺀다.
+    // 월급은 소정근로만 덮는다. 특수일 근무는 더하고, 결근과 근무 차감은 뺀다.
     // 값이 빠진 행이 와도 NaN 을 내보내지 않는다. 관리자가 복사해서 그대로 이체하는 금액이다.
     const extra = Number(row.extraAmount) || 0, deduction = Number(row.deduction) || 0;
-    return Math.max(0, row.monthlySalary + extra - deduction);
+    return Math.max(0, row.monthlySalary + extra - deduction - cut);
   }
   // 실제로 건네줄 금액. 체크해둔 사람은 3.3% 를 떼고 준다.
   function transferAmount(row) {
@@ -188,7 +197,7 @@
       ['재직 직원', `${active.length}명`, '출퇴근 화면에 표시되는 직원'],
       ['현재 근무 중', `${opens.length}명`, '퇴근하지 않은 전체 근무'],
       ['이번 조회 월 유급 근무', U.duration(list.reduce((sum, s) => sum + s.payableMinutes, 0)), '퇴근 완료 · 무급 휴게 제외'],
-      ['시급 직원 급여 합계', U.money(list.filter(s => s.payType === 'hourly').reduce((sum, s) => sum + s.amount, 0)), `${month.replace('-', '년 ')}월 · 퇴근 완료 · 특수일 배율 포함`]
+      ['시급 직원 급여 합계', U.money(list.filter(s => s.payType === 'hourly').reduce((sum, s) => sum + s.amount - (s.checkOutAt === null ? 0 : shiftDeduction(s)), 0)), `${month.replace('-', '년 ')}월 · 퇴근 완료 · 특수일 배율·근무 차감 포함`]
     ].map(([label, value, detail]) => `<div class="att-stat"><div class="att-stat-label">${label}</div><div class="att-stat-value">${value}</div><small>${detail}</small></div>`).join('');
     const stale = opens.filter(s => data.serverNow - s.checkInAt > 18 * 3600000);
     $('att-open-notice').innerHTML = stale.length ? `<div class="att-notice">퇴근 확인이 필요한 기록 ${stale.length}건 · ${stale.map(s => `<button class="att-link-button" data-action="edit-shift" data-id="${U.esc(s.id)}">${U.esc(person(s.employeeId)?.name || s.employeeName)} (${s.workDate.slice(5)} ${U.time(s.checkInAt)})</button>`).join(' ')} · 미퇴근 기록은 급여 합계에서 제외됩니다.</div>` : '';
@@ -228,7 +237,7 @@
       : s.payType === 'hourly'
       ? `${U.money(s.hourlyRate)}/시간 · ${U.money(s.amount)}${s.extraAmount ? ` <strong>(${multiplierText(s.multiplierPercent)} · 가산 ${U.money(s.extraAmount)})</strong>` : ''}${s.earlyMinutes ? ` · 일찍 출근 ${s.earlyMinutes}분 제외` : ''}`
       : s.extraAmount ? `월급 직원 · 특수일 가산 <strong>${U.money(s.extraAmount)}</strong> (${multiplierText(s.multiplierPercent)})`
-      : scopeApplies(special, 'salaried') ? '월급 직원 · 통상시급 미설정이라 가산 없음' : '월급 직원 · 근태 기록'}</span><button class="att-link-button" data-action="edit-shift" data-id="${U.esc(s.id)}">수정</button></div>${s.note ? `<div class="att-meta">${U.esc(s.note)}</div>` : ''}</article>`).join('') : '<div class="att-empty">이 날짜의 근무 기록이 없습니다.</div>'}</div></section></div><p class="att-note">날짜를 넘어 퇴근한 근무도 출근일에 표시됩니다. 빠뜨린 기록은 ‘기록 추가’, 잘못 찍은 시간과 휴게시간은 ‘수정’에서 보정하세요.<br>특수일 배율은 지금 설정을 기준으로 다시 계산합니다. 명절을 뒤늦게 등록해도 지난 기록에 바로 반영됩니다. 결근은 표시한 날만 공제하며, 출근 기록이 없다고 자동으로 결근이 되지는 않습니다.</p>`;
+      : scopeApplies(special, 'salaried') ? '월급 직원 · 통상시급 미설정이라 가산 없음' : '월급 직원 · 근태 기록'}</span><button class="att-link-button" data-action="edit-shift" data-id="${U.esc(s.id)}">수정</button></div>${shiftDeduction(s) ? `<div class="att-meta att-deduction-line">차감 <strong>− ${U.money(shiftDeduction(s))}</strong>${s.deductionReason ? ` · ${U.esc(s.deductionReason)}` : ''}</div>` : ''}${s.note ? `<div class="att-meta">${U.esc(s.note)}</div>` : ''}</article>`).join('') : '<div class="att-empty">이 날짜의 근무 기록이 없습니다.</div>'}</div></section></div><p class="att-note">날짜를 넘어 퇴근한 근무도 출근일에 표시됩니다. 빠뜨린 기록은 ‘기록 추가’, 잘못 찍은 시간과 휴게시간은 ‘수정’에서 보정하세요.<br>특수일 배율은 지금 설정을 기준으로 다시 계산합니다. 명절을 뒤늦게 등록해도 지난 기록에 바로 반영됩니다. 결근은 표시한 날만 공제하며, 출근 기록이 없다고 자동으로 결근이 되지는 않습니다.</p>`;
   }
   function renderEmployees() {
     const list = people().filter(inFloor).filter(e => !e.deletedAt && (!employeeId || e.id === employeeId));
@@ -262,6 +271,8 @@
         dayPortion: shift.dayPortion || 'full',
         overtimeAmount: shift.extraAmount || 0, overtimeUnits: shift.overtimeUnits || 0,
         overtimeUnitMinutes: shift.overtimeUnitMinutes || 0, dailyPay: shift.baseAmount || 0,
+        shiftDeduction: shiftDeduction(shift), shiftDeductionCount: shiftDeduction(shift) ? 1 : 0,
+        deductionReason: shift.deductionReason || '',
         withholding: Boolean(shift.withholding)
       }));
   }
@@ -289,6 +300,9 @@
         partShiftAmounts: completed.filter(s => s.payType === 'perDiem' && s.dayPortion === 'part').map(s => s.baseAmount || 0),
         specialDays: new Set(completed.filter(s => s.extraAmount).map(s => s.workDate)).size,
         absenceDays: offDays.length, deduction: dailyDeduction(employee) * offDays.length,
+        // 조퇴 등으로 근무마다 적어둔 차감. 금액처럼 퇴근 완료된 기록만 센다.
+        shiftDeduction: completed.reduce((sum, s) => sum + shiftDeduction(s), 0),
+        shiftDeductionCount: completed.filter(s => shiftDeduction(s) > 0).length,
         ordinaryRate: ordinaryRate(employee), withholding: Boolean(employee?.withholding) };
     }).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   }
@@ -308,15 +322,18 @@
       lines.push(['약정 월급', U.money(row.monthlySalary)]);
       if (row.extraAmount) lines.push([`특수일 가산 (${row.specialDays}일 · 통상시급 ${U.money(row.ordinaryRate)})`, `+ ${U.money(row.extraAmount)}`]);
       if (row.deduction) lines.push([`결근 공제 (${row.absenceDays}일)`, `− ${U.money(row.deduction)}`]);
+      if (row.shiftDeduction) lines.push([`근무 차감 (${row.shiftDeductionCount}건)`, `− ${U.money(row.shiftDeduction)}`]);
     } else if (row.salaryType === 'perDiem') {
       if (row.fullDays) lines.push([`풀타임 ${row.fullDays}일`, U.money(row.baseAmount - halfDayTotal(row) - partDayTotal(row))]);
       if (row.halfDays) lines.push([`반타임 ${row.halfDays}일`, U.money(halfDayTotal(row))]);
       if (row.partDays) lines.push([`일찍 퇴근 ${row.partDays}일 · 일한 만큼`, U.money(partDayTotal(row))]);
       if (row.extraAmount) lines.push(['초과 근무 추가 급여', `+ ${U.money(row.extraAmount)}`]);
+      if (row.shiftDeduction) lines.push([`근무 차감 (${row.shiftDeductionCount}건)`, `− ${U.money(row.shiftDeduction)}`]);
       if (row.absenceDays) lines.push([`결근 표시 ${row.absenceDays}일`, '일당은 공제 없음']);
     } else if (row.salaryType === 'hourly') {
       lines.push(['기본급', U.money(row.baseAmount)]);
       if (row.extraAmount) lines.push([`특수일 가산 (${row.specialDays}일)`, `+ ${U.money(row.extraAmount)}`]);
+      if (row.shiftDeduction) lines.push([`근무 차감 (${row.shiftDeductionCount}건)`, `− ${U.money(row.shiftDeduction)}`]);
       if (row.absenceDays) lines.push([`결근 표시 ${row.absenceDays}일`, '시급은 공제 없음']);
     }
     const gross = grossAmount(row);
@@ -336,7 +353,8 @@
       // 회수보다 '몇 분을 넘겼는지' 가 읽기 쉽고, 정액·시급이 섞여도 말이 맞는다.
       lines.push([`추가 급여 (기준 초과 ${(row.overtimeUnitMinutes || 30) * row.overtimeUnits}분)`, `+ ${U.money(row.overtimeAmount)}`]);
     }
-    if (row.withholding) lines.push(['원천징수 3.3%', `− ${U.money(withholdingTax(row.amount))}`]);
+    if (row.shiftDeduction) lines.push([`차감${row.deductionReason ? ` (${U.esc(row.deductionReason)})` : ''}`, `− ${U.money(row.shiftDeduction)}`]);
+    if (row.withholding) lines.push(['원천징수 3.3%', `− ${U.money(withholdingTax(grossAmount(row)))}`]);
     if (lines.length < 2) return '';
     return `<div class="att-payout-lines">${lines.map(([label, value]) => `<div class="att-row"><span class="att-meta">${label}</span><span>${value}</span></div>`).join('')}</div>`;
   }
@@ -364,8 +382,8 @@
       const employee = person(row.id), payout = transferAmount(row);
       return `<article class="att-payroll-card"><div class="att-payroll-person"><div class="att-row"><button class="att-staff-name" data-action="employee-calendar" data-id="${U.esc(row.id)}">${U.esc(row.name)}${row.deleted ? ' (삭제)' : ''}</button><span class="att-pill">${row.type}</span></div><p class="att-meta">${floor === 'all' ? '전체 매장' : U.storeName(floor)} · ${month.replace('-', '년 ')}월</p><div class="att-payroll-metrics"><div><span>출근 / 근무</span><strong>${row.days}일 / ${row.count}건</strong></div><div><span>유급 근무</span><strong>${U.duration(row.minutes)}</strong></div><div><span>무급 휴게</span><strong>${row.breaks}분</strong></div><div><span>미퇴근</span><strong class="${row.open ? 'att-amber-text' : ''}">${row.open}건</strong></div></div></div>
         <div class="att-payroll-transfer"><div class="att-account-line"><div><span class="att-meta">${U.esc(employee?.privateSummary?.accountHolder || row.name)} · 급여 계좌</span><p>${U.esc(bankLabel(employee))}</p></div><button class="att-copy-button" data-action="copy-bank" data-id="${U.esc(row.id)}" ${employee?.privateSummary?.bankLast4 && !row.deleted ? '' : 'disabled'} aria-label="${U.esc(row.name)} 계좌번호 복사">계좌 복사</button></div>
-        <div class="att-payout"><div><span class="att-meta">${row.salaryType === 'salaried' ? '월급 · 특수일 가산 · 결근 공제 반영' : row.salaryType === 'perDiem' ? '일당 합계 (반타임 · 비례 · 추가 급여 반영)' : '시급 근무 급여 (배율 포함)'}</span><strong>${payout === null ? (row.type.includes('/') || row.type !== payTypeLabel(row.salaryType) ? '급여 유형 확인 필요' : '월급 미설정') : U.money(payout)}</strong></div><button class="att-copy-button att-copy-primary" data-action="copy-amount" data-id="${U.esc(row.id)}" ${payout === null ? 'disabled' : ''} aria-label="${U.esc(row.name)} 입금 기준액 복사">금액 복사</button></div>${payrollBreakdown(row)}${row.type.includes('/') ? `<p class="att-meta">시급 근무 급여 ${U.money(row.amount)} · 월급과 별도로 확인해 주세요.</p>` : ''}</div></article>`;
-    }).join('') : '<div class="att-empty">등록된 직원과 근무 기록이 없습니다.</div>'}</div><div class="att-payroll-total"><span>시급 직원 기본급 합계</span><strong>${U.money(amount)}</strong></div></section>${dailyPayrollHtml(dailyRows)}<p class="att-note">복사되는 금액은 원 단위 숫자입니다. 시급 직원은 조회 월·매장의 퇴근 완료 급여(특수일 배율 포함), 월급 직원은 약정 월급에 특수일 가산을 더하고 결근 공제를 뺀 금액입니다. 미퇴근 기록과 주휴·연장·야간수당, 4대보험 공제는 포함하지 않습니다. <b>3.3% 원천징수는 체크한 사람만</b> 빼고 보여줍니다.<br>월급 직원의 특수일 가산은 <b>근무시간 × 통상시급 × 배율</b>입니다. 통상시급은 <b>월급 ÷ 월 소정근로시간</b>, 결근 하루치는 <b>월급 ÷ 월 소정근로일수</b>로 내며 두 값은 직원 정보에서 바꿀 수 있습니다.<br>약정 월급은 직원 정보의 최신 설정이며 조회 월의 확정 지급액은 아닙니다. 급여 유형이 바뀐 달은 금액을 직접 확인해 주세요.</p>`;
+        <div class="att-payout"><div><span class="att-meta">${row.salaryType === 'salaried' ? '월급 · 특수일 가산 · 결근 공제 · 근무 차감 반영' : row.salaryType === 'perDiem' ? '일당 합계 (반타임 · 비례 · 추가 급여 · 근무 차감 반영)' : '시급 근무 급여 (배율 · 근무 차감 포함)'}</span><strong>${payout === null ? (row.type.includes('/') || row.type !== payTypeLabel(row.salaryType) ? '급여 유형 확인 필요' : '월급 미설정') : U.money(payout)}</strong></div><button class="att-copy-button att-copy-primary" data-action="copy-amount" data-id="${U.esc(row.id)}" ${payout === null ? 'disabled' : ''} aria-label="${U.esc(row.name)} 입금 기준액 복사">금액 복사</button></div>${payrollBreakdown(row)}${row.type.includes('/') ? `<p class="att-meta">시급 근무 급여 ${U.money(row.amount)} · 월급과 별도로 확인해 주세요.</p>` : ''}</div></article>`;
+    }).join('') : '<div class="att-empty">등록된 직원과 근무 기록이 없습니다.</div>'}</div><div class="att-payroll-total"><span>시급 직원 기본급 합계</span><strong>${U.money(amount)}</strong></div></section>${dailyPayrollHtml(dailyRows)}<p class="att-note">복사되는 금액은 원 단위 숫자입니다. 시급 직원은 조회 월·매장의 퇴근 완료 급여(특수일 배율 포함), 월급 직원은 약정 월급에 특수일 가산을 더하고 결근 공제를 뺀 금액입니다. 근무마다 적어둔 <b>차감</b>(조퇴 등)은 급여 유형과 상관없이 빠집니다. 미퇴근 기록과 주휴·연장·야간수당, 4대보험 공제는 포함하지 않습니다. <b>3.3% 원천징수는 체크한 사람만</b> 빼고 보여줍니다.<br>월급 직원의 특수일 가산은 <b>근무시간 × 통상시급 × 배율</b>입니다. 통상시급은 <b>월급 ÷ 월 소정근로시간</b>, 결근 하루치는 <b>월급 ÷ 월 소정근로일수</b>로 내며 두 값은 직원 정보에서 바꿀 수 있습니다.<br>약정 월급은 직원 정보의 최신 설정이며 조회 월의 확정 지급액은 아닙니다. 급여 유형이 바뀐 달은 금액을 직접 확인해 주세요.</p>`;
   }
   async function employeeForm(employee = null) {
     let details = { residentNumber: '', bankName: '', bankAccount: '', accountHolder: '' };
@@ -445,13 +463,37 @@
     const employee = eligible.find(e => e.id === (record?.employeeId || employeeId)) || eligible[0];
     const defaultIn = new Date(`${selectedDate}T09:00:00+09:00`).getTime();
     const s = record || { employeeId: employee.id, checkInAt: Math.min(defaultIn, data.serverNow), checkOutAt: null, breakMinutes: employee.breakMinutes, payType: employee.payType, hourlyRate: employee.hourlyRate, dailyPay: employee.dailyPay || '', halfDayPay: employee.halfDayPay || '', halfDayBeforeMinutes: employee.halfDayBeforeMinutes || '', dayPortion: 'auto', dailyBaseMinutes: employee.dailyBaseMinutes || '', scheduledStarts: scheduledList(employee), overtimeUnitMinutes: employee.overtimeUnitMinutes || '', overtimePay: employee.overtimePay || '', overtimeHourlyRate: employee.overtimeHourlyRate || '', withholding: Boolean(employee.withholding), workerName: '', workerNote: '', note: '' };
-    const dialog = U.dialog(record ? '출퇴근 기록 수정' : '근무 기록 추가', `<label class="att-field">직원<select class="att-input" name="employeeId" ${record ? 'disabled' : ''}>${eligible.map(e => `<option value="${U.esc(e.id)}" ${e.id === s.employeeId ? 'selected' : ''}>${U.esc(e.name)}</option>`).join('')}</select></label><div class="att-form-grid"><label class="att-field">출근 (한국 시간)<input class="att-input" name="checkInAt" type="datetime-local" value="${U.dateTime(s.checkInAt)}" required></label><label class="att-field">퇴근 (한국 시간)<input class="att-input" name="checkOutAt" type="datetime-local" value="${U.dateTime(s.checkOutAt)}"><small>비워두면 근무 중으로 저장됩니다.</small></label></div><div class="att-form-grid"><label class="att-field">급여 유형<select class="att-input" name="payType"><option value="hourly" ${s.payType === 'hourly' ? 'selected' : ''}>시급</option><option value="salaried" ${s.payType === 'salaried' ? 'selected' : ''}>월급 · 근태만</option><option value="perDiem" ${s.payType === 'perDiem' ? 'selected' : ''}>일당 직원</option><option value="daily" ${s.payType === 'daily' ? 'selected' : ''}>일일근무자</option></select></label><label class="att-field">이 근무의 시급 (원)<input class="att-input" name="hourlyRate" type="number" min="1" max="1000000" step="1" value="${s.hourlyRate}" required></label><label class="att-field">이 근무의 풀타임 일당 (원)<input class="att-input" name="dailyPay" type="number" min="1" max="10000000" step="1" value="${s.dailyPay || ''}"><small>이 사람에게 줄 금액입니다. 설정된 기본 일당과 다르게 줄 수 있습니다.</small></label></div><div class="att-form-grid att-daily-only">${modeField(s)}<label class="att-field">지급 구분<select class="att-input" name="dayPortion"><option value="auto" ${(s.dayPortion || 'auto') === 'auto' ? 'selected' : ''}>자동 (근무시간으로)</option><option value="full" ${s.dayPortion === 'full' ? 'selected' : ''}>풀타임으로 지급</option><option value="half" ${s.dayPortion === 'half' ? 'selected' : ''}>반타임으로 지급</option></select><small>비우지 않으면 자동 판정보다 우선합니다.</small></label></div><div class="att-form-grid att-portion-only"><label class="att-field">이 근무의 반타임 일당 (원)<input class="att-input" name="halfDayPay" type="number" min="0" max="10000000" step="1" value="${s.halfDayPay || ''}" placeholder="0"></label><label class="att-field">반타임 기준 시각<input class="att-input" name="halfDayBefore" type="time" step="60" value="${minutesToClock(s.halfDayBeforeMinutes || DEFAULT_HALF_DAY_BEFORE_MINUTES)}"><small>이 시각 전에 퇴근하거나 이후에 출근하면 반타임.</small></label></div><div class="att-form-grid att-worker-only"><label class="att-field">기준 근무시간<input class="att-input" name="dailyBaseHours" type="number" min="0.5" max="24" step="0.5" value="${s.dailyBaseMinutes ? minutesToHours(s.dailyBaseMinutes) : ''}" placeholder="${minutesToHours(DEFAULT_DAILY_BASE_MINUTES)}"></label><label class="att-field">추가 급여 단위 (분)<input class="att-input" name="overtimeUnitMinutes" type="number" min="1" max="1440" step="1" value="${s.overtimeUnitMinutes || ''}" placeholder="${DEFAULT_OVERTIME_UNIT_MINUTES}"></label><label class="att-field">이 근무의 초과 시급 (원)<input class="att-input" name="overtimeHourlyRate" type="number" min="0" max="1000000" step="1" value="${s.overtimeHourlyRate || ''}" placeholder="예: 12000"><small>기준을 넘긴 시간은 이 시급으로 계산.</small></label><label class="att-field">단위당 추가 급여 (원, 선택)<input class="att-input" name="overtimePay" type="number" min="0" max="10000000" step="1" value="${s.overtimePay || ''}" placeholder="보통 비움"><small>첫 회만 다르게 줄 때. 둘 다 0이면 추가 급여 없음.</small></label></div><label class="att-check att-worker-only"><input type="checkbox" name="withholding" ${s.withholding ? 'checked' : ''}>이 사람은 3.3% 원천징수하고 지급</label><div class="att-form-grid att-worker-only"><label class="att-field">일한 사람<input class="att-input" name="workerName" maxlength="40" value="${U.esc(s.workerName || '')}" placeholder="예: 김일손"><small>나중에 적어도 됩니다.</small></label><label class="att-field">지급 메모<input class="att-input" name="workerNote" maxlength="200" value="${U.esc(s.workerNote || '')}" placeholder="예: 국민 123-456 / 현금 지급"></label></div><div class="att-form-grid"><label class="att-field">이 근무의 예정 출근 시각 ①<input class="att-input" name="scheduledStart" type="time" step="60" value="${scheduledList(s)[0] ? minutesToClock(scheduledList(s)[0]) : ''}"><small>이보다 일찍 찍은 시간은 급여에서 빠집니다. 비우면 찍힌 시각 그대로.</small></label><label class="att-field">예정 출근 시각 ②<input class="att-input" name="scheduledStart2" type="time" step="60" value="${scheduledList(s)[1] ? minutesToClock(scheduledList(s)[1]) : ''}"><small>둘 중 찍힌 시각에 가까운 쪽을 씁니다.</small></label><label class="att-field">이 근무의 무급 휴게시간 (분)<input class="att-input" name="breakMinutes" type="number" min="0" max="720" step="1" value="${s.breakMinutes}" required></label></div><label class="att-field">수정 사유 / 메모<textarea class="att-input" name="note" maxlength="500" placeholder="예: 퇴근 버튼을 빠뜨려 실제 시간으로 수정">${U.esc(s.note)}</textarea></label>${record ? '<button class="att-link-button" type="button" data-delete-record>이 근무 기록 삭제</button>' : ''}`, async form => {
+    const dialog = U.dialog(record ? '출퇴근 기록 수정' : '근무 기록 추가', `<label class="att-field">직원<select class="att-input" name="employeeId" ${record ? 'disabled' : ''}>${eligible.map(e => `<option value="${U.esc(e.id)}" ${e.id === s.employeeId ? 'selected' : ''}>${U.esc(e.name)}</option>`).join('')}</select></label><div class="att-form-grid"><label class="att-field">출근 (한국 시간)<input class="att-input" name="checkInAt" type="datetime-local" value="${U.dateTime(s.checkInAt)}" required></label><label class="att-field">퇴근 (한국 시간)<input class="att-input" name="checkOutAt" type="datetime-local" value="${U.dateTime(s.checkOutAt)}"><small>비워두면 근무 중으로 저장됩니다.</small></label></div><div class="att-form-grid"><label class="att-field">급여 유형<select class="att-input" name="payType"><option value="hourly" ${s.payType === 'hourly' ? 'selected' : ''}>시급</option><option value="salaried" ${s.payType === 'salaried' ? 'selected' : ''}>월급 · 근태만</option><option value="perDiem" ${s.payType === 'perDiem' ? 'selected' : ''}>일당 직원</option><option value="daily" ${s.payType === 'daily' ? 'selected' : ''}>일일근무자</option></select></label><label class="att-field">이 근무의 시급 (원)<input class="att-input" name="hourlyRate" type="number" min="1" max="1000000" step="1" value="${s.hourlyRate}" required></label><label class="att-field">이 근무의 풀타임 일당 (원)<input class="att-input" name="dailyPay" type="number" min="1" max="10000000" step="1" value="${s.dailyPay || ''}"><small>이 사람에게 줄 금액입니다. 설정된 기본 일당과 다르게 줄 수 있습니다.</small></label></div><div class="att-form-grid att-daily-only">${modeField(s)}<label class="att-field">지급 구분<select class="att-input" name="dayPortion"><option value="auto" ${(s.dayPortion || 'auto') === 'auto' ? 'selected' : ''}>자동 (근무시간으로)</option><option value="full" ${s.dayPortion === 'full' ? 'selected' : ''}>풀타임으로 지급</option><option value="half" ${s.dayPortion === 'half' ? 'selected' : ''}>반타임으로 지급</option></select><small>비우지 않으면 자동 판정보다 우선합니다.</small></label></div><div class="att-form-grid att-portion-only"><label class="att-field">이 근무의 반타임 일당 (원)<input class="att-input" name="halfDayPay" type="number" min="0" max="10000000" step="1" value="${s.halfDayPay || ''}" placeholder="0"></label><label class="att-field">반타임 기준 시각<input class="att-input" name="halfDayBefore" type="time" step="60" value="${minutesToClock(s.halfDayBeforeMinutes || DEFAULT_HALF_DAY_BEFORE_MINUTES)}"><small>이 시각 전에 퇴근하거나 이후에 출근하면 반타임.</small></label></div><div class="att-form-grid att-worker-only"><label class="att-field">기준 근무시간<input class="att-input" name="dailyBaseHours" type="number" min="0.5" max="24" step="0.5" value="${s.dailyBaseMinutes ? minutesToHours(s.dailyBaseMinutes) : ''}" placeholder="${minutesToHours(DEFAULT_DAILY_BASE_MINUTES)}"></label><label class="att-field">추가 급여 단위 (분)<input class="att-input" name="overtimeUnitMinutes" type="number" min="1" max="1440" step="1" value="${s.overtimeUnitMinutes || ''}" placeholder="${DEFAULT_OVERTIME_UNIT_MINUTES}"></label><label class="att-field">이 근무의 초과 시급 (원)<input class="att-input" name="overtimeHourlyRate" type="number" min="0" max="1000000" step="1" value="${s.overtimeHourlyRate || ''}" placeholder="예: 12000"><small>기준을 넘긴 시간은 이 시급으로 계산.</small></label><label class="att-field">단위당 추가 급여 (원, 선택)<input class="att-input" name="overtimePay" type="number" min="0" max="10000000" step="1" value="${s.overtimePay || ''}" placeholder="보통 비움"><small>첫 회만 다르게 줄 때. 둘 다 0이면 추가 급여 없음.</small></label></div><label class="att-check att-worker-only"><input type="checkbox" name="withholding" ${s.withholding ? 'checked' : ''}>이 사람은 3.3% 원천징수하고 지급</label><div class="att-form-grid att-worker-only"><label class="att-field">일한 사람<input class="att-input" name="workerName" maxlength="40" value="${U.esc(s.workerName || '')}" placeholder="예: 김일손"><small>나중에 적어도 됩니다.</small></label><label class="att-field">지급 메모<input class="att-input" name="workerNote" maxlength="200" value="${U.esc(s.workerNote || '')}" placeholder="예: 국민 123-456 / 현금 지급"></label></div><div class="att-form-grid"><label class="att-field">이 근무의 예정 출근 시각 ①<input class="att-input" name="scheduledStart" type="time" step="60" value="${scheduledList(s)[0] ? minutesToClock(scheduledList(s)[0]) : ''}"><small>이보다 일찍 찍은 시간은 급여에서 빠집니다. 비우면 찍힌 시각 그대로.</small></label><label class="att-field">예정 출근 시각 ②<input class="att-input" name="scheduledStart2" type="time" step="60" value="${scheduledList(s)[1] ? minutesToClock(scheduledList(s)[1]) : ''}"><small>둘 중 찍힌 시각에 가까운 쪽을 씁니다.</small></label><label class="att-field">이 근무의 무급 휴게시간 (분)<input class="att-input" name="breakMinutes" type="number" min="0" max="720" step="1" value="${s.breakMinutes}" required></label></div><fieldset class="att-form-section"><legend>금액 차감 <small>조퇴 · 지각 등</small></legend><div class="att-form-grid"><label class="att-field">차감 금액 (원)<input class="att-input" name="deductionAmount" type="number" min="0" max="10000000" step="1" value="${shiftDeduction(s) || ''}" placeholder="0"><small>이 근무에서 뺄 금액입니다. 비우거나 0이면 차감 없음. 급여 정산에서 그대로 빠집니다.</small></label><label class="att-field">차감 사유<input class="att-input" name="deductionReason" maxlength="100" value="${U.esc(s.deductionReason || '')}" placeholder="예: 2시간 조퇴"></label></div><div class="att-form-grid att-deduction-helper"><label class="att-field">빠진 시간으로 계산 (분)<input class="att-input" name="deductionMinutes" type="number" min="0" max="1440" step="1" placeholder="예: 120"><small data-deduction-hint></small></label></div></fieldset><label class="att-field">수정 사유 / 메모<textarea class="att-input" name="note" maxlength="500" placeholder="예: 퇴근 버튼을 빠뜨려 실제 시간으로 수정">${U.esc(s.note)}</textarea></label>${record ? '<button class="att-link-button" type="button" data-delete-record>이 근무 기록 삭제</button>' : ''}`, async form => {
       // Retain original seconds when only the wage, break or note was changed.
       const parse = (name, original) => form.get(name) === U.dateTime(original) ? original : form.get(name) ? new Date(`${form.get(name)}:00+09:00`).getTime() : null;
-      await api('shift.save', { id: record?.id, version: record?.version, employeeId: record?.employeeId || form.get('employeeId'), checkInAt: parse('checkInAt', s.checkInAt), checkOutAt: parse('checkOutAt', s.checkOutAt), payType: form.get('payType'), hourlyRate: Number(form.get('hourlyRate')), dailyPay: Number(form.get('dailyPay')), halfDayPay: form.has('halfDayPay') ? Number(form.get('halfDayPay')) || 0 : undefined, halfDayBeforeMinutes: clockToMinutes(form.get('halfDayBefore')), dailyMode: form.get('dailyMode') || undefined, earlyGraceMinutes: form.get('earlyGraceMinutes') ? Number(form.get('earlyGraceMinutes')) : undefined, dayPortion: form.get('dayPortion') || undefined, dailyBaseMinutes: form.get('dailyBaseHours') ? Math.round(Number(form.get('dailyBaseHours')) * 60) : undefined, overtimeUnitMinutes: form.get('overtimeUnitMinutes') ? Number(form.get('overtimeUnitMinutes')) : undefined, overtimePay: form.has('overtimePay') ? Number(form.get('overtimePay')) || 0 : undefined, scheduledStarts: form.has('scheduledStart') ? [form.get('scheduledStart'), form.get('scheduledStart2')].map(clockToMinutes).filter(minute => minute > 0) : undefined, overtimeHourlyRate: form.has('overtimeHourlyRate') ? Number(form.get('overtimeHourlyRate')) || 0 : undefined, withholding: isDailyPaid(form.get('payType')) ? form.has('withholding') : undefined, workerName: form.get('workerName'), workerNote: form.get('workerNote'), breakMinutes: Number(form.get('breakMinutes')), note: form.get('note') });
+      await api('shift.save', { id: record?.id, version: record?.version, employeeId: record?.employeeId || form.get('employeeId'), checkInAt: parse('checkInAt', s.checkInAt), checkOutAt: parse('checkOutAt', s.checkOutAt), payType: form.get('payType'), hourlyRate: Number(form.get('hourlyRate')), dailyPay: Number(form.get('dailyPay')), halfDayPay: form.has('halfDayPay') ? Number(form.get('halfDayPay')) || 0 : undefined, halfDayBeforeMinutes: clockToMinutes(form.get('halfDayBefore')), dailyMode: form.get('dailyMode') || undefined, earlyGraceMinutes: form.get('earlyGraceMinutes') ? Number(form.get('earlyGraceMinutes')) : undefined, dayPortion: form.get('dayPortion') || undefined, dailyBaseMinutes: form.get('dailyBaseHours') ? Math.round(Number(form.get('dailyBaseHours')) * 60) : undefined, overtimeUnitMinutes: form.get('overtimeUnitMinutes') ? Number(form.get('overtimeUnitMinutes')) : undefined, overtimePay: form.has('overtimePay') ? Number(form.get('overtimePay')) || 0 : undefined, scheduledStarts: form.has('scheduledStart') ? [form.get('scheduledStart'), form.get('scheduledStart2')].map(clockToMinutes).filter(minute => minute > 0) : undefined, overtimeHourlyRate: form.has('overtimeHourlyRate') ? Number(form.get('overtimeHourlyRate')) || 0 : undefined, withholding: isDailyPaid(form.get('payType')) ? form.has('withholding') : undefined, workerName: form.get('workerName'), workerNote: form.get('workerNote'), deductionAmount: Math.max(0, Math.floor(Number(form.get('deductionAmount')) || 0)), deductionReason: form.get('deductionReason') || '', breakMinutes: Number(form.get('breakMinutes')), note: form.get('note') });
       await load();
     });
-    const sync = bindPayType(dialog);
+    const payTypeSync = bindPayType(dialog);
+    // 빠진 시간을 넣으면 차감 금액을 채워준다. 시급 직원은 이 근무의 시급, 월급 직원은 통상시급 기준이다.
+    // 일당은 하루 단위라 시간으로 나눌 기준이 없어서 금액을 직접 넣게 한다.
+    const deductionRate = () => {
+      const kind = dialog.querySelector('[name=payType]').value;
+      if (kind === 'hourly') return Math.floor(Number(dialog.querySelector('[name=hourlyRate]').value) || 0);
+      if (kind === 'salaried') return record?.ordinaryHourlyRate || ordinaryRate(person(record?.employeeId || dialog.querySelector('[name=employeeId]').value));
+      return 0;
+    };
+    const syncDeduction = () => {
+      const rate = deductionRate(), helper = dialog.querySelector('.att-deduction-helper');
+      const minutesInput = dialog.querySelector('[name=deductionMinutes]');
+      helper.hidden = rate <= 0; minutesInput.disabled = rate <= 0;
+      const kind = dialog.querySelector('[name=payType]').value;
+      dialog.querySelector('[data-deduction-hint]').textContent = rate > 0
+        ? `${kind === 'salaried' ? '통상시급' : '시급'} ${U.money(rate)} × 분 ÷ 60 으로 위 금액을 채웁니다. 저장되는 것은 금액입니다.` : '';
+    };
+    dialog.querySelector('[name=deductionMinutes]').oninput = event => {
+      const minutes = Number(event.target.value);
+      if (minutes > 0) dialog.querySelector('[name=deductionAmount]').value = String(deductionForMinutes(minutes, deductionRate()));
+    };
+    const sync = () => { payTypeSync(); syncDeduction(); };
+    dialog.querySelector('[name=payType]').onchange = sync;
+    dialog.querySelector('[name=hourlyRate]').oninput = syncDeduction;
+    syncDeduction();
     dialog.querySelector('[name=employeeId]').onchange = event => {
       const e = person(event.target.value);
       dialog.querySelector('[name=payType]').value = e.payType;
@@ -556,11 +598,11 @@
     const rows = payrollRows(records());
     const daily = dailyPayrollRows(records());
     const scope = floor === 'all' ? '전체 매장' : U.storeName(floor);
-    const values = [['조회월', '조회매장', '직원명', '급여유형', '약정 월급(원)', '출근일수', '완료근무건수', '유급근무(분)', '무급휴게(분)', '미퇴근건수', '기본급(원)', '특수일 가산·추가 급여(원)', '특수일 근무일수', '결근일수', '결근 공제(원)', '원천징수 3.3%(원)', '실지급액(원, 4대보험 제외)'], ...rows.map(r => {
+    const values = [['조회월', '조회매장', '직원명', '급여유형', '약정 월급(원)', '출근일수', '완료근무건수', '유급근무(분)', '무급휴게(분)', '미퇴근건수', '기본급(원)', '특수일 가산·추가 급여(원)', '특수일 근무일수', '결근일수', '결근 공제(원)', '근무 차감(원)', '원천징수 3.3%(원)', '실지급액(원, 4대보험 제외)'], ...rows.map(r => {
       const gross = grossAmount(r), payout = transferAmount(r);
       const tax = r.withholding && gross !== null ? withholdingTax(gross) : 0;
-      return [month, scope, r.name, r.type, r.salaryType === 'salaried' ? r.monthlySalary ?? '미설정' : '', r.days, r.count, r.minutes, r.breaks, r.open, r.baseAmount, r.extraAmount, r.specialDays, r.absenceDays, r.deduction, tax, payout === null ? '확인 필요' : payout];
-    }), ...daily.map(r => [month, scope, `${r.name} (${r.slotName} ${formatDayLabel(r.workDate)})`, r.type, '', 1, 1, r.minutes, r.breaks, 0, r.dailyPay, r.overtimeAmount, 0, 0, 0, r.withholding ? withholdingTax(r.amount) : 0, transferAmount(r)])];
+      return [month, scope, r.name, r.type, r.salaryType === 'salaried' ? r.monthlySalary ?? '미설정' : '', r.days, r.count, r.minutes, r.breaks, r.open, r.baseAmount, r.extraAmount, r.specialDays, r.absenceDays, r.deduction, r.shiftDeduction, tax, payout === null ? '확인 필요' : payout];
+    }), ...daily.map(r => [month, scope, `${r.name} (${r.slotName} ${formatDayLabel(r.workDate)})`, r.type, '', 1, 1, r.minutes, r.breaks, 0, r.dailyPay, r.overtimeAmount, 0, 0, 0, r.shiftDeduction, r.withholding ? withholdingTax(grossAmount(r)) : 0, transferAmount(r)])];
     const cell = value => `"${String(value).replace(/^[\s]*[=+@-]/, match => `'${match}`).replace(/"/g, '""')}"`;
     const blob = new Blob(['\uFEFF', values.map(row => row.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);

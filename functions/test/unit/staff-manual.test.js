@@ -227,6 +227,24 @@ test('비례 지급 예시가 실제 계산과 맞는다', () => {
   assert.match(html, new RegExp(`기본 ${M.DEFAULT_EARLY_GRACE_MINUTES}분`));
 });
 
+test('조퇴·차감 안내가 실제 계산과 맞고 두 번 깎지 말라고 적는다', () => {
+  const { html } = render();
+  const section = /id="sm-deduction"([\s\S]*?)<\/section>/.exec(html);
+  assert.ok(section, '조퇴·차감 항목이 없습니다.');
+  const body = section[1];
+  // 예시 숫자를 실제 계산으로 다시 낸다.
+  const 통상시급 = M.ordinaryHourlyRate({ payType: 'salaried', monthlySalary: 3000000 });
+  assert.match(body, new RegExp(`통상시급 ${통상시급.toLocaleString('en-US')}원`));
+  assert.match(body, new RegExp(`2시간\\(120분\\) 조퇴는 ${M.deductionForMinutes(120, 통상시급).toLocaleString('en-US')}원`));
+  assert.match(body, new RegExp(`30분은 ${M.deductionForMinutes(30, 통상시급).toLocaleString('en-US')}원`));
+  assert.match(body, /시급 × 분 ÷ 60/);
+  // 시급 직원은 일찍 퇴근하면 이미 덜 나간다 — 모르면 두 번 깎는다.
+  assert.match(body, /두 번 깎입니다/);
+  assert.match(body, /미퇴근 기록의 차감은 급여에 잡히지 않습니다/);
+  // 정산 표에도 차감이 들어가 있어야 한다.
+  assert.match(html, /결근 공제 <b>−<\/b> 근무 차감/);
+});
+
 test('다시 열어도 내용이 겹치지 않는다', () => {
   const { api, root } = render();
   const once = (root.innerHTML.match(/id="sm-absence"/g) || []).length;
