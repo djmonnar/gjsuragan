@@ -39,6 +39,7 @@ function extractFunction(name) {
 const manualSettlement = vm.runInNewContext(`(() => {
   ${extractFunction('isManualDeliveryRecord')}
   ${extractFunction('savedSettlementPayments')}
+  ${extractFunction('mergeCarryoverDates')}
   ${extractFunction('settlementCarryoverFields')}
   ${extractFunction('manualDeliverySettlementRow')}
   return { isManualDeliveryRecord, manualDeliverySettlementRow };

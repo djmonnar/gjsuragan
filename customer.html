@@ -4353,6 +4353,14 @@ function customerMonthShort(month) {
   return mon ? `${parseInt(mon, 10)}월` : (month || '');
 }
 
+// 이월 미수금이 어느 날 이용한 것인지 (2026-08-04 → 8/4). 관리자 carryoverDatesLabel 과 같은 모양.
+function customerCarryoverDatesLabel(dates) {
+  return [...new Set((Array.isArray(dates) ? dates : []).filter(ds => /^\d{4}-\d{2}-\d{2}$/.test(String(ds || ''))))]
+    .sort()
+    .map(ds => `${Number(ds.slice(5, 7))}/${Number(ds.slice(8, 10))}`)
+    .join(', ');
+}
+
 function renderCustomerSettlementDetail(s) {
   const { billed, payments, balance, carryover, carriedOverAmount } = customerSettlementSummary(s);
   const carried = Boolean(s.carriedOverTo);
@@ -4383,7 +4391,7 @@ function renderCustomerSettlementDetail(s) {
     ? `<div class="cust-meta-row" style="margin-top:8px">메모 <span>${escapeHtml(s.note)}</span></div>`
     : '';
   const carryoverHtml = carryover > 0
-    ? `<div class="cust-meta-row" style="margin-top:8px">${customerMonthShort(s.carryoverFrom) || '전월'} 이월 미수금 <span>+${carryover.toLocaleString()}원</span> <span style="font-weight:400;color:#6b5b4a">(이번 달 청구액에 포함)</span></div>`
+    ? `<div class="cust-meta-row" style="margin-top:8px">${customerMonthShort(s.carryoverFrom) || '전월'} 이월 미수금 <span>+${carryover.toLocaleString()}원</span> <span style="font-weight:400;color:#6b5b4a">(이번 달 청구액에 포함)</span>${customerCarryoverDatesLabel(s.carryoverDates) ? `<div style="font-weight:400;color:#6b5b4a;font-size:13px;margin-top:2px">이용일 ${escapeHtml(customerCarryoverDatesLabel(s.carryoverDates))}</div>` : ''}</div>`
     : '';
   const carriedHtml = carried
     ? `<div class="cust-meta-row" style="margin-top:8px">이월 <span>잔액 ${carriedOverAmount.toLocaleString()}원 → ${customerMonthShort(s.carriedOverTo)} 정산으로 이월</span></div>`
@@ -4441,7 +4449,7 @@ function customerPrintRow(label, value) {
 function customerSettlementPrintHtml(s, month) {
   const { billed, payments, paidTotal, balance, carryover, carriedOverAmount } = customerSettlementSummary(s);
   const printStatus = s.status === '이월' ? '이월됨' : (s.status || '-');
-  const carryoverRow = carryover > 0 ? customerPrintRow(`${customerMonthShort(s.carryoverFrom) || '전월'} 이월 미수금`, `+${carryover.toLocaleString()}원`) : '';
+  const carryoverRow = carryover > 0 ? customerPrintRow(`${customerMonthShort(s.carryoverFrom) || '전월'} 이월 미수금`, `+${carryover.toLocaleString()}원${customerCarryoverDatesLabel(s.carryoverDates) ? ` (이용일 ${customerCarryoverDatesLabel(s.carryoverDates)})` : ''}`) : '';
   const carriedRow = s.carriedOverTo ? customerPrintRow('이월', `잔액 ${carriedOverAmount.toLocaleString()}원 → ${customerMonthShort(s.carriedOverTo)} 정산으로 이월`) : '';
   const [year, mon] = String(month || '').split('-');
   const titleMonth = year && mon ? `${year}년 ${parseInt(mon, 10)}월` : month;

@@ -2916,7 +2916,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
       <select class="form-input" id="settlement-merge-target"></select>
       <div style="font-size:12px;color:var(--sub);margin-top:6px;line-height:1.6">
         업체명이 달라도 됩니다. 업체명을 바꾼 뒤라면 바뀐 이름을 고르세요.<br>
-        배송 기록이 고른 업체로 옮겨지고, 이 행은 정산에서 사라집니다. 되돌리기 어렵습니다.
+        이번 달 배송 기록과 전월 이월 미수금(이용일 포함)이 고른 업체로 옮겨지고, 이 행은 정산에서 사라집니다. 되돌리기 어렵습니다.
       </div>
     </div>
     <div class="bulk-confirm-targets">
@@ -3586,6 +3586,18 @@ function settlementSalesTotal(row = {}) {
 function settlementCarryover(row = {}) {
   return Math.max(0, Number(row.carryover || 0) || 0);
 }
+// 이월액이 어느 날 먹은 것인지. 넘겨준 달 정산의 일별 내역 날짜를 그대로 쓴다.
+function settlementUsageDates(row = {}) {
+  const daily = row.dateBreakdown && Object.keys(row.dateBreakdown).length ? row.dateBreakdown : (row.daily || {});
+  return Object.keys(daily).filter(ds => /^\d{4}-\d{2}-\d{2}$/.test(ds)).sort();
+}
+function mergeCarryoverDates(...lists) {
+  return [...new Set(lists.flat().filter(ds => /^\d{4}-\d{2}-\d{2}$/.test(String(ds || ''))))].sort();
+}
+// 2026-08-04 → 8/4
+function carryoverDatesLabel(dates = []) {
+  return mergeCarryoverDates(dates).map(ds => `${Number(ds.slice(5, 7))}/${Number(ds.slice(8, 10))}`).join(', ');
+}
 // 다음 달로 넘긴 금액 (이 행의 잔액에서 제외)
 function settlementCarriedOverAmount(row = {}) {
   return Math.max(0, Number(row.carriedOverAmount || 0) || 0);
@@ -4074,12 +4086,15 @@ function settlementItemRef(month, uid) {
 }
 // ── 정산 이월 필드 ──
 // carryover/carryoverFrom/carryoverAt: 이월받은 달에 기록. carriedOverTo/carriedOverAmount/carriedOverAt/statusBeforeCarryover: 넘긴 달에 기록.
-const SETTLEMENT_CARRYOVER_FIELDS = ['carryover', 'carryoverFrom', 'carryoverAt', 'carriedOverTo', 'carriedOverAmount', 'carriedOverAt', 'statusBeforeCarryover'];
+// carryoverDates: 이월액이 된 전월 이용 날짜(정산표에 표시). carryoverFromUids: 합치기로 이월을 넘겨준 행의 uid.
+const SETTLEMENT_CARRYOVER_FIELDS = ['carryover', 'carryoverFrom', 'carryoverAt', 'carryoverDates', 'carryoverFromUids', 'carriedOverTo', 'carriedOverAmount', 'carriedOverAt', 'statusBeforeCarryover'];
 function settlementCarryoverFields(saved = {}) {
   return {
     carryover: Math.max(0, Number(saved.carryover || 0) || 0),
     carryoverFrom: saved.carryoverFrom || '',
     carryoverAt: saved.carryoverAt || '',
+    carryoverDates: mergeCarryoverDates(Array.isArray(saved.carryoverDates) ? saved.carryoverDates : []),
+    carryoverFromUids: Array.isArray(saved.carryoverFromUids) ? saved.carryoverFromUids.filter(Boolean) : [],
     carriedOverTo: saved.carriedOverTo || '',
     carriedOverAmount: Math.max(0, Number(saved.carriedOverAmount || 0) || 0),
     carriedOverAt: saved.carriedOverAt || '',
@@ -4223,6 +4238,31 @@ function manualDeliverySettlementRow(uid, data = {}, saved = {}) {
     dateBreakdown: {},
     ...settlementCarryoverFields(saved)
   };
+}
+
+// 저장된 정산 문서 중 배송 없이 이월액만 있는 수동 입력·탈퇴 업체 행을 만든다.
+// 등록 업체는 buildRegisteredRow 가 이미 만들고, 엑셀 비회원 정산은 manualRows 가 따로 만든다.
+function carryoverOnlySettlementRows(settlementItems = {}, existingRows = {}) {
+  return Object.entries(settlementItems)
+    .filter(([uid, saved]) => saved && !existingRows[uid] && !allUsers[uid])
+    .filter(([uid, saved]) => !saved.deleted && !String(uid).startsWith('event:'))
+    .filter(([, saved]) => !(saved.type === 'manualMonthly' || saved.manualMonthly))
+    .filter(([, saved]) => settlementCarryover(saved) > 0)
+    .map(([uid, saved]) => {
+      const removed = deletedUsers[uid];
+      if (removed) {
+        return {
+          ...manualDeliverySettlementRow(uid, {}, saved),
+          type: 'customerMonthly',
+          manualOrder: false,
+          removedUser: true,
+          user: removed
+        };
+      }
+      if (!(String(uid).startsWith('manual_') || saved.type === 'manualOrderMonthly' || saved.manualOrder)) return null;
+      return manualDeliverySettlementRow(uid, {}, saved);
+    })
+    .filter(Boolean);
 }
 
 async function autoBillCompletedDeliveries(deliveryDate, uids = []) {
@@ -11518,6 +11558,11 @@ async function computeMonthlySettlementRows(month) {
       });
     });
 
+    // 이번 달 배송은 없고 이월액만 남은 수동 입력·탈퇴 업체 행.
+    // 위 집계는 배송기록에서 행을 만들기 때문에 이런 행은 빠져서 이월액이 안 보였다.
+    // (합치기로 배송만 옮기고 이월이 남았던 경우가 이렇게 숨었다)
+    carryoverOnlySettlementRows(settlementItems, byUser).forEach(row => { byUser[row.uid] = row; });
+
     const manualRows = Object.entries(monthlyManualSettlements)
       .filter(([, row]) => row && !row.deleted)
       .map(([uid, row]) => {
@@ -11586,6 +11631,7 @@ async function loadSettlements() {
     settlementLoadedMonth = month;
     renderSettlements();
     renderSettlementCharts().catch(() => {});
+    backfillCarryoverDates(month, result.rows).catch(e => console.warn('이월 이용일 채우기 실패:', e));
     settlementLastLoadedAt = Date.now();
     const loadedLabel = document.getElementById('settle-last-loaded');
     if (loadedLabel) {
@@ -11600,6 +11646,29 @@ async function loadSettlements() {
     if (mobileList) mobileList.innerHTML = `<div class="settlement-mobile-empty">정산 계산 실패: ${escapeHtml(e.message)}</div>`;
     if (eventMobileList) eventMobileList.innerHTML = '<div class="settlement-mobile-empty">행사도시락 내역을 불러오지 못했습니다.</div>';
   }
+}
+
+// 이용일(carryoverDates)이 생기기 전에 만든 이월은 날짜가 비어 있다.
+// 넘겨준 달의 같은 업체 정산에서 날짜를 찾아 한 번만 채운다. 금액은 건드리지 않는다.
+async function backfillCarryoverDates(month, rows = []) {
+  const missing = rows.filter(row => row.type !== 'event' && settlementCarryover(row) > 0
+    && row.carryoverFrom && !(row.carryoverDates || []).length);
+  if (!missing.length) return;
+  const byFromMonth = {};
+  missing.forEach(row => { (byFromMonth[row.carryoverFrom] ||= []).push(row); });
+  let filled = 0;
+  for (const [fromMonth, list] of Object.entries(byFromMonth)) {
+    const { rows: prevRows } = await computeMonthlySettlementRows(fromMonth);
+    for (const row of list) {
+      const uids = [row.uid, ...(row.carryoverFromUids || [])];
+      const dates = mergeCarryoverDates(...uids.map(uid => settlementUsageDates(prevRows.find(r => r.uid === uid) || {})));
+      if (!dates.length) continue;
+      await settlementItemRef(month, row.uid).set({ carryoverDates: dates }, { merge: true });
+      row.carryoverDates = dates;
+      filled++;
+    }
+  }
+  if (filled && settlementLoadedMonth === month) renderSettlements();
 }
 
 let settlementLastLoadedAt = 0;
@@ -11873,7 +11942,8 @@ function renderSettlements() {
         const billed = settlementBilledTotal(row);
         const adjustLabel = row.adjust ? `<span style="font-size:11px;color:var(--sub);display:block">${row.adjust > 0 ? '+' : ''}${row.adjust.toLocaleString()}</span>` : '';
         const carryover = settlementCarryover(row);
-        const carryoverLabel = carryover > 0 ? `<span class="carryover-label">${escapeHtml(monthShortKR(row.carryoverFrom))}이월 +${carryover.toLocaleString()}</span>` : '';
+        const carryoverDays = carryoverDatesLabel(row.carryoverDates);
+        const carryoverLabel = carryover > 0 ? `<span class="carryover-label"${carryoverDays ? ` title="${escapeHtml(carryoverDays)} 이용분"` : ''}>${escapeHtml(monthShortKR(row.carryoverFrom))}이월 +${carryover.toLocaleString()}</span>` : '';
         const carriedLabel = row.carriedOverTo ? `<span class="carryover-label">→ ${escapeHtml(monthShortKR(row.carriedOverTo))} 이월 ${settlementCarriedOverAmount(row).toLocaleString()}</span>` : '';
         const safeUid = row.uid.replace(/[^a-zA-Z0-9_-]/g, '_');
         const balance = settlementBalance(row);
@@ -13001,8 +13071,9 @@ function buildSheetHTML(uid, forPrint) {
     <td colspan="7" style="text-align:right;font-weight:800">조정금액</td>
     <td class="num" style="font-weight:800">${adjustment > 0 ? '+' : ''}${money(adjustment)}원</td>
   </tr>` : '';
+  const carryoverDays = carryoverDatesLabel(row.carryoverDates);
   const carryoverRow = carryover ? `<tr>
-    <td colspan="7" style="text-align:right;font-weight:800">전월 이월 미수금${row.carryoverFrom ? ` (${escapeHtml(monthLabelKR(row.carryoverFrom))})` : ''}</td>
+    <td colspan="7" style="text-align:right;font-weight:800">전월 이월 미수금${row.carryoverFrom ? ` (${escapeHtml(monthLabelKR(row.carryoverFrom))})` : ''}${carryoverDays ? `<div style="font-weight:600;font-size:12px;margin-top:2px">이용일 ${escapeHtml(carryoverDays)}</div>` : ''}</td>
     <td class="num" style="font-weight:800">+${money(carryover)}원</td>
   </tr>` : '';
   const cateringPriceLabel = settlementCateringSummary(row).items
@@ -13092,6 +13163,7 @@ function openSettlementEdit(uid) {
   const carryoverBlock = document.getElementById('settle-carryover-block');
   if (carryoverBlock) carryoverBlock.style.display = row.type === 'event' ? 'none' : '';
   document.getElementById('settle-edit-carryover').value = settlementCarryover(row);
+  settlementEditCarryoverDates = mergeCarryoverDates(row.carryoverDates || []);
   renderCarryoverHint(row, month);
   renderPaymentList(row.payments || []);
   const errEl = document.getElementById('settle-edit-error');
@@ -13131,7 +13203,12 @@ async function saveSettlementEdit() {
   try {
     let data = { status, note, amount: row.amount, adjust, invoiceNo, dueDate, payments, paidDate, paidAmount: paidTotal, lunchTotal: row.lunch || 0, saladTotal: row.salad || 0, eventLunchTotal: settlementEventQty(row), updatedAt: new Date().toISOString() };
     if (row.type !== 'event') {
-      data = { ...data, carryover, carryoverFrom, carryoverAt: carryover > 0 ? (carryoverChanged || !row.carryoverAt ? new Date().toISOString() : row.carryoverAt) : '' };
+      data = {
+        ...data, carryover, carryoverFrom,
+        carryoverAt: carryover > 0 ? (carryoverChanged || !row.carryoverAt ? new Date().toISOString() : row.carryoverAt) : '',
+        carryoverDates: carryover > 0 ? settlementEditCarryoverDates : [],
+        carryoverFromUids: carryover > 0 ? (row.carryoverFromUids || []) : []
+      };
     }
     if (row.type === 'event') {
       const eventName = document.getElementById('settle-edit-event-name').value.trim() || '행사도시락';
@@ -13192,9 +13269,10 @@ async function saveSettlementEdit() {
     }
     Object.assign(row, { status, note, adjust, invoiceNo, dueDate, payments, paidDate, paidAmount: paidTotal });
     if (row.type !== 'event') {
-      Object.assign(row, { carryover, carryoverFrom, carryoverAt: data.carryoverAt });
+      const mergedSourceUids = row.carryoverFromUids || [];
+      Object.assign(row, { carryover, carryoverFrom, carryoverAt: data.carryoverAt, carryoverDates: data.carryoverDates, carryoverFromUids: data.carryoverFromUids });
       if (carryoverChanged) {
-        await syncCarryoverSource({ month, uid, amount: carryover, fromMonth: carryoverFrom, previousFrom: prevCarryoverFrom });
+        await syncCarryoverSource({ month, uid, amount: carryover, fromMonth: carryoverFrom, previousFrom: prevCarryoverFrom, sourceUids: mergedSourceUids });
       }
     }
     document.getElementById('settlement-modal').classList.remove('open');
@@ -13382,6 +13460,8 @@ async function deleteSettlement() {
 }
 
 // ── 정산 이월 (전월 미수금 → 당월 청구) ──
+// 수정 창에서 "전월 잔액 조회"로 가져온 이월액의 이용 날짜. 저장할 때 carryoverDates 로 들어간다.
+let settlementEditCarryoverDates = [];
 function renderCarryoverHint(row, month) {
   const fromEl = document.getElementById('settle-edit-carryover-from');
   const hintEl = document.getElementById('settle-edit-carryover-hint');
@@ -13393,7 +13473,8 @@ function renderCarryoverHint(row, month) {
     parts.push(`이 정산의 잔액 ${settlementCarriedOverAmount(row).toLocaleString()}원은 ${monthLabelKR(row.carriedOverTo)} 정산으로 이월되었습니다. 되돌리려면 ${monthShortKR(row.carriedOverTo)} 정산에서 "이월 취소"를 누르세요.`);
   }
   if (settlementCarryover(row) > 0) {
-    parts.push(`${monthLabelKR(from)} 미수금 ${settlementCarryover(row).toLocaleString()}원이 이번 달 청구액에 포함되어 있습니다. 0으로 바꾸고 저장하면 전월 정산 상태가 원래대로 돌아갑니다.`);
+    const days = carryoverDatesLabel(row.carryoverDates);
+    parts.push(`${monthLabelKR(from)} 미수금 ${settlementCarryover(row).toLocaleString()}원${days ? `(이용일 ${days})` : ''}이 이번 달 청구액에 포함되어 있습니다. 0으로 바꾸고 저장하면 전월 정산 상태가 원래대로 돌아갑니다.`);
   } else {
     parts.push('전월 잔액 조회로 금액을 넣고 저장하면 전월 정산은 "이월됨"으로 바뀌고 잔액이 0으로 정리됩니다.');
   }
@@ -13428,8 +13509,9 @@ async function fillCarryoverFromPrevMonth() {
       return;
     }
     document.getElementById('settle-edit-carryover').value = balance;
+    settlementEditCarryoverDates = settlementUsageDates(prevRow);
     updatePaymentSummary();
-    if (hintEl) hintEl.textContent = `${monthLabelKR(fromMonth)} 청구 ${formatMoney(settlementBilledTotal(prevRow))} · 입금 ${formatMoney(settlementPaidTotal(prevRow))} · 잔액 ${formatMoney(balance)} (${settlementStatusLabel(prevRow.status)}) — 저장하면 이월이 적용됩니다.`;
+    if (hintEl) hintEl.textContent = `${monthLabelKR(fromMonth)} 청구 ${formatMoney(settlementBilledTotal(prevRow))} · 입금 ${formatMoney(settlementPaidTotal(prevRow))} · 잔액 ${formatMoney(balance)} (${settlementStatusLabel(prevRow.status)})${settlementEditCarryoverDates.length ? ` · 이용일 ${carryoverDatesLabel(settlementEditCarryoverDates)}` : ''} — 저장하면 이월이 적용됩니다.`;
   } catch(e) {
     showToast('전월 잔액 조회 실패: ' + e.message);
     renderCarryoverHint(row, month);
@@ -13440,16 +13522,32 @@ function clearCarryoverField() {
   const input = document.getElementById('settle-edit-carryover');
   if (!input) return;
   input.value = 0;
+  settlementEditCarryoverDates = [];
   updatePaymentSummary();
   const hintEl = document.getElementById('settle-edit-carryover-hint');
   if (hintEl) hintEl.textContent = '저장하면 이월이 취소되고 전월 정산 상태가 원래대로 돌아갑니다.';
 }
 
 // 이월받는 달(month)의 이월액이 바뀌면 원천 달 정산의 상태/이월액을 함께 맞춘다
-async function syncCarryoverSource({ month, uid, amount, fromMonth, previousFrom }) {
+// sourceUids: 합치기로 이월을 넘겨준 옛 행들. 그 행들의 전월 정산에 "이월됨"이 찍혀 있으므로
+// 이월을 취소(0)하면 그쪽도 되돌린다. 금액만 바꿀 때는 어느 행 몫인지 모르니 건드리지 않는다.
+async function syncCarryoverSource({ month, uid, amount, fromMonth, previousFrom, sourceUids = [] }) {
   const targets = [...new Set([fromMonth, previousFrom].filter(Boolean))];
   for (const srcMonth of targets) {
     const { rows } = await computeMonthlySettlementRows(srcMonth);
+    if (!(srcMonth === fromMonth && amount > 0)) {
+      for (const mergedUid of sourceUids.filter(u => u && u !== uid)) {
+        const mergedRow = rows.find(r => r.uid === mergedUid);
+        if (!mergedRow || mergedRow.carriedOverTo !== month) continue;
+        await saveSettlementItem(srcMonth, mergedUid, mergedRow, settlementRowSaveData(mergedRow, {
+          status: mergedRow.status === '이월' ? (mergedRow.statusBeforeCarryover || '청구완료') : mergedRow.status,
+          statusBeforeCarryover: '',
+          carriedOverTo: '',
+          carriedOverAmount: 0,
+          carriedOverAt: ''
+        }));
+      }
+    }
     const srcRow = rows.find(r => r.uid === uid);
     if (!srcRow) continue;
     const active = srcMonth === fromMonth && amount > 0;
@@ -13608,6 +13706,7 @@ async function applyCarryover() {
         carryover: c.balance,
         carryoverFrom: fromMonth,
         carryoverAt: now,
+        carryoverDates: settlementUsageDates(prevRow),
         updatedAt: now
       }), { batch });
       saveSettlementItem(fromMonth, c.uid, prevRow, settlementRowSaveData(prevRow, {
@@ -14468,7 +14567,8 @@ function openSettlementMergeModal(sourceUid) {
     return;
   }
   const moves = settlementMergeMoves(sourceUid);
-  if (!moves.length) {
+  const carryover = settlementCarryover(sourceRow);
+  if (!moves.length && carryover <= 0) {
     showToast('옮길 배송 기록이 없습니다.');
     return;
   }
@@ -14480,11 +14580,15 @@ function openSettlementMergeModal(sourceUid) {
 
   settlementMergeSourceUid = sourceUid;
   const totalQty = moves.reduce((sum, item) => sum + orderTotalQty(item.record), 0);
+  const carryoverText = carryover > 0
+    ? `${monthShortKR(sourceRow.carryoverFrom) || '전월'} 이월 ${carryover.toLocaleString()}원`
+    : '';
   document.getElementById('settlement-merge-source').textContent =
     `${sourceRow.user.businessName || sourceUid}${sourceRow.removedUser ? ' (탈퇴)' : ' (수동 입력)'}`;
-  document.getElementById('settlement-merge-count').textContent = `${moves.length}일 · ${totalQty}개`;
+  document.getElementById('settlement-merge-count').textContent =
+    [moves.length ? `${moves.length}일 · ${totalQty}개` : '', carryoverText].filter(Boolean).join(' + ');
   document.getElementById('settlement-merge-dates').textContent =
-    moves.map(item => formatDateKR(item.date)).join(', ');
+    moves.length ? moves.map(item => formatDateKR(item.date)).join(', ') : '(이번 달 배송 없음 · 이월액만 옮깁니다)';
 
   const auto = settlementMergeTargetFor(sourceRow);
   const select = document.getElementById('settlement-merge-target');
@@ -14505,13 +14609,21 @@ async function confirmSettlementMerge() {
   }
   const targetName = targetUser.businessName || targetUid;
   const moves = settlementMergeMoves(sourceUid);
-  if (!moves.length) {
+  const carryover = settlementCarryover(sourceRow);
+  if (!moves.length && carryover <= 0) {
     showToast('옮길 배송 기록이 없습니다.');
     return;
   }
   closeSettlementMergeModal();
+  const month = document.getElementById('settle-month').value || currentMonthStr();
 
   try {
+    // 이월액부터 옮긴다. 예전에는 배송기록만 옮겨서, 이월액은 배송이 0이 된 옛 행에
+    // 남은 채 화면에서 사라졌다. 옛 행의 이월을 비워야 아래 재계산이 그 문서를 정리한다.
+    if (carryover > 0) {
+      await moveSettlementCarryover(month, sourceRow, targetUid, targetUser);
+    }
+
     const tombstone = {
       deleted: true,
       deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -14531,14 +14643,55 @@ async function confirmSettlementMerge() {
     // 고객 정산표에 이번 달 내역이 통째로 빠져 보인다.
     // 옮긴 쪽은 배송이 0이 되므로 같은 계산에서 정리된다. 입금이 잡힌 행은
     // 애초에 합치기를 막았고, 이월·보류 정보가 있으면 계산이 문서를 남긴다.
-    const month = document.getElementById('settle-month').value || currentMonthStr();
     await rebuildSettlementsForUids(month, [sourceUid, targetUid]);
 
-    showToast(`✅ ${moves.length}일치를 ${targetName}로 합쳤습니다.`);
+    const parts = [moves.length ? `${moves.length}일치` : '', carryover > 0 ? `이월 ${carryover.toLocaleString()}원` : ''].filter(Boolean);
+    showToast(`✅ ${targetName}로 합쳤습니다 (${parts.join(' + ')})`);
     await loadSettlements();
   } catch(e) {
     showToast('합치기 실패: ' + e.message);
   }
+}
+
+// 합치기에서 옮길 이월 필드. 대상에 이미 이월이 있으면 더하고 날짜도 합친다.
+// 넘겨준 쪽은 이월을 비운다. 전월 정산의 "이월됨" 표시는 옛 uid 에 그대로 두고,
+// 대상의 carryoverFromUids 로 기억해 이월 취소 때 함께 되돌린다.
+function settlementCarryoverMerge(sourceRow = {}, targetSaved = {}, sourceDates = []) {
+  const targetAmount = settlementCarryover(targetSaved);
+  const amount = targetAmount + settlementCarryover(sourceRow);
+  return {
+    target: {
+      carryover: amount,
+      carryoverFrom: (targetAmount > 0 && targetSaved.carryoverFrom) || sourceRow.carryoverFrom || targetSaved.carryoverFrom || '',
+      carryoverDates: mergeCarryoverDates(targetSaved.carryoverDates || [], sourceDates),
+      carryoverFromUids: [...new Set([...(targetSaved.carryoverFromUids || []), ...(sourceRow.carryoverFromUids || []), sourceRow.uid].filter(Boolean))]
+    },
+    source: { carryover: 0, carryoverFrom: '', carryoverAt: '', carryoverDates: [], carryoverFromUids: [] }
+  };
+}
+
+async function moveSettlementCarryover(month, sourceRow, targetUid, targetUser) {
+  // 예전 이월은 날짜가 안 적혀 있다. 넘겨준 달 정산에서 옛 uid 의 이용 날짜를 찾아 채운다.
+  let sourceDates = sourceRow.carryoverDates || [];
+  if (!sourceDates.length && sourceRow.carryoverFrom) {
+    const { rows } = await computeMonthlySettlementRows(sourceRow.carryoverFrom);
+    sourceDates = settlementUsageDates(rows.find(r => r.uid === sourceRow.uid) || {});
+  }
+  const targetSnap = await settlementItemRef(month, targetUid).get();
+  const targetSaved = targetSnap.exists ? settlementCarryoverFields(targetSnap.data()) : {};
+  const { target, source } = settlementCarryoverMerge(sourceRow, targetSaved, sourceDates);
+  const now = new Date().toISOString();
+  const batch = db.batch();
+  batch.set(settlementItemRef(month, targetUid), {
+    uid: targetUid,
+    type: 'customerMonthly',
+    businessName: targetUser.businessName || '',
+    ...target,
+    carryoverAt: now,
+    updatedAt: now
+  }, { merge: true });
+  batch.set(settlementItemRef(month, sourceRow.uid), { ...source, updatedAt: now }, { merge: true });
+  await batch.commit();
 }
 
 // 저장된 정산 문서(settlements/{월}/items/{uid})를 배송기록 기준으로 다시 계산한다.
@@ -14617,7 +14770,7 @@ async function deleteSettlementRow(uid, fromModal = false) {
   try {
     // 이월받은 행을 지우면 전월 정산의 "이월됨" 표시도 되돌린다 (잔액이 사라지지 않도록)
     if (row && row.type !== 'event' && settlementCarryover(row) > 0 && row.carryoverFrom) {
-      await syncCarryoverSource({ month, uid, amount: 0, fromMonth: '', previousFrom: row.carryoverFrom });
+      await syncCarryoverSource({ month, uid, amount: 0, fromMonth: '', previousFrom: row.carryoverFrom, sourceUids: row.carryoverFromUids || [] });
     }
     if (row?.type === 'event') {
       await deleteEventLunch(row.eventId, true);
