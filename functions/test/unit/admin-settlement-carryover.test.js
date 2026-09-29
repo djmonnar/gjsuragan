@@ -52,6 +52,10 @@ const carry = vm.runInNewContext(`(() => {
   ${extractFunction('monthShortKR')}
   ${extractFunction('settlementSalesTotal')}
   ${extractFunction('settlementCarryover')}
+  ${extractFunction('settlementUsageDates')}
+  ${extractFunction('mergeCarryoverDates')}
+  ${extractFunction('carryoverDatesLabel')}
+  ${extractFunction('settlementCarryoverMerge')}
   ${extractFunction('settlementCarriedOverAmount')}
   ${extractFunction('settlementBilledTotal')}
   ${extractFunction('settlementPaidTotal')}
@@ -68,7 +72,8 @@ const carry = vm.runInNewContext(`(() => {
   ${extractFunction('newCarryoverTargetRow')}
   return { prevMonthStr, shiftMonthStr, monthLabelKR, monthShortKR, settlementSalesTotal, settlementBilledTotal,
     settlementBalance, settlementOpenBalance, settlementOutstandingBalance, isSettlementUnpaid, isCarriedOverRow,
-    settlementPaidTotal, settlementRowSaveData, settlementDocData, newCarryoverTargetRow };
+    settlementPaidTotal, settlementRowSaveData, settlementDocData, newCarryoverTargetRow,
+    settlementUsageDates, carryoverDatesLabel, settlementCarryoverMerge };
 })()`);
 
 const august = {
@@ -168,4 +173,83 @@ test('legacy 정산 복사는 새 경로에 이미 있는 문서를 덮어쓰지
   const migrate = extractFunction('migrateLegacySettlementsToNewPath');
   assert.match(migrate, /existingByMonth\[month\]\[doc\.id\]/);
   assert.match(migrate, /skipped \+= 1; continue;/);
+});
+
+test('이월액의 이용일은 넘겨준 달 일별 내역 날짜다', () => {
+  const prevRow = { dateBreakdown: { '2026-08-12': { lunch: 3 }, '2026-08-04': { lunch: 2 } } };
+  assert.deepEqual([...carry.settlementUsageDates(prevRow)], ['2026-08-04', '2026-08-12']);
+  // 엑셀 비회원 정산은 daily 에 들어 있다.
+  assert.deepEqual([...carry.settlementUsageDates({ daily: { '2026-08-05': {} } })], ['2026-08-05']);
+  assert.deepEqual([...carry.settlementUsageDates({})], []);
+});
+
+test('정산표 이용일 표기는 월/일, 중복 없이 날짜순이다', () => {
+  assert.equal(carry.carryoverDatesLabel(['2026-08-12', '2026-08-04', '2026-08-04', '', null]), '8/4, 8/12');
+  assert.equal(carry.carryoverDatesLabel(undefined), '');
+});
+
+test('이월 저장 데이터에 이용일이 실린다', () => {
+  const data = carry.settlementRowSaveData({ ...september, carryoverDates: ['2026-08-04'] });
+  assert.deepEqual([...data.carryoverDates], ['2026-08-04']);
+  assert.deepEqual([...data.carryoverFromUids], []);
+});
+
+// 2026-09: 당샘내과 수동 행(8월 이월 있음)을 등록 업체로 합쳤더니 이월액이 사라졌다.
+// 합치기가 배송기록만 옮기고 이월은 옛 행에 남겨, 배송 0인 옛 행과 함께 화면에서 빠졌다.
+test('합치기는 이월액과 이용일을 대상으로 옮기고 옛 행은 비운다', () => {
+  const source = { uid: 'manual_1', carryover: 70000, carryoverFrom: '2026-08' };
+  const { target, source: cleared } = carry.settlementCarryoverMerge(source, {}, ['2026-08-04', '2026-08-05']);
+  assert.equal(target.carryover, 70000);
+  assert.equal(target.carryoverFrom, '2026-08');
+  assert.deepEqual([...target.carryoverDates], ['2026-08-04', '2026-08-05']);
+  assert.deepEqual([...target.carryoverFromUids], ['manual_1']);
+  assert.equal(cleared.carryover, 0);
+  assert.deepEqual([...cleared.carryoverDates], []);
+});
+
+test('대상에 이미 이월이 있으면 금액과 이용일을 더한다', () => {
+  const source = { uid: 'manual_1', carryover: 30000, carryoverFrom: '2026-08' };
+  const targetSaved = { carryover: 50000, carryoverFrom: '2026-08', carryoverDates: ['2026-08-10'], carryoverFromUids: [] };
+  const { target } = carry.settlementCarryoverMerge(source, targetSaved, ['2026-08-04']);
+  assert.equal(target.carryover, 80000);
+  assert.deepEqual([...target.carryoverDates], ['2026-08-04', '2026-08-10']);
+  for (const [key, value] of Object.entries(target)) assert.notEqual(value, undefined, `${key} 가 undefined`);
+  assert.equal(Number.isNaN(target.carryover), false);
+});
+
+test('합치기와 정산 집계가 이월을 다룬다', () => {
+  assert.match(extractFunction('confirmSettlementMerge'), /moveSettlementCarryover\(/);
+  // 이월만 남은 행도 합칠 수 있어야 이미 숨은 이월을 되살린다.
+  assert.match(extractFunction('openSettlementMergeModal'), /!moves\.length && carryover <= 0/);
+  assert.match(extractFunction('computeMonthlySettlementRows'), /carryoverOnlySettlementRows\(/);
+  assert.match(extractFunction('syncCarryoverSource'), /sourceUids/);
+});
+
+test('배송 없이 이월만 남은 수동·탈퇴 행이 정산에 나온다', () => {
+  const rowsFor = vm.runInNewContext(`(() => {
+    const allUsers = { 'uid-당샘': { businessName: '당샘내과' } };
+    const deletedUsers = { 'uid-탈퇴': { businessName: '떠난업체' } };
+    ${fieldsConst[0]}
+    ${extractFunction('settlementCarryover')}
+    ${extractFunction('mergeCarryoverDates')}
+    ${extractFunction('settlementCarryoverFields')}
+    ${extractFunction('savedSettlementPayments')}
+    ${extractFunction('manualDeliverySettlementRow')}
+    ${extractFunction('carryoverOnlySettlementRows')}
+    return carryoverOnlySettlementRows;
+  })()`);
+  const rows = rowsFor({
+    manual_1: { type: 'manualOrderMonthly', businessName: '당샘내과', carryover: 70000, carryoverFrom: '2026-08' },
+    manual_2: { type: 'manualOrderMonthly', businessName: '이월없음', carryover: 0 },
+    'uid-탈퇴': { carryover: 20000, carryoverFrom: '2026-08' },
+    'uid-당샘': { carryover: 10000 },
+    'excel-1': { type: 'manualMonthly', carryover: 5000 },
+    manual_3: { type: 'manualOrderMonthly', carryover: 9000 }
+  }, { manual_3: {} });
+  const byUid = Object.fromEntries(rows.map(row => [row.uid, row]));
+  assert.deepEqual(Object.keys(byUid).sort(), ['manual_1', 'uid-탈퇴']);
+  assert.equal(byUid.manual_1.carryover, 70000);
+  assert.equal(byUid.manual_1.manualOrder, true);
+  assert.equal(byUid.manual_1.user.businessName, '당샘내과');
+  assert.equal(byUid['uid-탈퇴'].removedUser, true);
 });
