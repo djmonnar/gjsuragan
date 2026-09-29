@@ -56,6 +56,15 @@ const carry = vm.runInNewContext(`(() => {
   ${extractFunction('mergeCarryoverDates')}
   ${extractFunction('carryoverDatesLabel')}
   ${extractFunction('settlementCarryoverMerge')}
+  ${extractFunction('carryoverDetailAmount')}
+  ${extractFunction('normalizeCarryoverDetail')}
+  ${extractFunction('withCarryoverResidual')}
+  ${extractFunction('carryoverDetailFromRow')}
+  ${extractFunction('combineCarryoverDetail')}
+  ${extractFunction('carryoverDetailForRow')}
+  ${extractFunction('carryoverDetailDates')}
+  ${extractFunction('carryoverDetailDayLabel')}
+  ${extractFunction('carryoverDetailLabel')}
   ${extractFunction('settlementCarriedOverAmount')}
   ${extractFunction('settlementBilledTotal')}
   ${extractFunction('settlementPaidTotal')}
@@ -73,7 +82,9 @@ const carry = vm.runInNewContext(`(() => {
   return { prevMonthStr, shiftMonthStr, monthLabelKR, monthShortKR, settlementSalesTotal, settlementBilledTotal,
     settlementBalance, settlementOpenBalance, settlementOutstandingBalance, isSettlementUnpaid, isCarriedOverRow,
     settlementPaidTotal, settlementRowSaveData, settlementDocData, newCarryoverTargetRow,
-    settlementUsageDates, carryoverDatesLabel, settlementCarryoverMerge };
+    settlementUsageDates, carryoverDatesLabel, settlementCarryoverMerge, settlementCarryoverFields,
+    carryoverDetailAmount, normalizeCarryoverDetail, withCarryoverResidual, carryoverDetailFromRow,
+    combineCarryoverDetail, carryoverDetailForRow, carryoverDetailDates, carryoverDetailLabel };
 })()`);
 
 const august = {
@@ -197,20 +208,23 @@ test('이월 저장 데이터에 이용일이 실린다', () => {
 // 2026-09: 당샘내과 수동 행(8월 이월 있음)을 등록 업체로 합쳤더니 이월액이 사라졌다.
 // 합치기가 배송기록만 옮기고 이월은 옛 행에 남겨, 배송 0인 옛 행과 함께 화면에서 빠졌다.
 test('합치기는 이월액과 이용일을 대상으로 옮기고 옛 행은 비운다', () => {
-  const source = { uid: 'manual_1', carryover: 70000, carryoverFrom: '2026-08' };
-  const { target, source: cleared } = carry.settlementCarryoverMerge(source, {}, ['2026-08-04', '2026-08-05']);
+  const source = { uid: 'manual_1', carryover: 70000, carryoverFrom: '2026-08', carryoverDates: ['2026-08-04', '2026-08-05'] };
+  const { target, source: cleared } = carry.settlementCarryoverMerge(source, {});
   assert.equal(target.carryover, 70000);
   assert.equal(target.carryoverFrom, '2026-08');
   assert.deepEqual([...target.carryoverDates], ['2026-08-04', '2026-08-05']);
   assert.deepEqual([...target.carryoverFromUids], ['manual_1']);
+  // 날짜별 내역은 넘겨준 달 정산에서 다시 만든다(moveSettlementCarryover). 여기서는 비워 둔다.
+  assert.equal(target.carryoverDetail, null);
   assert.equal(cleared.carryover, 0);
   assert.deepEqual([...cleared.carryoverDates], []);
+  assert.deepEqual([...cleared.carryoverDetail], []);
 });
 
 test('대상에 이미 이월이 있으면 금액과 이용일을 더한다', () => {
-  const source = { uid: 'manual_1', carryover: 30000, carryoverFrom: '2026-08' };
+  const source = { uid: 'manual_1', carryover: 30000, carryoverFrom: '2026-08', carryoverDates: ['2026-08-04'] };
   const targetSaved = { carryover: 50000, carryoverFrom: '2026-08', carryoverDates: ['2026-08-10'], carryoverFromUids: [] };
-  const { target } = carry.settlementCarryoverMerge(source, targetSaved, ['2026-08-04']);
+  const { target } = carry.settlementCarryoverMerge(source, targetSaved);
   assert.equal(target.carryover, 80000);
   assert.deepEqual([...target.carryoverDates], ['2026-08-04', '2026-08-10']);
   for (const [key, value] of Object.entries(target)) assert.notEqual(value, undefined, `${key} 가 undefined`);
@@ -232,6 +246,7 @@ test('배송 없이 이월만 남은 수동·탈퇴 행이 정산에 나온다',
     ${fieldsConst[0]}
     ${extractFunction('settlementCarryover')}
     ${extractFunction('mergeCarryoverDates')}
+    ${extractFunction('normalizeCarryoverDetail')}
     ${extractFunction('settlementCarryoverFields')}
     ${extractFunction('savedSettlementPayments')}
     ${extractFunction('manualDeliverySettlementRow')}
@@ -252,4 +267,135 @@ test('배송 없이 이월만 남은 수동·탈퇴 행이 정산에 나온다',
   assert.equal(byUid.manual_1.manualOrder, true);
   assert.equal(byUid.manual_1.user.businessName, '당샘내과');
   assert.equal(byUid['uid-탈퇴'].removedUser, true);
+});
+
+// ── 이월 내역: 이월액이 전월 며칠에 몇 개였는지 ──
+// 2026-09: 당샘내과 9월 정산서에 "전월 이월 미수금 +64,000원 · 이용일 8/31" 만 나와
+// 8/31 에 몇 개를 먹은 것인지 알 수 없었다. 이월할 때 전월 날짜별 수량·금액을 같이 둔다.
+const plain = value => JSON.parse(JSON.stringify(value));
+const 당샘8월 = {
+  uid: 'manual_1', lunchPrice: 8000, saladPrice: 8000, amount: 64000, adjust: 0, payments: [],
+  status: '이월', carriedOverTo: '2026-09', carriedOverAmount: 64000,
+  dateBreakdown: { '2026-08-31': { lunch: 8, salad: 0, eventLunch: 0, catering: 0, cateringAmount: 0, cateringItems: [] } }
+};
+
+test('당샘내과 8월 이월은 8/31 일반 8개 64,000원 한 줄로 풀린다', () => {
+  const detail = carry.carryoverDetailFromRow(당샘8월, '2026-08', 64000);
+  assert.deepEqual(plain(detail), [
+    { kind: 'day', date: '2026-08-31', label: '', lunch: 8, salad: 0, eventLunch: 0, catering: 0, cateringLabel: '', amount: 64000 }
+  ]);
+  assert.equal(carry.carryoverDetailAmount(detail), 64000);
+  assert.equal(carry.carryoverDetailLabel(detail), '8/31 일반 8개');
+  assert.deepEqual([...carry.carryoverDetailDates(detail)], ['2026-08-31']);
+});
+
+test('입금·조정·그 전달 이월이 있던 달은 맞춤 줄을 붙여 이월액과 한 원도 안 어긋난다', () => {
+  const prevRow = {
+    uid: 'u1', lunchPrice: 8000, saladPrice: 7000, amount: 183000, adjust: -6000, status: '부분입금',
+    carryover: 20000, carryoverFrom: '2026-07',
+    payments: [{ amount: 100000, date: '2026-08-25' }],
+    dateBreakdown: {
+      '2026-08-04': { lunch: 10 },
+      '2026-08-05': { lunch: 12, salad: 1 }
+    }
+  };
+  const balance = carry.settlementOpenBalance(prevRow);
+  assert.equal(balance, 97000);
+  const detail = plain(carry.carryoverDetailFromRow(prevRow, '2026-08', balance));
+  assert.deepEqual(detail.map(line => [line.kind, line.label || line.date, line.amount]), [
+    ['day', '2026-08-04', 80000],
+    ['day', '2026-08-05', 103000],
+    ['adjust', '8월 조정금액', -6000],
+    ['carryover', '7월 이월 미수금', 20000],
+    ['paid', '8월 입금', -100000]
+  ]);
+  assert.equal(carry.carryoverDetailAmount(detail), balance);
+  assert.equal(carry.carryoverDetailLabel(detail), '8/4 일반 10개, 8/5 일반 12·샐러드 1개');
+});
+
+test('이월액을 손으로 고치면 차이를 "이월 조정" 한 줄로 맞추고, 다시 고쳐도 줄이 쌓이지 않는다', () => {
+  const detail = carry.carryoverDetailFromRow(당샘8월, '2026-08', 64000);
+  const once = carry.withCarryoverResidual(detail, 50000);
+  assert.deepEqual(plain(once.at(-1)), { kind: 'residual', label: '이월 조정', amount: -14000 });
+  assert.equal(carry.carryoverDetailAmount(once), 50000);
+  const twice = carry.withCarryoverResidual(once, 60000);
+  assert.equal(twice.filter(line => line.kind === 'residual').length, 1);
+  assert.equal(carry.carryoverDetailAmount(twice), 60000);
+  // 원래 금액으로 돌리면 맞춤 줄이 사라진다.
+  assert.equal(carry.withCarryoverResidual(twice, 64000).some(line => line.kind === 'residual'), false);
+});
+
+test('단가·수량이 빠진 행이 와도 NaN·undefined 없이 이월액과 맞는다', () => {
+  const detail = carry.carryoverDetailFromRow({ dateBreakdown: { '2026-08-31': { lunch: 8 } } }, '2026-08', 64000);
+  assert.equal(carry.carryoverDetailAmount(detail), 64000);
+  for (const line of detail) {
+    for (const [key, value] of Object.entries(line)) {
+      assert.notEqual(value, undefined, `${key} 가 undefined`);
+      if (typeof value === 'number') assert.equal(Number.isFinite(value), true, `${key} 가 ${value}`);
+    }
+  }
+  const empty = carry.carryoverDetailFromRow({}, '', 0);
+  assert.deepEqual(plain(empty), []);
+});
+
+test('합계를 손으로 고친 엑셀 정산은 날짜 대신 합계 한 줄이다', () => {
+  const detail = carry.carryoverDetailFromRow({
+    manualOverride: true, lunch: 20, salad: 2, lunchPrice: 8000, saladPrice: 7000,
+    daily: { '2026-08-01': { lunch: 99 } }
+  }, '2026-08', 174000);
+  assert.deepEqual(plain(detail).map(line => [line.label, line.lunch, line.salad, line.amount]), [['8월 합계', 20, 2, 174000]]);
+});
+
+test('합치기 대상의 내역은 이 달로 "이월됨" 표시된 전월 행에서만 만든다', () => {
+  // 등록 업체 당샘내과의 8월은 입금이 끝났다. 그 날짜들이 이월 내역에 섞이면 안 된다.
+  const 등록8월 = {
+    uid: 'uid-당샘', lunchPrice: 8000, amount: 80000, status: '입금완료', carriedOverTo: '',
+    payments: [{ amount: 80000 }], dateBreakdown: { '2026-08-03': { lunch: 10 } }
+  };
+  const target = { uid: 'uid-당샘', carryover: 64000, carryoverFrom: '2026-08', carryoverFromUids: ['manual_1'] };
+  const detail = carry.carryoverDetailForRow(target, [등록8월, 당샘8월], '2026-09');
+  assert.deepEqual(plain(detail).map(line => [line.date, line.lunch, line.amount]), [['2026-08-31', 8, 64000]]);
+  // 이월됨 표시가 다른 달로 가 있으면 쓰지 않는다.
+  assert.equal(carry.carryoverDetailForRow(target, [{ ...당샘8월, carriedOverTo: '2026-10' }], '2026-09'), null);
+});
+
+test('두 행에서 같은 날짜가 오면 수량·금액을 더하고 이월 조정은 합친 뒤 다시 계산한다', () => {
+  const a = [{ kind: 'day', date: '2026-08-31', lunch: 8, salad: 0, eventLunch: 0, catering: 0, cateringLabel: '', amount: 64000 }];
+  const b = [
+    { kind: 'day', date: '2026-08-31', lunch: 2, salad: 1, eventLunch: 0, catering: 0, cateringLabel: '', amount: 23000 },
+    { kind: 'day', date: '2026-08-28', lunch: 1, salad: 0, eventLunch: 0, catering: 0, cateringLabel: '', amount: 8000 },
+    { kind: 'residual', label: '이월 조정', amount: 5000 }
+  ];
+  const combined = plain(carry.combineCarryoverDetail(a, b));
+  assert.deepEqual(combined.map(line => [line.date, line.lunch, line.salad, line.amount]), [
+    ['2026-08-28', 1, 0, 8000],
+    ['2026-08-31', 10, 1, 87000]
+  ]);
+});
+
+test('저장된 이월 내역은 읽을 때 모양을 맞추고, 한 번도 안 만든 것(null)과 없는 것([])을 가른다', () => {
+  assert.equal(carry.normalizeCarryoverDetail(undefined), null);
+  assert.equal(carry.normalizeCarryoverDetail('x'), null);
+  assert.deepEqual(plain(carry.normalizeCarryoverDetail([])), []);
+  const lines = plain(carry.normalizeCarryoverDetail([
+    { kind: 'day', date: '2026-08-31', lunch: '8', amount: '64000' },
+    { kind: 'day', date: 'bad' },
+    null,
+    { kind: 'paid', label: '8월 입금', amount: -1000.4 }
+  ]));
+  assert.deepEqual(lines, [
+    { kind: 'day', date: '2026-08-31', label: '', lunch: 8, salad: 0, eventLunch: 0, catering: 0, cateringLabel: '', amount: 64000 },
+    { kind: 'paid', label: '8월 입금', amount: -1000 }
+  ]);
+  assert.equal(carry.settlementCarryoverFields({}).carryoverDetail, null);
+});
+
+test('이월 내역을 만들고 그리는 자리가 이어져 있다', () => {
+  assert.match(extractFunction('applyCarryover'), /carryoverDetailFromRow\(prevRow, fromMonth, c\.balance\)/);
+  assert.match(extractFunction('fillCarryoverFromPrevMonth'), /carryoverDetailFromRow\(prevRow, fromMonth, balance\)/);
+  assert.match(extractFunction('saveSettlementEdit'), /withCarryoverResidual\(settlementEditCarryoverDetail, carryover\)/);
+  assert.match(extractFunction('moveSettlementCarryover'), /carryoverDetailForRow\(/);
+  assert.match(extractFunction('backfillCarryoverDetail'), /carryoverDetailForRow\(row, prevRows, month\)/);
+  assert.match(extractFunction('loadSettlements'), /backfillCarryoverDetail\(month, result\.rows\)/);
+  assert.match(extractFunction('buildSheetHTML'), /carryoverDetailDayLabel\(line\)/);
 });
