@@ -352,3 +352,45 @@ test('반타임 방식 일당 직원 카드에는 반타임 조건이 나온다'
   assert.match(html, /55,000원/);
   assert.doesNotMatch(html, /NaN/);
 });
+
+test('근무 차감이 월급 직원 입금 기준액에서 빠지고 줄로 보인다', () => {
+  const state = baseState('payroll');
+  state.data.shifts = [시급근무, { ...월급근무, deductionAmount: 28708, deductionReason: '2시간 조퇴' }];
+  const { html } = screen(state);
+  assert.match(html, /근무 차감 \(1건\)<\/span><span>− 28,708원/);
+  // 3,000,000 + 172,248 − 136,364 − 28,708
+  assert.match(html, /3,007,176원/);
+});
+
+test('근무 차감이 시급·일일근무 금액에서도 빠진다', () => {
+  const state = baseState('payroll');
+  state.data.employees = [시급직원, 일일자리];
+  state.data.shifts = [{ ...시급근무, deductionAmount: 4000 }, { ...일일근무('d9', '김일손', 100000), deductionAmount: 20000, deductionReason: '지각', withholding: true }];
+  state.data.absences = [];
+  const { html } = screen(state);
+  // 144,000 − 4,000
+  assert.match(html, /140,000원/);
+  assert.match(html, /근무 차감 \(1건\)<\/span><span>− 4,000원/);
+  // 일일근무: 100,000 − 20,000 = 80,000, 3.3% 는 뺀 금액에 붙는다 → 2,640 → 77,360
+  assert.match(html, /차감 \(지각\)<\/span><span>− 20,000원/);
+  assert.match(html, /원천징수 3\.3%<\/span><span>− 2,640원/);
+  assert.match(html, /77,360원/);
+});
+
+test('차감이 급여보다 커도 0원 밑으로 안 내려가고, 이상한 값은 NaN 이 되지 않는다', () => {
+  const state = baseState('payroll');
+  state.data.employees = [시급직원];
+  state.data.shifts = [{ ...시급근무, deductionAmount: 999999 }, { ...시급근무, id: 'x9', checkInAt: 시급근무.checkInAt + 86400000, checkOutAt: 시급근무.checkOutAt + 86400000, workDate: '2026-09-18', deductionAmount: 'abc' }];
+  state.data.absences = [];
+  const { html, api } = screen(state);
+  assert.doesNotMatch(html, /NaN|undefined/);
+  const row = api.payrollRows(api.records()).find(r => r.id === 'h1');
+  assert.equal(row.shiftDeduction, 999999);
+});
+
+test('캘린더의 기록에 차감 금액과 사유가 보인다', () => {
+  const state = baseState('calendar');
+  state.data.shifts = [시급근무, { ...월급근무, deductionAmount: 28708, deductionReason: '2시간 조퇴' }];
+  const { html } = screen(state);
+  assert.match(html, /차감 <strong>− 28,708원<\/strong> · 2시간 조퇴/);
+});

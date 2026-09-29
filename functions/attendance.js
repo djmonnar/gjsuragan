@@ -414,6 +414,9 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         // 체크를 푼 것과 화면이 안 보낸 것은 다르다. 안 보냈을 때만 물려받는다.
         withholding: dailyPaidShift
           ? (input.withholding === undefined ? Boolean(before?.withholding ?? employee.withholding) : data.withholding) : false,
+        // 차감을 모르는 옛 화면이 저장해도 적어둔 차감이 사라지면 안 된다. 안 보냈을 때만 물려받는다.
+        deductionAmount: input.deductionAmount === undefined ? model.shiftDeductionOf(before || {}) : data.deductionAmount,
+        deductionReason: input.deductionReason === undefined ? String(before?.deductionReason || '') : data.deductionReason,
         source: before?.source || 'admin', voided: false, createdAt: before?.createdAt ?? now(),
         updatedAt: now(), version: (before?.version || 0) + 1
       };

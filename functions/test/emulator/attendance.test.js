@@ -628,3 +628,25 @@ test('기록에서 풀타임·반타임을 직접 정하면 그대로 간다', a
   const shift = (await service.listAdmin('2026-09')).shifts.find(s => s.id === saved.id);
   assert.equal(shift.amount, 100000);
 });
+
+test('월급 직원 조퇴 차감이 기록에 남고 옛 화면이 저장해도 지워지지 않는다', async () => {
+  await service.saveEmployee({ ...(await getEmployee()), payType: 'salaried', monthlySalary: 3000000 }, 'admin');
+  const input = await punch('in', 'early-in'); now += 6 * hour;
+  await punch('out', 'early-out', input.shiftId);
+  await service.saveShift({ ...(await getShift(input.shiftId)), deductionAmount: 28708, deductionReason: '2시간 조퇴' }, 'admin');
+  let row = (await service.listAdmin('2026-09')).shifts[0];
+  assert.equal(row.deductionAmount, 28708);
+  assert.equal(row.deductionReason, '2시간 조퇴');
+  // 월급은 amount 가 가산분뿐이다. 차감은 섞이지 않고 따로 온다.
+  assert.equal(row.amount, 0);
+  // 차감을 모르는 화면이 메모만 고쳐 저장해도 차감은 그대로다.
+  const { deductionAmount: _a, deductionReason: _r, ...olderForm } = await getShift(input.shiftId);
+  await service.saveShift({ ...olderForm, note: '메모만 수정' }, 'admin');
+  row = (await service.listAdmin('2026-09')).shifts[0];
+  assert.equal(row.deductionAmount, 28708);
+  assert.equal(row.deductionReason, '2시간 조퇴');
+  // 0 으로 저장하면 차감이 사라진다.
+  await service.saveShift({ ...(await getShift(input.shiftId)), deductionAmount: 0, deductionReason: '' }, 'admin');
+  assert.equal((await service.listAdmin('2026-09')).shifts[0].deductionAmount, 0);
+  await assert.rejects(service.saveShift({ ...(await getShift(input.shiftId)), deductionAmount: -1 }, 'admin'), { status: 400 });
+});

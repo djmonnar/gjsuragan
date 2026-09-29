@@ -204,6 +204,23 @@ function moneyValue(value) {
   return Number.isSafeInteger(amount) && amount > 0 ? amount : 0;
 }
 
+// 근무 하나에 관리자가 직접 적는 차감액. 조퇴·지각처럼 그날 사정으로 덜 줄 때 쓴다.
+// 월급 직원은 일찍 퇴근을 찍어도 급여가 그대로라, 이 칸이 아니면 깎을 방법이 없다.
+// 계산에 섞지 않고 따로 들고 다닌다 — 얼마를 벌었고 얼마를 뺐는지가 정산에 따로 보여야 한다.
+const MAX_SHIFT_DEDUCTION = 10000000;
+
+function shiftDeductionOf(shift = {}) {
+  return Math.min(moneyValue(shift.deductionAmount), MAX_SHIFT_DEDUCTION);
+}
+
+// 빠진 시간으로 차감액을 낼 때의 금액. 시급(월급 직원은 통상시급) × 분 ÷ 60, 원 단위 반올림.
+// 화면의 '시간으로 계산' 도우미와 사용 안내가 이 식을 쓴다.
+function deductionForMinutes(minutes, hourlyRate) {
+  const rate = moneyValue(hourlyRate);
+  const span = Math.max(0, Math.floor(Number(minutes) || 0));
+  return Math.round(rate * span / 60);
+}
+
 // 떼는 금액. 원 단위로 버린다 — 덜 떼는 쪽이 받는 사람에게 유리하고,
 // 더 떼서 모자라게 주는 것보다 낫다.
 function withholdingTax(amount) {
@@ -434,6 +451,9 @@ function shiftInput(input, now) {
     // 누가 왔는지는 나중에 적는다. 미리 알 수 없으니 비어 있어도 저장된다.
     workerName: isDailyPaid(input.payType) ? text(input.workerName ?? '', '일한 사람', 40) : '',
     workerNote: isDailyPaid(input.payType) ? text(input.workerNote ?? '', '지급 메모', 200) : '',
+    // 조퇴 등으로 이 근무에서 뺄 금액. 급여 유형과 상관없이 쓴다. 0 이면 차감 없음.
+    deductionAmount: integer(input.deductionAmount ?? 0, '차감 금액', 0, MAX_SHIFT_DEDUCTION),
+    deductionReason: text(input.deductionReason ?? '', '차감 사유', 100),
     note: text(input.note, '메모', 500)
   };
 }
@@ -442,7 +462,10 @@ function shiftInput(input, now) {
 // 배율은 저장된 값이 아니라 계산할 때 찾는다. 명절을 나중에 등록해도 지난 기록에
 // 바로 반영돼야 한다. 관리자가 달력을 뒤늦게 채우는 것이 정상적인 사용이다.
 function totals(shift, specialDay = null) {
-  const empty = { workedMinutes: 0, payableMinutes: 0, earlyMinutes: 0, amount: 0, baseAmount: 0, extraAmount: 0, overtimeUnits: 0, dayPortion: 'full', multiplierPercent: BASE_PERCENT };
+  // 차감액은 amount 에 섞지 않는다. amount 는 번 돈, deductionAmount 는 뺄 돈이다.
+  // 미퇴근 기록에도 적어둘 수 있게 그대로 싣는다. 정산은 퇴근 완료된 기록만 센다.
+  const deductionAmount = shift.voided ? 0 : shiftDeductionOf(shift);
+  const empty = { workedMinutes: 0, payableMinutes: 0, earlyMinutes: 0, amount: 0, baseAmount: 0, extraAmount: 0, overtimeUnits: 0, dayPortion: 'full', multiplierPercent: BASE_PERCENT, deductionAmount };
   if (shift.voided || shift.checkOutAt === null) return empty;
   const workedMinutes = Math.floor((shift.checkOutAt - shift.checkInAt) / MINUTE);
   const payableMinutes = payableMinutesOf(shift);
@@ -458,7 +481,7 @@ function totals(shift, specialDay = null) {
     const amount = Math.round(paidMinutes * rate * multiplierPercent / (60 * BASE_PERCENT));
     const baseAmount = Math.round(paidMinutes * rate / 60);
     // 급여로 센 시간을 유급 근무 분으로 낸다. 금액과 시간이 어긋나면 정산에서 읽을 수 없다.
-    return { workedMinutes, payableMinutes: paidMinutes, earlyMinutes, amount, baseAmount, extraAmount: amount - baseAmount, multiplierPercent };
+    return { workedMinutes, payableMinutes: paidMinutes, earlyMinutes, amount, baseAmount, extraAmount: amount - baseAmount, multiplierPercent, deductionAmount };
   }
   if (isDailyPaid(shift.payType)) {
     // 일당은 시간이 아니라 하루 단위다. 특수일 배율은 붙이지 않는다 —
@@ -488,13 +511,13 @@ function totals(shift, specialDay = null) {
     // 일당·비례는 하루 단위라 유급 근무 분을 실제 근무시간 그대로 둔다.
     // 일찍 온 시간은 초과 급여를 셀 때만 뺀다.
     return { workedMinutes, payableMinutes, earlyMinutes, amount: baseAmount + extraAmount, baseAmount, extraAmount,
-      overtimeUnits: units, dayPortion: portion, multiplierPercent: BASE_PERCENT };
+      overtimeUnits: units, dayPortion: portion, multiplierPercent: BASE_PERCENT, deductionAmount };
   }
   // 월급 직원의 소정근로는 월급에 이미 들어 있다. 특수일 근무분만 따로 얹는다.
   const rate = moneyValue(shift.ordinaryHourlyRate);
   const extraAmount = multiplierPercent === BASE_PERCENT || rate === 0
     ? 0 : Math.round(paidMinutes * rate * multiplierPercent / (60 * BASE_PERCENT));
-  return { workedMinutes, payableMinutes: paidMinutes, earlyMinutes, amount: extraAmount, baseAmount: 0, extraAmount, multiplierPercent };
+  return { workedMinutes, payableMinutes: paidMinutes, earlyMinutes, amount: extraAmount, baseAmount: 0, extraAmount, multiplierPercent, deductionAmount };
 }
 
 function overlaps(a, b) {
@@ -519,7 +542,7 @@ module.exports = {
   EARLY_CLOCK_IN_WINDOW_MINUTES, MAX_SCHEDULED_STARTS, scheduledStarts, earlyClockInMinutes,
   overtimeBasisMinutes, overtimeAmount,
   dayPortionOf, dailyModeOf, earlyGraceOf, payableMinutesOf, proratedPay, kstMinutesOfDay,
-  WITHHOLDING_PER_MILLE, withholdingTax, netPay,
+  WITHHOLDING_PER_MILLE, withholdingTax, netPay, MAX_SHIFT_DEDUCTION, shiftDeductionOf, deductionForMinutes,
   fail, text, integer, id, floor, workDate, workDateString, monthRange,
   employeeInput, shiftInput, totals, overlaps, kioskEmployee,
   ordinaryHourlyRate, dailyDeduction, specialDayInput, absenceInput, shiftMultiplierPercent
