@@ -68,6 +68,10 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
 .controls-bar{background:#fff;border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .date-nav{display:flex;align-items:center;gap:8px}
+.date-pick{position:relative;display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:8px;cursor:pointer}
+.date-pick:hover{background:#eef2f7}
+.date-pick-icon{font-size:14px;line-height:1}
+.date-pick input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
 .nav-btn{width:36px;height:36px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:16px}
 .current-date{font-size:16px;font-weight:700;color:var(--primary);min-width:150px;text-align:center}
 .today-btn,.refresh-btn,.members-btn{border:0;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
@@ -328,6 +332,7 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .order-check,.select-all-check{width:18px;height:18px;cursor:pointer}
 .delivery-status{display:inline-block;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;background:#fff3e0;color:#e65100}
 .delivery-status.done{background:#e8f5e9;color:#2e7d32}
+.order-change-warn{margin-top:4px;font-size:11px;font-weight:800;color:#c0392b;line-height:1.35;white-space:normal}
 .time-cell{font-size:12px;color:var(--sub)}
 .note-cell{font-size:12px;color:var(--sub);max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .note-badge{display:inline-block;background:#fff3e0;color:#e65100;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:600;cursor:help;white-space:normal;max-width:130px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
@@ -535,7 +540,8 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .settle-month-picker .form-input{width:100%;min-height:44px}
   .settle-month-picker .save-btn{min-height:44px;margin:0;padding-left:16px;padding-right:16px}
   .settle-month-picker .settle-carryover-btn,
-  .settle-month-picker .settle-resync-btn{grid-column:1/-1;min-height:44px}
+  .settle-month-picker .settle-resync-btn,
+  .settle-month-picker .settle-unpaid-overview-btn{grid-column:1/-1;min-height:44px}
   .settle-filter-tabs{margin-left:-2px;margin-right:-2px;scrollbar-width:none}
   .settle-filter-tabs::-webkit-scrollbar{display:none}
   .settle-tab-btn{flex:0 0 auto;min-height:39px;padding:8px 13px}
@@ -1277,9 +1283,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   <div class="controls-bar admin-tab-panel" data-tab="orders">
     <div class="date-nav">
       <button class="nav-btn" onclick="changeDate(-1)">◀</button>
-      <label style="position:relative;display:inline-block;cursor:pointer" title="클릭하면 날짜를 직접 선택할 수 있습니다">
+      <label class="date-pick" title="눌러서 날짜를 바로 고릅니다">
         <div class="current-date" id="current-date-label">날짜</div>
-        <input type="date" id="date-picker" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="setDateFromPicker()">
+        <span class="date-pick-icon" aria-hidden="true">📅</span>
+        <input type="date" id="date-picker" aria-label="날짜 고르기" onclick="openDatePicker(this)" onchange="setDateFromPicker()">
       </label>
       <button class="nav-btn" onclick="changeDate(1)">▶</button>
     </div>
@@ -1936,6 +1943,8 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <li>수량이 실제 배송과 다르면 도시락/샐러드 숫자를 수정합니다.</li>
           <li>배송 나간 업체만 체크한 뒤 <b>배송 완료</b>를 누릅니다.</li>
           <li>배송 완료된 건은 정산에 자동 반영됩니다. 직원 업무는 여기서 끝납니다.</li>
+          <li>주문 표는 다른 탭에 다녀와도 저절로 다시 불러오지 않습니다. 화면을 연 뒤 고객이 앱에서 수량을 바꿨으면 <b>배송 완료</b>와 <b>집계 인쇄</b>가 멈추고 바뀐 업체를 알려줍니다. 확인을 누르면 최신 주문으로 다시 불러오니 숫자를 보고 다시 누르면 됩니다.</li>
+          <li>배송 완료 뒤에 고객이 바꾼 곳은 상태 칸에 빨간 글씨 <b>고객 변경 미반영</b>과 바뀐 수량이 뜹니다. 숫자를 고치고 그 행의 <b>저장</b>을 누르면 배송기록과 정산이 같이 바뀝니다.</li>
         </ol>
         <div class="manual-tip">고객이 자체 휴무로 보낸 날은 휴무 표시가 뜨며 배송 완료 대상에서 제외됩니다.</div>
       </div>
@@ -1966,6 +1975,8 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <li>주문 탭에서 배송완료한 도시락, 샐러드, 일회용 수량과 행사도시락 금액만 확인합니다.</li>
           <li>정산 탭에서는 입금완료, 보류, 조정금액처럼 예외만 수정합니다.</li>
           <li>전월에 못 받은 잔액은 <b>전월 미수금 이월</b>을 눌러 이번 달 청구액에 합칩니다. 전월 건은 <b>이월됨</b>으로 바뀌고 잔액이 0이 됩니다.</li>
+          <li>고객 앱은 <b>최근 12개월 미납</b>을 한꺼번에 보여줍니다. 정산 탭은 한 달씩만 보여서, 밀린 미납은 <b>📋 미납 모아보기</b>로 모든 업체를 한 번에 봅니다. 기본은 지난달까지 밀린 것만 보이고, <b>이번 달(납부기한 전)도 보기</b>를 켜면 고객 앱과 같은 12개월이 보입니다. <b>그 달 열기</b>로 가서 입금 처리하고, <b>금액 다름</b>이 뜬 곳은 <b>고객 앱 맞추기</b>를 누르면 고객 앱 금액이 이 화면과 같아집니다.</li>
+          <li>상태만 <b>입금완료</b>로 바꾼 달(입금 기록 없음)은 고객 앱에서도 완납으로 보입니다.</li>
           <li>필요하면 정산표, 카톡 내보내기, 영수증을 사용합니다.</li>
         </ol>
       </div>
@@ -2051,6 +2062,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <button class="save-btn" style="width:auto" onclick="loadSettlements()">불러오기</button>
           <button class="manual-btn settle-carryover-btn" type="button" style="white-space:nowrap" onclick="openCarryoverModal()">↩️ 전월 미수금 이월</button>
           <button class="manual-btn settle-resync-btn" type="button" style="white-space:nowrap" onclick="resyncAllSettlements()" title="이 달 정산을 배송기록 기준으로 모두 다시 계산해 고객 화면과 맞춥니다">🔄 전체 다시계산</button>
+          <button class="manual-btn settle-unpaid-overview-btn" type="button" style="white-space:nowrap" onclick="openUnpaidOverview()" title="고객 앱처럼 최근 12개월 미납을 모든 업체에 대해 한 번에 봅니다">📋 미납 모아보기</button>
         </div>
         <div class="settle-filter-tabs">
           <button class="settle-tab-btn active" data-filter="all" onclick="setSettleFilter('all')">전체</button>
@@ -2874,6 +2886,51 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   </div>
 </div>
 
+<!-- 미납 모아보기 모달 (최근 12개월, 고객 앱과 같은 범위) -->
+<div class="modal-overlay" id="unpaid-overview-modal" onclick="if(event.target===this) closeUnpaidOverview()">
+  <div class="modal-box" style="max-width:880px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title">📋 미납 모아보기 (최근 12개월)</div>
+      <button class="modal-close" type="button" onclick="closeUnpaidOverview()">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--sub);line-height:1.6;margin-bottom:10px">
+      고객 앱은 최근 12개월 미납을 한꺼번에 보여줍니다. 정산 탭은 한 달씩만 보여서 지난달 미납을 놓치기 쉬워,
+      모든 업체의 미납을 여기 모았습니다. 기본은 <b>지난달까지 밀린 것</b>만 보이고, 이번 달 청구는 아래 체크를 켜면 같이 보입니다.
+      <b>그 달 열기</b>를 누르면 그 달 정산이 그 업체만 보이게 열리고, 입금 처리는 평소처럼 하면 됩니다.
+      <b>금액 다름</b>은 고객 앱에 보이는 금액이 이 화면과 다른 곳입니다(예전에 지운 주문이 정산 문서에 남은 경우 등).
+    </div>
+    <div class="carryover-summary" style="margin:0 0 10px">
+      <span id="unpaid-overview-summary">-</span>
+      <label style="font-weight:600;font-size:12px;display:inline-flex;align-items:center;gap:4px;cursor:pointer">
+        <input type="checkbox" id="unpaid-overview-include-current" onchange="setUnpaidOverviewIncludeCurrent(this.checked)"> 이번 달(납부기한 전)도 보기
+      </label>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="carryover-table">
+        <thead>
+          <tr>
+            <th class="left">업체명</th>
+            <th>정산월</th>
+            <th>납부기한</th>
+            <th>미납 (이 화면)</th>
+            <th>고객 앱</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="unpaid-overview-tbody">
+          <tr><td colspan="6" style="padding:18px;color:var(--sub)">불러오는 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="error-msg" id="unpaid-overview-error"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="save-btn" id="unpaid-overview-fix-all" type="button" onclick="fixUnpaidOverviewEntries()" disabled>고객 앱과 다른 곳 없음</button>
+      <button class="secondary-btn" type="button" onclick="loadUnpaidOverview()">다시 불러오기</button>
+      <button class="secondary-btn" type="button" onclick="closeUnpaidOverview()">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 정산 일괄 변경 확인 모달 -->
 <div class="modal-overlay" id="settlement-bulk-confirm-modal" aria-hidden="true" onclick="if(event.target===this) closeBulkSettlementConfirm()">
   <div class="modal-box bulk-confirm-box" role="dialog" aria-modal="true" aria-labelledby="settlement-bulk-confirm-title">
@@ -3628,6 +3685,151 @@ function settlementOutstandingBalance(row = {}) {
 function isSettlementUnpaid(row = {}) {
   return settlementOutstandingBalance(row) > 0;
 }
+
+// ── 이월 내역 (carryoverDetail) ──
+// 이월액이 전월 며칠에 몇 개였는지 정산서에 풀어 보여주려고, 넘겨준 달 정산에서 뽑아 이월받은 달 문서에 둔다.
+// 날짜 줄: { kind:'day', date, lunch, salad, eventLunch, catering, cateringLabel, amount }
+//   (수기로 합계만 고친 엑셀 정산은 날짜 대신 label: '8월 합계')
+// 맞춤 줄: { kind:'adjust'|'carryover'|'paid'|'residual', label, amount }
+//   입금·조정이 있던 달은 날짜 금액만으로는 이월액과 안 맞아서 붙인다.
+// 모든 줄 금액의 합 = 이월액. 정산서의 이월 합계와 한 원도 어긋나지 않게 한다.
+function carryoverDetailAmount(detail = []) {
+  return (Array.isArray(detail) ? detail : []).reduce((sum, line) => sum + (Number(line?.amount) || 0), 0);
+}
+// 저장된 값을 읽을 때 쓴다. 한 번도 만든 적 없으면 null (나중에 채울 대상), 만들었는데 없으면 [].
+function normalizeCarryoverDetail(detail) {
+  if (!Array.isArray(detail)) return null;
+  return detail
+    .filter(line => line && typeof line === 'object')
+    .map(line => {
+      const amount = Math.round(Number(line.amount) || 0);
+      if (line.kind === 'day') {
+        return {
+          kind: 'day',
+          date: /^\d{4}-\d{2}-\d{2}$/.test(String(line.date || '')) ? String(line.date) : '',
+          label: String(line.label || ''),
+          lunch: Number(line.lunch) || 0,
+          salad: Number(line.salad) || 0,
+          eventLunch: Number(line.eventLunch) || 0,
+          catering: Number(line.catering) || 0,
+          cateringLabel: String(line.cateringLabel || ''),
+          amount
+        };
+      }
+      return { kind: String(line.kind || 'residual'), label: String(line.label || ''), amount };
+    })
+    .filter(line => line.kind !== 'day' || line.date || line.label);
+}
+// 줄 금액의 합이 이월액과 다르면(수기로 이월액을 고친 경우 등) 차이를 "이월 조정" 한 줄로 맞춘다.
+function withCarryoverResidual(lines = [], amount = 0) {
+  const kept = (Array.isArray(lines) ? lines : []).filter(line => line && line.kind !== 'residual');
+  const residual = Math.round((Number(amount) || 0) - carryoverDetailAmount(kept));
+  return residual ? [...kept, { kind: 'residual', label: '이월 조정', amount: residual }] : kept;
+}
+// 넘겨준 달 정산 행 하나에서 이월 내역을 만든다. amount 는 그 행에서 넘어온 금액.
+function carryoverDetailFromRow(prevRow = {}, fromMonth = '', amount = settlementOpenBalance(prevRow)) {
+  const lunchPrice = Number(prevRow.lunchPrice || 0) || 0;
+  const saladPrice = Number(prevRow.saladPrice || 0) || 0;
+  const eventPrice = settlementEventUnitPrice(prevRow);
+  const short = monthShortKR(fromMonth) || '전월';
+  const qtyOf = value => Number(value || 0) || 0;
+  let lines;
+  if (prevRow.manualOverride) {
+    // 합계를 손으로 고친 엑셀 정산은 일별 칸이 합계와 안 맞을 수 있다. 합계 한 줄로 둔다.
+    const lunch = qtyOf(prevRow.lunch);
+    const salad = qtyOf(prevRow.salad);
+    const eventLunch = qtyOf(prevRow.eventLunch);
+    const catering = qtyOf(prevRow.catering);
+    lines = [{
+      kind: 'day', date: '', label: `${short} 합계`, lunch, salad, eventLunch, catering, cateringLabel: '',
+      amount: lunch * lunchPrice + salad * saladPrice + eventLunch * eventPrice + qtyOf(prevRow.cateringAmount)
+    }];
+  } else {
+    const daily = prevRow.dateBreakdown && Object.keys(prevRow.dateBreakdown).length ? prevRow.dateBreakdown : (prevRow.daily || {});
+    lines = settlementUsageDates(prevRow).map(ds => {
+      const day = daily[ds] || {};
+      const lunch = qtyOf(day.lunch);
+      const salad = qtyOf(day.salad);
+      const eventLunch = qtyOf(day.eventLunch);
+      const catering = qtyOf(day.catering);
+      const cateringItems = Array.isArray(day.cateringItems) ? day.cateringItems : [];
+      return {
+        kind: 'day', date: ds, label: '', lunch, salad, eventLunch, catering,
+        cateringLabel: cateringItems.map(item => `${item?.name || '행사도시락'} ${qtyOf(item?.qty)}개`).join(' · '),
+        amount: lunch * lunchPrice + salad * saladPrice + eventLunch * eventPrice + qtyOf(day.cateringAmount)
+      };
+    });
+  }
+  const adjust = parseInt(prevRow.adjust, 10) || 0;
+  if (adjust) lines.push({ kind: 'adjust', label: `${short} 조정금액`, amount: adjust });
+  const earlier = settlementCarryover(prevRow);
+  if (earlier) lines.push({ kind: 'carryover', label: `${monthShortKR(prevRow.carryoverFrom) || '그 전달'} 이월 미수금`, amount: earlier });
+  const paid = settlementPaidTotal(prevRow);
+  if (paid) lines.push({ kind: 'paid', label: `${short} 입금`, amount: -paid });
+  return withCarryoverResidual(lines, amount);
+}
+// 여러 행(합치기)에서 온 내역을 하나로. 같은 날짜는 수량·금액을 더하고, 맞춤 줄은 이름이 같으면 더한다.
+// "이월 조정"은 합친 뒤 withCarryoverResidual 로 다시 계산하므로 여기서는 버린다.
+function combineCarryoverDetail(...lists) {
+  const days = new Map();
+  const extras = new Map();
+  lists.flat().forEach(line => {
+    if (!line || line.kind === 'residual') return;
+    if (line.kind === 'day') {
+      const key = line.date || `label:${line.label || ''}`;
+      const prev = days.get(key);
+      if (!prev) {
+        days.set(key, { ...line });
+        return;
+      }
+      ['lunch', 'salad', 'eventLunch', 'catering', 'amount'].forEach(field => {
+        prev[field] = (Number(prev[field]) || 0) + (Number(line[field]) || 0);
+      });
+      prev.cateringLabel = [prev.cateringLabel, line.cateringLabel].filter(Boolean).join(' · ');
+      return;
+    }
+    const key = `${line.kind}|${line.label || ''}`;
+    const prev = extras.get(key);
+    if (prev) prev.amount += Number(line.amount) || 0;
+    else extras.set(key, { ...line, amount: Number(line.amount) || 0 });
+  });
+  const dayLines = [...days.values()].sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+  return [...dayLines, ...extras.values()];
+}
+// 이월받은 행(row)의 내역을 넘겨준 달 정산 행들(prevRows)에서 만든다.
+// 이 달(month)로 "이월됨" 표시가 된 행만 쓴다. 같은 업체라도 입금이 끝난 달 내역이 섞이면 안 된다.
+// 합치기로 넘겨받은 이월은 옛 행(carryoverFromUids)에 "이월됨"이 찍혀 있다.
+// 찾을 행이 없으면 null.
+function carryoverDetailForRow(row = {}, prevRows = [], month = '') {
+  const uids = new Set([row.uid, ...(row.carryoverFromUids || [])].filter(Boolean));
+  const sources = (prevRows || []).filter(prev => uids.has(prev.uid) && prev.carriedOverTo === month);
+  if (!sources.length) return null;
+  const detail = combineCarryoverDetail(...sources.map(prev =>
+    carryoverDetailFromRow(prev, row.carryoverFrom, settlementCarriedOverAmount(prev) || settlementOpenBalance(prev))));
+  return withCarryoverResidual(detail, settlementCarryover(row));
+}
+function carryoverDetailDates(detail = []) {
+  return mergeCarryoverDates((Array.isArray(detail) ? detail : []).filter(line => line.kind === 'day').map(line => line.date));
+}
+// 2026-08-31 → 8/31 (날짜 없는 합계 줄은 label)
+function carryoverDetailDayLabel(line = {}) {
+  return line.date ? `${Number(line.date.slice(5, 7))}/${Number(line.date.slice(8, 10))}` : (line.label || '');
+}
+// 목록 툴팁·수정창에 쓰는 한 줄 요약: "8/31 일반 8개, 9/1 일반 5·샐러드 1개"
+function carryoverDetailLabel(detail = []) {
+  return (Array.isArray(detail) ? detail : [])
+    .filter(line => line.kind === 'day')
+    .map(line => {
+      const qty = [
+        line.lunch ? `일반 ${line.lunch}` : '',
+        line.salad ? `샐러드 ${line.salad}` : '',
+        line.eventLunch ? `일회용 ${line.eventLunch}` : '',
+        line.catering ? `행사 ${line.catering}` : ''
+      ].filter(Boolean).join('·');
+      return `${carryoverDetailDayLabel(line)}${qty ? ` ${qty}개` : ''}`;
+    })
+    .join(', ');
+}
 function settlementCompanyKey(row = {}) {
   const businessName = row.type === 'event'
     ? eventCustomerName(row.event || {})
@@ -4086,14 +4288,16 @@ function settlementItemRef(month, uid) {
 }
 // ── 정산 이월 필드 ──
 // carryover/carryoverFrom/carryoverAt: 이월받은 달에 기록. carriedOverTo/carriedOverAmount/carriedOverAt/statusBeforeCarryover: 넘긴 달에 기록.
-// carryoverDates: 이월액이 된 전월 이용 날짜(정산표에 표시). carryoverFromUids: 합치기로 이월을 넘겨준 행의 uid.
-const SETTLEMENT_CARRYOVER_FIELDS = ['carryover', 'carryoverFrom', 'carryoverAt', 'carryoverDates', 'carryoverFromUids', 'carriedOverTo', 'carriedOverAmount', 'carriedOverAt', 'statusBeforeCarryover'];
+// carryoverDates: 이월액이 된 전월 이용 날짜. carryoverDetail: 그 날짜별 수량·금액(정산서에 표시, 위 "이월 내역" 참고).
+// carryoverFromUids: 합치기로 이월을 넘겨준 행의 uid.
+const SETTLEMENT_CARRYOVER_FIELDS = ['carryover', 'carryoverFrom', 'carryoverAt', 'carryoverDates', 'carryoverDetail', 'carryoverFromUids', 'carriedOverTo', 'carriedOverAmount', 'carriedOverAt', 'statusBeforeCarryover'];
 function settlementCarryoverFields(saved = {}) {
   return {
     carryover: Math.max(0, Number(saved.carryover || 0) || 0),
     carryoverFrom: saved.carryoverFrom || '',
     carryoverAt: saved.carryoverAt || '',
     carryoverDates: mergeCarryoverDates(Array.isArray(saved.carryoverDates) ? saved.carryoverDates : []),
+    carryoverDetail: normalizeCarryoverDetail(saved.carryoverDetail),
     carryoverFromUids: Array.isArray(saved.carryoverFromUids) ? saved.carryoverFromUids.filter(Boolean) : [],
     carriedOverTo: saved.carriedOverTo || '',
     carriedOverAmount: Math.max(0, Number(saved.carriedOverAmount || 0) || 0),
@@ -5714,9 +5918,152 @@ function updateDateLabel() {
   const dp = document.getElementById('date-picker');
   if (dp) dp.value = currentDateStr;
 }
+// 날짜 칸은 투명한 date 입력을 덮어 둔 것이다. PC 크롬은 입력의 글자 부분을 눌러도 달력이 안 열리고
+// 오른쪽 작은 달력 아이콘만 열어서, 날짜를 고를 수 없는 것처럼 보였다. 어디를 눌러도 달력을 연다.
+function openDatePicker(input) {
+  try {
+    input.showPicker?.();
+  } catch(e) {
+    // 달력을 못 여는 브라우저는 기본 동작(글자 칸 입력)에 맡긴다.
+  }
+}
 function setDateFromPicker() {
   const val = document.getElementById('date-picker').value;
   if (val) { currentDateStr = val; updateDateLabel(); loadOrders(); }
+}
+
+// ── 화면을 연 뒤 바뀐 주문 ──
+// 주문 화면은 불러온 순간의 주문을 그린다. 고객이 그 뒤에 앱에서 바꿔도 화면 숫자는 그대로라,
+// 그 화면으로 "배송 완료"나 "저장"을 누르면 고객 변경이 옛 숫자로 덮인다. 또 배송완료 기록이 한 번
+// 생기면 이 화면은 주문보다 그 기록을 먼저 보여주므로, 그 뒤의 고객 변경은 화면에서 가려진다.
+// (2026-09-30 교광: 08:55 에 도시락 3→2 로 바꿨는데 3개로 남음. 다문화: 12개로 바꿨는데 13개)
+let loadedOrderDocs = {};
+let loadedOrderDocsDate = '';
+
+// 추가 메뉴(행사도시락·공기밥·곱빼기) 이름과 수량: "공기밥 1개 · 떡 2개". 없으면 ''.
+function orderCateringText(order = {}) {
+  return orderCateringSummary(order || {}, { preserveSnapshot: true }).items
+    .map(item => `${item.name} ${item.qty}개`)
+    .join(' · ');
+}
+
+function orderCateringKey(order = {}) {
+  return window.GJS_CATERING.normalizeItems(order?.cateringItems || [])
+    .map(item => `${item.menuId}:${item.qty}`)
+    .sort()
+    .join(',');
+}
+
+// 수량만 뽑은 비교용 값. 메모·시각처럼 수량과 상관없는 변경은 보지 않는다. 문서가 없으면 ''.
+function orderChangeSignature(order) {
+  if (!order) return '';
+  return [
+    orderLunchQty(order), orderSaladQty(order), orderEventLunchQty(order),
+    orderCateringKey(order), order.selfHoliday ? 'holiday' : ''
+  ].join('|');
+}
+
+// 사람이 읽는 수량: "도시락 2 · 샐러드 1 · 공기밥 1개".
+function orderQtyText(order) {
+  if (!order) return '주문 없음(기본 수량)';
+  if (order.selfHoliday) return '자체 휴무';
+  const parts = [`도시락 ${orderLunchQty(order)}`];
+  if (orderSaladQty(order)) parts.push(`샐러드 ${orderSaladQty(order)}`);
+  if (orderEventLunchQty(order)) parts.push(`일회용 ${orderEventLunchQty(order)}`);
+  const catering = orderCateringText(order);
+  if (catering) parts.push(catering);
+  return parts.join(' · ');
+}
+
+// 주문 문서 모음(쿼리 결과나 문서 배열)을 uid → 주문으로. 행사도시락 주문은 뺀다.
+function orderDocsFromSnap(snap) {
+  const docs = {};
+  snap.forEach(doc => {
+    if (doc.exists === false) return;
+    const order = { uid: doc.id, ...doc.data() };
+    if (!isEventOrder(order)) docs[doc.id] = order;
+  });
+  return docs;
+}
+
+// uids 중 화면을 연 때(loaded)와 지금(fresh) 수량이 다른 곳.
+function ordersChangedBetween(loaded = {}, fresh = {}, uids = []) {
+  return uids
+    .filter(uid => orderChangeSignature(loaded[uid]) !== orderChangeSignature(fresh[uid]))
+    .map(uid => ({ uid, before: loaded[uid] || null, after: fresh[uid] || null }));
+}
+
+// 저장 직전에 주문을 다시 읽어 화면을 연 때와 비교한다. 한 곳이면 그 문서만 읽는다.
+async function ordersChangedSinceLoad(dateStr, uids = []) {
+  if (!uids.length) return [];
+  const items = db.collection('orders').doc(dateStr).collection('items');
+  const fresh = uids.length === 1
+    ? orderDocsFromSnap([await items.doc(uids[0]).get()])
+    : orderDocsFromSnap(await items.get());
+  return ordersChangedBetween(loadedOrderDocs, fresh, uids);
+}
+
+function orderChangeLines(changes = [], limit = 10) {
+  const lines = changes.slice(0, limit).map(change => {
+    const name = allUsers[change.uid]?.businessName || deletedUsers[change.uid]?.businessName
+      || change.after?.businessName || change.before?.businessName || change.uid;
+    return `· ${name}: ${orderQtyText(change.before)} → ${orderQtyText(change.after)}`;
+  });
+  if (changes.length > limit) lines.push(`· 외 ${changes.length - limit}곳`);
+  return lines.join('\n');
+}
+
+// 표를 연 뒤 이 날짜 주문이 하나라도 바뀌었는지. 집계 인쇄처럼 표 전체를 쓰는 곳에서 쓴다.
+async function allOrderChangesSinceLoad(dateStr) {
+  const fresh = orderDocsFromSnap(await db.collection('orders').doc(dateStr).collection('items').get());
+  const uids = [...new Set([...Object.keys(loadedOrderDocs), ...Object.keys(fresh)])];
+  return ordersChangedBetween(loadedOrderDocs, fresh, uids);
+}
+
+// 표가 옛 주문이면 알리고 새로 불러온다. 지금 표로 해도 되면 true.
+async function confirmOrdersFresh(actionLabel) {
+  if (loadedOrderDocsDate !== currentDateStr) {
+    await loadOrders();
+    showToast(`주문을 다시 불러왔습니다. 숫자를 확인한 뒤 ${actionLabel} 버튼을 다시 눌러주세요.`);
+    return false;
+  }
+  let changes;
+  try {
+    changes = await allOrderChangesSinceLoad(currentDateStr);
+  } catch(e) {
+    return confirm(`최신 주문을 확인하지 못했습니다 (${e.message}).\n지금 화면 숫자로 ${actionLabel}할까요?`);
+  }
+  if (!changes.length) return true;
+  if (confirm(`화면을 연 뒤 고객이 주문을 바꾼 곳이 있습니다.\n\n${orderChangeLines(changes)}\n\n[확인]을 누르면 최신 주문으로 다시 불러옵니다. 숫자를 확인한 뒤 ${actionLabel} 버튼을 다시 눌러주세요.\n(이 화면에서 저장하지 않은 수정은 다시 입력해야 합니다)`)) {
+    await loadOrders();
+  }
+  return false;
+}
+
+// 새로 불러온 뒤에도 관리자가 고른 체크를 그대로 둔다.
+function restoreOrderChecks(uids = []) {
+  const wanted = new Set(uids);
+  document.querySelectorAll('.order-check').forEach(el => {
+    if (!el.disabled) el.checked = wanted.has(el.value);
+  });
+}
+
+// 배송완료(또는 관리자 수정) 기록이 있으면 이 화면은 그 숫자를 보여준다. 그 기록보다 뒤에 고객이
+// 앱에서 다른 수량으로 바꿨으면 화면에 안 나오므로 행에 따로 알린다.
+function customerChangedAfterRecord(order = {}, record = null, user = {}) {
+  if (!record) return false;
+  const millis = value => timestampToDate(value)?.getTime() || 0;
+  const orderAt = Math.max(millis(order.submittedAt), millis(order.updatedAt));
+  const recordAt = Math.max(millis(record.updatedAt), millis(record.deliveredAt));
+  if (!orderAt || orderAt <= recordAt) return false;
+  const counts = source => normalizeQtyValuesForUser(user, {
+    lunch: orderLunchQty(source), salad: orderSaladQty(source), event: orderEventLunchQty(source),
+    disposableLunch: source.disposableLunch
+  });
+  const ordered = counts(order);
+  const recorded = counts(record);
+  return ordered.lunch !== recorded.lunch || ordered.salad !== recorded.salad
+    || ordered.event !== recorded.event || orderCateringKey(order) !== orderCateringKey(record);
 }
 
 function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnapshots = null) {
@@ -5894,6 +6241,7 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       totalAmount: displayTotalAmount,
       items: buildOrderItems({ lunchQty: displayLunch, lunchPrice, saladQty: displaySalad, saladPrice, eventLunchQty: displayEventLunch, eventLunchPrice, cateringItems: displayCateringItems })
     };
+    const changedAfterRecord = deliveredOverride ? customerChangedAfterRecord(order, delivered, user) : false;
     rowsByUid[order.uid] = {
       ...displayOrder,
       businessName: user.businessName || order.businessName || '-',
@@ -5903,6 +6251,8 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
       totalQty: displayTotalQty,
       totalAmount: displayTotalAmount,
       orderDocExists: true,
+      customerChangedAfterDelivery: changedAfterRecord,
+      latestOrderText: changedAfterRecord ? orderQtyText(order) : '',
       originSource: deliveredOverride ? (delivered?.source || order.source || '') : (order.source || ''),
       adminInput: Boolean(order.adminInput || delivered?.adminInput),
       adminAdjusted: Boolean(order.adminAdjusted || delivered?.adminAdjusted),
@@ -6293,6 +6643,13 @@ async function loadOrders() {
       : null;
     const orders = mergeOrdersWithDefaults(currentDateStr, snap, deliveredRecords, defaultSnapshots);
     currentOrderRows = orders;
+    // 배송 완료·저장 직전에 "화면을 연 뒤 바뀐 주문"을 찾을 기준.
+    loadedOrderDocs = orderDocsFromSnap(snap);
+    loadedOrderDocsDate = currentDateStr;
+    const changedAfterDelivery = orders.filter(o => o.customerChangedAfterDelivery);
+    if (changedAfterDelivery.length) {
+      showToast(`배송완료 뒤 고객이 주문을 바꾼 곳 ${changedAfterDelivery.length}곳: ${changedAfterDelivery.map(o => o.businessName).slice(0, 3).join(', ')}${changedAfterDelivery.length > 3 ? ' 외' : ''} (표에 빨간 글씨)`);
+    }
     currentOrderReferenceItems = orderReferenceItemsForDate(currentDateStr, snap, orders);
     renderOrderReferencePanel();
 
@@ -6382,7 +6739,7 @@ async function loadOrders() {
           </td>
           <td class="qty-cell">${totalQty}</td>
           <td style="text-align:right;font-weight:800;color:var(--primary)">${totalAmount ? formatMoney(totalAmount) : '-'}</td>
-          <td>${statusHtml}</td>
+          <td>${statusHtml}${o.customerChangedAfterDelivery ? `<div class="order-change-warn" title="배송완료 뒤 고객이 앱에서 주문을 바꿨습니다. 숫자를 고친 뒤 저장을 누르면 배송기록과 정산이 같이 바뀝니다.">고객 변경 미반영<br>${escapeHtml(o.latestOrderText)}</div>` : ''}</td>
           <td class="time-cell">${orderDeliveryTimeHtml(o)}</td>
           <td class="note-cell">${noteHtml}</td>
           <td>${manageHtml}</td>
@@ -6847,6 +7204,20 @@ async function saveInlineQty(uid) {
   // 수량을 1개 이상 넣어 저장하면 자체휴무 표시를 반드시 함께 풀어야 한다.
   // 안 그러면 mergeOrdersWithDefaults 의 selfHoliday 분기가 수량을 다시 0으로 만든다.
   const savedTotalQty = values.lunch + values.salad + values.event + cateringSummary.totalQty;
+  // 화면을 연 뒤 고객이 이 업체 주문을 바꿨으면, 관리자가 옛 숫자를 보고 고친 것일 수 있다.
+  if (loadedOrderDocsDate === currentDateStr) {
+    try {
+      const [change] = await ordersChangedSinceLoad(currentDateStr, [uid]);
+      const typed = orderQtyText({ lunchCount: values.lunch, saladCount: values.salad, eventLunchCount: values.event, cateringItems });
+      if (change && !confirm(`화면을 연 뒤 고객이 이 업체 주문을 바꿨습니다.\n\n${orderChangeLines([change])}\n\n지금 입력한 숫자(${typed})로 저장할까요?\n[취소]를 누르면 저장하지 않고 최신 주문으로 다시 불러옵니다.`)) {
+        await loadOrders();
+        return;
+      }
+    } catch(e) {
+      // 확인을 못 해도 관리자가 직접 고친 저장은 막지 않는다.
+      console.warn('최신 주문 확인 실패:', e);
+    }
+  }
   try {
     await db.collection('orders').doc(currentDateStr).collection('items').doc(uid).set({
       uid,
@@ -6935,6 +7306,30 @@ async function completeSelectedDeliveries() {
   const checked = Array.from(document.querySelectorAll('.order-check:checked:not(:disabled)'));
   if (checked.length === 0) {
     showToast('배송 완료할 업체를 체크해주세요.');
+    return;
+  }
+  // 화면 숫자가 화면을 연 뒤의 고객 변경을 놓쳤으면 저장하지 않는다. 그대로 저장하면 고객 변경이
+  // 옛 숫자로 덮이고, 배송완료 기록이 주문보다 먼저 보여서 그 뒤로도 계속 가려진다.
+  const checkedUids = checked.map(cb => cb.value);
+  if (loadedOrderDocsDate !== currentDateStr) {
+    showToast('주문을 다시 불러왔습니다. 숫자를 확인한 뒤 배송 완료를 다시 눌러주세요.');
+    await loadOrders();
+    restoreOrderChecks(checkedUids);
+    return;
+  }
+  let changes = [];
+  try {
+    changes = await ordersChangedSinceLoad(currentDateStr, checkedUids);
+  } catch(e) {
+    showToast('최신 주문을 확인하지 못해 배송 완료를 멈췄습니다: ' + e.message);
+    return;
+  }
+  if (changes.length) {
+    const reload = confirm(`화면을 연 뒤 고객이 주문을 바꾼 곳이 있어 배송 완료를 멈췄습니다.\n\n${orderChangeLines(changes)}\n\n[확인]을 누르면 최신 주문으로 다시 불러오고 체크는 그대로 둡니다.\n숫자를 확인한 뒤 배송 완료를 다시 눌러주세요.\n(이 화면에서 저장하지 않은 수정은 다시 입력해야 합니다)`);
+    if (reload) {
+      await loadOrders();
+      restoreOrderChecks(checkedUids);
+    }
     return;
   }
   const dayRecords = {};
@@ -7999,7 +8394,8 @@ function orderLogValue(snapshot = null) {
   const catering = orderCateringSummary(snapshot, { preserveSnapshot: true });
   if (lunch + salad + eventLunchCount + catering.totalQty <= 0) return '0개 휴무';
   const eventText = Number(snapshot.eventLunchCount || 0) > 0 ? ` / 일회용 ${snapshot.eventLunchCount}` : '';
-  const cateringText = catering.totalQty > 0 ? ` / 행사 ${catering.label}` : '';
+  // 요약(summarize)에는 label 이 없다. 예전에는 catering.label 을 읽어 "행사 undefined"로 찍혔다.
+  const cateringText = catering.totalQty > 0 ? ` / 추가 ${orderCateringText(snapshot)}` : '';
   const noteText = snapshot.note ? ` / 메모: ${snapshot.note}` : '';
   return `도시락 ${snapshot.lunchCount || 0} / 샐러드 ${snapshot.saladCount || 0}${eventText}${cateringText}${noteText}`;
 }
@@ -8009,7 +8405,8 @@ function orderLogFieldLabel(field) {
     lunchCount: '도시락',
     saladCount: '샐러드',
     eventLunchCount: '일회용',
-    cateringItems: '행사도시락',
+    // 공기밥·곱빼기도 같은 칸에 담긴다. "행사도시락"이라 하면 공기밥을 뺀 것이 안 읽힌다.
+    cateringItems: '추가 메뉴',
     selfHoliday: '자체휴무',
     note: '메모'
   }[field] || field;
@@ -8019,10 +8416,7 @@ function orderLogFieldValue(snapshot = null, field = '') {
   if (!snapshot) return '-';
   if (field === 'selfHoliday') return snapshot.selfHoliday ? '예' : '아니오';
   if (field === 'note') return snapshot.note || '-';
-  if (field === 'cateringItems') {
-    const catering = orderCateringSummary(snapshot, { preserveSnapshot: true });
-    return catering.totalQty > 0 ? catering.label : '없음';
-  }
+  if (field === 'cateringItems') return orderCateringText(snapshot) || '없음';
   return String(snapshot[field] ?? 0);
 }
 
@@ -11613,7 +12007,8 @@ async function computeMonthlySettlementRows(month) {
       .filter(item => (item.eventDate || '').slice(0, 7) === month && item.delivered === true);
     events.sort((a, b) => `${a.eventDate || ''} ${a.eventTime || ''}`.localeCompare(`${b.eventDate || ''} ${b.eventTime || ''}`));
 
-    return { month, rows, events, deliveryRecords, adminData };
+    // settlementItems: 저장된 정산 문서 그대로. 고객 앱은 이것을 읽으므로 미납 모아보기가 대조에 쓴다.
+    return { month, rows, events, deliveryRecords, adminData, settlementItems };
 }
 
 async function loadSettlements() {
@@ -11631,7 +12026,7 @@ async function loadSettlements() {
     settlementLoadedMonth = month;
     renderSettlements();
     renderSettlementCharts().catch(() => {});
-    backfillCarryoverDates(month, result.rows).catch(e => console.warn('이월 이용일 채우기 실패:', e));
+    backfillCarryoverDetail(month, result.rows).catch(e => console.warn('이월 내역 채우기 실패:', e));
     settlementLastLoadedAt = Date.now();
     const loadedLabel = document.getElementById('settle-last-loaded');
     if (loadedLabel) {
@@ -11648,11 +12043,12 @@ async function loadSettlements() {
   }
 }
 
-// 이용일(carryoverDates)이 생기기 전에 만든 이월은 날짜가 비어 있다.
-// 넘겨준 달의 같은 업체 정산에서 날짜를 찾아 한 번만 채운다. 금액은 건드리지 않는다.
-async function backfillCarryoverDates(month, rows = []) {
+// 이월 내역(carryoverDetail)이 생기기 전에 만든 이월은 며칠에 몇 개였는지 모른다.
+// 넘겨준 달 정산에서 이 달로 "이월됨" 표시된 행을 찾아 한 번만 채운다. 금액은 건드리지 않는다.
+// 찾을 행이 없으면 빈 목록([])을 적어 다음에 또 찾지 않게 한다.
+async function backfillCarryoverDetail(month, rows = []) {
   const missing = rows.filter(row => row.type !== 'event' && settlementCarryover(row) > 0
-    && row.carryoverFrom && !(row.carryoverDates || []).length);
+    && row.carryoverFrom && !Array.isArray(row.carryoverDetail));
   if (!missing.length) return;
   const byFromMonth = {};
   missing.forEach(row => { (byFromMonth[row.carryoverFrom] ||= []).push(row); });
@@ -11660,15 +12056,19 @@ async function backfillCarryoverDates(month, rows = []) {
   for (const [fromMonth, list] of Object.entries(byFromMonth)) {
     const { rows: prevRows } = await computeMonthlySettlementRows(fromMonth);
     for (const row of list) {
-      const uids = [row.uid, ...(row.carryoverFromUids || [])];
-      const dates = mergeCarryoverDates(...uids.map(uid => settlementUsageDates(prevRows.find(r => r.uid === uid) || {})));
-      if (!dates.length) continue;
-      await settlementItemRef(month, row.uid).set({ carryoverDates: dates }, { merge: true });
-      row.carryoverDates = dates;
-      filled++;
+      const detail = carryoverDetailForRow(row, prevRows, month);
+      const patch = detail
+        ? { carryoverDetail: detail, carryoverDates: carryoverDetailDates(detail) }
+        : { carryoverDetail: [] };
+      await settlementItemRef(month, row.uid).set(patch, { merge: true });
+      Object.assign(row, patch);
+      if (detail) filled++;
     }
   }
-  if (filled && settlementLoadedMonth === month) renderSettlements();
+  if (!filled || settlementLoadedMonth !== month) return;
+  renderSettlements();
+  // 채우는 사이 정산서 미리보기를 열어 뒀으면 그것도 다시 그린다.
+  if (document.getElementById('sheet-modal')?.classList.contains('open')) renderSheetPreview();
 }
 
 let settlementLastLoadedAt = 0;
@@ -11942,8 +12342,8 @@ function renderSettlements() {
         const billed = settlementBilledTotal(row);
         const adjustLabel = row.adjust ? `<span style="font-size:11px;color:var(--sub);display:block">${row.adjust > 0 ? '+' : ''}${row.adjust.toLocaleString()}</span>` : '';
         const carryover = settlementCarryover(row);
-        const carryoverDays = carryoverDatesLabel(row.carryoverDates);
-        const carryoverLabel = carryover > 0 ? `<span class="carryover-label"${carryoverDays ? ` title="${escapeHtml(carryoverDays)} 이용분"` : ''}>${escapeHtml(monthShortKR(row.carryoverFrom))}이월 +${carryover.toLocaleString()}</span>` : '';
+        const carryoverDays = carryoverDetailLabel(row.carryoverDetail) || carryoverDatesLabel(row.carryoverDates);
+        const carryoverLabel = carryover > 0 ? `<span class="carryover-label"${carryoverDays ? ` title="${escapeHtml(carryoverDays)}"` : ''}>${escapeHtml(monthShortKR(row.carryoverFrom))}이월 +${carryover.toLocaleString()}</span>` : '';
         const carriedLabel = row.carriedOverTo ? `<span class="carryover-label">→ ${escapeHtml(monthShortKR(row.carriedOverTo))} 이월 ${settlementCarriedOverAmount(row).toLocaleString()}</span>` : '';
         const safeUid = row.uid.replace(/[^a-zA-Z0-9_-]/g, '_');
         const balance = settlementBalance(row);
@@ -12335,7 +12735,9 @@ function productionEventRowsForPrint() {
   })).filter(row => row.qty > 0);
 }
 
-function printTodayProductionSheet() {
+async function printTodayProductionSheet() {
+  // 주방은 이 인쇄를 보고 만든다. 화면을 연 뒤 바뀐 주문이 빠진 채 인쇄되면 옛 수량으로 만든다.
+  if (!(await confirmOrdersFresh('집계 인쇄'))) return;
   const orderRows = productionOrderRowsForPrint();
   const eventRows = productionEventRowsForPrint();
   if (!orderRows.length && !eventRows.length) {
@@ -13071,9 +13473,27 @@ function buildSheetHTML(uid, forPrint) {
     <td colspan="7" style="text-align:right;font-weight:800">조정금액</td>
     <td class="num" style="font-weight:800">${adjustment > 0 ? '+' : ''}${money(adjustment)}원</td>
   </tr>` : '';
+  // 이월액은 전월 날짜별로 풀어 보여준다 (며칠에 몇 개였는지). 내역이 아직 없으면 날짜만.
+  const carryoverFromLabel = row.carryoverFrom ? ` (${escapeHtml(monthLabelKR(row.carryoverFrom))})` : '';
+  const carryoverDetail = Array.isArray(row.carryoverDetail) ? row.carryoverDetail : [];
   const carryoverDays = carryoverDatesLabel(row.carryoverDates);
-  const carryoverRow = carryover ? `<tr>
-    <td colspan="7" style="text-align:right;font-weight:800">전월 이월 미수금${row.carryoverFrom ? ` (${escapeHtml(monthLabelKR(row.carryoverFrom))})` : ''}${carryoverDays ? `<div style="font-weight:600;font-size:12px;margin-top:2px">이용일 ${escapeHtml(carryoverDays)}</div>` : ''}</td>
+  const carryoverDetailHtml = carryoverDetail.length ? `<tr>
+    <td colspan="8" style="text-align:left;font-weight:800;background:#f8fafc">전월 이월 미수금 내역${carryoverFromLabel}</td>
+  </tr>${carryoverDetail.map(line => line.kind === 'day' ? `<tr>
+    <td>${escapeHtml(carryoverDetailDayLabel(line))}</td>
+    <td style="text-align:left">${escapeHtml(itemName)}</td>
+    <td>${line.lunch || ''}</td>
+    <td>${line.salad || ''}</td>
+    <td>${line.eventLunch || ''}</td>
+    <td>${line.catering || ''}</td>
+    <td style="text-align:left">${escapeHtml(line.cateringLabel || '')}</td>
+    <td class="num">${money(line.amount)}원</td>
+  </tr>` : `<tr>
+    <td colspan="7" style="text-align:right">${escapeHtml(line.label || '')}</td>
+    <td class="num">${line.amount > 0 ? '+' : ''}${money(line.amount)}원</td>
+  </tr>`).join('')}` : '';
+  const carryoverRow = carryover ? `${carryoverDetailHtml}<tr>
+    <td colspan="7" style="text-align:right;font-weight:800">전월 이월 미수금${carryoverFromLabel}${!carryoverDetail.length && carryoverDays ? `<div style="font-weight:600;font-size:12px;margin-top:2px">이용일 ${escapeHtml(carryoverDays)}</div>` : ''}</td>
     <td class="num" style="font-weight:800">+${money(carryover)}원</td>
   </tr>` : '';
   const cateringPriceLabel = settlementCateringSummary(row).items
@@ -13163,7 +13583,7 @@ function openSettlementEdit(uid) {
   const carryoverBlock = document.getElementById('settle-carryover-block');
   if (carryoverBlock) carryoverBlock.style.display = row.type === 'event' ? 'none' : '';
   document.getElementById('settle-edit-carryover').value = settlementCarryover(row);
-  settlementEditCarryoverDates = mergeCarryoverDates(row.carryoverDates || []);
+  settlementEditCarryoverDetail = row.carryoverDetail ?? null;
   renderCarryoverHint(row, month);
   renderPaymentList(row.payments || []);
   const errEl = document.getElementById('settle-edit-error');
@@ -13203,10 +13623,18 @@ async function saveSettlementEdit() {
   try {
     let data = { status, note, amount: row.amount, adjust, invoiceNo, dueDate, payments, paidDate, paidAmount: paidTotal, lunchTotal: row.lunch || 0, saladTotal: row.salad || 0, eventLunchTotal: settlementEventQty(row), updatedAt: new Date().toISOString() };
     if (row.type !== 'event') {
+      // 이월 내역은 "전월 잔액 조회"로 가져온 것(안 눌렀으면 원래 것). 금액을 손으로 고쳤으면
+      // 차이는 "이월 조정" 줄로 맞춘다. 내역을 모르면 null 로 두어 정산 탭을 다시 열 때 채운다.
+      const detail = carryover > 0
+        ? (Array.isArray(settlementEditCarryoverDetail) && settlementEditCarryoverDetail.length
+          ? withCarryoverResidual(settlementEditCarryoverDetail, carryover)
+          : null)
+        : [];
       data = {
         ...data, carryover, carryoverFrom,
         carryoverAt: carryover > 0 ? (carryoverChanged || !row.carryoverAt ? new Date().toISOString() : row.carryoverAt) : '',
-        carryoverDates: carryover > 0 ? settlementEditCarryoverDates : [],
+        carryoverDates: detail ? carryoverDetailDates(detail) : (row.carryoverDates || []),
+        carryoverDetail: detail,
         carryoverFromUids: carryover > 0 ? (row.carryoverFromUids || []) : []
       };
     }
@@ -13270,7 +13698,7 @@ async function saveSettlementEdit() {
     Object.assign(row, { status, note, adjust, invoiceNo, dueDate, payments, paidDate, paidAmount: paidTotal });
     if (row.type !== 'event') {
       const mergedSourceUids = row.carryoverFromUids || [];
-      Object.assign(row, { carryover, carryoverFrom, carryoverAt: data.carryoverAt, carryoverDates: data.carryoverDates, carryoverFromUids: data.carryoverFromUids });
+      Object.assign(row, { carryover, carryoverFrom, carryoverAt: data.carryoverAt, carryoverDates: data.carryoverDates, carryoverDetail: data.carryoverDetail, carryoverFromUids: data.carryoverFromUids });
       if (carryoverChanged) {
         await syncCarryoverSource({ month, uid, amount: carryover, fromMonth: carryoverFrom, previousFrom: prevCarryoverFrom, sourceUids: mergedSourceUids });
       }
@@ -13460,8 +13888,9 @@ async function deleteSettlement() {
 }
 
 // ── 정산 이월 (전월 미수금 → 당월 청구) ──
-// 수정 창에서 "전월 잔액 조회"로 가져온 이월액의 이용 날짜. 저장할 때 carryoverDates 로 들어간다.
-let settlementEditCarryoverDates = [];
+// 수정 창에서 "전월 잔액 조회"로 가져온 이월 내역(며칠에 몇 개). 저장할 때 carryoverDetail 로 들어간다.
+// null 은 "모름" — 저장하면 정산 탭을 다시 열 때 backfillCarryoverDetail 이 채운다.
+let settlementEditCarryoverDetail = null;
 function renderCarryoverHint(row, month) {
   const fromEl = document.getElementById('settle-edit-carryover-from');
   const hintEl = document.getElementById('settle-edit-carryover-hint');
@@ -13473,8 +13902,8 @@ function renderCarryoverHint(row, month) {
     parts.push(`이 정산의 잔액 ${settlementCarriedOverAmount(row).toLocaleString()}원은 ${monthLabelKR(row.carriedOverTo)} 정산으로 이월되었습니다. 되돌리려면 ${monthShortKR(row.carriedOverTo)} 정산에서 "이월 취소"를 누르세요.`);
   }
   if (settlementCarryover(row) > 0) {
-    const days = carryoverDatesLabel(row.carryoverDates);
-    parts.push(`${monthLabelKR(from)} 미수금 ${settlementCarryover(row).toLocaleString()}원${days ? `(이용일 ${days})` : ''}이 이번 달 청구액에 포함되어 있습니다. 0으로 바꾸고 저장하면 전월 정산 상태가 원래대로 돌아갑니다.`);
+    const days = carryoverDetailLabel(row.carryoverDetail) || carryoverDatesLabel(row.carryoverDates);
+    parts.push(`${monthLabelKR(from)} 미수금 ${settlementCarryover(row).toLocaleString()}원${days ? `(${days})` : ''}이 이번 달 청구액에 포함되어 있습니다. 0으로 바꾸고 저장하면 전월 정산 상태가 원래대로 돌아갑니다.`);
   } else {
     parts.push('전월 잔액 조회로 금액을 넣고 저장하면 전월 정산은 "이월됨"으로 바뀌고 잔액이 0으로 정리됩니다.');
   }
@@ -13509,9 +13938,10 @@ async function fillCarryoverFromPrevMonth() {
       return;
     }
     document.getElementById('settle-edit-carryover').value = balance;
-    settlementEditCarryoverDates = settlementUsageDates(prevRow);
+    settlementEditCarryoverDetail = carryoverDetailFromRow(prevRow, fromMonth, balance);
     updatePaymentSummary();
-    if (hintEl) hintEl.textContent = `${monthLabelKR(fromMonth)} 청구 ${formatMoney(settlementBilledTotal(prevRow))} · 입금 ${formatMoney(settlementPaidTotal(prevRow))} · 잔액 ${formatMoney(balance)} (${settlementStatusLabel(prevRow.status)})${settlementEditCarryoverDates.length ? ` · 이용일 ${carryoverDatesLabel(settlementEditCarryoverDates)}` : ''} — 저장하면 이월이 적용됩니다.`;
+    const days = carryoverDetailLabel(settlementEditCarryoverDetail);
+    if (hintEl) hintEl.textContent = `${monthLabelKR(fromMonth)} 청구 ${formatMoney(settlementBilledTotal(prevRow))} · 입금 ${formatMoney(settlementPaidTotal(prevRow))} · 잔액 ${formatMoney(balance)} (${settlementStatusLabel(prevRow.status)})${days ? ` · ${days}` : ''} — 저장하면 이월이 적용됩니다.`;
   } catch(e) {
     showToast('전월 잔액 조회 실패: ' + e.message);
     renderCarryoverHint(row, month);
@@ -13522,7 +13952,7 @@ function clearCarryoverField() {
   const input = document.getElementById('settle-edit-carryover');
   if (!input) return;
   input.value = 0;
-  settlementEditCarryoverDates = [];
+  settlementEditCarryoverDetail = [];
   updatePaymentSummary();
   const hintEl = document.getElementById('settle-edit-carryover-hint');
   if (hintEl) hintEl.textContent = '저장하면 이월이 취소되고 전월 정산 상태가 원래대로 돌아갑니다.';
@@ -13702,11 +14132,13 @@ async function applyCarryover() {
     for (const c of selected) {
       const prevRow = c.prevRow;
       const currentRow = c.current || newCarryoverTargetRow(prevRow);
+      const detail = carryoverDetailFromRow(prevRow, fromMonth, c.balance);
       saveSettlementItem(month, c.uid, currentRow, settlementRowSaveData(currentRow, {
         carryover: c.balance,
         carryoverFrom: fromMonth,
         carryoverAt: now,
-        carryoverDates: settlementUsageDates(prevRow),
+        carryoverDates: carryoverDetailDates(detail),
+        carryoverDetail: detail,
         updatedAt: now
       }), { batch });
       saveSettlementItem(fromMonth, c.uid, prevRow, settlementRowSaveData(prevRow, {
@@ -14656,30 +15088,34 @@ async function confirmSettlementMerge() {
 // 합치기에서 옮길 이월 필드. 대상에 이미 이월이 있으면 더하고 날짜도 합친다.
 // 넘겨준 쪽은 이월을 비운다. 전월 정산의 "이월됨" 표시는 옛 uid 에 그대로 두고,
 // 대상의 carryoverFromUids 로 기억해 이월 취소 때 함께 되돌린다.
-function settlementCarryoverMerge(sourceRow = {}, targetSaved = {}, sourceDates = []) {
+// 이월 내역(carryoverDetail)은 여기서 만들지 않고 비워 둔다(null). 넘겨준 달 정산에서
+// 대상·옛 행 몫을 한꺼번에 다시 만들어야 해서 moveSettlementCarryover 가 채운다.
+function settlementCarryoverMerge(sourceRow = {}, targetSaved = {}) {
   const targetAmount = settlementCarryover(targetSaved);
   const amount = targetAmount + settlementCarryover(sourceRow);
   return {
     target: {
       carryover: amount,
       carryoverFrom: (targetAmount > 0 && targetSaved.carryoverFrom) || sourceRow.carryoverFrom || targetSaved.carryoverFrom || '',
-      carryoverDates: mergeCarryoverDates(targetSaved.carryoverDates || [], sourceDates),
+      carryoverDates: mergeCarryoverDates(targetSaved.carryoverDates || [], sourceRow.carryoverDates || []),
+      carryoverDetail: null,
       carryoverFromUids: [...new Set([...(targetSaved.carryoverFromUids || []), ...(sourceRow.carryoverFromUids || []), sourceRow.uid].filter(Boolean))]
     },
-    source: { carryover: 0, carryoverFrom: '', carryoverAt: '', carryoverDates: [], carryoverFromUids: [] }
+    source: { carryover: 0, carryoverFrom: '', carryoverAt: '', carryoverDates: [], carryoverDetail: [], carryoverFromUids: [] }
   };
 }
 
 async function moveSettlementCarryover(month, sourceRow, targetUid, targetUser) {
-  // 예전 이월은 날짜가 안 적혀 있다. 넘겨준 달 정산에서 옛 uid 의 이용 날짜를 찾아 채운다.
-  let sourceDates = sourceRow.carryoverDates || [];
-  if (!sourceDates.length && sourceRow.carryoverFrom) {
-    const { rows } = await computeMonthlySettlementRows(sourceRow.carryoverFrom);
-    sourceDates = settlementUsageDates(rows.find(r => r.uid === sourceRow.uid) || {});
-  }
   const targetSnap = await settlementItemRef(month, targetUid).get();
   const targetSaved = targetSnap.exists ? settlementCarryoverFields(targetSnap.data()) : {};
-  const { target, source } = settlementCarryoverMerge(sourceRow, targetSaved, sourceDates);
+  const { target, source } = settlementCarryoverMerge(sourceRow, targetSaved);
+  // 며칠에 몇 개였는지는 넘겨준 달 정산의 "이월됨" 행에서 다시 만든다.
+  // 못 찾으면 null 로 두고, 정산 탭을 열 때 backfillCarryoverDetail 이 다시 찾아본다.
+  if (target.carryoverFrom) {
+    const { rows: prevRows } = await computeMonthlySettlementRows(target.carryoverFrom);
+    const detail = carryoverDetailForRow({ uid: targetUid, ...target }, prevRows, month);
+    if (detail) Object.assign(target, { carryoverDetail: detail, carryoverDates: carryoverDetailDates(detail) });
+  }
   const now = new Date().toISOString();
   const batch = db.batch();
   batch.set(settlementItemRef(month, targetUid), {
@@ -14755,6 +15191,281 @@ async function resyncAllSettlements() {
   } catch(e) {
     showToast('전체 다시 계산 실패: ' + e.message);
   }
+}
+
+// ── 미납 모아보기 (최근 12개월) ──
+// 고객 앱은 2026-09-10(#118)부터 최근 12개월 미납을 한꺼번에 보여준다. 이 정산 탭은 한 달씩만 보여서,
+// 입금 처리를 안 한 지난달이 우리 쪽에서는 안 보이고 고객 쪽에서 먼저 보였다(라이브워크 6월 등).
+// 고객 앱과 같은 12개월을 한 목록으로 본다. customer.html CUSTOMER_UNPAID_MONTH_COUNT 와 같아야 한다.
+const UNPAID_OVERVIEW_MONTH_COUNT = 12;
+const UNPAID_OVERVIEW_FIX_LABEL = {
+  sync: '고객 앱 맞추기',
+  remove: '고객 앱에서 지우기',
+  zero: '고객 앱 금액 0으로'
+};
+
+// 고객 앱(customer.html customerSettlementSummary)이 저장된 정산 문서로 계산하는 잔액과 같은 식.
+// 입금액은 입금 기록 → 예전 입금액(paidAmount) → 둘 다 없는데 "입금완료"면 전액 (settlementPaidTotal 과 같은 규칙).
+// 고객 앱 식을 바꾸면 이것도 같이 바꾼다. settlement-unpaid-overview.test.js 가 두 식을 대조한다.
+function customerVisibleSettlementBalance(doc = {}) {
+  const carryover = Math.max(0, parseInt(doc.carryover, 10) || 0);
+  const carriedOverAmount = Math.max(0, parseInt(doc.carriedOverAmount, 10) || 0);
+  const billed = (parseInt(doc.amount, 10) || 0) + (parseInt(doc.adjust, 10) || 0) + carryover;
+  const recordedPaid = (Array.isArray(doc.payments) ? doc.payments : [])
+    .reduce((sum, payment) => sum + (parseInt(payment?.amount, 10) || 0), 0);
+  const legacyPaid = parseInt(doc.paidAmount, 10) || 0;
+  const paid = recordedPaid > 0 ? recordedPaid : legacyPaid > 0 ? legacyPaid : (doc.status === '입금완료' ? billed : 0);
+  return billed - paid - carriedOverAmount;
+}
+
+// 한 달치 미납 목록. users: 고객 앱에 로그인하는 등록 업체, saved: 저장된 정산 문서, rows: 이 화면 계산.
+// 이 화면 잔액(adminDue)과 고객 앱에 보이는 잔액(customerDue) 중 하나라도 남은 업체를 돌려준다.
+// 둘이 다르면 fix 에 고객 앱을 이 화면에 맞추는 방법을 적는다.
+//  - sync:   이 화면에 나오는 달. 이 화면 계산(수량·금액)을 저장된 문서에 적는다.
+//  - remove: 배송기록이 없어 이 화면에 안 나오는 달(예전에 지운 주문이 문서에만 남음).
+//            입금·보류·이월 기록이 없으면 문서를 지운다. "다시계산"과 같은 규칙.
+//  - zero:   위와 같은데 입금·보류·이월 기록이 있어 지우면 안 되는 문서. 수량·금액만 0으로 둔다.
+function unpaidOverviewForMonth(month, { users = {}, saved = {}, rows = [] } = {}) {
+  const rowByUid = new Map((rows || []).map(row => [row.uid, row]));
+  const uids = new Set([...Object.keys(saved || {}), ...rowByUid.keys()]);
+  const entries = [];
+  uids.forEach(uid => {
+    const user = users[uid];
+    if (!user) return;
+    const doc = saved?.[uid] && typeof saved[uid] === 'object' ? saved[uid] : null;
+    const row = rowByUid.get(uid) || null;
+    const adminDue = row ? settlementOutstandingBalance(row) : 0;
+    const customerDue = doc ? Math.max(0, customerVisibleSettlementBalance(doc)) : 0;
+    if (adminDue <= 0 && customerDue <= 0) return;
+    let fix = null;
+    if (adminDue !== customerDue) {
+      if (row) fix = 'sync';
+      else {
+        const keep = settlementPaidTotal(doc) > 0 || doc.status === '보류'
+          || Boolean(doc.carriedOverTo) || settlementCarryover(doc) > 0;
+        fix = keep ? 'zero' : 'remove';
+      }
+    }
+    entries.push({
+      month,
+      uid,
+      name: user.businessName || row?.user?.businessName || uid,
+      adminDue,
+      customerDue,
+      dueDate: row?.dueDate || doc?.dueDate || '',
+      fix
+    });
+  });
+  return entries;
+}
+
+function unpaidOverviewMonths(count = UNPAID_OVERVIEW_MONTH_COUNT) {
+  const current = currentMonthStr();
+  return Array.from({ length: count }, (_, index) => shiftMonthStr(current, -index));
+}
+
+// 이번 달 청구는 아직 납부기한 전이라 거의 모든 업체가 뜬다. 그러면 정말 밀린 곳이 묻혀서
+// 기본은 지난달까지만 보인다. 고객 앱과 금액이 다른 곳은 이번 달이어도 고쳐야 하니 늘 보인다.
+function visibleUnpaidOverviewEntries(entries = [], currentMonth = '', includeCurrent = false) {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => includeCurrent || entry.month < currentMonth || (entry.fix && !entry.fixed));
+}
+
+let unpaidOverviewEntries = [];
+let unpaidOverviewLoading = false;
+let unpaidOverviewIncludeCurrent = false;
+
+function setUnpaidOverviewIncludeCurrent(checked) {
+  unpaidOverviewIncludeCurrent = Boolean(checked);
+  if (!unpaidOverviewLoading) renderUnpaidOverview();
+}
+
+async function openUnpaidOverview() {
+  document.getElementById('unpaid-overview-modal').classList.add('open');
+  await loadUnpaidOverview();
+}
+
+function closeUnpaidOverview() {
+  document.getElementById('unpaid-overview-modal').classList.remove('open');
+}
+
+async function loadUnpaidOverview() {
+  if (unpaidOverviewLoading) return;
+  unpaidOverviewLoading = true;
+  const errEl = document.getElementById('unpaid-overview-error');
+  errEl.textContent = '';
+  errEl.classList.remove('show');
+  unpaidOverviewEntries = [];
+  const skipped = [];
+  try {
+    for (const month of unpaidOverviewMonths()) {
+      renderUnpaidOverview(`${monthLabelKR(month)} 확인 중...`);
+      const { rows, deliveryRecords, settlementItems } = await computeMonthlySettlementRows(month);
+      const entries = unpaidOverviewForMonth(month, { users: allUsers, saved: settlementItems, rows });
+      // 배송기록을 못 읽은 달은 이 화면 계산이 전부 0이 된다. 그 달을 "고객 앱에만 미납"으로 보고
+      // 맞추기를 누르면 멀쩡한 청구가 지워진다. 그런 달은 목록에서 뺀다.
+      const hasDelivery = Object.values(deliveryRecords || {}).some(day => day && Object.keys(day).length > 0);
+      if (!hasDelivery && entries.some(entry => entry.fix)) {
+        skipped.push(month);
+        continue;
+      }
+      unpaidOverviewEntries.push(...entries);
+    }
+    unpaidOverviewEntries.sort((a, b) => a.name.localeCompare(b.name, 'ko') || a.month.localeCompare(b.month));
+    if (skipped.length) {
+      errEl.textContent = `${skipped.map(monthLabelKR).join(', ')}은 배송기록을 읽지 못해 목록에서 뺐습니다.`;
+      errEl.classList.add('show');
+    }
+  } catch(e) {
+    errEl.textContent = '미납을 불러오지 못했습니다: ' + e.message;
+    errEl.classList.add('show');
+  } finally {
+    unpaidOverviewLoading = false;
+    renderUnpaidOverview();
+  }
+}
+
+function renderUnpaidOverview(progress = '') {
+  const tbody = document.getElementById('unpaid-overview-tbody');
+  const summary = document.getElementById('unpaid-overview-summary');
+  const fixAllBtn = document.getElementById('unpaid-overview-fix-all');
+  if (progress) {
+    summary.textContent = progress;
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:18px;color:var(--sub)">${escapeHtml(progress)}</td></tr>`;
+    fixAllBtn.disabled = true;
+    return;
+  }
+  const current = currentMonthStr();
+  const visible = visibleUnpaidOverviewEntries(unpaidOverviewEntries, current, unpaidOverviewIncludeCurrent);
+  // 이번 달 줄은 금액이 달라 고치라고 보여줄 뿐이라, 끄고 볼 때는 "지난달까지" 합계에 넣지 않는다.
+  const isThisMonthExtra = entry => !unpaidOverviewIncludeCurrent && entry.month >= current;
+  const owed = visible.filter(({ entry }) => entry.adminDue > 0 && !isThisMonthExtra(entry));
+  const mismatched = unpaidOverviewEntries.filter(entry => entry.fix && !entry.fixed);
+  const scope = unpaidOverviewIncludeCurrent ? '최근 12개월' : '지난달까지';
+  summary.textContent = visible.length
+    ? `${scope} 미납 ${new Set(owed.map(({ entry }) => entry.uid)).size}곳 · ${owed.length}건 · 합계 ${formatMoney(owed.reduce((sum, { entry }) => sum + entry.adminDue, 0))}`
+      + (mismatched.length ? ` · 고객 앱과 금액이 다른 곳 ${mismatched.length}건` : '')
+    : `${scope} 미납이 없습니다.`;
+  // 업체별로 묶는다: 업체 첫 줄에 이름과 그 업체 미납 합계, 다음 줄부터는 달만.
+  const totalByUid = {};
+  visible.forEach(({ entry }) => {
+    totalByUid[entry.uid] = (totalByUid[entry.uid] || 0) + (isThisMonthExtra(entry) ? 0 : entry.adminDue);
+  });
+  let previousUid = '';
+  tbody.innerHTML = visible.length
+    ? visible.map(({ entry, index }) => {
+      const differs = entry.fix && !entry.fixed;
+      const first = entry.uid !== previousUid;
+      previousUid = entry.uid;
+      const nameCell = first
+        ? `<b>${escapeHtml(entry.name)}</b><span style="display:block;font-size:11px;color:var(--sub)">합계 ${formatMoney(totalByUid[entry.uid])}</span>`
+        : '';
+      return `<tr${first ? ' style="border-top:2px solid var(--border)"' : ''}>
+        <td class="left">${nameCell}</td>
+        <td>${escapeHtml(monthLabelKR(entry.month))}${isThisMonthExtra(entry) ? '<span style="display:block;font-size:11px;color:var(--sub)">이번 달</span>' : ''}</td>
+        <td>${dueDateBadgeHtml({ dueDate: entry.dueDate })}</td>
+        <td class="num">${formatMoney(entry.adminDue)}</td>
+        <td class="num">${formatMoney(entry.fixed ? entry.adminDue : entry.customerDue)}${differs ? '<span class="carryover-label" style="color:#c0392b">금액 다름</span>' : ''}</td>
+        <td style="white-space:normal">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <button class="mini-btn" type="button" onclick="openUnpaidOverviewMonth(${index})">그 달 열기</button>
+            ${differs ? `<button class="mini-btn" type="button" onclick="fixUnpaidOverviewEntries([${index}])">${UNPAID_OVERVIEW_FIX_LABEL[entry.fix]}</button>` : ''}
+          </div>
+        </td>
+      </tr>`;
+    }).join('')
+    : `<tr><td colspan="6" style="padding:18px;color:var(--sub)">${scope} 미납이 없습니다. 🎉</td></tr>`;
+  fixAllBtn.disabled = mismatched.length === 0;
+  fixAllBtn.textContent = mismatched.length ? `고객 앱과 다른 곳 모두 맞추기 (${mismatched.length}건)` : '고객 앱과 다른 곳 없음';
+}
+
+// 목록에서 고른 달의 정산 탭을 열고 그 업체만 보이게 한다. 입금 처리는 거기서 평소처럼 한다.
+async function openUnpaidOverviewMonth(index) {
+  const entry = unpaidOverviewEntries[index];
+  if (!entry) return;
+  closeUnpaidOverview();
+  document.getElementById('settle-month').value = entry.month;
+  await loadSettlements();
+  const search = document.getElementById('settle-search');
+  if (search) search.value = entry.name;
+  setSettleSearch(entry.name);
+}
+
+async function fixUnpaidOverviewEntries(indexes = null) {
+  const targets = (indexes || unpaidOverviewEntries.map((_, index) => index))
+    .map(index => unpaidOverviewEntries[index])
+    .filter(entry => entry && entry.fix && !entry.fixed);
+  if (!targets.length) return;
+  const count = fix => targets.filter(entry => entry.fix === fix).length;
+  const lines = [
+    count('sync') ? `· 고객 앱을 이 화면 금액으로 맞추기 ${count('sync')}건` : '',
+    count('remove') ? `· 배송기록 없는 정산 지우기 ${count('remove')}건` : '',
+    count('zero') ? `· 배송기록 없는 정산 금액 0으로 ${count('zero')}건 (입금·보류 기록은 그대로)` : ''
+  ].filter(Boolean);
+  const head = targets.length === 1
+    ? `${targets[0].name} ${monthLabelKR(targets[0].month)}\n고객 앱 ${formatMoney(targets[0].customerDue)} → ${formatMoney(targets[0].adminDue)}`
+    : `고객 앱 금액을 이 화면과 맞춥니다.`;
+  if (!confirm(`${head}\n\n${lines.join('\n')}\n\n고객 앱에 보이는 정산이 이 화면과 같아집니다. 진행할까요?`)) return;
+  const btn = document.getElementById('unpaid-overview-fix-all');
+  btn.disabled = true;
+  let fixed = 0;
+  try {
+    const byMonth = {};
+    targets.forEach(entry => { (byMonth[entry.month] ||= []).push(entry); });
+    for (const [month, list] of Object.entries(byMonth)) {
+      // 목록을 띄운 뒤 다른 기기에서 입금·수정했을 수 있다. 그 달을 다시 읽어 아직 다른 곳만 고친다.
+      const { rows, settlementItems } = await computeMonthlySettlementRows(month);
+      const fresh = new Map(unpaidOverviewForMonth(month, { users: allUsers, saved: settlementItems, rows })
+        .map(entry => [entry.uid, entry]));
+      for (const entry of list) {
+        // 목록에서 빠졌으면 이제 양쪽 다 0원이다.
+        const current = fresh.get(entry.uid);
+        if (current?.fix) await applyUnpaidOverviewFix(current, rows, settlementItems);
+        const due = current ? current.adminDue : 0;
+        Object.assign(entry, { fixed: true, adminDue: due, customerDue: due });
+        fixed++;
+      }
+    }
+    showToast(`✅ 고객 앱 ${fixed}건을 이 화면과 맞췄습니다.`);
+  } catch(e) {
+    showToast('맞추기 실패: ' + e.message);
+  } finally {
+    renderUnpaidOverview();
+    if (settlementLoadedMonth && targets.some(entry => entry.month === settlementLoadedMonth)) loadSettlements();
+  }
+}
+
+async function applyUnpaidOverviewFix(entry, rows, settlementItems) {
+  const saved = settlementItems[entry.uid] || {};
+  if (entry.fix === 'remove') {
+    await settlementItemRef(entry.month, entry.uid).delete();
+    applySettlementToUserCache(entry.uid, entry.month, null);
+    return;
+  }
+  if (entry.fix === 'zero') {
+    // 이 화면은 배송기록이 없는 달을 0원으로 본다. 조정금액도 0이어야 고객 앱과 같아진다.
+    const zero = {
+      lunch: 0, salad: 0, eventLunch: 0, catering: 0,
+      lunchTotal: 0, saladTotal: 0, eventLunchTotal: 0, cateringTotal: 0,
+      cateringAmount: 0, cateringItems: [], amount: 0, adjust: 0,
+      updatedAt: new Date().toISOString()
+    };
+    await settlementItemRef(entry.month, entry.uid).set({ ...zero, daily: settlementDailyPatch({}, saved.daily) }, { merge: true });
+    applySettlementToUserCache(entry.uid, entry.month, { ...saved, ...zero, daily: {} });
+    return;
+  }
+  const row = rows.find(r => r.uid === entry.uid);
+  if (!row) throw new Error(`${entry.name} ${entry.month} 정산을 다시 찾지 못했습니다.`);
+  // 청구서번호·납부기한·입금액은 rebuildSettlementsForUids 와 같은 규칙으로 채운다.
+  // 지운 날짜가 고객 앱 일별 내역에 남지 않게 옛 날짜 키는 삭제 표시로 보낸다.
+  await saveSettlementItem(entry.month, entry.uid, row, settlementRowSaveData(row, {
+    invoiceNo: saved.invoiceNo || row.invoiceNo || await generateInvoiceNo(entry.month),
+    dueDate: saved.dueDate || row.dueDate || defaultDueDate(entry.month),
+    paidAmount: settlementPaidTotal(row),
+    paidDate: saved.paidDate || '',
+    daily: settlementDailyPatch(row.dateBreakdown || {}, saved.daily)
+  }));
 }
 
 async function deleteSettlementRow(uid, fromModal = false) {

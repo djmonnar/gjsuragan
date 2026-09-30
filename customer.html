@@ -4361,6 +4361,72 @@ function customerCarryoverDatesLabel(dates) {
     .join(', ');
 }
 
+// 관리자가 이월할 때 저장한 전월 이월 내역(며칠에 몇 개). admin.html normalizeCarryoverDetail 과 같은 모양으로 읽는다.
+// 날짜 줄(kind:'day')과 입금·조정 같은 맞춤 줄이 있고, 모든 줄 금액의 합이 이월액이다.
+function customerCarryoverDetail(s) {
+  if (!Array.isArray(s?.carryoverDetail)) return [];
+  return s.carryoverDetail
+    .filter(line => line && typeof line === 'object')
+    .map(line => ({
+      kind: line.kind === 'day' ? 'day' : String(line.kind || 'residual'),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(String(line.date || '')) ? String(line.date) : '',
+      label: String(line.label || ''),
+      lunch: Number(line.lunch) || 0,
+      salad: Number(line.salad) || 0,
+      eventLunch: Number(line.eventLunch) || 0,
+      catering: Number(line.catering) || 0,
+      cateringLabel: String(line.cateringLabel || ''),
+      amount: Math.round(Number(line.amount) || 0)
+    }))
+    .filter(line => line.kind !== 'day' || line.date || line.label);
+}
+
+// 이월 내역 표. 앱 화면과 인쇄 정산서가 같이 쓴다. 이월이 없거나 내역이 없으면 빈 문자열.
+function customerCarryoverDetailTable(s, { tableClass = '', numClass = '' } = {}) {
+  const lines = customerCarryoverDetail(s);
+  const carryover = Math.max(0, parseInt(s?.carryover, 10) || 0);
+  if (!lines.length || carryover <= 0) return '';
+  const days = lines.filter(line => line.kind === 'day');
+  const hasEventLunch = days.some(line => line.eventLunch > 0);
+  const hasCatering = days.some(line => line.catering > 0);
+  const labelSpan = 3 + (hasEventLunch ? 1 : 0) + (hasCatering ? 1 : 0);
+  const num = numClass ? ` class="${numClass}"` : '';
+  const dayLabel = line => line.date ? `${Number(line.date.slice(5, 7))}/${Number(line.date.slice(8, 10))}` : line.label;
+  const body = lines.map(line => line.kind === 'day' ? `
+      <tr>
+        <td>${escapeHtml(dayLabel(line))}</td>
+        <td${num}>${line.lunch ? `${line.lunch}개` : '-'}</td>
+        <td${num}>${line.salad ? `${line.salad}개` : '-'}</td>
+        ${hasEventLunch ? `<td${num}>${line.eventLunch ? `${line.eventLunch}개` : '-'}</td>` : ''}
+        ${hasCatering ? `<td>${line.catering ? escapeHtml(line.cateringLabel || `${line.catering}개`) : '-'}</td>` : ''}
+        <td${num}>${line.amount.toLocaleString()}원</td>
+      </tr>` : `
+      <tr>
+        <td colspan="${labelSpan}">${escapeHtml(line.label)}</td>
+        <td${num}>${line.amount > 0 ? '+' : ''}${line.amount.toLocaleString()}원</td>
+      </tr>`).join('');
+  return `
+    <table class="${tableClass}">
+      <thead>
+        <tr><th>날짜</th><th>도시락</th><th>샐러드</th>${hasEventLunch ? '<th>일회용</th>' : ''}${hasCatering ? '<th>행사도시락</th>' : ''}<th>금액</th></tr>
+      </thead>
+      <tbody>${body}</tbody>
+      <tfoot>
+        <tr><td colspan="${labelSpan}">이월 합계</td><td${num}>${carryover.toLocaleString()}원</td></tr>
+      </tfoot>
+    </table>`;
+}
+
+function renderCustomerCarryoverDetail(s) {
+  const table = customerCarryoverDetailTable(s, { tableClass: 'cust-detail-table' });
+  if (!table) return '';
+  return `
+    <div class="cust-detail-wrap">
+      <div class="cust-detail-title">${escapeHtml(customerMonthShort(s.carryoverFrom) || '전월')} 이월 미수금 내역</div>
+      <div class="cust-detail-scroll">${table}</div>
+    </div>`;
+}
+
 function renderCustomerSettlementDetail(s) {
   const { billed, payments, balance, carryover, carriedOverAmount } = customerSettlementSummary(s);
   const carried = Boolean(s.carriedOverTo);
@@ -4390,8 +4456,10 @@ function renderCustomerSettlementDetail(s) {
   const noteHtml = s.note
     ? `<div class="cust-meta-row" style="margin-top:8px">메모 <span>${escapeHtml(s.note)}</span></div>`
     : '';
+  // 날짜별 내역이 있으면 아래 "이월 미수금 내역" 표로 보여주고, 없을 때만 날짜를 한 줄로 적는다.
+  const carryoverDays = customerCarryoverDetail(s).length ? '' : customerCarryoverDatesLabel(s.carryoverDates);
   const carryoverHtml = carryover > 0
-    ? `<div class="cust-meta-row" style="margin-top:8px">${customerMonthShort(s.carryoverFrom) || '전월'} 이월 미수금 <span>+${carryover.toLocaleString()}원</span> <span style="font-weight:400;color:#6b5b4a">(이번 달 청구액에 포함)</span>${customerCarryoverDatesLabel(s.carryoverDates) ? `<div style="font-weight:400;color:#6b5b4a;font-size:13px;margin-top:2px">이용일 ${escapeHtml(customerCarryoverDatesLabel(s.carryoverDates))}</div>` : ''}</div>`
+    ? `<div class="cust-meta-row" style="margin-top:8px">${customerMonthShort(s.carryoverFrom) || '전월'} 이월 미수금 <span>+${carryover.toLocaleString()}원</span> <span style="font-weight:400;color:#6b5b4a">(이번 달 청구액에 포함)</span>${carryoverDays ? `<div style="font-weight:400;color:#6b5b4a;font-size:13px;margin-top:2px">이용일 ${escapeHtml(carryoverDays)}</div>` : ''}</div>`
     : '';
   const carriedHtml = carried
     ? `<div class="cust-meta-row" style="margin-top:8px">이월 <span>잔액 ${carriedOverAmount.toLocaleString()}원 → ${customerMonthShort(s.carriedOverTo)} 정산으로 이월</span></div>`
@@ -4424,6 +4492,7 @@ function renderCustomerSettlementDetail(s) {
       ${carryoverHtml}
       ${carriedHtml}
       ${renderCustomerSettlementDailyDetail(s)}
+      ${renderCustomerCarryoverDetail(s)}
       ${paymentRows}
       ${noteHtml}
     </div>`;
@@ -4434,11 +4503,17 @@ function customerSettlementSummary(s) {
   const carryover = Math.max(0, parseInt(s.carryover, 10) || 0);
   const carriedOverAmount = Math.max(0, parseInt(s.carriedOverAmount, 10) || 0);
   const billed = (parseInt(s.amount, 10) || 0) + (parseInt(s.adjust, 10) || 0) + carryover;
-  let payments = s.payments || [];
+  let payments = Array.isArray(s.payments) ? s.payments : [];
   if (payments.length === 0 && s.paidAmount > 0) {
     payments = [{ amount: s.paidAmount, date: s.paidDate || '', note: '(이전 기록)' }];
   }
-  const paidTotal = payments.reduce((sum, p) => sum + (parseInt(p.amount, 10) || 0), 0);
+  // 입금액은 관리자 settlementPaidTotal 과 같은 규칙으로 본다: 입금 기록 → 예전 입금액(paidAmount) →
+  // 둘 다 없는데 "입금완료"면 전액. 관리자 일괄 변경의 "상태만 입금완료"가 입금 기록 없이 저장되는데,
+  // 예전에는 여기서 상태를 안 봐서 관리자 화면엔 완납인 달이 고객 앱에만 미납으로 보였다.
+  // admin.html customerVisibleSettlementBalance 가 이 식을 그대로 따른다. 바꾸면 같이 바꾼다.
+  const recordedPaid = payments.reduce((sum, p) => sum + (parseInt(p.amount, 10) || 0), 0);
+  const legacyPaid = parseInt(s.paidAmount, 10) || 0;
+  const paidTotal = recordedPaid > 0 ? recordedPaid : legacyPaid > 0 ? legacyPaid : (s.status === '입금완료' ? billed : 0);
   return { billed, payments, paidTotal, balance: billed - paidTotal - carriedOverAmount, carryover, carriedOverAmount };
 }
 
@@ -4449,7 +4524,9 @@ function customerPrintRow(label, value) {
 function customerSettlementPrintHtml(s, month) {
   const { billed, payments, paidTotal, balance, carryover, carriedOverAmount } = customerSettlementSummary(s);
   const printStatus = s.status === '이월' ? '이월됨' : (s.status || '-');
-  const carryoverRow = carryover > 0 ? customerPrintRow(`${customerMonthShort(s.carryoverFrom) || '전월'} 이월 미수금`, `+${carryover.toLocaleString()}원${customerCarryoverDatesLabel(s.carryoverDates) ? ` (이용일 ${customerCarryoverDatesLabel(s.carryoverDates)})` : ''}`) : '';
+  const carryoverTable = customerCarryoverDetailTable(s, { tableClass: 'detail', numClass: 'num' });
+  const carryoverDays = carryoverTable ? '' : customerCarryoverDatesLabel(s.carryoverDates);
+  const carryoverRow = carryover > 0 ? customerPrintRow(`${customerMonthShort(s.carryoverFrom) || '전월'} 이월 미수금`, `+${carryover.toLocaleString()}원${carryoverDays ? ` (이용일 ${carryoverDays})` : ''}`) : '';
   const carriedRow = s.carriedOverTo ? customerPrintRow('이월', `잔액 ${carriedOverAmount.toLocaleString()}원 → ${customerMonthShort(s.carriedOverTo)} 정산으로 이월`) : '';
   const [year, mon] = String(month || '').split('-');
   const titleMonth = year && mon ? `${year}년 ${parseInt(mon, 10)}월` : month;
@@ -4568,6 +4645,7 @@ function customerSettlementPrintHtml(s, month) {
         <tr><td>합계</td><td class="num">${totalLunch}개</td><td class="num">${totalSalad}개</td>${hasEventLunch ? `<td class="num">${totalEventLunch}개</td>` : ''}${hasCatering ? `<td class="num">${totalCatering}개</td>` : ''}<td class="num">${detailAmount.toLocaleString()}원</td></tr>
       </tfoot>
     </table>
+    ${carryoverTable ? `<div class="section-title">${escapeHtml(customerMonthShort(s.carryoverFrom) || '전월')} 이월 미수금 내역</div>${carryoverTable}` : ''}
     <div class="section-title">입금 이력</div>
     <table>
       <thead><tr><th>입금일</th><th>금액</th><th>비고</th></tr></thead>
