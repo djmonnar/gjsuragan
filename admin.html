@@ -3628,6 +3628,151 @@ function settlementOutstandingBalance(row = {}) {
 function isSettlementUnpaid(row = {}) {
   return settlementOutstandingBalance(row) > 0;
 }
+
+// ── 이월 내역 (carryoverDetail) ──
+// 이월액이 전월 며칠에 몇 개였는지 정산서에 풀어 보여주려고, 넘겨준 달 정산에서 뽑아 이월받은 달 문서에 둔다.
+// 날짜 줄: { kind:'day', date, lunch, salad, eventLunch, catering, cateringLabel, amount }
+//   (수기로 합계만 고친 엑셀 정산은 날짜 대신 label: '8월 합계')
+// 맞춤 줄: { kind:'adjust'|'carryover'|'paid'|'residual', label, amount }
+//   입금·조정이 있던 달은 날짜 금액만으로는 이월액과 안 맞아서 붙인다.
+// 모든 줄 금액의 합 = 이월액. 정산서의 이월 합계와 한 원도 어긋나지 않게 한다.
+function carryoverDetailAmount(detail = []) {
+  return (Array.isArray(detail) ? detail : []).reduce((sum, line) => sum + (Number(line?.amount) || 0), 0);
+}
+// 저장된 값을 읽을 때 쓴다. 한 번도 만든 적 없으면 null (나중에 채울 대상), 만들었는데 없으면 [].
+function normalizeCarryoverDetail(detail) {
+  if (!Array.isArray(detail)) return null;
+  return detail
+    .filter(line => line && typeof line === 'object')
+    .map(line => {
+      const amount = Math.round(Number(line.amount) || 0);
+      if (line.kind === 'day') {
+        return {
+          kind: 'day',
+          date: /^\d{4}-\d{2}-\d{2}$/.test(String(line.date || '')) ? String(line.date) : '',
+          label: String(line.label || ''),
+          lunch: Number(line.lunch) || 0,
+          salad: Number(line.salad) || 0,
+          eventLunch: Number(line.eventLunch) || 0,
+          catering: Number(line.catering) || 0,
+          cateringLabel: String(line.cateringLabel || ''),
+          amount
+        };
+      }
+      return { kind: String(line.kind || 'residual'), label: String(line.label || ''), amount };
+    })
+    .filter(line => line.kind !== 'day' || line.date || line.label);
+}
+// 줄 금액의 합이 이월액과 다르면(수기로 이월액을 고친 경우 등) 차이를 "이월 조정" 한 줄로 맞춘다.
+function withCarryoverResidual(lines = [], amount = 0) {
+  const kept = (Array.isArray(lines) ? lines : []).filter(line => line && line.kind !== 'residual');
+  const residual = Math.round((Number(amount) || 0) - carryoverDetailAmount(kept));
+  return residual ? [...kept, { kind: 'residual', label: '이월 조정', amount: residual }] : kept;
+}
+// 넘겨준 달 정산 행 하나에서 이월 내역을 만든다. amount 는 그 행에서 넘어온 금액.
+function carryoverDetailFromRow(prevRow = {}, fromMonth = '', amount = settlementOpenBalance(prevRow)) {
+  const lunchPrice = Number(prevRow.lunchPrice || 0) || 0;
+  const saladPrice = Number(prevRow.saladPrice || 0) || 0;
+  const eventPrice = settlementEventUnitPrice(prevRow);
+  const short = monthShortKR(fromMonth) || '전월';
+  const qtyOf = value => Number(value || 0) || 0;
+  let lines;
+  if (prevRow.manualOverride) {
+    // 합계를 손으로 고친 엑셀 정산은 일별 칸이 합계와 안 맞을 수 있다. 합계 한 줄로 둔다.
+    const lunch = qtyOf(prevRow.lunch);
+    const salad = qtyOf(prevRow.salad);
+    const eventLunch = qtyOf(prevRow.eventLunch);
+    const catering = qtyOf(prevRow.catering);
+    lines = [{
+      kind: 'day', date: '', label: `${short} 합계`, lunch, salad, eventLunch, catering, cateringLabel: '',
+      amount: lunch * lunchPrice + salad * saladPrice + eventLunch * eventPrice + qtyOf(prevRow.cateringAmount)
+    }];
+  } else {
+    const daily = prevRow.dateBreakdown && Object.keys(prevRow.dateBreakdown).length ? prevRow.dateBreakdown : (prevRow.daily || {});
+    lines = settlementUsageDates(prevRow).map(ds => {
+      const day = daily[ds] || {};
+      const lunch = qtyOf(day.lunch);
+      const salad = qtyOf(day.salad);
+      const eventLunch = qtyOf(day.eventLunch);
+      const catering = qtyOf(day.catering);
+      const cateringItems = Array.isArray(day.cateringItems) ? day.cateringItems : [];
+      return {
+        kind: 'day', date: ds, label: '', lunch, salad, eventLunch, catering,
+        cateringLabel: cateringItems.map(item => `${item?.name || '행사도시락'} ${qtyOf(item?.qty)}개`).join(' · '),
+        amount: lunch * lunchPrice + salad * saladPrice + eventLunch * eventPrice + qtyOf(day.cateringAmount)
+      };
+    });
+  }
+  const adjust = parseInt(prevRow.adjust, 10) || 0;
+  if (adjust) lines.push({ kind: 'adjust', label: `${short} 조정금액`, amount: adjust });
+  const earlier = settlementCarryover(prevRow);
+  if (earlier) lines.push({ kind: 'carryover', label: `${monthShortKR(prevRow.carryoverFrom) || '그 전달'} 이월 미수금`, amount: earlier });
+  const paid = settlementPaidTotal(prevRow);
+  if (paid) lines.push({ kind: 'paid', label: `${short} 입금`, amount: -paid });
+  return withCarryoverResidual(lines, amount);
+}
+// 여러 행(합치기)에서 온 내역을 하나로. 같은 날짜는 수량·금액을 더하고, 맞춤 줄은 이름이 같으면 더한다.
+// "이월 조정"은 합친 뒤 withCarryoverResidual 로 다시 계산하므로 여기서는 버린다.
+function combineCarryoverDetail(...lists) {
+  const days = new Map();
+  const extras = new Map();
+  lists.flat().forEach(line => {
+    if (!line || line.kind === 'residual') return;
+    if (line.kind === 'day') {
+      const key = line.date || `label:${line.label || ''}`;
+      const prev = days.get(key);
+      if (!prev) {
+        days.set(key, { ...line });
+        return;
+      }
+      ['lunch', 'salad', 'eventLunch', 'catering', 'amount'].forEach(field => {
+        prev[field] = (Number(prev[field]) || 0) + (Number(line[field]) || 0);
+      });
+      prev.cateringLabel = [prev.cateringLabel, line.cateringLabel].filter(Boolean).join(' · ');
+      return;
+    }
+    const key = `${line.kind}|${line.label || ''}`;
+    const prev = extras.get(key);
+    if (prev) prev.amount += Number(line.amount) || 0;
+    else extras.set(key, { ...line, amount: Number(line.amount) || 0 });
+  });
+  const dayLines = [...days.values()].sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+  return [...dayLines, ...extras.values()];
+}
+// 이월받은 행(row)의 내역을 넘겨준 달 정산 행들(prevRows)에서 만든다.
+// 이 달(month)로 "이월됨" 표시가 된 행만 쓴다. 같은 업체라도 입금이 끝난 달 내역이 섞이면 안 된다.
+// 합치기로 넘겨받은 이월은 옛 행(carryoverFromUids)에 "이월됨"이 찍혀 있다.
+// 찾을 행이 없으면 null.
+function carryoverDetailForRow(row = {}, prevRows = [], month = '') {
+  const uids = new Set([row.uid, ...(row.carryoverFromUids || [])].filter(Boolean));
+  const sources = (prevRows || []).filter(prev => uids.has(prev.uid) && prev.carriedOverTo === month);
+  if (!sources.length) return null;
+  const detail = combineCarryoverDetail(...sources.map(prev =>
+    carryoverDetailFromRow(prev, row.carryoverFrom, settlementCarriedOverAmount(prev) || settlementOpenBalance(prev))));
+  return withCarryoverResidual(detail, settlementCarryover(row));
+}
+function carryoverDetailDates(detail = []) {
+  return mergeCarryoverDates((Array.isArray(detail) ? detail : []).filter(line => line.kind === 'day').map(line => line.date));
+}
+// 2026-08-31 → 8/31 (날짜 없는 합계 줄은 label)
+function carryoverDetailDayLabel(line = {}) {
+  return line.date ? `${Number(line.date.slice(5, 7))}/${Number(line.date.slice(8, 10))}` : (line.label || '');
+}
+// 목록 툴팁·수정창에 쓰는 한 줄 요약: "8/31 일반 8개, 9/1 일반 5·샐러드 1개"
+function carryoverDetailLabel(detail = []) {
+  return (Array.isArray(detail) ? detail : [])
+    .filter(line => line.kind === 'day')
+    .map(line => {
+      const qty = [
+        line.lunch ? `일반 ${line.lunch}` : '',
+        line.salad ? `샐러드 ${line.salad}` : '',
+        line.eventLunch ? `일회용 ${line.eventLunch}` : '',
+        line.catering ? `행사 ${line.catering}` : ''
+      ].filter(Boolean).join('·');
+      return `${carryoverDetailDayLabel(line)}${qty ? ` ${qty}개` : ''}`;
+    })
+    .join(', ');
+}
 function settlementCompanyKey(row = {}) {
   const businessName = row.type === 'event'
     ? eventCustomerName(row.event || {})
@@ -4086,14 +4231,16 @@ function settlementItemRef(month, uid) {
 }
 // ── 정산 이월 필드 ──
 // carryover/carryoverFrom/carryoverAt: 이월받은 달에 기록. carriedOverTo/carriedOverAmount/carriedOverAt/statusBeforeCarryover: 넘긴 달에 기록.
-// carryoverDates: 이월액이 된 전월 이용 날짜(정산표에 표시). carryoverFromUids: 합치기로 이월을 넘겨준 행의 uid.
-const SETTLEMENT_CARRYOVER_FIELDS = ['carryover', 'carryoverFrom', 'carryoverAt', 'carryoverDates', 'carryoverFromUids', 'carriedOverTo', 'carriedOverAmount', 'carriedOverAt', 'statusBeforeCarryover'];
+// carryoverDates: 이월액이 된 전월 이용 날짜. carryoverDetail: 그 날짜별 수량·금액(정산서에 표시, 위 "이월 내역" 참고).
+// carryoverFromUids: 합치기로 이월을 넘겨준 행의 uid.
+const SETTLEMENT_CARRYOVER_FIELDS = ['carryover', 'carryoverFrom', 'carryoverAt', 'carryoverDates', 'carryoverDetail', 'carryoverFromUids', 'carriedOverTo', 'carriedOverAmount', 'carriedOverAt', 'statusBeforeCarryover'];
 function settlementCarryoverFields(saved = {}) {
   return {
     carryover: Math.max(0, Number(saved.carryover || 0) || 0),
     carryoverFrom: saved.carryoverFrom || '',
     carryoverAt: saved.carryoverAt || '',
     carryoverDates: mergeCarryoverDates(Array.isArray(saved.carryoverDates) ? saved.carryoverDates : []),
+    carryoverDetail: normalizeCarryoverDetail(saved.carryoverDetail),
     carryoverFromUids: Array.isArray(saved.carryoverFromUids) ? saved.carryoverFromUids.filter(Boolean) : [],
     carriedOverTo: saved.carriedOverTo || '',
     carriedOverAmount: Math.max(0, Number(saved.carriedOverAmount || 0) || 0),
@@ -11631,7 +11778,7 @@ async function loadSettlements() {
     settlementLoadedMonth = month;
     renderSettlements();
     renderSettlementCharts().catch(() => {});
-    backfillCarryoverDates(month, result.rows).catch(e => console.warn('이월 이용일 채우기 실패:', e));
+    backfillCarryoverDetail(month, result.rows).catch(e => console.warn('이월 내역 채우기 실패:', e));
     settlementLastLoadedAt = Date.now();
     const loadedLabel = document.getElementById('settle-last-loaded');
     if (loadedLabel) {
@@ -11648,11 +11795,12 @@ async function loadSettlements() {
   }
 }
 
-// 이용일(carryoverDates)이 생기기 전에 만든 이월은 날짜가 비어 있다.
-// 넘겨준 달의 같은 업체 정산에서 날짜를 찾아 한 번만 채운다. 금액은 건드리지 않는다.
-async function backfillCarryoverDates(month, rows = []) {
+// 이월 내역(carryoverDetail)이 생기기 전에 만든 이월은 며칠에 몇 개였는지 모른다.
+// 넘겨준 달 정산에서 이 달로 "이월됨" 표시된 행을 찾아 한 번만 채운다. 금액은 건드리지 않는다.
+// 찾을 행이 없으면 빈 목록([])을 적어 다음에 또 찾지 않게 한다.
+async function backfillCarryoverDetail(month, rows = []) {
   const missing = rows.filter(row => row.type !== 'event' && settlementCarryover(row) > 0
-    && row.carryoverFrom && !(row.carryoverDates || []).length);
+    && row.carryoverFrom && !Array.isArray(row.carryoverDetail));
   if (!missing.length) return;
   const byFromMonth = {};
   missing.forEach(row => { (byFromMonth[row.carryoverFrom] ||= []).push(row); });
@@ -11660,15 +11808,19 @@ async function backfillCarryoverDates(month, rows = []) {
   for (const [fromMonth, list] of Object.entries(byFromMonth)) {
     const { rows: prevRows } = await computeMonthlySettlementRows(fromMonth);
     for (const row of list) {
-      const uids = [row.uid, ...(row.carryoverFromUids || [])];
-      const dates = mergeCarryoverDates(...uids.map(uid => settlementUsageDates(prevRows.find(r => r.uid === uid) || {})));
-      if (!dates.length) continue;
-      await settlementItemRef(month, row.uid).set({ carryoverDates: dates }, { merge: true });
-      row.carryoverDates = dates;
-      filled++;
+      const detail = carryoverDetailForRow(row, prevRows, month);
+      const patch = detail
+        ? { carryoverDetail: detail, carryoverDates: carryoverDetailDates(detail) }
+        : { carryoverDetail: [] };
+      await settlementItemRef(month, row.uid).set(patch, { merge: true });
+      Object.assign(row, patch);
+      if (detail) filled++;
     }
   }
-  if (filled && settlementLoadedMonth === month) renderSettlements();
+  if (!filled || settlementLoadedMonth !== month) return;
+  renderSettlements();
+  // 채우는 사이 정산서 미리보기를 열어 뒀으면 그것도 다시 그린다.
+  if (document.getElementById('sheet-modal')?.classList.contains('open')) renderSheetPreview();
 }
 
 let settlementLastLoadedAt = 0;
@@ -11942,8 +12094,8 @@ function renderSettlements() {
         const billed = settlementBilledTotal(row);
         const adjustLabel = row.adjust ? `<span style="font-size:11px;color:var(--sub);display:block">${row.adjust > 0 ? '+' : ''}${row.adjust.toLocaleString()}</span>` : '';
         const carryover = settlementCarryover(row);
-        const carryoverDays = carryoverDatesLabel(row.carryoverDates);
-        const carryoverLabel = carryover > 0 ? `<span class="carryover-label"${carryoverDays ? ` title="${escapeHtml(carryoverDays)} 이용분"` : ''}>${escapeHtml(monthShortKR(row.carryoverFrom))}이월 +${carryover.toLocaleString()}</span>` : '';
+        const carryoverDays = carryoverDetailLabel(row.carryoverDetail) || carryoverDatesLabel(row.carryoverDates);
+        const carryoverLabel = carryover > 0 ? `<span class="carryover-label"${carryoverDays ? ` title="${escapeHtml(carryoverDays)}"` : ''}>${escapeHtml(monthShortKR(row.carryoverFrom))}이월 +${carryover.toLocaleString()}</span>` : '';
         const carriedLabel = row.carriedOverTo ? `<span class="carryover-label">→ ${escapeHtml(monthShortKR(row.carriedOverTo))} 이월 ${settlementCarriedOverAmount(row).toLocaleString()}</span>` : '';
         const safeUid = row.uid.replace(/[^a-zA-Z0-9_-]/g, '_');
         const balance = settlementBalance(row);
@@ -13071,9 +13223,27 @@ function buildSheetHTML(uid, forPrint) {
     <td colspan="7" style="text-align:right;font-weight:800">조정금액</td>
     <td class="num" style="font-weight:800">${adjustment > 0 ? '+' : ''}${money(adjustment)}원</td>
   </tr>` : '';
+  // 이월액은 전월 날짜별로 풀어 보여준다 (며칠에 몇 개였는지). 내역이 아직 없으면 날짜만.
+  const carryoverFromLabel = row.carryoverFrom ? ` (${escapeHtml(monthLabelKR(row.carryoverFrom))})` : '';
+  const carryoverDetail = Array.isArray(row.carryoverDetail) ? row.carryoverDetail : [];
   const carryoverDays = carryoverDatesLabel(row.carryoverDates);
-  const carryoverRow = carryover ? `<tr>
-    <td colspan="7" style="text-align:right;font-weight:800">전월 이월 미수금${row.carryoverFrom ? ` (${escapeHtml(monthLabelKR(row.carryoverFrom))})` : ''}${carryoverDays ? `<div style="font-weight:600;font-size:12px;margin-top:2px">이용일 ${escapeHtml(carryoverDays)}</div>` : ''}</td>
+  const carryoverDetailHtml = carryoverDetail.length ? `<tr>
+    <td colspan="8" style="text-align:left;font-weight:800;background:#f8fafc">전월 이월 미수금 내역${carryoverFromLabel}</td>
+  </tr>${carryoverDetail.map(line => line.kind === 'day' ? `<tr>
+    <td>${escapeHtml(carryoverDetailDayLabel(line))}</td>
+    <td style="text-align:left">${escapeHtml(itemName)}</td>
+    <td>${line.lunch || ''}</td>
+    <td>${line.salad || ''}</td>
+    <td>${line.eventLunch || ''}</td>
+    <td>${line.catering || ''}</td>
+    <td style="text-align:left">${escapeHtml(line.cateringLabel || '')}</td>
+    <td class="num">${money(line.amount)}원</td>
+  </tr>` : `<tr>
+    <td colspan="7" style="text-align:right">${escapeHtml(line.label || '')}</td>
+    <td class="num">${line.amount > 0 ? '+' : ''}${money(line.amount)}원</td>
+  </tr>`).join('')}` : '';
+  const carryoverRow = carryover ? `${carryoverDetailHtml}<tr>
+    <td colspan="7" style="text-align:right;font-weight:800">전월 이월 미수금${carryoverFromLabel}${!carryoverDetail.length && carryoverDays ? `<div style="font-weight:600;font-size:12px;margin-top:2px">이용일 ${escapeHtml(carryoverDays)}</div>` : ''}</td>
     <td class="num" style="font-weight:800">+${money(carryover)}원</td>
   </tr>` : '';
   const cateringPriceLabel = settlementCateringSummary(row).items
@@ -13163,7 +13333,7 @@ function openSettlementEdit(uid) {
   const carryoverBlock = document.getElementById('settle-carryover-block');
   if (carryoverBlock) carryoverBlock.style.display = row.type === 'event' ? 'none' : '';
   document.getElementById('settle-edit-carryover').value = settlementCarryover(row);
-  settlementEditCarryoverDates = mergeCarryoverDates(row.carryoverDates || []);
+  settlementEditCarryoverDetail = row.carryoverDetail ?? null;
   renderCarryoverHint(row, month);
   renderPaymentList(row.payments || []);
   const errEl = document.getElementById('settle-edit-error');
@@ -13203,10 +13373,18 @@ async function saveSettlementEdit() {
   try {
     let data = { status, note, amount: row.amount, adjust, invoiceNo, dueDate, payments, paidDate, paidAmount: paidTotal, lunchTotal: row.lunch || 0, saladTotal: row.salad || 0, eventLunchTotal: settlementEventQty(row), updatedAt: new Date().toISOString() };
     if (row.type !== 'event') {
+      // 이월 내역은 "전월 잔액 조회"로 가져온 것(안 눌렀으면 원래 것). 금액을 손으로 고쳤으면
+      // 차이는 "이월 조정" 줄로 맞춘다. 내역을 모르면 null 로 두어 정산 탭을 다시 열 때 채운다.
+      const detail = carryover > 0
+        ? (Array.isArray(settlementEditCarryoverDetail) && settlementEditCarryoverDetail.length
+          ? withCarryoverResidual(settlementEditCarryoverDetail, carryover)
+          : null)
+        : [];
       data = {
         ...data, carryover, carryoverFrom,
         carryoverAt: carryover > 0 ? (carryoverChanged || !row.carryoverAt ? new Date().toISOString() : row.carryoverAt) : '',
-        carryoverDates: carryover > 0 ? settlementEditCarryoverDates : [],
+        carryoverDates: detail ? carryoverDetailDates(detail) : (row.carryoverDates || []),
+        carryoverDetail: detail,
         carryoverFromUids: carryover > 0 ? (row.carryoverFromUids || []) : []
       };
     }
@@ -13270,7 +13448,7 @@ async function saveSettlementEdit() {
     Object.assign(row, { status, note, adjust, invoiceNo, dueDate, payments, paidDate, paidAmount: paidTotal });
     if (row.type !== 'event') {
       const mergedSourceUids = row.carryoverFromUids || [];
-      Object.assign(row, { carryover, carryoverFrom, carryoverAt: data.carryoverAt, carryoverDates: data.carryoverDates, carryoverFromUids: data.carryoverFromUids });
+      Object.assign(row, { carryover, carryoverFrom, carryoverAt: data.carryoverAt, carryoverDates: data.carryoverDates, carryoverDetail: data.carryoverDetail, carryoverFromUids: data.carryoverFromUids });
       if (carryoverChanged) {
         await syncCarryoverSource({ month, uid, amount: carryover, fromMonth: carryoverFrom, previousFrom: prevCarryoverFrom, sourceUids: mergedSourceUids });
       }
@@ -13460,8 +13638,9 @@ async function deleteSettlement() {
 }
 
 // ── 정산 이월 (전월 미수금 → 당월 청구) ──
-// 수정 창에서 "전월 잔액 조회"로 가져온 이월액의 이용 날짜. 저장할 때 carryoverDates 로 들어간다.
-let settlementEditCarryoverDates = [];
+// 수정 창에서 "전월 잔액 조회"로 가져온 이월 내역(며칠에 몇 개). 저장할 때 carryoverDetail 로 들어간다.
+// null 은 "모름" — 저장하면 정산 탭을 다시 열 때 backfillCarryoverDetail 이 채운다.
+let settlementEditCarryoverDetail = null;
 function renderCarryoverHint(row, month) {
   const fromEl = document.getElementById('settle-edit-carryover-from');
   const hintEl = document.getElementById('settle-edit-carryover-hint');
@@ -13473,8 +13652,8 @@ function renderCarryoverHint(row, month) {
     parts.push(`이 정산의 잔액 ${settlementCarriedOverAmount(row).toLocaleString()}원은 ${monthLabelKR(row.carriedOverTo)} 정산으로 이월되었습니다. 되돌리려면 ${monthShortKR(row.carriedOverTo)} 정산에서 "이월 취소"를 누르세요.`);
   }
   if (settlementCarryover(row) > 0) {
-    const days = carryoverDatesLabel(row.carryoverDates);
-    parts.push(`${monthLabelKR(from)} 미수금 ${settlementCarryover(row).toLocaleString()}원${days ? `(이용일 ${days})` : ''}이 이번 달 청구액에 포함되어 있습니다. 0으로 바꾸고 저장하면 전월 정산 상태가 원래대로 돌아갑니다.`);
+    const days = carryoverDetailLabel(row.carryoverDetail) || carryoverDatesLabel(row.carryoverDates);
+    parts.push(`${monthLabelKR(from)} 미수금 ${settlementCarryover(row).toLocaleString()}원${days ? `(${days})` : ''}이 이번 달 청구액에 포함되어 있습니다. 0으로 바꾸고 저장하면 전월 정산 상태가 원래대로 돌아갑니다.`);
   } else {
     parts.push('전월 잔액 조회로 금액을 넣고 저장하면 전월 정산은 "이월됨"으로 바뀌고 잔액이 0으로 정리됩니다.');
   }
@@ -13509,9 +13688,10 @@ async function fillCarryoverFromPrevMonth() {
       return;
     }
     document.getElementById('settle-edit-carryover').value = balance;
-    settlementEditCarryoverDates = settlementUsageDates(prevRow);
+    settlementEditCarryoverDetail = carryoverDetailFromRow(prevRow, fromMonth, balance);
     updatePaymentSummary();
-    if (hintEl) hintEl.textContent = `${monthLabelKR(fromMonth)} 청구 ${formatMoney(settlementBilledTotal(prevRow))} · 입금 ${formatMoney(settlementPaidTotal(prevRow))} · 잔액 ${formatMoney(balance)} (${settlementStatusLabel(prevRow.status)})${settlementEditCarryoverDates.length ? ` · 이용일 ${carryoverDatesLabel(settlementEditCarryoverDates)}` : ''} — 저장하면 이월이 적용됩니다.`;
+    const days = carryoverDetailLabel(settlementEditCarryoverDetail);
+    if (hintEl) hintEl.textContent = `${monthLabelKR(fromMonth)} 청구 ${formatMoney(settlementBilledTotal(prevRow))} · 입금 ${formatMoney(settlementPaidTotal(prevRow))} · 잔액 ${formatMoney(balance)} (${settlementStatusLabel(prevRow.status)})${days ? ` · ${days}` : ''} — 저장하면 이월이 적용됩니다.`;
   } catch(e) {
     showToast('전월 잔액 조회 실패: ' + e.message);
     renderCarryoverHint(row, month);
@@ -13522,7 +13702,7 @@ function clearCarryoverField() {
   const input = document.getElementById('settle-edit-carryover');
   if (!input) return;
   input.value = 0;
-  settlementEditCarryoverDates = [];
+  settlementEditCarryoverDetail = [];
   updatePaymentSummary();
   const hintEl = document.getElementById('settle-edit-carryover-hint');
   if (hintEl) hintEl.textContent = '저장하면 이월이 취소되고 전월 정산 상태가 원래대로 돌아갑니다.';
@@ -13702,11 +13882,13 @@ async function applyCarryover() {
     for (const c of selected) {
       const prevRow = c.prevRow;
       const currentRow = c.current || newCarryoverTargetRow(prevRow);
+      const detail = carryoverDetailFromRow(prevRow, fromMonth, c.balance);
       saveSettlementItem(month, c.uid, currentRow, settlementRowSaveData(currentRow, {
         carryover: c.balance,
         carryoverFrom: fromMonth,
         carryoverAt: now,
-        carryoverDates: settlementUsageDates(prevRow),
+        carryoverDates: carryoverDetailDates(detail),
+        carryoverDetail: detail,
         updatedAt: now
       }), { batch });
       saveSettlementItem(fromMonth, c.uid, prevRow, settlementRowSaveData(prevRow, {
@@ -14656,30 +14838,34 @@ async function confirmSettlementMerge() {
 // 합치기에서 옮길 이월 필드. 대상에 이미 이월이 있으면 더하고 날짜도 합친다.
 // 넘겨준 쪽은 이월을 비운다. 전월 정산의 "이월됨" 표시는 옛 uid 에 그대로 두고,
 // 대상의 carryoverFromUids 로 기억해 이월 취소 때 함께 되돌린다.
-function settlementCarryoverMerge(sourceRow = {}, targetSaved = {}, sourceDates = []) {
+// 이월 내역(carryoverDetail)은 여기서 만들지 않고 비워 둔다(null). 넘겨준 달 정산에서
+// 대상·옛 행 몫을 한꺼번에 다시 만들어야 해서 moveSettlementCarryover 가 채운다.
+function settlementCarryoverMerge(sourceRow = {}, targetSaved = {}) {
   const targetAmount = settlementCarryover(targetSaved);
   const amount = targetAmount + settlementCarryover(sourceRow);
   return {
     target: {
       carryover: amount,
       carryoverFrom: (targetAmount > 0 && targetSaved.carryoverFrom) || sourceRow.carryoverFrom || targetSaved.carryoverFrom || '',
-      carryoverDates: mergeCarryoverDates(targetSaved.carryoverDates || [], sourceDates),
+      carryoverDates: mergeCarryoverDates(targetSaved.carryoverDates || [], sourceRow.carryoverDates || []),
+      carryoverDetail: null,
       carryoverFromUids: [...new Set([...(targetSaved.carryoverFromUids || []), ...(sourceRow.carryoverFromUids || []), sourceRow.uid].filter(Boolean))]
     },
-    source: { carryover: 0, carryoverFrom: '', carryoverAt: '', carryoverDates: [], carryoverFromUids: [] }
+    source: { carryover: 0, carryoverFrom: '', carryoverAt: '', carryoverDates: [], carryoverDetail: [], carryoverFromUids: [] }
   };
 }
 
 async function moveSettlementCarryover(month, sourceRow, targetUid, targetUser) {
-  // 예전 이월은 날짜가 안 적혀 있다. 넘겨준 달 정산에서 옛 uid 의 이용 날짜를 찾아 채운다.
-  let sourceDates = sourceRow.carryoverDates || [];
-  if (!sourceDates.length && sourceRow.carryoverFrom) {
-    const { rows } = await computeMonthlySettlementRows(sourceRow.carryoverFrom);
-    sourceDates = settlementUsageDates(rows.find(r => r.uid === sourceRow.uid) || {});
-  }
   const targetSnap = await settlementItemRef(month, targetUid).get();
   const targetSaved = targetSnap.exists ? settlementCarryoverFields(targetSnap.data()) : {};
-  const { target, source } = settlementCarryoverMerge(sourceRow, targetSaved, sourceDates);
+  const { target, source } = settlementCarryoverMerge(sourceRow, targetSaved);
+  // 며칠에 몇 개였는지는 넘겨준 달 정산의 "이월됨" 행에서 다시 만든다.
+  // 못 찾으면 null 로 두고, 정산 탭을 열 때 backfillCarryoverDetail 이 다시 찾아본다.
+  if (target.carryoverFrom) {
+    const { rows: prevRows } = await computeMonthlySettlementRows(target.carryoverFrom);
+    const detail = carryoverDetailForRow({ uid: targetUid, ...target }, prevRows, month);
+    if (detail) Object.assign(target, { carryoverDetail: detail, carryoverDates: carryoverDetailDates(detail) });
+  }
   const now = new Date().toISOString();
   const batch = db.batch();
   batch.set(settlementItemRef(month, targetUid), {
