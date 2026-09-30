@@ -1937,7 +1937,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <li>수량이 실제 배송과 다르면 도시락/샐러드 숫자를 수정합니다.</li>
           <li>배송 나간 업체만 체크한 뒤 <b>배송 완료</b>를 누릅니다.</li>
           <li>배송 완료된 건은 정산에 자동 반영됩니다. 직원 업무는 여기서 끝납니다.</li>
-          <li>화면을 연 뒤 고객이 앱에서 수량을 바꿨으면 <b>배송 완료</b>가 멈추고 바뀐 업체를 알려줍니다. 확인을 누르면 최신 주문으로 다시 불러오니 숫자를 보고 다시 누르면 됩니다.</li>
+          <li>주문 표는 다른 탭에 다녀와도 저절로 다시 불러오지 않습니다. 화면을 연 뒤 고객이 앱에서 수량을 바꿨으면 <b>배송 완료</b>와 <b>집계 인쇄</b>가 멈추고 바뀐 업체를 알려줍니다. 확인을 누르면 최신 주문으로 다시 불러오니 숫자를 보고 다시 누르면 됩니다.</li>
           <li>배송 완료 뒤에 고객이 바꾼 곳은 상태 칸에 빨간 글씨 <b>고객 변경 미반영</b>과 바뀐 수량이 뜹니다. 숫자를 고치고 그 행의 <b>저장</b>을 누르면 배송기록과 정산이 같이 바뀝니다.</li>
         </ol>
         <div class="manual-tip">고객이 자체 휴무로 보낸 날은 휴무 표시가 뜨며 배송 완료 대상에서 제외됩니다.</div>
@@ -5948,6 +5948,33 @@ function orderChangeLines(changes = [], limit = 10) {
   });
   if (changes.length > limit) lines.push(`· 외 ${changes.length - limit}곳`);
   return lines.join('\n');
+}
+
+// 표를 연 뒤 이 날짜 주문이 하나라도 바뀌었는지. 집계 인쇄처럼 표 전체를 쓰는 곳에서 쓴다.
+async function allOrderChangesSinceLoad(dateStr) {
+  const fresh = orderDocsFromSnap(await db.collection('orders').doc(dateStr).collection('items').get());
+  const uids = [...new Set([...Object.keys(loadedOrderDocs), ...Object.keys(fresh)])];
+  return ordersChangedBetween(loadedOrderDocs, fresh, uids);
+}
+
+// 표가 옛 주문이면 알리고 새로 불러온다. 지금 표로 해도 되면 true.
+async function confirmOrdersFresh(actionLabel) {
+  if (loadedOrderDocsDate !== currentDateStr) {
+    await loadOrders();
+    showToast(`주문을 다시 불러왔습니다. 숫자를 확인한 뒤 ${actionLabel} 버튼을 다시 눌러주세요.`);
+    return false;
+  }
+  let changes;
+  try {
+    changes = await allOrderChangesSinceLoad(currentDateStr);
+  } catch(e) {
+    return confirm(`최신 주문을 확인하지 못했습니다 (${e.message}).\n지금 화면 숫자로 ${actionLabel}할까요?`);
+  }
+  if (!changes.length) return true;
+  if (confirm(`화면을 연 뒤 고객이 주문을 바꾼 곳이 있습니다.\n\n${orderChangeLines(changes)}\n\n[확인]을 누르면 최신 주문으로 다시 불러옵니다. 숫자를 확인한 뒤 ${actionLabel} 버튼을 다시 눌러주세요.\n(이 화면에서 저장하지 않은 수정은 다시 입력해야 합니다)`)) {
+    await loadOrders();
+  }
+  return false;
 }
 
 // 새로 불러온 뒤에도 관리자가 고른 체크를 그대로 둔다.
@@ -12644,7 +12671,9 @@ function productionEventRowsForPrint() {
   })).filter(row => row.qty > 0);
 }
 
-function printTodayProductionSheet() {
+async function printTodayProductionSheet() {
+  // 주방은 이 인쇄를 보고 만든다. 화면을 연 뒤 바뀐 주문이 빠진 채 인쇄되면 옛 수량으로 만든다.
+  if (!(await confirmOrdersFresh('집계 인쇄'))) return;
   const orderRows = productionOrderRowsForPrint();
   const eventRows = productionEventRowsForPrint();
   if (!orderRows.length && !eventRows.length) {

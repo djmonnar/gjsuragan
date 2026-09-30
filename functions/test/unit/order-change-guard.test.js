@@ -135,6 +135,11 @@ test('배송 완료·저장이 저장 직전에 최신 주문을 확인한다', 
   const inline = extractFunction('saveInlineQty');
   assert.ok(inline.indexOf('ordersChangedSinceLoad(currentDateStr, [uid])') > 0);
   assert.ok(inline.indexOf('ordersChangedSinceLoad(') < inline.indexOf(".collection('orders')"), '저장보다 먼저 확인해야 한다');
+  // 주방이 보는 집계 인쇄도 화면 칸 숫자를 쓴다. 인쇄 전에 확인한다.
+  const print = extractFunction('printTodayProductionSheet');
+  assert.ok(print.indexOf("confirmOrdersFresh('집계 인쇄')") > 0);
+  assert.ok(print.indexOf('confirmOrdersFresh(') < print.indexOf('productionOrderRowsForPrint()'), '인쇄할 줄을 만들기 전에 확인해야 한다');
+  assert.match(extractFunction('allOrderChangesSinceLoad'), /Object\.keys\(loadedOrderDocs\), \.\.\.Object\.keys\(fresh\)/);
   const load = extractFunction('loadOrders');
   assert.match(load, /loadedOrderDocs = orderDocsFromSnap\(snap\);/);
   assert.match(load, /loadedOrderDocsDate = currentDateStr;/);
