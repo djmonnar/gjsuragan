@@ -68,6 +68,10 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
 .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
 .controls-bar{background:#fff;border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .date-nav{display:flex;align-items:center;gap:8px}
+.date-pick{position:relative;display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:8px;cursor:pointer}
+.date-pick:hover{background:#eef2f7}
+.date-pick-icon{font-size:14px;line-height:1}
+.date-pick input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
 .nav-btn{width:36px;height:36px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:16px}
 .current-date{font-size:16px;font-weight:700;color:var(--primary);min-width:150px;text-align:center}
 .today-btn,.refresh-btn,.members-btn{border:0;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
@@ -536,7 +540,8 @@ body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystem
   .settle-month-picker .form-input{width:100%;min-height:44px}
   .settle-month-picker .save-btn{min-height:44px;margin:0;padding-left:16px;padding-right:16px}
   .settle-month-picker .settle-carryover-btn,
-  .settle-month-picker .settle-resync-btn{grid-column:1/-1;min-height:44px}
+  .settle-month-picker .settle-resync-btn,
+  .settle-month-picker .settle-unpaid-overview-btn{grid-column:1/-1;min-height:44px}
   .settle-filter-tabs{margin-left:-2px;margin-right:-2px;scrollbar-width:none}
   .settle-filter-tabs::-webkit-scrollbar{display:none}
   .settle-tab-btn{flex:0 0 auto;min-height:39px;padding:8px 13px}
@@ -1278,9 +1283,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
   <div class="controls-bar admin-tab-panel" data-tab="orders">
     <div class="date-nav">
       <button class="nav-btn" onclick="changeDate(-1)">◀</button>
-      <label style="position:relative;display:inline-block;cursor:pointer" title="클릭하면 날짜를 직접 선택할 수 있습니다">
+      <label class="date-pick" title="눌러서 날짜를 바로 고릅니다">
         <div class="current-date" id="current-date-label">날짜</div>
-        <input type="date" id="date-picker" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="setDateFromPicker()">
+        <span class="date-pick-icon" aria-hidden="true">📅</span>
+        <input type="date" id="date-picker" aria-label="날짜 고르기" onclick="openDatePicker(this)" onchange="setDateFromPicker()">
       </label>
       <button class="nav-btn" onclick="changeDate(1)">▶</button>
     </div>
@@ -1969,6 +1975,8 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <li>주문 탭에서 배송완료한 도시락, 샐러드, 일회용 수량과 행사도시락 금액만 확인합니다.</li>
           <li>정산 탭에서는 입금완료, 보류, 조정금액처럼 예외만 수정합니다.</li>
           <li>전월에 못 받은 잔액은 <b>전월 미수금 이월</b>을 눌러 이번 달 청구액에 합칩니다. 전월 건은 <b>이월됨</b>으로 바뀌고 잔액이 0이 됩니다.</li>
+          <li>고객 앱은 <b>최근 12개월 미납</b>을 한꺼번에 보여줍니다. 정산 탭은 한 달씩만 보여서, 밀린 미납은 <b>📋 미납 모아보기</b>로 모든 업체를 한 번에 봅니다. 기본은 지난달까지 밀린 것만 보이고, <b>이번 달(납부기한 전)도 보기</b>를 켜면 고객 앱과 같은 12개월이 보입니다. <b>그 달 열기</b>로 가서 입금 처리하고, <b>금액 다름</b>이 뜬 곳은 <b>고객 앱 맞추기</b>를 누르면 고객 앱 금액이 이 화면과 같아집니다.</li>
+          <li>상태만 <b>입금완료</b>로 바꾼 달(입금 기록 없음)은 고객 앱에서도 완납으로 보입니다.</li>
           <li>필요하면 정산표, 카톡 내보내기, 영수증을 사용합니다.</li>
         </ol>
       </div>
@@ -2054,6 +2062,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
           <button class="save-btn" style="width:auto" onclick="loadSettlements()">불러오기</button>
           <button class="manual-btn settle-carryover-btn" type="button" style="white-space:nowrap" onclick="openCarryoverModal()">↩️ 전월 미수금 이월</button>
           <button class="manual-btn settle-resync-btn" type="button" style="white-space:nowrap" onclick="resyncAllSettlements()" title="이 달 정산을 배송기록 기준으로 모두 다시 계산해 고객 화면과 맞춥니다">🔄 전체 다시계산</button>
+          <button class="manual-btn settle-unpaid-overview-btn" type="button" style="white-space:nowrap" onclick="openUnpaidOverview()" title="고객 앱처럼 최근 12개월 미납을 모든 업체에 대해 한 번에 봅니다">📋 미납 모아보기</button>
         </div>
         <div class="settle-filter-tabs">
           <button class="settle-tab-btn active" data-filter="all" onclick="setSettleFilter('all')">전체</button>
@@ -2873,6 +2882,51 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <div class="modal-actions" style="margin-top:14px">
       <button class="save-btn" id="carryover-apply-btn" onclick="applyCarryover()">이월 적용</button>
       <button class="secondary-btn" onclick="closeCarryoverModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 미납 모아보기 모달 (최근 12개월, 고객 앱과 같은 범위) -->
+<div class="modal-overlay" id="unpaid-overview-modal" onclick="if(event.target===this) closeUnpaidOverview()">
+  <div class="modal-box" style="max-width:880px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title">📋 미납 모아보기 (최근 12개월)</div>
+      <button class="modal-close" type="button" onclick="closeUnpaidOverview()">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--sub);line-height:1.6;margin-bottom:10px">
+      고객 앱은 최근 12개월 미납을 한꺼번에 보여줍니다. 정산 탭은 한 달씩만 보여서 지난달 미납을 놓치기 쉬워,
+      모든 업체의 미납을 여기 모았습니다. 기본은 <b>지난달까지 밀린 것</b>만 보이고, 이번 달 청구는 아래 체크를 켜면 같이 보입니다.
+      <b>그 달 열기</b>를 누르면 그 달 정산이 그 업체만 보이게 열리고, 입금 처리는 평소처럼 하면 됩니다.
+      <b>금액 다름</b>은 고객 앱에 보이는 금액이 이 화면과 다른 곳입니다(예전에 지운 주문이 정산 문서에 남은 경우 등).
+    </div>
+    <div class="carryover-summary" style="margin:0 0 10px">
+      <span id="unpaid-overview-summary">-</span>
+      <label style="font-weight:600;font-size:12px;display:inline-flex;align-items:center;gap:4px;cursor:pointer">
+        <input type="checkbox" id="unpaid-overview-include-current" onchange="setUnpaidOverviewIncludeCurrent(this.checked)"> 이번 달(납부기한 전)도 보기
+      </label>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="carryover-table">
+        <thead>
+          <tr>
+            <th class="left">업체명</th>
+            <th>정산월</th>
+            <th>납부기한</th>
+            <th>미납 (이 화면)</th>
+            <th>고객 앱</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="unpaid-overview-tbody">
+          <tr><td colspan="6" style="padding:18px;color:var(--sub)">불러오는 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="error-msg" id="unpaid-overview-error"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="save-btn" id="unpaid-overview-fix-all" type="button" onclick="fixUnpaidOverviewEntries()" disabled>고객 앱과 다른 곳 없음</button>
+      <button class="secondary-btn" type="button" onclick="loadUnpaidOverview()">다시 불러오기</button>
+      <button class="secondary-btn" type="button" onclick="closeUnpaidOverview()">닫기</button>
     </div>
   </div>
 </div>
@@ -5863,6 +5917,15 @@ function updateDateLabel() {
   document.getElementById('current-date-label').textContent = formatDateKR(currentDateStr);
   const dp = document.getElementById('date-picker');
   if (dp) dp.value = currentDateStr;
+}
+// 날짜 칸은 투명한 date 입력을 덮어 둔 것이다. PC 크롬은 입력의 글자 부분을 눌러도 달력이 안 열리고
+// 오른쪽 작은 달력 아이콘만 열어서, 날짜를 고를 수 없는 것처럼 보였다. 어디를 눌러도 달력을 연다.
+function openDatePicker(input) {
+  try {
+    input.showPicker?.();
+  } catch(e) {
+    // 달력을 못 여는 브라우저는 기본 동작(글자 칸 입력)에 맡긴다.
+  }
 }
 function setDateFromPicker() {
   const val = document.getElementById('date-picker').value;
@@ -11944,7 +12007,8 @@ async function computeMonthlySettlementRows(month) {
       .filter(item => (item.eventDate || '').slice(0, 7) === month && item.delivered === true);
     events.sort((a, b) => `${a.eventDate || ''} ${a.eventTime || ''}`.localeCompare(`${b.eventDate || ''} ${b.eventTime || ''}`));
 
-    return { month, rows, events, deliveryRecords, adminData };
+    // settlementItems: 저장된 정산 문서 그대로. 고객 앱은 이것을 읽으므로 미납 모아보기가 대조에 쓴다.
+    return { month, rows, events, deliveryRecords, adminData, settlementItems };
 }
 
 async function loadSettlements() {
@@ -15127,6 +15191,281 @@ async function resyncAllSettlements() {
   } catch(e) {
     showToast('전체 다시 계산 실패: ' + e.message);
   }
+}
+
+// ── 미납 모아보기 (최근 12개월) ──
+// 고객 앱은 2026-09-10(#118)부터 최근 12개월 미납을 한꺼번에 보여준다. 이 정산 탭은 한 달씩만 보여서,
+// 입금 처리를 안 한 지난달이 우리 쪽에서는 안 보이고 고객 쪽에서 먼저 보였다(라이브워크 6월 등).
+// 고객 앱과 같은 12개월을 한 목록으로 본다. customer.html CUSTOMER_UNPAID_MONTH_COUNT 와 같아야 한다.
+const UNPAID_OVERVIEW_MONTH_COUNT = 12;
+const UNPAID_OVERVIEW_FIX_LABEL = {
+  sync: '고객 앱 맞추기',
+  remove: '고객 앱에서 지우기',
+  zero: '고객 앱 금액 0으로'
+};
+
+// 고객 앱(customer.html customerSettlementSummary)이 저장된 정산 문서로 계산하는 잔액과 같은 식.
+// 입금액은 입금 기록 → 예전 입금액(paidAmount) → 둘 다 없는데 "입금완료"면 전액 (settlementPaidTotal 과 같은 규칙).
+// 고객 앱 식을 바꾸면 이것도 같이 바꾼다. settlement-unpaid-overview.test.js 가 두 식을 대조한다.
+function customerVisibleSettlementBalance(doc = {}) {
+  const carryover = Math.max(0, parseInt(doc.carryover, 10) || 0);
+  const carriedOverAmount = Math.max(0, parseInt(doc.carriedOverAmount, 10) || 0);
+  const billed = (parseInt(doc.amount, 10) || 0) + (parseInt(doc.adjust, 10) || 0) + carryover;
+  const recordedPaid = (Array.isArray(doc.payments) ? doc.payments : [])
+    .reduce((sum, payment) => sum + (parseInt(payment?.amount, 10) || 0), 0);
+  const legacyPaid = parseInt(doc.paidAmount, 10) || 0;
+  const paid = recordedPaid > 0 ? recordedPaid : legacyPaid > 0 ? legacyPaid : (doc.status === '입금완료' ? billed : 0);
+  return billed - paid - carriedOverAmount;
+}
+
+// 한 달치 미납 목록. users: 고객 앱에 로그인하는 등록 업체, saved: 저장된 정산 문서, rows: 이 화면 계산.
+// 이 화면 잔액(adminDue)과 고객 앱에 보이는 잔액(customerDue) 중 하나라도 남은 업체를 돌려준다.
+// 둘이 다르면 fix 에 고객 앱을 이 화면에 맞추는 방법을 적는다.
+//  - sync:   이 화면에 나오는 달. 이 화면 계산(수량·금액)을 저장된 문서에 적는다.
+//  - remove: 배송기록이 없어 이 화면에 안 나오는 달(예전에 지운 주문이 문서에만 남음).
+//            입금·보류·이월 기록이 없으면 문서를 지운다. "다시계산"과 같은 규칙.
+//  - zero:   위와 같은데 입금·보류·이월 기록이 있어 지우면 안 되는 문서. 수량·금액만 0으로 둔다.
+function unpaidOverviewForMonth(month, { users = {}, saved = {}, rows = [] } = {}) {
+  const rowByUid = new Map((rows || []).map(row => [row.uid, row]));
+  const uids = new Set([...Object.keys(saved || {}), ...rowByUid.keys()]);
+  const entries = [];
+  uids.forEach(uid => {
+    const user = users[uid];
+    if (!user) return;
+    const doc = saved?.[uid] && typeof saved[uid] === 'object' ? saved[uid] : null;
+    const row = rowByUid.get(uid) || null;
+    const adminDue = row ? settlementOutstandingBalance(row) : 0;
+    const customerDue = doc ? Math.max(0, customerVisibleSettlementBalance(doc)) : 0;
+    if (adminDue <= 0 && customerDue <= 0) return;
+    let fix = null;
+    if (adminDue !== customerDue) {
+      if (row) fix = 'sync';
+      else {
+        const keep = settlementPaidTotal(doc) > 0 || doc.status === '보류'
+          || Boolean(doc.carriedOverTo) || settlementCarryover(doc) > 0;
+        fix = keep ? 'zero' : 'remove';
+      }
+    }
+    entries.push({
+      month,
+      uid,
+      name: user.businessName || row?.user?.businessName || uid,
+      adminDue,
+      customerDue,
+      dueDate: row?.dueDate || doc?.dueDate || '',
+      fix
+    });
+  });
+  return entries;
+}
+
+function unpaidOverviewMonths(count = UNPAID_OVERVIEW_MONTH_COUNT) {
+  const current = currentMonthStr();
+  return Array.from({ length: count }, (_, index) => shiftMonthStr(current, -index));
+}
+
+// 이번 달 청구는 아직 납부기한 전이라 거의 모든 업체가 뜬다. 그러면 정말 밀린 곳이 묻혀서
+// 기본은 지난달까지만 보인다. 고객 앱과 금액이 다른 곳은 이번 달이어도 고쳐야 하니 늘 보인다.
+function visibleUnpaidOverviewEntries(entries = [], currentMonth = '', includeCurrent = false) {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => includeCurrent || entry.month < currentMonth || (entry.fix && !entry.fixed));
+}
+
+let unpaidOverviewEntries = [];
+let unpaidOverviewLoading = false;
+let unpaidOverviewIncludeCurrent = false;
+
+function setUnpaidOverviewIncludeCurrent(checked) {
+  unpaidOverviewIncludeCurrent = Boolean(checked);
+  if (!unpaidOverviewLoading) renderUnpaidOverview();
+}
+
+async function openUnpaidOverview() {
+  document.getElementById('unpaid-overview-modal').classList.add('open');
+  await loadUnpaidOverview();
+}
+
+function closeUnpaidOverview() {
+  document.getElementById('unpaid-overview-modal').classList.remove('open');
+}
+
+async function loadUnpaidOverview() {
+  if (unpaidOverviewLoading) return;
+  unpaidOverviewLoading = true;
+  const errEl = document.getElementById('unpaid-overview-error');
+  errEl.textContent = '';
+  errEl.classList.remove('show');
+  unpaidOverviewEntries = [];
+  const skipped = [];
+  try {
+    for (const month of unpaidOverviewMonths()) {
+      renderUnpaidOverview(`${monthLabelKR(month)} 확인 중...`);
+      const { rows, deliveryRecords, settlementItems } = await computeMonthlySettlementRows(month);
+      const entries = unpaidOverviewForMonth(month, { users: allUsers, saved: settlementItems, rows });
+      // 배송기록을 못 읽은 달은 이 화면 계산이 전부 0이 된다. 그 달을 "고객 앱에만 미납"으로 보고
+      // 맞추기를 누르면 멀쩡한 청구가 지워진다. 그런 달은 목록에서 뺀다.
+      const hasDelivery = Object.values(deliveryRecords || {}).some(day => day && Object.keys(day).length > 0);
+      if (!hasDelivery && entries.some(entry => entry.fix)) {
+        skipped.push(month);
+        continue;
+      }
+      unpaidOverviewEntries.push(...entries);
+    }
+    unpaidOverviewEntries.sort((a, b) => a.name.localeCompare(b.name, 'ko') || a.month.localeCompare(b.month));
+    if (skipped.length) {
+      errEl.textContent = `${skipped.map(monthLabelKR).join(', ')}은 배송기록을 읽지 못해 목록에서 뺐습니다.`;
+      errEl.classList.add('show');
+    }
+  } catch(e) {
+    errEl.textContent = '미납을 불러오지 못했습니다: ' + e.message;
+    errEl.classList.add('show');
+  } finally {
+    unpaidOverviewLoading = false;
+    renderUnpaidOverview();
+  }
+}
+
+function renderUnpaidOverview(progress = '') {
+  const tbody = document.getElementById('unpaid-overview-tbody');
+  const summary = document.getElementById('unpaid-overview-summary');
+  const fixAllBtn = document.getElementById('unpaid-overview-fix-all');
+  if (progress) {
+    summary.textContent = progress;
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:18px;color:var(--sub)">${escapeHtml(progress)}</td></tr>`;
+    fixAllBtn.disabled = true;
+    return;
+  }
+  const current = currentMonthStr();
+  const visible = visibleUnpaidOverviewEntries(unpaidOverviewEntries, current, unpaidOverviewIncludeCurrent);
+  // 이번 달 줄은 금액이 달라 고치라고 보여줄 뿐이라, 끄고 볼 때는 "지난달까지" 합계에 넣지 않는다.
+  const isThisMonthExtra = entry => !unpaidOverviewIncludeCurrent && entry.month >= current;
+  const owed = visible.filter(({ entry }) => entry.adminDue > 0 && !isThisMonthExtra(entry));
+  const mismatched = unpaidOverviewEntries.filter(entry => entry.fix && !entry.fixed);
+  const scope = unpaidOverviewIncludeCurrent ? '최근 12개월' : '지난달까지';
+  summary.textContent = visible.length
+    ? `${scope} 미납 ${new Set(owed.map(({ entry }) => entry.uid)).size}곳 · ${owed.length}건 · 합계 ${formatMoney(owed.reduce((sum, { entry }) => sum + entry.adminDue, 0))}`
+      + (mismatched.length ? ` · 고객 앱과 금액이 다른 곳 ${mismatched.length}건` : '')
+    : `${scope} 미납이 없습니다.`;
+  // 업체별로 묶는다: 업체 첫 줄에 이름과 그 업체 미납 합계, 다음 줄부터는 달만.
+  const totalByUid = {};
+  visible.forEach(({ entry }) => {
+    totalByUid[entry.uid] = (totalByUid[entry.uid] || 0) + (isThisMonthExtra(entry) ? 0 : entry.adminDue);
+  });
+  let previousUid = '';
+  tbody.innerHTML = visible.length
+    ? visible.map(({ entry, index }) => {
+      const differs = entry.fix && !entry.fixed;
+      const first = entry.uid !== previousUid;
+      previousUid = entry.uid;
+      const nameCell = first
+        ? `<b>${escapeHtml(entry.name)}</b><span style="display:block;font-size:11px;color:var(--sub)">합계 ${formatMoney(totalByUid[entry.uid])}</span>`
+        : '';
+      return `<tr${first ? ' style="border-top:2px solid var(--border)"' : ''}>
+        <td class="left">${nameCell}</td>
+        <td>${escapeHtml(monthLabelKR(entry.month))}${isThisMonthExtra(entry) ? '<span style="display:block;font-size:11px;color:var(--sub)">이번 달</span>' : ''}</td>
+        <td>${dueDateBadgeHtml({ dueDate: entry.dueDate })}</td>
+        <td class="num">${formatMoney(entry.adminDue)}</td>
+        <td class="num">${formatMoney(entry.fixed ? entry.adminDue : entry.customerDue)}${differs ? '<span class="carryover-label" style="color:#c0392b">금액 다름</span>' : ''}</td>
+        <td style="white-space:normal">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <button class="mini-btn" type="button" onclick="openUnpaidOverviewMonth(${index})">그 달 열기</button>
+            ${differs ? `<button class="mini-btn" type="button" onclick="fixUnpaidOverviewEntries([${index}])">${UNPAID_OVERVIEW_FIX_LABEL[entry.fix]}</button>` : ''}
+          </div>
+        </td>
+      </tr>`;
+    }).join('')
+    : `<tr><td colspan="6" style="padding:18px;color:var(--sub)">${scope} 미납이 없습니다. 🎉</td></tr>`;
+  fixAllBtn.disabled = mismatched.length === 0;
+  fixAllBtn.textContent = mismatched.length ? `고객 앱과 다른 곳 모두 맞추기 (${mismatched.length}건)` : '고객 앱과 다른 곳 없음';
+}
+
+// 목록에서 고른 달의 정산 탭을 열고 그 업체만 보이게 한다. 입금 처리는 거기서 평소처럼 한다.
+async function openUnpaidOverviewMonth(index) {
+  const entry = unpaidOverviewEntries[index];
+  if (!entry) return;
+  closeUnpaidOverview();
+  document.getElementById('settle-month').value = entry.month;
+  await loadSettlements();
+  const search = document.getElementById('settle-search');
+  if (search) search.value = entry.name;
+  setSettleSearch(entry.name);
+}
+
+async function fixUnpaidOverviewEntries(indexes = null) {
+  const targets = (indexes || unpaidOverviewEntries.map((_, index) => index))
+    .map(index => unpaidOverviewEntries[index])
+    .filter(entry => entry && entry.fix && !entry.fixed);
+  if (!targets.length) return;
+  const count = fix => targets.filter(entry => entry.fix === fix).length;
+  const lines = [
+    count('sync') ? `· 고객 앱을 이 화면 금액으로 맞추기 ${count('sync')}건` : '',
+    count('remove') ? `· 배송기록 없는 정산 지우기 ${count('remove')}건` : '',
+    count('zero') ? `· 배송기록 없는 정산 금액 0으로 ${count('zero')}건 (입금·보류 기록은 그대로)` : ''
+  ].filter(Boolean);
+  const head = targets.length === 1
+    ? `${targets[0].name} ${monthLabelKR(targets[0].month)}\n고객 앱 ${formatMoney(targets[0].customerDue)} → ${formatMoney(targets[0].adminDue)}`
+    : `고객 앱 금액을 이 화면과 맞춥니다.`;
+  if (!confirm(`${head}\n\n${lines.join('\n')}\n\n고객 앱에 보이는 정산이 이 화면과 같아집니다. 진행할까요?`)) return;
+  const btn = document.getElementById('unpaid-overview-fix-all');
+  btn.disabled = true;
+  let fixed = 0;
+  try {
+    const byMonth = {};
+    targets.forEach(entry => { (byMonth[entry.month] ||= []).push(entry); });
+    for (const [month, list] of Object.entries(byMonth)) {
+      // 목록을 띄운 뒤 다른 기기에서 입금·수정했을 수 있다. 그 달을 다시 읽어 아직 다른 곳만 고친다.
+      const { rows, settlementItems } = await computeMonthlySettlementRows(month);
+      const fresh = new Map(unpaidOverviewForMonth(month, { users: allUsers, saved: settlementItems, rows })
+        .map(entry => [entry.uid, entry]));
+      for (const entry of list) {
+        // 목록에서 빠졌으면 이제 양쪽 다 0원이다.
+        const current = fresh.get(entry.uid);
+        if (current?.fix) await applyUnpaidOverviewFix(current, rows, settlementItems);
+        const due = current ? current.adminDue : 0;
+        Object.assign(entry, { fixed: true, adminDue: due, customerDue: due });
+        fixed++;
+      }
+    }
+    showToast(`✅ 고객 앱 ${fixed}건을 이 화면과 맞췄습니다.`);
+  } catch(e) {
+    showToast('맞추기 실패: ' + e.message);
+  } finally {
+    renderUnpaidOverview();
+    if (settlementLoadedMonth && targets.some(entry => entry.month === settlementLoadedMonth)) loadSettlements();
+  }
+}
+
+async function applyUnpaidOverviewFix(entry, rows, settlementItems) {
+  const saved = settlementItems[entry.uid] || {};
+  if (entry.fix === 'remove') {
+    await settlementItemRef(entry.month, entry.uid).delete();
+    applySettlementToUserCache(entry.uid, entry.month, null);
+    return;
+  }
+  if (entry.fix === 'zero') {
+    // 이 화면은 배송기록이 없는 달을 0원으로 본다. 조정금액도 0이어야 고객 앱과 같아진다.
+    const zero = {
+      lunch: 0, salad: 0, eventLunch: 0, catering: 0,
+      lunchTotal: 0, saladTotal: 0, eventLunchTotal: 0, cateringTotal: 0,
+      cateringAmount: 0, cateringItems: [], amount: 0, adjust: 0,
+      updatedAt: new Date().toISOString()
+    };
+    await settlementItemRef(entry.month, entry.uid).set({ ...zero, daily: settlementDailyPatch({}, saved.daily) }, { merge: true });
+    applySettlementToUserCache(entry.uid, entry.month, { ...saved, ...zero, daily: {} });
+    return;
+  }
+  const row = rows.find(r => r.uid === entry.uid);
+  if (!row) throw new Error(`${entry.name} ${entry.month} 정산을 다시 찾지 못했습니다.`);
+  // 청구서번호·납부기한·입금액은 rebuildSettlementsForUids 와 같은 규칙으로 채운다.
+  // 지운 날짜가 고객 앱 일별 내역에 남지 않게 옛 날짜 키는 삭제 표시로 보낸다.
+  await saveSettlementItem(entry.month, entry.uid, row, settlementRowSaveData(row, {
+    invoiceNo: saved.invoiceNo || row.invoiceNo || await generateInvoiceNo(entry.month),
+    dueDate: saved.dueDate || row.dueDate || defaultDueDate(entry.month),
+    paidAmount: settlementPaidTotal(row),
+    paidDate: saved.paidDate || '',
+    daily: settlementDailyPatch(row.dateBreakdown || {}, saved.daily)
+  }));
 }
 
 async function deleteSettlementRow(uid, fromModal = false) {
