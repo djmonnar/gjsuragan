@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v84-shift-deduction';
+const CACHE = 'gjsuragan-v85-reset-mail';
 const PRECACHE = [
   './customer.html',
   './admin.html',
