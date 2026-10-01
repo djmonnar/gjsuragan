@@ -1333,6 +1333,19 @@
     cursor: pointer;
   }
   .reset-btn.primary { background: var(--primary); color: #fff; }
+  .reset-sent {
+    display: none;
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 8px;
+    background: #eef6ee;
+    color: #1f4d2b;
+    font-size: 13px;
+    line-height: 1.6;
+    font-weight: 600;
+  }
+  .reset-sent.show { display: block; }
+  .reset-sent b { word-break: break-all; }
   .reset-btn.secondary { background: #f2e4d2; color: var(--primary); }
 
   .error-msg {
@@ -1908,6 +1921,7 @@
       <div class="reset-panel-copy">가입한 이메일 주소를 입력하면 새 비밀번호를 설정할 수 있는 메일을 보내드립니다. 메일이 보이지 않으면 스팸함도 확인해주세요.</div>
       <input class="form-input" type="email" id="reset-email" placeholder="이메일 주소 입력" autocomplete="email" onkeydown="handleResetEmailKey(event)">
       <div class="error-msg" id="reset-error"></div>
+      <div class="reset-sent" id="reset-sent" role="status"></div>
       <div class="reset-actions">
         <button type="button" class="reset-btn secondary" onclick="closePasswordReset()">취소</button>
         <button type="button" class="reset-btn primary" id="reset-send-btn" onclick="sendPasswordReset()">메일 보내기</button>
@@ -2412,7 +2426,7 @@
         <li>가입한 이메일과 비밀번호를 입력한 뒤 <b>로그인</b>을 누릅니다.</li>
         <li><b>자동 로그인</b>을 켜두면 다음부터 같은 휴대폰에서 바로 열 수 있습니다.</li>
         <li>홈 화면에 추가한 앱과 일반 브라우저는 따로 저장될 수 있어 처음 한 번은 다시 로그인해야 할 수 있습니다.</li>
-        <li>비밀번호가 기억나지 않으면 로그인 화면의 <b>비밀번호를 잊으셨나요?</b>를 눌러 재설정 메일을 받습니다.</li>
+        <li>비밀번호가 기억나지 않으면 로그인 화면의 <b>비밀번호 재설정 메일 받기</b>를 눌러 메일을 받습니다. 받은편지함에 없으면 스팸함·프로모션 탭을 확인하고, 그래도 없으면 매장에 카톡으로 말씀해주세요. 재설정 링크를 보내드립니다.</li>
       </ol>
     </div>
 
@@ -3812,6 +3826,7 @@ function openPasswordReset() {
   if (resetEmail && !resetEmail.value.trim()) resetEmail.value = loginEmail;
   document.getElementById('login-error')?.classList.remove('show');
   document.getElementById('reset-error')?.classList.remove('show');
+  document.getElementById('reset-sent')?.classList.remove('show');
   panel?.classList.add('on');
   resetEmail?.focus();
 }
@@ -3819,6 +3834,21 @@ function openPasswordReset() {
 function closePasswordReset() {
   document.getElementById('reset-panel')?.classList.remove('on');
   document.getElementById('reset-error')?.classList.remove('show');
+  document.getElementById('reset-sent')?.classList.remove('show');
+}
+
+// 보낸 뒤에도 창을 닫지 않고 어디를 볼지 남겨둔다.
+// Firebase 기본 발신 주소는 Gmail 에서 스팸·프로모션으로, 네이버·다음에서는 아예 안 들어가는 일이 많다.
+// 그럴 때 손님이 매장에 말하면 관리자 화면에서 재설정 링크를 만들어 카톡으로 보낸다.
+const PASSWORD_RESET_SENDER = 'noreply@gjsuragan-60505.firebaseapp.com';
+function showPasswordResetSent(email) {
+  const box = document.getElementById('reset-sent');
+  if (!box) return;
+  box.innerHTML = `<b>${escapeHtml(email)}</b>로 재설정 메일을 보냈습니다.<br>`
+    + `받은편지함에 없으면 <b>스팸함</b>과 <b>프로모션</b> 탭도 확인해주세요. `
+    + `보내는 주소는 <b>${PASSWORD_RESET_SENDER}</b>입니다.<br>`
+    + `10분이 지나도 오지 않으면 매장에 카톡으로 말씀해주세요. 재설정 링크를 바로 보내드립니다.`;
+  box.classList.add('show');
 }
 
 function isValidEmailInput(email) {
@@ -3847,8 +3877,8 @@ async function sendPasswordReset() {
     await auth.sendPasswordResetEmail(email);
     const loginEmail = document.getElementById('login-email');
     if (loginEmail && !loginEmail.value.trim()) loginEmail.value = email;
-    closePasswordReset();
-    showToast('비밀번호 재설정 메일을 보냈습니다. 메일함을 확인해주세요.', 'success');
+    document.getElementById('reset-error')?.classList.remove('show');
+    showPasswordResetSent(email);
   } catch(e) {
     console.error('비밀번호 재설정 오류:', e.code);
     showError('reset-error', '재설정 메일 발송에 실패했습니다. 가입한 이메일인지 확인해주세요.');
