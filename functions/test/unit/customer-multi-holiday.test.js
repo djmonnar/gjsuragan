@@ -211,3 +211,37 @@ test('창을 닫았다 다시 열었으면 늦게 온 불러오기 결과를 버
   await pending;
   assert.deepEqual(app.selected(), []);
 });
+
+test('하루짜리 자체 휴무 등록·해제 뒤에도 버튼이 다시 눌린다', async () => {
+  // 성공할 때 버튼을 다시 켜지 않아, 한 번 쓰면 새로 고치기 전까지 '자체 휴무 해제'가 반응하지 않았다.
+  const button = { disabled: false, textContent: '자체 휴무 해제' };
+  const deleted = [];
+  const context = {
+    modalDateStr: '2026-10-16',
+    currentOrderTargetDate: '2026-10-02',
+    currentUser: { uid: UID },
+    document: { getElementById: () => button },
+    db: {
+      collection: () => ({
+        doc: date => ({
+          collection: () => ({
+            doc: () => ({ async delete() { deleted.push(date); }, async set() {} })
+          })
+        })
+      })
+    },
+    firebase: { firestore: { FieldValue: { serverTimestamp: () => 'now' } } },
+    showToast: () => {},
+    closeModal: () => {},
+    renderWeek: () => {},
+    renderToday: () => {}
+  };
+  vm.createContext(context);
+  vm.runInContext(extractFunction('submitSelfHoliday'), context);
+  await context.submitSelfHoliday();
+  assert.deepEqual(deleted, ['2026-10-16']);
+  assert.equal(button.disabled, false);
+
+  // 날짜 창을 열 때도 버튼을 켠다.
+  assert.match(extractFunction('openDayModal'), /holidayBtn\.disabled = false/);
+});

@@ -1708,6 +1708,7 @@
 .btn-call:hover{background:#e8f5e9}
 .self-holiday-btn{width:100%;padding:15px;border:1.5px solid #e74c3c;background:#fff;color:#c0392b;border-radius:8px;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:8px;transition:.15s}
 .self-holiday-btn:hover{background:#fdecea}
+.self-holiday-btn:disabled{opacity:.6;cursor:default}
 .self-holiday-badge{display:inline-block;background:#fdecea;color:#c0392b;border-radius:8px;padding:3px 8px;font-size:12px;font-weight:800}
 .multi-holiday-open-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 0;padding:13px 15px;border:1.5px solid #e7b1aa;background:#fff8f6;color:#a8382d;border-radius:8px;font:inherit;text-align:left;cursor:pointer}
 .multi-holiday-open-main{display:flex;align-items:center;gap:10px;min-width:0}
@@ -5145,8 +5146,11 @@ async function submitOrder(source) {
 
 async function submitSelfHoliday() {
   const btn = document.getElementById('modal-holiday-btn');
+  if (btn.disabled) return;
   btn.disabled = true;
   const isCancelling = btn.textContent.includes('해제');
+  // 성공해도 버튼을 다시 켠다. 예전에는 실패할 때만 켜서, 한 번 등록·해제한 뒤에는
+  // 앱을 새로 고치기 전까지 다른 날짜에서도 이 버튼이 눌리지 않았다.
   try {
     if (isCancelling) {
       await db.collection('orders').doc(modalDateStr).collection('items').doc(currentUser.uid).delete();
@@ -5169,6 +5173,7 @@ async function submitSelfHoliday() {
   } catch(e) {
     console.error('자체 휴무 저장 오류:', e);
     showToast('저장 실패. 다시 시도해주세요.', 'error');
+  } finally {
     btn.disabled = false;
   }
 }
@@ -5697,6 +5702,7 @@ async function openDayModal(ds, existing) {
     holidayBtn.textContent = '자체 휴무로 등록';
   }
   holidayBtn.style.display = 'block';
+  holidayBtn.disabled = false;
   document.getElementById('modal-submitted-badge').style.display = 'none';
 
   document.getElementById('day-modal').classList.add('open');
