@@ -362,14 +362,17 @@ test('급여 정산 그림의 금액이 관리 화면 계산과 같다', () => {
 
 test('관리 화면·태블릿의 시간 규칙이 코드와 같다', () => {
   const { html } = render();
-  // 퇴근 확인 알림은 출근 뒤 18시간이 지난 기록에 뜬다.
-  assert.match(source('assets/js/attendance-admin.js'), /data\.serverNow - s\.checkInAt > 18 \* 3600000/);
-  assert.match(section(html, 'daily'), /18시간이 넘도록/);
-  // 한 기록은 36시간까지. 넘으면 태블릿이 이 문구로 막는다.
+  // 퇴근 누락 기준. 관리 화면의 알림과 태블릿이 서버와 같은 시간을 쓴다.
+  const 누락 = M.FORGOTTEN_SHIFT_MS / 3600000;
+  assert.match(source('assets/js/attendance-admin.js'), new RegExp(`const FORGOTTEN_SHIFT_MS = ${누락} \\* 3600000;`));
+  assert.match(section(html, 'daily'), new RegExp(`${누락}시간이 넘도록`));
+  assert.match(section(html, 'fix'), new RegExp(`${누락}시간`));
+  // 태블릿은 누락된 근무의 퇴근을 이 문구로 막는다.
+  assert.match(source('functions/attendance.js'), /퇴근 누락으로 넘어간 근무입니다/);
+  assert.match(section(html, 'trouble'), /퇴근 누락으로 넘어간 근무입니다/);
+  // 관리자가 넣는 한 기록은 36시간까지.
   assert.equal(M.MAX_SHIFT_MS, 36 * 3600000);
   assert.match(section(html, 'fix'), /36시간/);
-  assert.match(source('functions/attendance.js'), /출근 후 36시간이 지났습니다/);
-  assert.match(section(html, 'trouble'), /출근 후 36시간이 지났습니다/);
   // 이른 출근은 한 시간 안쪽만 뺀다. 예전 안내의 '세 시간'은 틀린 말이었다.
   assert.equal(M.EARLY_CLOCK_IN_WINDOW_MINUTES, 60);
   assert.match(section(html, 'dailyworker'), /한 시간 넘게/);
@@ -386,13 +389,23 @@ test('관리 화면·태블릿의 시간 규칙이 코드와 같다', () => {
   assert.match(section(html, 'reservations'), /5분마다/);
 });
 
-test('퇴근을 안 찍은 날의 함정을 알린다', () => {
-  // 퇴근을 안 찍은 직원은 다음 날 태블릿에 출근이 아니라 퇴근이 뜬다. 누르면 하루 넘는 근무가 된다.
+test('퇴근을 빠뜨린 날의 처리를 실제 동작대로 적는다', () => {
   const { html } = render();
-  assert.match(source('assets/js/attendance-kiosk.js'), /action: working \? '퇴근' : '출근'/);
-  assert.match(section(html, 'daily'), /출근하기<\/b>가 아니라 <b>퇴근하기<\/b>가 나옵니다/);
-  assert.match(section(html, 'trouble'), /그동안 일한 날은 기록이 없습니다/);
-  assert.match(section(html, 'rules'), /퇴근 확인 알림을 쌓아 두지 마세요/);
+  const 누락 = M.FORGOTTEN_SHIFT_MS / 3600000;
+  // 태블릿은 누락된 사람에게 출근 칸을 띄우고, 날짜를 넘긴 퇴근에는 한 번 더 묻는다.
+  assert.match(source('assets/js/attendance-kiosk.js'), /forgotten \? '퇴근 누락'/);
+  assert.match(source('assets/js/attendance-kiosk.js'), /날짜를 넘긴 근무입니다/);
+  const daily = section(html, 'daily');
+  assert.match(daily, /다음 출근은 막히지 않습니다/);
+  assert.match(daily, new RegExp(`${누락}시간</b>이 지나도록`));
+  assert.match(daily, /날짜를 넘긴 근무/);
+  assert.match(section(html, 'fix'), /퇴근 누락/);
+  assert.match(section(html, 'trouble'), /내 칸이 <b>퇴근 누락<\/b>으로 떠요/);
+  assert.match(section(html, 'rules'), /퇴근 누락을 쌓아 두지 마세요/);
+  assert.match(section(html, 'glossary'), new RegExp(`출근하고 ${누락}시간이 지나도록`));
+  // 옛 안내(관리자가 고칠 때까지 출근도 못 찍는다)는 더 이상 맞지 않는다.
+  assert.doesNotMatch(html, /그동안 일한 날은 기록이 없습니다/);
+  assert.doesNotMatch(html, /출근 후 36시간이 지났습니다/);
 });
 
 test('태블릿 주소가 실제 매장 값으로 열린다', () => {

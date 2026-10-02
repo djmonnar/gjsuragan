@@ -126,6 +126,7 @@
 .sm-mock-avatar{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--att-bg);color:var(--att-brand);font-weight:800}
 .sm-mock-pill{padding:2px 8px;border-radius:999px;background:var(--att-bg);color:var(--att-muted);font-size:10.5px;font-weight:700;white-space:nowrap}
 .sm-mock-pill.is-green{background:#e3f1ea;color:var(--att-green)}
+.sm-mock-pill.is-amber{background:#fbefda;color:#936321}
 .sm-mock-name{display:flex;align-items:center;gap:5px;font-size:15px}
 .sm-mock-foot{display:flex;justify-content:space-between;gap:6px;margin-top:2px;padding-top:6px;border-top:1px solid #eee7dd;color:var(--att-muted);font-size:11px}
 .sm-mock-foot b{color:var(--att-brand)}

@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v85-manual';
+const CACHE = 'gjsuragan-v85-manual-checkout';
 const PRECACHE = [
   './customer.html',
   './admin.html',
@@ -11,8 +11,8 @@ const PRECACHE = [
   './assets/js/staff-admin-redirect.js?v=20260910-stores',
   './assets/css/attendance.css?v=20260918-orders',
   './assets/js/attendance-ui.js?v=20260910-calendar',
-  './assets/js/attendance-admin.js?v=20260929-deduction',
-  './assets/js/attendance-kiosk.js?v=20260918-orders',
+  './assets/js/attendance-admin.js?v=20260930-forgotten',
+  './assets/js/attendance-kiosk.js?v=20260930-forgotten',
   './assets/js/attendance-bookings.js?v=20260910',
   './assets/js/attendance-booking-form.js?v=20260910',
   './assets/js/attendance-bookings-admin.js?v=20260910-calendar',

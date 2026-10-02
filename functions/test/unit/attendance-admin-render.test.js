@@ -82,6 +82,20 @@ test('특수일·결근 줄은 여백 있는 칸 안에 들어간다', () => {
   assert.match(screen(평일).html, /<div class="att-day-meta">.*특수일 아님/);
 });
 
+test('18시간 넘게 퇴근이 없는 기록은 퇴근 누락으로 보이고 근무 중에서 빠진다', () => {
+  const state = baseState('calendar');
+  // 9월 17일 09:00 출근 · 지금은 18일 10:00 → 25시간째 퇴근이 없다.
+  const 누락 = { ...시급근무, id: 'o1', checkOutAt: null, payableMinutes: 0, amount: 0, baseAmount: 0, extraAmount: 0 };
+  // 한 시간 전에 출근한 사람은 정말 근무 중이다.
+  const 지금 = { ...월급근무, id: 'o2', checkInAt: state.data.serverNow - 3600000, checkOutAt: null, workDate: '2026-09-18' };
+  state.data.shifts = [누락];
+  state.data.openShifts = [누락, 지금];
+  const { html, stats } = screen(state);
+  assert.match(html, /att-pill amber">퇴근 누락</);
+  assert.match(html, /퇴근 시간을 넣어야 급여에 잡힙니다/);
+  assert.match(stats, /현재 근무 중<\/div><div class="att-stat-value">1명/);
+});
+
 test('급여 정산에 월급 + 가산 − 공제가 줄로 보인다', () => {
   const { html } = screen(baseState('payroll'));
   assert.match(html, /약정 월급/);
