@@ -30,7 +30,7 @@
       if (link.dataset.panel === panel) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');
     });
-    const titles = { reservations: '돌담명가 예약', manual: '사용 안내', attendance: '직원 · 근태' };
+    const titles = { reservations: '돌담명가 예약', manual: '매뉴얼', attendance: '직원 · 근태' };
     document.title = `${titles[panel]} · 매장 관리`;
     if (panel === 'attendance') window.AttendanceAdmin.init();
     else if (panel === 'reservations') window.AttendanceReservations.init();

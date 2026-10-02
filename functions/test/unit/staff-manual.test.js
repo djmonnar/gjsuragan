@@ -1,6 +1,6 @@
 'use strict';
 
-// 사용 안내는 화면에서 바로 읽는 문서다.
+// 매뉴얼은 화면에서 바로 읽는 문서다.
 // 실제 동작과 어긋나면 안내가 아니라 오답이 된다.
 // 계산 기준값은 attendanceModel 에서 직접 읽어 대조한다.
 
@@ -254,4 +254,210 @@ test('다시 열어도 내용이 겹치지 않는다', () => {
   assert.equal(root.innerHTML, '');
   api.init();
   assert.match(root.innerHTML, /id="sm-absence"/);
+});
+
+// ── 매뉴얼로 바꾸며 더한 항목 ──
+// 새로 적은 숫자·시각·버튼 이름을 실제 코드에서 다시 뽑아 대조한다.
+
+const source = file => fs.readFileSync(path.join(root, file), 'utf8');
+const section = (html, id) => {
+  const match = new RegExp(`id="sm-${id}"([\\s\\S]*?)</section>`).exec(html);
+  assert.ok(match, `${id} 항목이 없습니다.`);
+  return match[1];
+};
+const UI = (() => {
+  const window = {};
+  vm.runInNewContext(source('assets/js/attendance-ui.js'), { window, URLSearchParams });
+  return window.AttendanceUI;
+})();
+const at = value => new Date(value).getTime();
+
+// 급여 정산 화면을 실제로 그려서 입금 기준액을 낸다. 매뉴얼 그림의 금액이 화면과 같아야 한다.
+function adminPayout({ 월급, 조퇴 }) {
+  const nodes = new Map();
+  const el = id => {
+    if (!nodes.has(id)) nodes.set(id, { innerHTML: '', textContent: '', value: '', append() {}, classList: { toggle() {}, add() {} } });
+    return nodes.get(id);
+  };
+  const window = {};
+  vm.runInNewContext(source('assets/js/attendance-ui.js'), { window, URLSearchParams });
+  const document = { getElementById: el, querySelector: () => null, querySelectorAll: () => [], addEventListener() {}, removeEventListener() {} };
+  const code = source('assets/js/attendance-admin.js').replace('window.AttendanceAdmin = { init, dispose };',
+    'window.AttendanceAdmin = { render, payrollRows, records, transferAmount, load: s => { data = s; view = "payroll"; month = "2026-09"; selectedDate = "2026-09-17"; floor = "all"; employeeId = ""; } };');
+  vm.runInNewContext(code, { window, document, Intl, URLSearchParams, setTimeout, clearTimeout, navigator: {} });
+  const api = window.AttendanceAdmin;
+  api.load({
+    employees: [{ id: 's1', name: '김수라', role: '', floor: 2, payType: 'salaried', monthlySalary: 월급, breakMinutes: 60, active: true }],
+    shifts: [{ id: 'x1', employeeId: 's1', employeeName: '김수라', floor: 2, workDate: '2026-09-17',
+      checkInAt: at('2026-09-17T09:00:00+09:00'), checkOutAt: at('2026-09-17T16:00:00+09:00'), breakMinutes: 60,
+      payType: 'salaried', payableMinutes: 360, amount: 0, baseAmount: 0, extraAmount: 0, multiplierPercent: 100,
+      deductionAmount: 조퇴, deductionReason: '2시간 조퇴', note: '' }],
+    openShifts: [], devices: [], specialDays: [],
+    absences: [{ id: 's1_2026-09-16', employeeId: 's1', employeeName: '김수라', floor: 2, workDate: '2026-09-16', note: '' }],
+    serverNow: at('2026-09-30T10:00:00+09:00')
+  });
+  api.render();
+  assert.match(el('att-content').innerHTML, /근무 차감 \(1건\)/);
+  return api.transferAmount(api.payrollRows(api.records()).find(row => row.id === 's1'));
+}
+
+test('탭 이름이 매뉴얼이고 처음 보는 사람을 위한 길잡이가 있다', () => {
+  const { html } = render();
+  assert.match(source('staff-admin.html'), /data-panel="manual">매뉴얼<\/a>/);
+  assert.match(source('assets/js/staff-admin.js'), /manual: '매뉴얼'/);
+  assert.match(html, /<h2>매뉴얼<\/h2>/);
+  assert.match(html, /무엇을 하고 싶으세요/);
+  // 목차는 모든 절을 빠짐없이 가리킨다.
+  const ids = [...html.matchAll(/<section class="sm-section" id="(sm-[a-z]+)"/g)].map(m => m[1]);
+  assert.ok(ids.length >= 15, `절이 너무 적습니다: ${ids.length}`);
+  const toc = /<nav class="sm-toc"[\s\S]*?<\/nav>/.exec(html)[0];
+  for (const id of ids) assert.match(toc, new RegExp(`href="#${id}"`), `${id} 가 목차에 없습니다.`);
+});
+
+test('절 안에 <section> 을 또 두지 않는다', () => {
+  // 이 파일의 테스트들이 절을 '</section> 까지'로 잘라 읽는다. 겹치면 절이 중간에서 잘린다.
+  const { html } = render();
+  assert.equal((html.match(/<section/g) || []).length, (html.match(/class="sm-section"/g) || []).length);
+});
+
+test('직원 등록의 급여 유형 예시가 실제 계산과 맞는다', () => {
+  const { html } = render();
+  const body = section(html, 'employee');
+  const 시급 = M.totals({ checkInAt: at('2026-09-17T09:00:00+09:00'), checkOutAt: at('2026-09-17T18:00:00+09:00'),
+    breakMinutes: 60, payType: 'hourly', hourlyRate: 12000 });
+  assert.match(body, new RegExp(`그날 ${시급.amount.toLocaleString('en-US')}원`));
+  const 일당 = M.totals({ checkInAt: at('2026-09-17T09:00:00+09:00'), checkOutAt: at('2026-09-17T18:00:00+09:00'),
+    breakMinutes: 0, payType: 'perDiem', dailyPay: 100000 });
+  assert.equal(일당.amount, 100000);
+  assert.match(body, new RegExp(`20일 → ${(일당.amount * 20).toLocaleString('en-US')}원`));
+  // 비워 두면 쓰는 기본값도 실제와 같아야 한다.
+  assert.match(body, new RegExp(`${M.DEFAULT_MONTHLY_WORK_HOURS}시간 · ${M.DEFAULT_MONTHLY_WORK_DAYS}일`));
+  assert.match(body, /한 시간 넘게/);
+});
+
+test('기록 고치기 그림의 금액이 실제 계산과 맞는다', () => {
+  // 11시 출근인 직원이 10시 52분에 찍고 7시에 퇴근 · 휴게 1시간 · 시급 12,000원.
+  const { html } = render();
+  const body = section(html, 'fix');
+  const t = M.totals({ checkInAt: at('2026-09-17T10:52:00+09:00'), checkOutAt: at('2026-09-17T19:00:00+09:00'),
+    breakMinutes: 60, payType: 'hourly', hourlyRate: 12000, scheduledStarts: [11 * 60] });
+  assert.equal(t.earlyMinutes, 8);
+  assert.match(body, new RegExp(`${UI.duration(t.payableMinutes)} · 휴게 60분`));
+  assert.match(body, new RegExp(`12,000원/시간 · ${t.amount.toLocaleString('en-US')}원 · 일찍 출근 ${t.earlyMinutes}분 제외`));
+});
+
+test('급여 정산 그림의 금액이 관리 화면 계산과 같다', () => {
+  // 그림: 월급 300만원 · 결근 하루 · 2시간 조퇴 한 번.
+  const { html } = render();
+  const body = section(html, 'payroll');
+  const 월급 = 3000000;
+  const 결근 = M.dailyDeduction({ payType: 'salaried', monthlySalary: 월급 });
+  const 조퇴 = M.deductionForMinutes(120, M.ordinaryHourlyRate({ payType: 'salaried', monthlySalary: 월급 }));
+  const 입금 = adminPayout({ 월급, 조퇴 });
+  assert.equal(입금, 월급 - 결근 - 조퇴);
+  for (const n of [월급, 결근, 조퇴, 입금]) {
+    assert.match(body, new RegExp(n.toLocaleString('en-US')), `${n} 이 그림에 없습니다`);
+  }
+});
+
+test('관리 화면·태블릿의 시간 규칙이 코드와 같다', () => {
+  const { html } = render();
+  // 퇴근 누락 기준. 관리 화면의 알림과 태블릿이 서버와 같은 시간을 쓴다.
+  const 누락 = M.FORGOTTEN_SHIFT_MS / 3600000;
+  assert.match(source('assets/js/attendance-admin.js'), new RegExp(`const FORGOTTEN_SHIFT_MS = ${누락} \\* 3600000;`));
+  assert.match(section(html, 'daily'), new RegExp(`${누락}시간이 넘도록`));
+  assert.match(section(html, 'fix'), new RegExp(`${누락}시간`));
+  // 태블릿은 누락된 근무의 퇴근을 이 문구로 막는다.
+  assert.match(source('functions/attendance.js'), /퇴근 누락으로 넘어간 근무입니다/);
+  assert.match(section(html, 'trouble'), /퇴근 누락으로 넘어간 근무입니다/);
+  // 관리자가 넣는 한 기록은 36시간까지.
+  assert.equal(M.MAX_SHIFT_MS, 36 * 3600000);
+  assert.match(section(html, 'fix'), /36시간/);
+  // 이른 출근은 한 시간 안쪽만 뺀다. 예전 안내의 '세 시간'은 틀린 말이었다.
+  assert.equal(M.EARLY_CLOCK_IN_WINDOW_MINUTES, 60);
+  assert.match(section(html, 'dailyworker'), /한 시간 넘게/);
+  assert.doesNotMatch(html, /세 시간 넘게/);
+  // 새로고침 주기.
+  assert.match(source('assets/js/attendance-admin.js'), /load\(true\); \}, 60000\)/);
+  assert.match(section(html, 'screen'), /1분마다/);
+  assert.match(source('assets/js/attendance-kiosk.js'), /loadOrders\(\); \} \}, 15000\)/);
+  assert.match(section(html, 'daily'), /15초마다/);
+  assert.match(source('assets/js/attendance-kiosk.js'), /const ORDERS_MS = 180000;/);
+  assert.match(section(html, 'start'), /3분마다/);
+  assert.match(source('assets/js/attendance-bookings.js'), /setInterval\(sync, 5 \* 60000\)/);
+  assert.match(source('assets/js/attendance-bookings-admin.js'), /setInterval\(refresh, 5 \* 60000\)/);
+  assert.match(section(html, 'reservations'), /5분마다/);
+});
+
+test('퇴근을 빠뜨린 날의 처리를 실제 동작대로 적는다', () => {
+  const { html } = render();
+  const 누락 = M.FORGOTTEN_SHIFT_MS / 3600000;
+  // 태블릿은 누락된 사람에게 출근 칸을 띄우고, 날짜를 넘긴 퇴근에는 한 번 더 묻는다.
+  assert.match(source('assets/js/attendance-kiosk.js'), /forgotten \? '퇴근 누락'/);
+  assert.match(source('assets/js/attendance-kiosk.js'), /날짜를 넘긴 근무입니다/);
+  const daily = section(html, 'daily');
+  assert.match(daily, /다음 출근은 막히지 않습니다/);
+  assert.match(daily, new RegExp(`${누락}시간</b>이 지나도록`));
+  assert.match(daily, /날짜를 넘긴 근무/);
+  assert.match(section(html, 'fix'), /퇴근 누락/);
+  assert.match(section(html, 'trouble'), /내 칸이 <b>퇴근 누락<\/b>으로 떠요/);
+  assert.match(section(html, 'rules'), /퇴근 누락을 쌓아 두지 마세요/);
+  assert.match(section(html, 'glossary'), new RegExp(`출근하고 ${누락}시간이 지나도록`));
+  // 옛 안내(관리자가 고칠 때까지 출근도 못 찍는다)는 더 이상 맞지 않는다.
+  assert.doesNotMatch(html, /그동안 일한 날은 기록이 없습니다/);
+  assert.doesNotMatch(html, /출근 후 36시간이 지났습니다/);
+});
+
+test('태블릿 주소가 실제 매장 값으로 열린다', () => {
+  const { html } = render();
+  assert.equal(UI.setupStore('?store=suragan'), 2);
+  assert.equal(UI.setupStore('?store=doldam'), 1);
+  assert.equal(UI.storeName(2), '궁중수라간');
+  assert.match(section(html, 'start'), /궁중수라간은 <code>attendance\.html\?store=suragan<\/code>, 돌담명가는 <code>attendance\.html\?store=doldam<\/code>/);
+});
+
+test('매장 관리 화면에 없는 버튼을 안내하지 않는다', () => {
+  // 근태 화면의 '태블릿 화면 ↗'은 매장 관리 화면에서 CSS 로 숨겨져 있다. 대신 맨 위 '출퇴근 화면 ↗'을 쓴다.
+  const { html } = render();
+  assert.match(source('assets/css/staff-admin.css'), /\.staff-app \.att-topline>\.att-filters>a\{display:none\}/);
+  assert.doesNotMatch(html, /태블릿 화면 ↗/);
+  assert.match(source('staff-admin.html'), />출퇴근 화면 ↗</);
+  assert.match(section(html, 'screen'), /출퇴근 화면 ↗/);
+});
+
+test('예약 안내가 실제 제한과 같다', () => {
+  const { html } = render();
+  const body = section(html, 'reservations');
+  const { bookingInput } = require('../../attendanceBookings');
+  const now = at('2026-09-30T10:00:00+09:00');
+  const base = { requestId: '8b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d', name: '홍길동', time: '12:00', menu: '한정식', people: 2 };
+  assert.doesNotThrow(() => bookingInput({ ...base, date: '2026-09-30' }, now));
+  assert.throws(() => bookingInput({ ...base, date: '2027-10-01' }, now));
+  assert.match(body, /오늘부터 1년 안/);
+  // 건수에 들어가는 상태.
+  assert.match(source('functions/attendanceBookings.js'), /const ACTIVE = new Set\(\['requested', 'confirmed', 'completed'\]\)/);
+  assert.match(body, /예약 신청 · 확정 · 이용 완료/);
+});
+
+test('특수일 배율 범위가 실제 검증과 같다', () => {
+  const { html } = render();
+  const day = percent => M.specialDayInput({ workDate: '2026-09-17', label: '추석', multiplierPercent: percent, appliesTo: 'both', note: '' });
+  assert.doesNotThrow(() => day(50));
+  assert.doesNotThrow(() => day(500));
+  assert.throws(() => day(49));
+  assert.throws(() => day(501));
+  assert.match(section(html, 'special'), /0\.5배부터 5배까지/);
+});
+
+test('용어 풀이의 숫자가 실제 기본값과 같다', () => {
+  const { html } = render();
+  const body = section(html, 'glossary');
+  assert.match(body, new RegExp(`${M.ordinaryHourlyRate({ payType: 'salaried', monthlySalary: 3000000 }).toLocaleString('en-US')}원`));
+  assert.match(body, new RegExp(`${M.DEFAULT_MONTHLY_WORK_HOURS}시간`));
+  assert.match(body, new RegExp(`${M.DEFAULT_MONTHLY_WORK_DAYS}일`));
+  assert.match(body, new RegExp(`기본 ${M.DEFAULT_EARLY_GRACE_MINUTES}분`));
+  assert.match(body, new RegExp(`기본 ${M.DEFAULT_DAILY_BASE_MINUTES / 60}시간`));
+  // 3.3% = 소득세 3% + 지방소득세 0.3%
+  assert.equal(M.WITHHOLDING_PER_MILLE, 33);
+  assert.match(body, /소득세 3% \+ 지방소득세 0\.3%/);
 });

@@ -9,7 +9,7 @@
 
 | 어디를 고쳤나 | 같이 고칠 매뉴얼 |
 | --- | --- |
-| `functions/attendance*.js`, `assets/js/attendance-*.js`, `assets/js/staff-*.js` | `assets/js/staff-manual.js` (매장 관리 → 사용 안내 탭) |
+| `functions/attendance*.js`, `assets/js/attendance-*.js`, `assets/js/staff-*.js` | `assets/js/staff-manual.js` (매장 관리 → 매뉴얼 탭) |
 | 배송·주문·정산 (`admin.html`, `assets/js/`) | `manual.html` |
 | 아임웹 연동 | `imwebmanual.html`, `functions/IMWEB_SYNC_SETUP.md` |
 
