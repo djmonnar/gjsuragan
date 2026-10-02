@@ -255,3 +255,14 @@ test('다시 열어도 내용이 겹치지 않는다', () => {
   api.init();
   assert.match(root.innerHTML, /id="sm-absence"/);
 });
+
+test('확인이 필요한 근무 팝업 안내의 기준이 관리 화면 코드와 같다', () => {
+  const { html } = render();
+  const admin = fs.readFileSync(path.join(root, 'assets/js/attendance-admin.js'), 'utf8');
+  const stale = Number(/const STALE_OPEN_HOURS = (\d+);/.exec(admin)[1]);
+  const doubleTap = Number(/const DOUBLE_TAP_MINUTES = (\d+);/.exec(admin)[1]);
+  assert.match(html, new RegExp(`출근한 지 ${stale}시간이 지났는데 퇴근 기록이 없는 근무`));
+  assert.match(html, new RegExp(`<b>${doubleTap}분 안에</b> 붙어 찍힌`));
+  assert.match(html, /같은 날 퇴근한 뒤에는 다시 출근할 수 없습니다/);
+  assert.match(html, /다른 분 출근하기/);
+});

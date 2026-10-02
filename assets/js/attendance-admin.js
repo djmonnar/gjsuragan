@@ -46,6 +46,45 @@
   };
   // 일당으로 받는 사람은 자리(daily)와 정식 직원(perDiem) 둘 다다. 급여 계산은 같다.
   const isDailyPaid = payType => payType === 'daily' || payType === 'perDiem';
+  // 퇴근을 안 찍은 근무. 전날 출근했거나 출근한 지 이만큼 지났으면 확인이 필요하다고 본다.
+  // 미퇴근 기록은 급여 합계에서 빠지므로 그대로 두면 급여가 덜 나간다.
+  const STALE_OPEN_HOURS = 12;
+  // 일일근무자 칸에서 이름 없는 출근 두 개가 이만큼 안에 찍혔으면 같은 사람이 두 번 누른 것으로 의심한다.
+  const DOUBLE_TAP_MINUTES = 30;
+  function staleOpenShifts(result) {
+    const today = U.date(result.serverNow);
+    return (result.openShifts || [])
+      .filter(s => s.workDate < today || result.serverNow - s.checkInAt >= STALE_OPEN_HOURS * 3600000)
+      .sort((a, b) => a.checkInAt - b.checkInAt);
+  }
+  // 같은 날 일당이 두 번 잡힌 기록 묶음. 일당 직원은 사람마다, 일일근무자 자리는
+  // 적어둔 이름마다 하루 하나여야 한다. 이름이 없으면 바로 붙어 찍힌 것만 의심한다.
+  function duplicateDailyShifts(result) {
+    const groups = new Map();
+    const add = (key, shift) => { if (!groups.has(key)) groups.set(key, []); groups.get(key).push(shift); };
+    const unnamed = new Map();
+    (result.shifts || []).filter(s => isDailyPaid(s.payType) && s.checkOutAt !== null).forEach(s => {
+      const who = String(s.workerName || '').trim();
+      if (s.payType === 'perDiem') add(`${s.employeeId}|${s.workDate}`, s);
+      else if (who) add(`${s.employeeId}|${s.workDate}|${who}`, s);
+      else {
+        const key = `${s.employeeId}|${s.workDate}`;
+        if (!unnamed.has(key)) unnamed.set(key, []);
+        unnamed.get(key).push(s);
+      }
+    });
+    // 출근 시각 순으로 늘어놓고, 앞 기록과 가까우면 같은 묶음에 넣는다.
+    unnamed.forEach((list, key) => {
+      let cluster = 0;
+      list.sort((a, b) => a.checkInAt - b.checkInAt).forEach((s, i) => {
+        if (i && s.checkInAt - list[i - 1].checkInAt > DOUBLE_TAP_MINUTES * 60000) cluster += 1;
+        add(`${key}|?${cluster}`, s);
+      });
+    });
+    return [...groups.values()].filter(list => list.length > 1)
+      .map(list => list.sort((a, b) => a.checkInAt - b.checkInAt))
+      .sort((a, b) => a[0].checkInAt - b[0].checkInAt);
+  }
   const payTypeLabel = payType => payType === 'hourly' ? '시급' : payType === 'salaried' ? '월급' : payType === 'perDiem' ? '일당' : '일일';
   // 홀·주방·배송. 태블릿과 같은 순서로 나누고, 안 고른 사람은 '그 외'로 모은다.
   const PARTS = [{ key: 'hall', label: '홀' }, { key: 'kitchen', label: '주방' },
@@ -168,12 +207,41 @@
       $('att-load-error').textContent = '';
       $('att-status').textContent = `${U.time(result.serverNow)} 업데이트 · 한국 표준시 · 출근일 기준으로 표시합니다.`;
       render();
+      checkAlert();
     } catch (error) {
       if (sequence !== requestVersion || !initialized) return;
       $('att-load-error').textContent = `${error.message} 새로고침 버튼으로 다시 불러올 수 있습니다.`;
       $('att-status').textContent = data ? '마지막으로 불러온 정보입니다.' : '';
       if (!data) $('att-content').innerHTML = '<div class="att-empty"><strong>근태 정보를 불러오지 못했습니다</strong>연결을 확인한 뒤 새로고침해 주세요.</div>';
     } finally { if (sequence === requestVersion) loading = false; }
+  }
+  // 화면을 열면 확인이 필요한 근무를 팝업으로 알린다. 같은 내용은 한 번만 띄우고,
+  // 새로 생기거나 고쳐서 목록이 바뀌면 다시 띄운다. 다른 창이 열려 있으면 기다린다.
+  let alertedKey = '';
+  function checkAlert() {
+    if (!data || document.querySelector('dialog[open]')) return;
+    const stale = staleOpenShifts(data);
+    const dupes = duplicateDailyShifts(data);
+    const key = [...stale.map(s => s.id), '|', ...dupes.flat().map(s => s.id)].join(',');
+    if (key === alertedKey) return;
+    alertedKey = key;
+    if (!stale.length && !dupes.length) return;
+    const who = s => `${U.esc(person(s.employeeId)?.name || s.employeeName)}${s.workerName ? ` · ${U.esc(s.workerName)}` : ''}`;
+    const store = s => U.storeName(s.floor ?? 1);
+    const hours = s => Math.floor((data.serverNow - s.checkInAt) / 3600000);
+    const item = (s, text) => `<div class="att-check-item"><span><b>${who(s)}</b> · ${store(s)}<br>${text}</span><button class="att-button" type="button" data-popup-shift="${U.esc(s.id)}">기록 열기</button></div>`;
+    const body = [
+      stale.length ? `<div class="att-check-list"><h3>퇴근을 안 찍은 근무 ${stale.length}건</h3>${stale.map(s => item(s, `${s.workDate.slice(5)} ${U.time(s.checkInAt)} 출근 · ${hours(s)}시간째 퇴근 기록 없음`)).join('')}<p class="att-note">퇴근을 안 찍은 근무는 급여 합계에서 빠집니다. 기록을 열어 실제 퇴근 시각을 넣어 주세요.</p></div>` : '',
+      dupes.length ? `<div class="att-check-list"><h3>같은 날 일당이 두 번 잡힌 기록 ${dupes.length}건</h3>${dupes.map(list => list.map(s => item(s, `${s.workDate.slice(5)} ${U.time(s.checkInAt)}~${U.time(s.checkOutAt)} · ${U.money(s.amount)}`)).join('')).join('')}<p class="att-note">잘못 찍은 쪽을 열어 <b>이 근무 기록 삭제</b>를 눌러 주세요. 실제로 두 번 일했다면 그대로 두셔도 됩니다.</p></div>` : ''
+    ].join('');
+    const el = U.dialog('확인이 필요한 근무', body, async () => {}, { submitLabel: '확인' });
+    el.addEventListener('click', event => {
+      const button = event.target.closest('[data-popup-shift]');
+      if (!button) return;
+      const record = [...data.shifts, ...data.openShifts].find(s => s.id === button.dataset.popupShift);
+      el.close();
+      if (record) shiftForm(record);
+    });
   }
   function changeMonth(value) {
     if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(value)) { $('att-month').value = month; return; }
@@ -199,7 +267,7 @@
       ['이번 조회 월 유급 근무', U.duration(list.reduce((sum, s) => sum + s.payableMinutes, 0)), '퇴근 완료 · 무급 휴게 제외'],
       ['시급 직원 급여 합계', U.money(list.filter(s => s.payType === 'hourly').reduce((sum, s) => sum + s.amount - (s.checkOutAt === null ? 0 : shiftDeduction(s)), 0)), `${month.replace('-', '년 ')}월 · 퇴근 완료 · 특수일 배율·근무 차감 포함`]
     ].map(([label, value, detail]) => `<div class="att-stat"><div class="att-stat-label">${label}</div><div class="att-stat-value">${value}</div><small>${detail}</small></div>`).join('');
-    const stale = opens.filter(s => data.serverNow - s.checkInAt > 18 * 3600000);
+    const stale = staleOpenShifts(data).filter(inFloor).filter(s => !employeeId || s.employeeId === employeeId);
     $('att-open-notice').innerHTML = stale.length ? `<div class="att-notice">퇴근 확인이 필요한 기록 ${stale.length}건 · ${stale.map(s => `<button class="att-link-button" data-action="edit-shift" data-id="${U.esc(s.id)}">${U.esc(person(s.employeeId)?.name || s.employeeName)} (${s.workDate.slice(5)} ${U.time(s.checkInAt)})</button>`).join(' ')} · 미퇴근 기록은 급여 합계에서 제외됩니다.</div>` : '';
     document.querySelectorAll('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === view));
     if (view === 'calendar') renderCalendar(list);
