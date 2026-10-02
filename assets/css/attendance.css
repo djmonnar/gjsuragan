@@ -104,3 +104,5 @@
 .att-payroll-card.is-unnamed{border-color:#ecdabc;background:#fffdf7}
 .att-staff-name-plain{font-size:16px;font-weight:800}
 .att-daily-payroll .att-payroll-transfer{display:flex;flex-direction:column;gap:10px}
+.att-slot-warning{margin-top:16px;padding:14px;border-radius:14px;background:#fff4e5;color:#7a4b00;text-align:left;font-size:15px;line-height:1.6}.att-slot-warning p{margin:0 0 10px}.att-slot-warning p:last-child{margin:10px 0 0}.att-slot-warning .att-button{display:block;width:100%;min-height:52px;margin-top:8px;font-size:17px;font-weight:700}
+.att-check-list{display:grid;gap:8px;margin:10px 0 16px}.att-check-list h3{margin:6px 0 2px;font-size:15px}.att-check-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--att-border);border-radius:12px;background:#fff}.att-check-item span{font-size:14px;line-height:1.5}.att-check-item .att-button{flex:none}

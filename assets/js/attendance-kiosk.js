@@ -65,7 +65,7 @@
       const working = Boolean(employee.currentShiftId);
       const last = employee.lastShift;
       const finishedToday = !working && last?.checkOutAt && U.date(last.checkOutAt) === today;
-      cards.push({ employee, shiftId: employee.currentShiftId || '', working, name: employee.name, role,
+      cards.push({ employee, shiftId: employee.currentShiftId || '', working, finishedToday, name: employee.name, role,
         pill: working ? '근무 중' : finishedToday ? '퇴근 완료' : '출근 전',
         checkInAt: working ? last.checkInAt : null,
         detail: working
@@ -176,22 +176,49 @@
       // 집계를 못 가져와도 출퇴근은 계속 찍혀야 한다. 화면의 숫자만 그대로 둔다.
     } finally { ordersBusy = false; }
   }
+  // 일당 직원이 같은 날 퇴근한 뒤 출근을 또 누르면 일당이 두 번 잡혔다. 서버가 막지만,
+  // 태블릿에서도 먼저 알려 헛걸음하지 않게 한다.
+  function alreadyDone(card) {
+    dialogOpen = true;
+    const el = U.dialog(card.name, `<div class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</div><h2>${U.esc(card.name)} 님</h2><p class="att-confirm-kind">오늘은 이미 퇴근했어요</p><p class="att-meta">일당은 하루에 한 번만 계산돼요. 다시 일하셨다면 관리자에게 퇴근 시간 수정을 요청해 주세요.</p>`,
+      async () => {}, { submitLabel: '확인' });
+    el.classList.add('att-kiosk-dialog');
+    el.querySelector('.att-dialog-head').remove();
+    el.addEventListener('close', () => { dialogOpen = false; });
+  }
   function choose(card) {
     if (dialogOpen) return;
+    if (!card.working && card.finishedToday && card.employee.payType === 'perDiem') { alreadyDone(card); return; }
     dialogOpen = true;
     const working = card.working;
     const pending = { employeeId: card.employee.id, kind: working ? 'out' : 'in', shiftId: card.shiftId, requestId: crypto.randomUUID() };
+    // 일일근무자 칸: 퇴근할 사람이 자기 칸 대신 '출근' 칸을 또 눌러 기록이 하나 더 생기는 일이 있었다.
+    // 오늘 들어와 있는 사람이 있으면 그 사람들의 퇴근 버튼을 바로 보여주고,
+    // 새로 출근은 '다른 분 출근하기'를 눌러야 되게 한다.
+    const today = U.date(Date.now() + offset);
+    const openToday = card.slot && !working
+      ? (card.employee.openShifts || []).filter(shift => U.date(shift.checkInAt) === today) : [];
+    if (openToday.length) pending.another = true;
+    const slotWarning = openToday.length
+      ? `<div class="att-slot-warning"><p><b>오늘 이 칸으로 출근한 분이 있어요.</b> 퇴근하시려면 자기 출근 시각 옆의 <b>퇴근하기</b>를 눌러 주세요.</p>${openToday.map(shift => `<button class="att-button" type="button" data-out-shift="${U.esc(shift.id)}">${U.esc(shift.workerName ? `${shift.workerName} · ` : '')}${U.time(shift.checkInAt)} 출근 → 퇴근하기</button>`).join('')}<p>새로 오신 <b>다른 분</b>만 아래 <b>다른 분 출근하기</b>를 눌러 주세요.</p></div>`
+      : '';
     const el = U.dialog(card.name,
-      `<div class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</div><h2>${U.esc(card.name)} 님</h2><p class="att-confirm-kind">${working ? '오늘도 수고하셨습니다' : '좋은 하루 시작해요'}</p><p class="att-meta">${working ? `${U.date(card.checkInAt).slice(5)} ${U.time(card.checkInAt)} 출근 · 지금 퇴근을 기록할까요?` : card.slot ? '지금 출근을 기록할까요? 이 칸은 여러 분이 같이 쓸 수 있습니다.' : '지금 출근을 기록할까요?'}</p>`,
+      `<div class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</div><h2>${U.esc(card.name)} 님</h2><p class="att-confirm-kind">${working ? '오늘도 수고하셨습니다' : '좋은 하루 시작해요'}</p><p class="att-meta">${working ? `${U.date(card.checkInAt).slice(5)} ${U.time(card.checkInAt)} 출근 · 지금 퇴근을 기록할까요?` : card.slot ? '지금 출근을 기록할까요? 이 칸은 여러 분이 같이 쓸 수 있습니다.' : '지금 출근을 기록할까요?'}</p>${slotWarning}`,
       async (_form, dialog) => {
         const result = await U.request('kiosk.punch', pending, { device });
         dialog.querySelector('form').innerHTML = `<div class="att-kiosk-success" role="status"><div class="att-success-mark">✓</div><h2>${U.esc(result.name)} 님</h2><p class="att-confirm-kind">${result.kind === 'in' ? '출근' : '퇴근'}이 기록되었어요</p><div class="att-shift-times">${U.time(result.at)}</div><p class="att-meta">잠시 후 직원 목록으로 돌아갑니다.</p></div>`;
         await new Promise(resolve => setTimeout(resolve, 1800));
         await load();
-      }, { submitLabel: working ? '퇴근하기' : '출근하기' });
+      }, { submitLabel: working ? '퇴근하기' : openToday.length ? '다른 분 출근하기' : '출근하기' });
     el.classList.add('att-kiosk-dialog');
     el.querySelector('.att-dialog-head').remove();
     el.addEventListener('close', () => { dialogOpen = false; load(); });
+    el.querySelectorAll('[data-out-shift]').forEach(button => button.addEventListener('click', () => {
+      const outCard = buildCards().find(item => item.employee.id === card.employee.id && item.shiftId === button.dataset.outShift);
+      el.close();
+      dialogOpen = false;
+      if (outCard) choose(outCard);
+    }));
   }
   $('kiosk-grid').onclick = event => {
     const button = event.target.closest('[data-employee]');
