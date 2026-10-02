@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v85-manual-checkout';
+const CACHE = 'gjsuragan-v86-manual-checkout';
 const PRECACHE = [
   './customer.html',
   './admin.html',
