@@ -50,7 +50,7 @@ const orders = vm.runInNewContext(`(() => {
     lunch: Number(values.lunch) || 0, salad: Number(values.salad) || 0, event: Number(values.event) || 0
   });
   ${[
-    'orderLunchQty', 'orderSaladQty', 'orderEventLunchQty', 'orderCateringSummary', 'isEventOrder', 'timestampToDate',
+    'orderLunchQty', 'orderSaladQty', 'orderEventLunchQty', 'orderCateringDate', 'orderCateringSummary', 'isEventOrder', 'timestampToDate',
     'orderCateringText', 'orderCateringKey', 'orderChangeSignature', 'orderQtyText', 'orderDocsFromSnap',
     'ordersChangedBetween', 'customerChangedAfterRecord',
     'orderLogValue', 'orderLogFieldLabel', 'orderLogFieldValue', 'orderLogChangeText'
