@@ -2549,11 +2549,14 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <div class="member-form-grid">
           <div class="member-form-field">
             <label class="form-label" for="edit-lunch-price">도시락 단가</label>
-            <input class="form-input" type="number" id="edit-lunch-price" min="0" placeholder="8000">
+            <input class="form-input" type="number" id="edit-lunch-price" min="0" placeholder="비우면 8,000원">
           </div>
           <div class="member-form-field">
             <label class="form-label" for="edit-salad-price">샐러드 단가</label>
-            <input class="form-input" type="number" id="edit-salad-price" min="0" placeholder="8000">
+            <input class="form-input" type="number" id="edit-salad-price" min="0" placeholder="비우면 8,000원">
+          </div>
+          <div class="member-form-field full" id="edit-price-hint" style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-top:-4px">
+            비워두면 기본 단가 8,000원으로 저장됩니다. 0을 넣으면 0원으로 청구됩니다.
           </div>
           <div class="member-form-field full">
             <label class="form-label" for="edit-service-start">서비스 시작일 <span style="font-weight:400;color:var(--text-secondary)">(선택)</span></label>
@@ -3970,6 +3973,13 @@ function parseDeliveryCount(value, fallback = 0) {
 function parsePrice(value, fallback = 0) {
   const parsed = parseInt(value, 10);
   return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
+}
+// 고객정보 창의 단가 칸. 비워두면 기본 단가로 저장하고, 0 은 일부러 넣은 0원(무료)으로 본다.
+// 예전에는 빈 칸이 0원으로 저장됐다. 칸에는 흐린 글씨로 8000 이 보여서 입력된 줄 알았고,
+// 배송·정산이 2주 동안 0원으로 쌓였다(센코필라테스 2026-09).
+function memberPriceFromInput(value) {
+  if (String(value ?? '').trim() === '') return DEFAULT_MEAL_PRICE;
+  return parsePrice(value, DEFAULT_MEAL_PRICE);
 }
 function orderLunchQty(order = {}) {
   return Number(order.lunchQty ?? order.lunchCount ?? order.lunch ?? 0) || 0;
@@ -8743,8 +8753,9 @@ function openBusinessCreate() {
   document.getElementById('edit-same-daily').checked = true;
   fillWeekdayInputs('edit', meals);
   document.getElementById('edit-weekday-fields').style.display = 'none';
-  document.getElementById('edit-lunch-price').value = '';
-  document.getElementById('edit-salad-price').value = '';
+  // 기본 단가를 실제 값으로 채워 둔다. 흐린 안내 글씨만 보이면 입력된 것으로 착각한다.
+  document.getElementById('edit-lunch-price').value = DEFAULT_MEAL_PRICE;
+  document.getElementById('edit-salad-price').value = DEFAULT_MEAL_PRICE;
   document.getElementById('edit-admin-memo').value = '';
   document.getElementById('edit-service-start').value = '';
   document.getElementById('edit-meal-paused').checked = false;
@@ -8858,8 +8869,9 @@ function openMemberEdit(uid) {
   document.getElementById('edit-same-daily').checked = sameDailyMeal;
   fillWeekdayInputs('edit', meals);
   document.getElementById('edit-weekday-fields').style.display = sameDailyMeal ? 'none' : 'grid';
-  document.getElementById('edit-lunch-price').value = userLunchPrice(u) || '';
-  document.getElementById('edit-salad-price').value = userSaladPrice(u) || '';
+  // 0원도 0 으로 보여준다. 비워 두면 흐린 안내 글씨가 저장된 단가처럼 보인다.
+  document.getElementById('edit-lunch-price').value = userLunchPrice(u);
+  document.getElementById('edit-salad-price').value = userSaladPrice(u);
   document.getElementById('edit-admin-memo').value = adminMemoValue(u);
   document.getElementById('edit-meal-paused').checked = u.mealPaused === true;
   document.getElementById('edit-service-start').value = userServiceStartDateStr(u);
@@ -9671,8 +9683,8 @@ async function saveMember() {
   const weekdayMeals = readWeekdayMeals('edit', lunch, salad);
   const mealTimeInfo = getMealTimeValue('edit');
   const mealTime = mealTimeInfo.value;
-  const lunchPrice = parseInt(document.getElementById('edit-lunch-price').value, 10) || 0;
-  const saladPrice = parseInt(document.getElementById('edit-salad-price').value, 10) || 0;
+  const lunchPrice = memberPriceFromInput(document.getElementById('edit-lunch-price').value);
+  const saladPrice = memberPriceFromInput(document.getElementById('edit-salad-price').value);
   const adminMemo = document.getElementById('edit-admin-memo').value.trim();
   const mealPaused = document.getElementById('edit-meal-paused').checked;
   const mealPauseStartDate = document.getElementById('edit-meal-pause-start').value;
