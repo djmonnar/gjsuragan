@@ -276,10 +276,11 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
       <span class="date-disp" id="todayDateDisp"></span>
       <button class="date-today-btn" onclick="resetTodayDate()">오늘</button>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <span style="font-size:12px;color:var(--text3);" id="todayCnt"></span>
       <button class="btn btn-g sm" onclick="printAllDeliveryList()">전체 인쇄</button>
       <button class="btn btn-s sm" onclick="markAll()">전체 완료</button>
+      <button class="btn btn-g sm" onclick="cancelAllDeliveries()" title="날짜 칸에 고른 날짜의 배송완료를 모두 되돌립니다">전체 완료 취소</button>
       <button class="btn btn-g sm" onclick="goTab('export')">택배 내보내기</button>
     </div>
   </div>
@@ -802,6 +803,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
     <div class="mn-step"><div class="mn-num">2</div><div><span class="mn-btn">송장번호 조회</span>를 누르면 발급된 송장번호가 표에 채워집니다.</div></div>
     <div class="mn-step"><div class="mn-num">3</div><div>발송이 끝나면 체크 후 <span class="mn-btn">택배 전체 완료</span>로 완료 처리합니다.</div></div>
     <div class="mn-tip">💡 배송 완료를 누르면 <b>잔여 횟수가 1회 차감</b>되고, 잔여가 0이 되면 그 주문은 자동으로 <b>종료</b> 상태가 됩니다. 완료 처리는 고객 관리의 배송 이력에서 언제든 <b>↩ 취소</b>할 수 있습니다.</div>
+    <div class="mn-tip">💡 <b>날짜 칸을 꼭 확인하세요.</b> 전체 완료는 날짜 칸에 고른 날짜로 처리됩니다. <b>아직 오지 않은 날짜는 완료 처리할 수 없고</b>, 오늘이 아닌 지난 날짜면 어느 날짜 목록인지 한 번 더 묻습니다. 날짜를 잘못 골라 완료했다면 날짜 칸을 그 날짜로 맞추고 <span class="mn-btn">전체 완료 취소</span>를 누르세요. 그 날짜로 완료된 주문이 모두 되돌아가고, 잔여가 0이 되어 종료됐던 주문도 다시 진행 중이 됩니다.</div>
   </div>
 
   <!-- 배송지도 -->
@@ -924,7 +926,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
   <div class="mn-sec" id="mn-faq">
     <h3><span class="mn-ico">FAQ</span>자주 묻는 질문</h3>
     <p class="mn-faq-q">실수로 배송완료를 눌렀어요.</p>
-    <p class="mn-faq-a">고객 관리 → 해당 고객 상세 → 완료이력에서 날짜 옆 <span class="mn-btn">취소</span>를 누르면 잔여 횟수까지 원래대로 돌아옵니다.</p>
+    <p class="mn-faq-a">고객 관리 → 해당 고객 상세 → 완료이력에서 날짜 옆 <span class="mn-btn">취소</span>를 누르면 잔여 횟수까지 원래대로 돌아옵니다. 여러 명을 한꺼번에 잘못 완료했으면 배송 목록에서 날짜 칸을 그 날짜로 맞추고 <span class="mn-btn">전체 완료 취소</span>를 누르세요.</p>
     <p class="mn-faq-q">고객이 "이번 주만 쉬고 싶다"고 해요.</p>
     <p class="mn-faq-a"><span class="mn-btn">일시정지</span>를 누르고 재개 예정일을 다음 주 배송일로 지정하세요. 그날 자동으로 재개됩니다.</p>
     <p class="mn-faq-q">고객이 "다음 주부터 화요일 말고 금요일에 달라"고 해요.</p>
@@ -1363,9 +1365,9 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 
 
 <script src="assets/js/auth-core.js?v=20260910-missed2" defer></script>
-<script src="assets/js/delivery-transaction.js?v=20260710-safety1" defer></script>
+<script src="assets/js/delivery-transaction.js?v=20261006-bulkcancel1" defer></script>
 <script src="assets/js/imweb.js?v=20260910-cancel1" defer></script>
-<script src="assets/js/schedule-report.js?v=20260807-resumedate1" defer></script>
+<script src="assets/js/schedule-report.js?v=20261006-bulkcancel1" defer></script>
 <script src="assets/js/manual-delivery-dates.js?v=20260806-manualorder2" defer></script>
 <script src="assets/js/rendering-formatters.js?v=20260711-helper1" defer></script>
 <script src="assets/js/rendering.js?v=20260916-cancel1" defer></script>

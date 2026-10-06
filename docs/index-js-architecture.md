@@ -177,8 +177,14 @@ DOM availability can break a button while all static JavaScript still parses.
 - Regular subscription completion decrements one.
 - Repeating the same-date operation must remain idempotent through
   `runDeliveryTransaction`.
-- The D5 completion/cancellation asymmetry is intentionally deferred to Issue
-  #39; this audit does not normalize it.
+- Cancelling a one-time order restores what the completion consumed: `total`
+  minus the completion dates that remain. This equals `+1` when deliveries were
+  decremented one per date, and the full quantity when the employee screen ended
+  the order in one action. Subscription cancellation restores one. (Issue #39)
+- Completion is refused for a date that has not arrived yet. Bulk completion of
+  a past date asks again and names the date.
+- `cancelAllDeliveries` cancels every order completed on the selected date,
+  including orders that ended because of that completion.
 
 ## Refactor classification
 
@@ -203,7 +209,6 @@ DOM availability can break a button while all static JavaScript still parses.
 - `schedule-report.js` handler installation and completion policy.
 - `ui.js` wrapper composition.
 - Duplicate declarations in `rendering.js`.
-- D5 completion/cancellation behavior.
 
 ## Extraction boundary
 

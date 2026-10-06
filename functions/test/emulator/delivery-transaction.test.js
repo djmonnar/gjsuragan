@@ -93,3 +93,34 @@ test('a missing completion date is a no-op even with stale caller state', async 
   assert.equal(saved.remain, 3);
   assert.deepEqual(saved.deliveredDates, []);
 });
+
+test('employee screen cancel restores a one-time order to its full quantity (Issue #39)', async () => {
+  const ref = db.collection('customers').doc('employee-once-cancel');
+  await ref.set({ remain: 2, total: 2, qty: 2, deliveredDates: [], status: 'active', orderType: 'once' });
+  await runDeliveryTransaction(db, ref.id, '2026-07-10', 'complete', {}, { completeAllForOnce: true });
+  assert.equal((await ref.get()).data().remain, 0);
+  await runDeliveryTransaction(db, ref.id, '2026-07-10', 'cancel');
+  const saved = (await ref.get()).data();
+  // 예전에는 1 이 남아 2개짜리 주문이 1개가 됐다.
+  assert.equal(saved.remain, 2);
+  assert.equal(saved.status, 'active');
+  assert.deepEqual(saved.deliveredDates, []);
+});
+
+test('cancel patch tidies the fields written at completion, and only on cancel', async () => {
+  const ref = db.collection('customers').doc('cancel-patch');
+  await ref.set({ remain: 2, deliveredDates: ['2026-07-03'], status: 'active', orderType: 'sub', lastDeliveredDate: '2026-07-03', deliveryState: 'done' });
+  const cancelPatch = (current, patch) => ({ lastDeliveredDate: patch.deliveredDates[patch.deliveredDates.length - 1] || '', seenRemain: current.remain });
+  // 완료할 때는 cancelPatch 를 부르지 않는다.
+  await runDeliveryTransaction(db, ref.id, '2026-07-10', 'complete', { lastDeliveredDate: '2026-07-10' }, { cancelPatch });
+  let saved = (await ref.get()).data();
+  assert.equal(saved.lastDeliveredDate, '2026-07-10');
+  assert.equal(saved.seenRemain, undefined);
+  await runDeliveryTransaction(db, ref.id, '2026-07-10', 'cancel', null, { cancelPatch });
+  saved = (await ref.get()).data();
+  assert.equal(saved.remain, 2);
+  assert.deepEqual(saved.deliveredDates, ['2026-07-03']);
+  assert.equal(saved.lastDeliveredDate, '2026-07-03');
+  // 취소 직전(완료된 상태)의 문서를 넘겨받는다.
+  assert.equal(saved.seenRemain, 1);
+});

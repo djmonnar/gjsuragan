@@ -20,9 +20,9 @@ const expectedScriptSources = [
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
   'assets/js/auth-core.js?v=20260910-missed2',
-  'assets/js/delivery-transaction.js?v=20260710-safety1',
+  'assets/js/delivery-transaction.js?v=20261006-bulkcancel1',
   'assets/js/imweb.js?v=20260910-cancel1',
-  'assets/js/schedule-report.js?v=20260807-resumedate1',
+  'assets/js/schedule-report.js?v=20261006-bulkcancel1',
   'assets/js/manual-delivery-dates.js?v=20260806-manualorder2',
   'assets/js/rendering-formatters.js?v=20260711-helper1',
   'assets/js/rendering.js?v=20260916-cancel1',
@@ -155,7 +155,7 @@ function validateGenerated(buffer) {
   if (!sameValues(modalIds, expectedModalIds)) fail('modal id list or order changed');
 
   const inlineEventCount = countMatches(source, /\son[a-z]+\s*=/gi);
-  if (inlineEventCount !== 163) fail(`inline event count is ${inlineEventCount}; expected 163`);
+  if (inlineEventCount !== 164) fail(`inline event count is ${inlineEventCount}; expected 164`);
 
   const scriptSources = [...source.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/gi)]
     .map(match => match[1]);
