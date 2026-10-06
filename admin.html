@@ -1036,6 +1036,20 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 .member-readonly-email{display:flex;align-items:center;min-height:42px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:#f7f9f8;color:#475467;font-size:13px;font-weight:700;word-break:break-all}
 .member-reset-link-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
 .member-reset-link-help{font-size:12px;color:var(--sub)}
+.member-merge-list{display:grid;gap:6px;margin-top:8px;max-height:232px;overflow-y:auto}
+.member-merge-item{display:grid;gap:2px;width:100%;text-align:left;border:1px solid var(--border);border-radius:9px;background:#fff;padding:9px 11px;cursor:pointer;font-family:inherit}
+.member-merge-item.selected{border-color:var(--primary);background:#eef7f5;box-shadow:inset 0 0 0 1px var(--primary)}
+.member-merge-item strong{font-size:13px;color:var(--text)}
+.member-merge-item > span{font-size:12px;color:var(--sub);overflow-wrap:anywhere}
+.member-merge-empty{font-size:12px;color:var(--sub);padding:8px 2px;line-height:1.6}
+.member-merge-preview{margin-top:12px;border:1px solid var(--border);border-radius:10px;padding:11px 12px;font-size:13px;line-height:1.65;background:#fafbfa;color:var(--text)}
+.member-merge-preview ul{margin:4px 0 0;padding-left:18px}
+.member-merge-preview small{color:var(--sub)}
+.member-merge-warn{margin-top:10px;border:1px solid #fed7aa;background:#fff7ed;color:#9a3412;border-radius:9px;padding:10px 12px;font-size:12px;line-height:1.6}
+.member-merge-warn label{display:flex;gap:7px;align-items:flex-start;margin-top:6px;font-size:13px;color:#7c2d12;cursor:pointer}
+.member-merge-option{display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:13px;line-height:1.5;color:var(--text);cursor:pointer}
+.member-merge-option small{display:block;color:var(--sub);font-size:12px}
+.member-merge-error{margin-top:10px;color:#b91c1c;font-size:12px;line-height:1.6;white-space:pre-line}
 .member-reset-link-result{margin-top:8px;padding:10px 12px;border:1px solid #b2dfdb;background:#e0f2f1;border-radius:9px;font-size:12px;line-height:1.6;color:#004d40;word-break:keep-all}
 .member-reset-link-result.error{border-color:#fecaca;background:#fdecea;color:#b91c1c}
 .member-reset-link-result .reset-link-text{display:block;font-family:monospace;font-size:11px;word-break:break-all;background:#fff;border:1px solid #b2dfdb;border-radius:6px;padding:6px 8px;margin:6px 0;color:#1f2937}
@@ -2452,6 +2466,10 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
               <span class="member-reset-link-help">재설정 메일이 안 올 때 링크를 만들어 카톡으로 보내주세요.</span>
             </div>
             <div class="member-reset-link-result" id="member-reset-link-result" style="display:none"></div>
+            <div class="member-reset-link-row" id="member-merge-row" style="display:none">
+              <button type="button" class="secondary-btn" onclick="openMemberMergeModal()">🔗 가입 계정과 합치기</button>
+              <span class="member-reset-link-help">이 업체가 앱에 가입했으면, 지금까지의 배송·정산을 그 계정으로 옮겨 하나로 합칩니다.</span>
+            </div>
           </div>
           <div class="member-form-field full">
             <label class="form-label" for="edit-place">배송지</label>
@@ -2987,6 +3005,41 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <div class="modal-actions bulk-confirm-actions">
       <button class="secondary-btn" type="button" onclick="closeSettlementMergeModal()">취소</button>
       <button class="save-btn" type="button" onclick="confirmSettlementMerge()">합치기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="member-merge-modal" aria-hidden="true" onclick="if(event.target===this) closeMemberMergeModal()">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="member-merge-title">
+    <div class="modal-header">
+      <div class="modal-title" id="member-merge-title">가입 계정과 합치기</div>
+      <button class="modal-close" type="button" aria-label="닫기" onclick="closeMemberMergeModal()">✕</button>
+    </div>
+    <div class="bulk-confirm-summary">
+      <div class="bulk-confirm-summary-row"><span>직접 등록한 업체</span><strong id="member-merge-source">-</strong></div>
+      <div class="bulk-confirm-summary-row"><span>합칠 가입 계정</span><strong id="member-merge-target-label">아래에서 고르세요</strong></div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label class="form-label" for="member-merge-search">가입 계정 찾기</label>
+      <input class="form-input" type="search" id="member-merge-search" placeholder="업체명 · 이메일(아이디) · 전화번호" autocomplete="off" oninput="renderMemberMergeCandidates()">
+      <div class="member-merge-list" id="member-merge-list"></div>
+      <div style="font-size:12px;color:var(--sub);margin-top:6px;line-height:1.6">
+        손님이 앱에서 가입한 계정을 고르세요. 업체명과 번호가 같은 계정이 맨 위에 나옵니다.<br>
+        합치면 손님은 가입한 계정으로 로그인해 지금까지의 배송과 정산을 그대로 봅니다.
+      </div>
+    </div>
+    <div class="member-merge-preview" id="member-merge-preview" hidden></div>
+    <div class="member-merge-warn" id="member-merge-overlap" hidden></div>
+    <label class="member-merge-option" id="member-merge-settings-option">
+      <input type="checkbox" id="member-merge-keep-settings" checked onchange="renderMemberMergePreview()">
+      <span>직접 등록한 업체명·요일별 수량·식사 시간·배송지를 그대로 쓴다
+        <small>끄면 손님이 가입할 때 적은 내용을 둡니다. 단가는 어느 쪽이든 직접 등록한 단가를 씁니다.</small>
+      </span>
+    </label>
+    <div class="member-merge-error" id="member-merge-error" role="alert"></div>
+    <div class="modal-actions bulk-confirm-actions">
+      <button class="secondary-btn" type="button" onclick="closeMemberMergeModal()">취소</button>
+      <button class="save-btn" type="button" id="member-merge-confirm" onclick="confirmMemberMerge()" disabled>합치기</button>
     </div>
   </div>
 </div>
@@ -8605,8 +8658,32 @@ function memberActiveRowHtml(uid, user = {}, duplicateCounts = new Map()) {
   `;
 }
 
+// 가입 계정으로 합친 직접 등록 업체. 기록이 전부 가입 계정으로 넘어가 있어 복구하면 빈 업체가 주문표에 다시 뜬다.
+function memberMergedIntoName(user = {}) {
+  if (!user.mergedInto) return '';
+  const into = allUsers[user.mergedInto] || deletedUsers[user.mergedInto] || {};
+  return into.businessName || into.email || '가입 계정';
+}
+
 function memberDeletedRowHtml(uid, user = {}) {
   const address = memberAddressValue(user);
+  const mergedInto = memberMergedIntoName(user);
+  if (mergedInto) {
+    return `
+    <article class="member-row is-deleted" data-member-uid="${escapeHtml(uid)}">
+      <div class="member-row-main">
+        <span class="member-cell member-identity">
+          <span class="member-name-line"><strong>${escapeHtml(user.businessName || user.name || '-')}</strong><span class="member-row-badge deleted">합쳐짐</span></span>
+          <span class="member-meta">가입 계정 "${escapeHtml(mergedInto)}"(으)로 합친 직접 등록 업체입니다.</span>
+        </span>
+        <span class="member-cell member-contact"><strong>${escapeHtml(user.phone || '연락처 미입력')}</strong><span class="member-email">로그인 계정 없음</span></span>
+        <span class="member-cell member-location"><span class="member-address">${escapeHtml(address || '배송지 미입력')}</span><small>${user.mealTime ? `식사 ${escapeHtml(user.mealTime)}` : '식사 시간 미설정'}</small></span>
+        <span class="member-cell member-order"><strong>합쳐짐</strong><small>기록은 가입 계정에 있음</small></span>
+        <span class="member-cell member-price"><strong>-</strong><small>정산 제외</small></span>
+      </div>
+    </article>
+  `;
+  }
   return `
     <article class="member-row is-deleted" data-member-uid="${escapeHtml(uid)}">
       <div class="member-row-main">
@@ -8698,6 +8775,10 @@ function exportMemberPhoneExcel() {
 }
 
 async function restoreMember(uid) {
+  if (deletedUsers[uid]?.mergedInto) {
+    showToast('가입 계정으로 합친 업체는 복구할 수 없습니다. 기록이 가입 계정으로 옮겨져 있습니다.');
+    return;
+  }
   if (!confirm('이 회원을 복구할까요? 고객 로그인이 다시 가능해집니다.')) return;
   try {
     await db.collection('users').doc(uid).update({
@@ -8744,6 +8825,7 @@ function openBusinessCreate() {
   document.getElementById('edit-phone').value = '';
   document.getElementById('edit-member-email').textContent = '로그인 계정 없음 (관리자 직접 등록)';
   document.getElementById('edit-member-subtitle').textContent = '앱 가입 없이 업체를 등록합니다. 수동 배송 입력에서 바로 선택할 수 있습니다.';
+  document.getElementById('member-merge-row').style.display = 'none';
   document.getElementById('edit-place').value = '';
   document.getElementById('edit-place-detail').value = '';
   setMealTimeControls('edit', '');
@@ -8858,6 +8940,8 @@ function openMemberEdit(uid) {
   resetPasswordResetLinkBox();
   const resetLinkRow = document.querySelector('#member-modal .member-reset-link-row');
   if (resetLinkRow) resetLinkRow.style.display = u.email ? '' : 'none';
+  // 직접 등록한 업체가 나중에 앱에 가입했을 때 그 계정과 합치는 버튼
+  document.getElementById('member-merge-row').style.display = isAdminRegisteredBusiness({ ...u, uid }) ? '' : 'none';
   document.getElementById('edit-member-subtitle').textContent = [u.businessName || u.name || '고객', u.phone || '연락처 미입력'].join(' · ');
   document.getElementById('edit-place').value = u.deliveryPlace || u.address || '';
   document.getElementById('edit-place-detail').value = u.deliveryPlaceDetail || '';
@@ -15157,6 +15241,817 @@ async function moveSettlementCarryover(month, sourceRow, targetUid, targetUser) 
   }, { merge: true });
   batch.set(settlementItemRef(month, sourceRow.uid), { ...source, updatedAt: now }, { merge: true });
   await batch.commit();
+}
+
+// ───────── 직접 등록 업체 → 가입 계정 합치기 ─────────
+// 관리자가 직접 등록한 업체(biz_…)는 로그인 계정이 없다. 그 업체가 나중에 앱에 가입하면
+// 계정이 둘이 되어 주문표에 두 줄이 잡힌다. 손님은 가입한 계정으로 로그인하므로
+// 직접 등록 쪽에 쌓인 기록을 가입 계정으로 옮기고 직접 등록 쪽을 닫는다.
+//
+// uid 가 붙은 문서를 전부 옮긴다.
+//   deliveryRecords/{날짜}.records[uid]       배송기록
+//   orders/{날짜}/items/{uid}                 주문·휴무
+//   orderDefaultSnapshots/{날짜}/items/{uid}  잠금 시점 기본수량
+//   settlements/{월}/items/{uid}              정산 (입금 기록·이월 포함)
+//   users · userPrivate · taxCertificates     단가와 설정
+// 단가는 언제나 직접 등록한 값을 쓴다. 가입 화면에는 단가 칸이 없어 가입 계정에는 기본 단가뿐이다.
+// 정산 탭의 "정산 행 합치기"는 한 달치 배송만 옮기고 입금이 있으면 막는다. 여기는 전 기간을 옮긴다.
+const MEMBER_MERGE_FUTURE_MONTHS = 12; // 휴무는 1년 앞까지 잡아둘 수 있다 (MEMBER_HOLIDAY_MAX_FUTURE_DAYS)
+const MEMBER_MERGE_PAST_MONTH_LIMIT = 36;
+// 배송완료는 다음 날 아침에 누르기도 한다. 이만큼 지난 날짜까지는 아직 완료 전일 수 있다고 본다.
+const MEMBER_MERGE_PENDING_DAYS = 7;
+const MEMBER_MERGE_LIST_LIMIT = 8;
+const MEMBER_MERGE_SCAN_TTL_MS = 3 * 60 * 1000;
+let memberMergeSourceUid = '';
+let memberMergeTargetUid = '';
+let memberMergeScan = null;
+let memberMergeScanToken = 0;
+let memberMergeOverlapMode = '';
+let memberMergeNotice = '';
+let memberMergeBusy = false;
+
+function memberPhoneDigits(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+// 합칠 수 있는 대상은 앱으로 가입한(로그인 계정이 있는) 살아 있는 업체다.
+// 업체명·번호가 같은 계정을 맨 위에, 그다음은 최근에 가입한 순으로 보여준다.
+function memberMergeCandidates(sourceUid, query = '') {
+  const source = allUsers[sourceUid] || {};
+  const nameKey = normalizedBusinessKey(source.businessName);
+  const phoneKey = memberPhoneDigits(source.phone);
+  return Object.entries(allUsers)
+    .filter(([uid, user]) => uid !== sourceUid && !isAdminRegisteredBusiness({ ...user, uid }))
+    .filter(([uid, user]) => memberMatchesSearch(uid, user, query))
+    .map(([uid, user]) => ({
+      uid,
+      user,
+      sameName: Boolean(nameKey) && normalizedBusinessKey(user.businessName) === nameKey,
+      samePhone: Boolean(phoneKey) && memberPhoneDigits(user.phone) === phoneKey
+    }))
+    .sort((a, b) => (Number(b.sameName) + Number(b.samePhone)) - (Number(a.sameName) + Number(a.samePhone))
+      || memberCreatedMillis(b.user) - memberCreatedMillis(a.user)
+      || (a.user.businessName || '').localeCompare(b.user.businessName || '', 'ko'));
+}
+
+// 가입 계정에 덮어쓸 값. user 는 users/{uid}, private 는 userPrivate/{uid} 에 쓴다.
+// 빈 문자열로 온 일시정지 날짜는 저장할 때 필드를 지우라는 뜻이다.
+function memberMergeProfilePatch(source = {}, target = {}, { keepSourceSettings = true } = {}) {
+  const user = { ...publicUserPricePayload(userLunchPrice(source), userSaladPrice(source)) };
+  const priv = {};
+  const sourcePhone = String(source.phone || '').trim();
+  if (!String(target.phone || '').trim() && sourcePhone) user.phone = sourcePhone;
+  const memo = [...new Set([adminMemoValue(target), adminMemoValue(source)].filter(Boolean))].join(' / ');
+  if (memo) priv.adminMemo = memo;
+  if (isDisposableLunchUser(source) || isDisposableLunchUser(target)) priv.disposableLunch = true;
+  if (!keepSourceSettings) return { user, private: priv };
+
+  const name = String(source.businessName || '').trim();
+  if (name) user.businessName = name;
+  if (source.mealTime) user.mealTime = source.mealTime;
+  const lunch = parseCount(source.defaultLunch, 2);
+  const salad = parseCount(source.defaultSalad, 0);
+  const meals = normalizeWeekdayMeals(source, lunch, salad);
+  user.defaultLunch = lunch;
+  user.defaultSalad = salad;
+  user.weekdayMeals = meals;
+  user.sameDailyMeal = source.sameDailyMeal ?? !hasDifferentWeekdayMeals(meals, lunch, salad);
+  const serviceStart = userServiceStartDateStr(source);
+  if (serviceStart) user.serviceStartDate = serviceStart;
+  user.mealPaused = source.mealPaused === true;
+  user.mealPauseStartDate = user.mealPaused ? String(source.mealPauseStartDate || '') : '';
+  user.mealResumeDate = user.mealPaused ? String(source.mealResumeDate || '') : '';
+  const place = String(source.deliveryPlace || source.address || '').trim();
+  if (place) {
+    priv.deliveryPlace = place;
+    priv.deliveryPlaceDetail = String(source.deliveryPlaceDetail || '').trim();
+  }
+  return { user, private: priv };
+}
+
+// 배송완료됐거나 수량이 있는 기록. 주문 삭제 표시나 빈 기록은 아니다.
+function memberMergeRecordIsLive(record) {
+  return Boolean(record) && !record.deleted && !record.orderDeleted
+    && (Boolean(record.delivered) || orderTotalQty(record) > 0);
+}
+
+// 'none' 옮길 것 없음 · 'move' 그대로 옮김 · 'overlap' 양쪽 다 기록이 있어 관리자가 고른다 · 'drop' 버림
+function memberMergeRecordAction(sourceRecord, targetRecord) {
+  if (!sourceRecord || sourceRecord.deleted) return 'none';
+  if (memberMergeRecordIsLive(sourceRecord)) {
+    return memberMergeRecordIsLive(targetRecord) ? 'overlap' : 'move';
+  }
+  // 주문 삭제 표시(그날 기본 주문을 빼 둔 것)는 가입 계정에 그날 기록이 없을 때만 옮긴다.
+  if (sourceRecord.orderDeleted && !targetRecord) return 'move';
+  return 'drop';
+}
+
+function memberMergeMovedRecord(record = {}, sourceUid, targetUid, businessName = '') {
+  const moved = { ...record, uid: targetUid, mergedFrom: sourceUid };
+  if (businessName) moved.businessName = businessName;
+  // 가입 계정 쪽에 주문 삭제 표시가 남아 있으면 그 위에 덮이므로 분명히 풀어 둔다.
+  if (memberMergeRecordIsLive(record)) {
+    moved.deleted = false;
+    moved.orderDeleted = false;
+  }
+  return moved;
+}
+
+// 같은 날 양쪽 모두 기록이 있을 때. null 이면 가입 계정 기록을 그대로 둔다.
+function memberMergeOverlapRecord(mode, sourceUid, targetUid, targetUser, sourceRecord, targetRecord) {
+  if (mode === 'target') return null;
+  if (mode === 'source') return memberMergeMovedRecord(sourceRecord, sourceUid, targetUid, targetUser.businessName);
+  const merged = mergedDeliveryRecordFor(targetUid, targetUser, targetRecord, { ...sourceRecord, uid: sourceUid });
+  return {
+    ...merged,
+    // 가입 계정이 원래 갖고 있던 수량이 섞여 있다는 표시. 이 달 정산은 배송기록에서 다시 내야 한다.
+    mergedSum: true,
+    // mergedDeliveryRecordFor 는 대상이 미완료면 미완료로 둔다. 한쪽이라도 배송했으면 배송한 것이다.
+    delivered: Boolean(targetRecord.delivered || sourceRecord.delivered),
+    deliveredAt: targetRecord.deliveredAt || sourceRecord.deliveredAt || null
+  };
+}
+
+// 'none' · 'move' 그대로 옮김 · 'drop' 같은 날 가입 계정 주문이 있어 그쪽을 둔다
+function memberMergeOrderAction(sourceOrder, targetOrder) {
+  if (!sourceOrder) return 'none';
+  return targetOrder ? 'drop' : 'move';
+}
+
+// 가입 계정은 가입한 날 뒤로만 '요일 기본값' 줄이 생긴다. 그 전 날짜는 주문 문서가 있어야 주문표에 줄이 뜬다.
+// 관리자가 수량을 고쳐 저장했을 때(saveInlineQty)와 같은 모양의 주문 문서를 만든다.
+function memberMergeAdminOrder(counts = {}, date, sourceUid, targetUid) {
+  return {
+    uid: targetUid,
+    targetDate: date,
+    lunchCount: Number(counts.lunch) || 0,
+    saladCount: Number(counts.salad) || 0,
+    eventLunchCount: Number(counts.event) || 0,
+    cateringItems: window.GJS_CATERING.normalizeItems(counts.cateringItems || []),
+    disposableLunch: Boolean(counts.disposableLunch),
+    selfHoliday: false,
+    adminInput: true,
+    adminAdjusted: true,
+    source: 'adminDefault',
+    submittedBy: adminUid,
+    mergedFrom: sourceUid,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+}
+
+// 배송기록만 옮기면 가입 전 날짜의 주문표에서 줄이 사라진다. 옮긴 기록과 같은 수량의 주문 문서를 남긴다.
+function memberMergeHistoryOrder(record = {}, date, sourceUid, targetUid) {
+  return memberMergeAdminOrder({
+    lunch: orderLunchQty(record),
+    salad: orderSaladQty(record),
+    event: orderEventLunchQty(record),
+    cateringItems: record.cateringItems || [],
+    disposableLunch: record.disposableLunch
+  }, date, sourceUid, targetUid);
+}
+
+// 직접 등록 쪽에 주문 문서도 배송기록도 없이 '요일 기본값'(잠근 날은 잠금 시점 수량) 줄만 떠 있는 날의 수량.
+// 줄이 없던 날이면 null.
+function memberMergePendingDefault(source = {}, date, snapshot = null) {
+  if (!isUserActiveOnDate(source, date)) return null;
+  const defaults = snapshot
+    ? { lunch: parseCount(snapshot.lunchCount, 0), salad: parseCount(snapshot.saladCount, 0), event: parseDeliveryCount(snapshot.eventLunchCount ?? snapshot.eventLunchQty, 0) }
+    : { ...defaultMealsForDate(source, date), event: 0 };
+  const counts = normalizeQtyValuesForUser(source, { lunch: defaults.lunch, salad: defaults.salad, event: defaults.event });
+  if ((counts.lunch + counts.salad + counts.event) <= 0) return null;
+  return { ...counts, disposableLunch: isDisposableLunchUser(source) };
+}
+
+// 아직 배송완료 전인 줄을 가입 계정 주문으로 남겨야 하는 날인가.
+// 직접 등록을 닫으면 그 '요일 기본값' 줄이 사라지는데, 가입 계정은 가입한 날 뒤로만 줄이 생긴다.
+// 가입 당일(마감 뒤 가입)이나 어제처럼 아직 완료를 누르지 않은 날이 주문표에서 통째로 빠져
+// 배송도 청구도 안 되는 일을 막는다.
+function memberMergeKeepsPending(d = {}, targetUser = {}) {
+  return Boolean(d.pendingDefault) && !d.sourceRecord && !d.sourceOrder && !d.targetOrder && !d.targetRecord
+    && !isUserActiveOnDate(targetUser, d.date);
+}
+
+// 입금 기록 없이 "입금완료"만 찍힌 예전 정산은 청구액 전부를 받은 것으로 본다(settlementPaidTotal).
+// 그대로 다른 문서와 합치면 그 입금이 사라지므로 기록 한 줄로 바꿔서 합친다.
+function memberMergePayments(doc = {}) {
+  const payments = Array.isArray(doc.payments) ? doc.payments.filter(Boolean) : [];
+  if (payments.length) return payments;
+  const paid = settlementPaidTotal(doc);
+  return paid > 0
+    ? [{ amount: paid, date: doc.paidDate || '', note: '(합치기 전 입금)', recordedAt: doc.updatedAt || '' }]
+    : [];
+}
+
+// 'none' 옮길 정산 없음 · 'move' 문서를 그대로 옮김(금액·입금·이월 그대로) ·
+// 'combine' 가입 계정에도 그 달 정산이 있어 합침 · 'blocked' 자동으로 못 합침
+function memberMergeSettlementAction(sourceDoc, targetDoc, sourceUid = '') {
+  if (!sourceDoc) return 'none';
+  if (!targetDoc) return 'move';
+  // 합치다 끊긴 달. 가입 계정 문서에 이미 이 업체 것이 얹혀 있으니 이어서 마무리한다.
+  if (sourceUid && targetDoc.mergedFrom === sourceUid) return 'combine';
+  // 한쪽이 다음 달로 이월돼 있으면 이월 금액과 "이월" 상태를 어느 몫으로 볼지 정할 수 없다.
+  if (sourceDoc.carriedOverTo || targetDoc.carriedOverTo) return 'blocked';
+  return 'combine';
+}
+
+// 가입 계정이 그 달에 원래 갖고 있던 배송(직접 등록 기록과 더한 것 포함)이 있는가.
+// 있으면 직접 등록 쪽 정산 문서를 그대로 옮겨서는 안 맞고, 배송기록에서 다시 계산해야 한다.
+function memberMergeRecordIsTargetOwn(record, sourceUid) {
+  return memberMergeRecordIsLive(record) && Boolean(record.delivered)
+    && (record.mergedFrom !== sourceUid || record.mergedSum === true);
+}
+
+function memberMergeSettlementMoveData(sourceDoc = {}, sourceUid, targetUid, businessName = '') {
+  return {
+    ...sourceDoc,
+    uid: targetUid,
+    businessName: businessName || sourceDoc.businessName || '',
+    mergedFrom: sourceUid,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+// 가입 계정의 그 달 정산에 얹을 값. 수량과 금액은 뒤이은 재계산이 배송기록에서 다시 낸다.
+function memberMergeSettlementCombinePatch(sourceDoc = {}, targetDoc = {}, sourceUid) {
+  const now = new Date().toISOString();
+  const payments = [...memberMergePayments(targetDoc), ...memberMergePayments(sourceDoc)];
+  const patch = {
+    payments,
+    paidAmount: payments.reduce((sum, p) => sum + (parseInt(p.amount, 10) || 0), 0),
+    adjust: (parseInt(targetDoc.adjust, 10) || 0) + (parseInt(sourceDoc.adjust, 10) || 0),
+    note: [...new Set([targetDoc.note, sourceDoc.note].map(text => String(text || '').trim()).filter(Boolean))].join(' / '),
+    mergedFrom: sourceUid,
+    updatedAt: now
+  };
+  // 보류는 사람이 일부러 잡아둔 상태라 합친 뒤에도 남긴다.
+  if (sourceDoc.status === '보류') patch.status = '보류';
+  if (settlementCarryover(sourceDoc) > 0) {
+    Object.assign(patch, settlementCarryoverMerge(
+      { uid: sourceUid, ...settlementCarryoverFields(sourceDoc) },
+      settlementCarryoverFields(targetDoc)
+    ).target, { carryoverAt: now });
+  }
+  return patch;
+}
+
+function memberMergeMonthHasSourceData(entry = {}) {
+  return Boolean(entry.sourceSettlement) || (entry.dates || []).length > 0;
+}
+
+// 미리보기에 보여줄 숫자. 실제로 옮기는 runMemberMerge 와 같은 판정 함수를 쓴다.
+// targetUser 는 합친 뒤의 가입 계정(설정을 덮어쓴 모습)이다.
+function memberMergeSummary(scan, targetUser = {}) {
+  const out = {
+    recordDays: 0, recordQty: 0, firstDate: '', lastDate: '',
+    overlaps: [], orderMoves: 0, holidayMoves: 0, orderDrops: 0, pendingDates: [],
+    settlements: [], blockedMonths: []
+  };
+  (scan?.months || []).forEach(entry => {
+    (entry.dates || []).forEach(d => {
+      if (memberMergeKeepsPending(d, targetUser)) out.pendingDates.push(d.date);
+      const recordAction = memberMergeRecordAction(d.sourceRecord, d.targetRecord);
+      if ((recordAction === 'move' || recordAction === 'overlap') && memberMergeRecordIsLive(d.sourceRecord)) {
+        out.recordDays += 1;
+        out.recordQty += orderTotalQty(d.sourceRecord);
+        if (!out.firstDate || d.date < out.firstDate) out.firstDate = d.date;
+        if (!out.lastDate || d.date > out.lastDate) out.lastDate = d.date;
+      }
+      if (recordAction === 'overlap') {
+        out.overlaps.push({ date: d.date, sourceQty: orderTotalQty(d.sourceRecord), targetQty: orderTotalQty(d.targetRecord) });
+      }
+      const orderAction = memberMergeOrderAction(d.sourceOrder, d.targetOrder);
+      if (orderAction === 'move') {
+        out.orderMoves += 1;
+        if (d.sourceOrder.selfHoliday) out.holidayMoves += 1;
+      }
+      if (orderAction === 'drop') out.orderDrops += 1;
+    });
+    const action = memberMergeSettlementAction(entry.sourceSettlement, entry.targetSettlement, scan.sourceUid);
+    if (action === 'none') return;
+    const doc = entry.sourceSettlement;
+    out.settlements.push({
+      month: entry.month,
+      action,
+      recalc: action === 'combine' || Boolean(entry.targetHasOwnRecords),
+      billed: settlementBilledTotal(doc),
+      paid: settlementPaidTotal(doc),
+      balance: settlementOutstandingBalance(doc)
+    });
+    if (action === 'blocked') out.blockedMonths.push(entry.month);
+  });
+  out.pendingDates.sort();
+  out.overlaps.sort((a, b) => a.date.localeCompare(b.date));
+  out.settlements.sort((a, b) => a.month.localeCompare(b.month));
+  return out;
+}
+
+async function memberMergeGetAll(refs, chunkSize = 40) {
+  const snaps = [];
+  for (let i = 0; i < refs.length; i += chunkSize) {
+    snaps.push(...await Promise.all(refs.slice(i, i + chunkSize).map(ref => ref.get())));
+  }
+  return snaps;
+}
+
+function memberMergeOrderRef(date, uid) {
+  return db.collection('orders').doc(date).collection('items').doc(uid);
+}
+function memberMergeSnapshotRef(date, uid) {
+  return db.collection('orderDefaultSnapshots').doc(date).collection('items').doc(uid);
+}
+
+// 한 달치를 읽는다. 직접 등록 쪽에 뭔가 있는 날짜만 남긴다.
+// withRecords 가 false 면(다다음 달부터) 주문·휴무만 본다. 배송기록과 잠금은 그렇게 먼 날짜에 없다.
+async function scanMemberMergeMonth(month, sourceUid, targetUid, adminData, withRecords = true, pendingDates = new Set()) {
+  const dates = monthDates(month);
+  const source = allUsers[sourceUid] || {};
+  const dataOf = snap => (snap && snap.exists ? (snap.data() || {}) : null);
+  const [records, sourceOrders, sourceSnapshots, sourceSettlement, targetSettlement] = await Promise.all([
+    withRecords ? loadDeliveryRecordsForDates(dates, adminData) : Promise.resolve({}),
+    memberMergeGetAll(dates.map(date => memberMergeOrderRef(date, sourceUid))),
+    withRecords ? memberMergeGetAll(dates.map(date => memberMergeSnapshotRef(date, sourceUid))) : Promise.resolve([]),
+    settlementItemRef(month, sourceUid).get(),
+    settlementItemRef(month, targetUid).get()
+  ]);
+  const entries = dates.map((date, index) => {
+    const entry = {
+      date,
+      sourceRecord: records[date]?.[sourceUid] || null,
+      targetRecord: records[date]?.[targetUid] || null,
+      sourceOrder: dataOf(sourceOrders[index]),
+      targetOrder: null,
+      sourceSnapshot: dataOf(sourceSnapshots[index]),
+      targetSnapshot: null,
+      pendingDefault: null
+    };
+    if (pendingDates.has(date) && !entry.sourceRecord && !entry.sourceOrder) {
+      entry.pendingDefault = memberMergePendingDefault(source, date, entry.sourceSnapshot);
+    }
+    return entry;
+  // 합치다 끊긴 뒤 다시 읽을 때는 이미 옮긴 기록(mergedFrom)이 있는 날도 남긴다. 그날 주문표 줄을 마저 만든다.
+  }).filter(d => d.sourceRecord || d.sourceOrder || d.sourceSnapshot || d.pendingDefault
+    || d.targetRecord?.mergedFrom === sourceUid);
+  const targetHasOwnRecords = dates.some(date => memberMergeRecordIsTargetOwn(records[date]?.[targetUid], sourceUid));
+  await Promise.all(entries.map(async d => {
+    const [order, snapshot] = await Promise.all([
+      memberMergeOrderRef(d.date, targetUid).get(),
+      d.sourceSnapshot ? memberMergeSnapshotRef(d.date, targetUid).get() : Promise.resolve(null)
+    ]);
+    d.targetOrder = dataOf(order);
+    d.targetSnapshot = dataOf(snapshot);
+  }));
+  return {
+    month,
+    dates: entries,
+    targetHasOwnRecords,
+    sourceSettlement: dataOf(sourceSettlement),
+    targetSettlement: dataOf(targetSettlement)
+  };
+}
+
+async function scanMemberMerge(sourceUid, targetUid, onProgress) {
+  const source = allUsers[sourceUid] || {};
+  const nowMonth = currentMonthStr();
+  const recordLimitMonth = shiftMonthStr(nowMonth, 1);
+  const floorMonth = [userCreatedDateStr(source).slice(0, 7), userServiceStartDateStr(source).slice(0, 7), nowMonth]
+    .filter(Boolean).sort()[0];
+  const adminDoc = await db.collection('users').doc(adminUid).get();
+  const adminData = adminDoc.exists ? adminDoc.data() : {};
+  invalidateDeliveryDateCache();
+  const today = dateStr(getKST());
+  const pendingDates = new Set();
+  for (let back = 0; back <= MEMBER_MERGE_PENDING_DAYS; back += 1) pendingDates.add(addDays(today, -back));
+  const scanMonth = month => scanMemberMergeMonth(month, sourceUid, targetUid, adminData, month <= recordLimitMonth, pendingDates);
+
+  const wanted = [];
+  for (let month = shiftMonthStr(nowMonth, MEMBER_MERGE_FUTURE_MONTHS); month >= floorMonth; month = shiftMonthStr(month, -1)) {
+    wanted.push(month);
+  }
+  const months = [];
+  for (let i = 0; i < wanted.length; i += 4) {
+    months.push(...await Promise.all(wanted.slice(i, i + 4).map(scanMonth)));
+    if (onProgress) onProgress(Math.min(i + 4, wanted.length), wanted.length);
+  }
+  // 등록한 날보다 앞선 날짜에 넣어둔 배송도 있다(센코필라테스: 9/22 등록, 9/15 배송).
+  // 빈 달이 두 번 이어질 때까지 더 거슬러 올라간다.
+  let month = shiftMonthStr(floorMonth, -1);
+  let emptyStreak = 0;
+  for (let step = 0; step < MEMBER_MERGE_PAST_MONTH_LIMIT && emptyStreak < 2; step += 1) {
+    const entry = await scanMonth(month);
+    emptyStreak = memberMergeMonthHasSourceData(entry) ? 0 : emptyStreak + 1;
+    months.push(entry);
+    month = shiftMonthStr(month, -1);
+  }
+  const [sourceTax, targetTax] = await Promise.all([
+    db.collection('taxCertificates').doc(sourceUid).get().catch(() => null),
+    db.collection('taxCertificates').doc(targetUid).get().catch(() => null)
+  ]);
+  return {
+    sourceUid,
+    targetUid,
+    at: Date.now(),
+    months: months.filter(memberMergeMonthHasSourceData).sort((a, b) => a.month.localeCompare(b.month)),
+    sourceTax: sourceTax?.exists ? (sourceTax.data() || {}) : null,
+    targetTaxExists: Boolean(targetTax?.exists)
+  };
+}
+
+// 실제로 옮긴다. 순서가 중요하다.
+//   1) 가입 계정에 단가·설정  — 뒤의 정산 재계산이 가입 계정 단가로 금액을 낸다
+//   2) 달마다 배송기록 → 주문·잠금 → 정산
+//   3) 직접 등록 쪽 닫기      — 맨 마지막. 도중에 멈추면 직접 등록이 살아 있어 다시 눌러 이어간다
+// 이미 옮긴 것은 직접 등록 쪽에서 지워졌거나 삭제 표시가 돼 있어 다시 읽으면 남은 것만 잡힌다.
+async function runMemberMerge(scan, { keepSourceSettings = true, overlapMode = '', onProgress } = {}) {
+  const { sourceUid, targetUid } = scan;
+  const source = allUsers[sourceUid];
+  const target = allUsers[targetUid];
+  if (!source || !target) throw new Error('업체 목록이 바뀌었습니다. 창을 닫고 다시 시도해주세요.');
+  if (!isAdminRegisteredBusiness({ ...source, uid: sourceUid }) || isAdminRegisteredBusiness({ ...target, uid: targetUid })) {
+    throw new Error('직접 등록한 업체를 가입 계정으로만 합칠 수 있습니다.');
+  }
+  // 막힐 일은 아무것도 쓰기 전에 가려낸다. 단가만 옮겨 놓고 멈추면 안 된다.
+  const months = [...scan.months].sort((a, b) => a.month.localeCompare(b.month));
+  const blocked = months.filter(entry => memberMergeSettlementAction(entry.sourceSettlement, entry.targetSettlement, sourceUid) === 'blocked');
+  if (blocked.length) {
+    throw new Error(`${blocked.map(entry => monthLabelKR(entry.month)).join(', ')} 정산은 자동으로 합칠 수 없습니다.`);
+  }
+  const hasOverlap = months.some(entry => entry.dates.some(d => memberMergeRecordAction(d.sourceRecord, d.targetRecord) === 'overlap'));
+  if (hasOverlap && !['sum', 'source', 'target'].includes(overlapMode)) {
+    throw new Error('같은 날 양쪽 배송기록을 어떻게 할지 골라주세요.');
+  }
+  const stamp = firebase.firestore.FieldValue.serverTimestamp();
+  const fieldDelete = firebase.firestore.FieldValue.delete();
+  const patch = memberMergeProfilePatch(source, target, { keepSourceSettings });
+
+  const userUpdate = {
+    ...patch.user,
+    mergedFrom: firebase.firestore.FieldValue.arrayUnion(sourceUid),
+    mergedAt: stamp,
+    updatedAt: stamp
+  };
+  const cachedUser = { ...target, ...patch.user, ...patch.private };
+  ['mealPauseStartDate', 'mealResumeDate'].forEach(key => {
+    if (key in patch.user && !patch.user[key]) {
+      userUpdate[key] = fieldDelete;
+      delete cachedUser[key];
+    }
+  });
+  if (patch.user.mealPaused === true) {
+    userUpdate.mealPausedAt = source.mealPausedAt || stamp;
+    userUpdate.mealPausedBy = source.mealPausedBy || adminUid || '';
+  } else if (patch.user.mealPaused === false) {
+    userUpdate.mealPausedAt = fieldDelete;
+    userUpdate.mealPausedBy = fieldDelete;
+    delete cachedUser.mealPausedAt;
+    delete cachedUser.mealPausedBy;
+  }
+  await db.collection('users').doc(targetUid).update(userUpdate);
+  if (Object.keys(patch.private).length) {
+    await userPrivateRef(targetUid).set({ ...patch.private, updatedAt: stamp }, { merge: true });
+  }
+  if (scan.sourceTax && !scan.targetTaxExists) {
+    await db.collection('taxCertificates').doc(targetUid).set({
+      ...scan.sourceTax,
+      userId: targetUid,
+      customerName: cachedUser.businessName || '',
+      phone: cachedUser.phone || '',
+      email: cachedUser.email || '',
+      updatedBy: auth.currentUser?.email || adminUid || '',
+      updatedAt: stamp
+    });
+  }
+  allUsers[targetUid] = cachedUser;
+
+  const tombstone = { deleted: true, deletedAt: stamp, deletedBy: adminUid, mergedInto: targetUid };
+  for (const [index, entry] of months.entries()) {
+    if (onProgress) onProgress(index + 1, months.length, entry.month);
+    const settlementAction = memberMergeSettlementAction(entry.sourceSettlement, entry.targetSettlement, sourceUid);
+    let deliveredFromSource = false;
+    const ops = [];
+    for (const d of entry.dates) {
+      const recordAction = memberMergeRecordAction(d.sourceRecord, d.targetRecord);
+      let moved = null;
+      if (recordAction !== 'none') {
+        if (recordAction === 'move') {
+          moved = memberMergeMovedRecord(d.sourceRecord, sourceUid, targetUid, cachedUser.businessName);
+        } else if (recordAction === 'overlap') {
+          moved = memberMergeOverlapRecord(overlapMode, sourceUid, targetUid, cachedUser, d.sourceRecord, d.targetRecord);
+        }
+        const rows = { [sourceUid]: tombstone };
+        if (moved) rows[targetUid] = { ...moved, mergedAt: stamp };
+        await saveDeliveryRecords(d.date, rows);
+      }
+      // 이번에 옮겼든, 끊기기 전에 이미 옮겼든 직접 등록에서 넘어온 배송완료 기록이면 그날 주문표 줄을 챙긴다.
+      const landed = moved || d.targetRecord;
+      if (landed?.delivered && landed.mergedFrom === sourceUid) {
+        deliveredFromSource = true;
+        if (!d.sourceOrder && !d.targetOrder && !isUserActiveOnDate(cachedUser, d.date)) {
+          ops.push({ type: 'set', ref: memberMergeOrderRef(d.date, targetUid), data: memberMergeHistoryOrder(landed, d.date, sourceUid, targetUid) });
+        }
+      }
+      if (memberMergeKeepsPending(d, cachedUser)) {
+        ops.push({ type: 'set', ref: memberMergeOrderRef(d.date, targetUid), data: memberMergeAdminOrder(d.pendingDefault, d.date, sourceUid, targetUid) });
+      }
+      const orderAction = memberMergeOrderAction(d.sourceOrder, d.targetOrder);
+      if (orderAction === 'move') {
+        ops.push({ type: 'set', ref: memberMergeOrderRef(d.date, targetUid), data: { ...d.sourceOrder, uid: targetUid, mergedFrom: sourceUid } });
+      }
+      if (orderAction !== 'none') ops.push({ type: 'delete', ref: memberMergeOrderRef(d.date, sourceUid) });
+      if (d.sourceSnapshot) {
+        if (!d.targetSnapshot) {
+          ops.push({
+            type: 'set',
+            ref: memberMergeSnapshotRef(d.date, targetUid),
+            data: { ...d.sourceSnapshot, uid: targetUid, businessName: cachedUser.businessName || d.sourceSnapshot.businessName || '' }
+          });
+        }
+        ops.push({ type: 'delete', ref: memberMergeSnapshotRef(d.date, sourceUid) });
+      }
+    }
+    await commitBatchOps(ops);
+
+    const targetRef = settlementItemRef(entry.month, targetUid);
+    const sourceRef = settlementItemRef(entry.month, sourceUid);
+    // 가입 계정 정산 문서에 이 업체 것이 이미 얹혀 있다(끊기기 전에 옮겼다). 두 번 얹으면 입금이 두 배가 된다.
+    const alreadyOnTarget = entry.targetSettlement?.mergedFrom === sourceUid;
+    if (settlementAction === 'move' && !entry.targetHasOwnRecords) {
+      // 가입 계정에는 그 달 배송이 없다. 문서를 그대로 옮기고 다시 계산하지 않는다.
+      // 다시 계산하면 그 달에 따로 고쳐둔 단가가 지금 단가로 바뀐다.
+      const batch = db.batch();
+      batch.set(targetRef, memberMergeSettlementMoveData(entry.sourceSettlement, sourceUid, targetUid, cachedUser.businessName));
+      batch.delete(sourceRef);
+      await batch.commit();
+    } else if (settlementAction === 'move' || settlementAction === 'combine') {
+      // 가입 계정에도 그 달 배송이 있어 수량과 금액을 배송기록에서 다시 내야 하는 달.
+      // 직접 등록 쪽 문서는 재계산이 끝난 뒤에 지운다. 그 전에 끊기면 문서가 남아 있어 다시 눌렀을 때 이 달을 마저 끝낸다.
+      if (!alreadyOnTarget) {
+        if (settlementAction === 'move') {
+          await targetRef.set(memberMergeSettlementMoveData(entry.sourceSettlement, sourceUid, targetUid, cachedUser.businessName));
+        } else {
+          await targetRef.set(memberMergeSettlementCombinePatch(entry.sourceSettlement, entry.targetSettlement, sourceUid), { merge: true });
+        }
+      }
+      await rebuildSettlementsForUids(entry.month, [targetUid]);
+      await sourceRef.delete();
+    } else if (deliveredFromSource && !alreadyOnTarget) {
+      // 정산 문서 없이 배송기록만 넘어온 달.
+      await rebuildSettlementsForUids(entry.month, [targetUid]);
+    }
+  }
+
+  await db.collection('users').doc(sourceUid).update({
+    deleted: true,
+    disabled: true,
+    deletedAt: stamp,
+    deletedBy: adminUid || '',
+    mergedInto: targetUid,
+    mergedAt: stamp,
+    updatedAt: stamp
+  });
+}
+
+function closeMemberMergeModal() {
+  if (memberMergeBusy) return;
+  memberMergeSourceUid = '';
+  memberMergeTargetUid = '';
+  memberMergeScan = null;
+  memberMergeScanToken += 1;
+  document.getElementById('member-merge-modal')?.classList.remove('open');
+}
+
+function openMemberMergeModal() {
+  const sourceUid = document.getElementById('edit-uid').value;
+  const source = allUsers[sourceUid];
+  if (!source || !isAdminRegisteredBusiness({ ...source, uid: sourceUid })) {
+    showToast('관리자가 직접 등록한 업체에서만 쓸 수 있습니다.');
+    return;
+  }
+  memberMergeSourceUid = sourceUid;
+  memberMergeTargetUid = '';
+  memberMergeScan = null;
+  memberMergeOverlapMode = '';
+  memberMergeNotice = '';
+  memberMergeScanToken += 1;
+  document.getElementById('member-merge-source').textContent =
+    `${source.businessName || sourceUid} · 로그인 계정 없음`;
+  document.getElementById('member-merge-search').value = '';
+  document.getElementById('member-merge-keep-settings').checked = true;
+  document.getElementById('member-merge-confirm').textContent = '합치기';
+  renderMemberMergeCandidates();
+  renderMemberMergePreview();
+  document.getElementById('member-merge-modal').classList.add('open');
+}
+
+function memberMergeCandidateHtml(item, selected) {
+  const user = item.user || {};
+  const badges = [
+    item.sameName ? '<span class="member-row-badge duplicate">업체명 같음</span>' : '',
+    item.samePhone ? '<span class="member-row-badge duplicate">번호 같음</span>' : ''
+  ].join(' ');
+  const meta = [user.email || '이메일 없음', user.phone || '연락처 미입력', `가입 ${userCreatedDateStr(user) || '-'}`];
+  return `<button type="button" class="member-merge-item${selected ? ' selected' : ''}" onclick="selectMemberMergeTarget('${jsString(item.uid)}')">
+    <strong>${escapeHtml(user.businessName || user.name || '-')} ${badges}</strong>
+    <span>${escapeHtml(meta.join(' · '))}</span>
+  </button>`;
+}
+
+function renderMemberMergeCandidates() {
+  const list = document.getElementById('member-merge-list');
+  if (!list) return;
+  const query = document.getElementById('member-merge-search')?.value || '';
+  const all = memberMergeCandidates(memberMergeSourceUid, query);
+  if (!all.length) {
+    list.innerHTML = `<div class="member-merge-empty">${query ? '검색된 가입 계정이 없습니다.' : '앱으로 가입한 계정이 없습니다.'}<br>손님이 아직 앱에 가입하지 않았으면 합칠 수 없습니다.</div>`;
+    return;
+  }
+  const shown = all.slice(0, MEMBER_MERGE_LIST_LIMIT);
+  const picked = all.find(item => item.uid === memberMergeTargetUid);
+  if (picked && !shown.includes(picked)) shown.unshift(picked);
+  const more = all.length - shown.length;
+  list.innerHTML = shown.map(item => memberMergeCandidateHtml(item, item.uid === memberMergeTargetUid)).join('')
+    + (more > 0 ? `<div class="member-merge-empty">외 ${more}곳 — 업체명이나 이메일로 검색해 좁혀주세요.</div>` : '');
+}
+
+async function selectMemberMergeTarget(uid) {
+  if (memberMergeBusy || !allUsers[uid] || !memberMergeSourceUid) return;
+  memberMergeTargetUid = uid;
+  memberMergeScan = null;
+  memberMergeOverlapMode = '';
+  memberMergeNotice = '';
+  const token = ++memberMergeScanToken;
+  renderMemberMergeCandidates();
+  renderMemberMergePreview();
+  try {
+    const scan = await scanMemberMerge(memberMergeSourceUid, uid, (done, total) => {
+      if (token !== memberMergeScanToken) return;
+      const preview = document.getElementById('member-merge-preview');
+      if (preview) preview.textContent = `옮길 기록을 확인하는 중… (${done}/${total}개월)`;
+    });
+    if (token !== memberMergeScanToken) return;
+    memberMergeScan = scan;
+  } catch(e) {
+    if (token !== memberMergeScanToken) return;
+    console.error('합칠 기록 확인 실패:', e);
+    memberMergeNotice = '옮길 기록을 읽지 못했습니다: ' + e.message;
+    memberMergeTargetUid = '';
+    renderMemberMergeCandidates();
+  }
+  renderMemberMergePreview();
+}
+
+function setMemberMergeOverlapMode(mode) {
+  memberMergeOverlapMode = mode;
+  renderMemberMergePreview();
+}
+
+function memberMergeShortDate(ds) {
+  return `${Number(String(ds).slice(5, 7))}/${Number(String(ds).slice(8, 10))}`;
+}
+
+function memberMergePreviewLines(summary, patch, source = {}, target = {}, keepSourceSettings = true) {
+  const lines = [];
+  lines.push(summary.recordDays
+    ? `배송기록 <b>${summary.recordDays}일 · ${summary.recordQty}개</b> (${summary.firstDate === summary.lastDate ? memberMergeShortDate(summary.firstDate) : `${memberMergeShortDate(summary.firstDate)} ~ ${memberMergeShortDate(summary.lastDate)}`})를 가입 계정으로 옮깁니다`
+    : '옮길 배송기록이 없습니다');
+  if (summary.orderMoves) {
+    lines.push(`주문·휴무 ${summary.orderMoves}건${summary.holidayMoves ? ` (휴무 ${summary.holidayMoves}일)` : ''}을 옮깁니다`);
+  }
+  if (summary.orderDrops) {
+    lines.push(`같은 날 가입 계정에도 주문이 있는 ${summary.orderDrops}건은 가입 계정 주문을 둡니다`);
+  }
+  if (summary.pendingDates.length) {
+    lines.push(`아직 배송완료 전인 ${summary.pendingDates.map(memberMergeShortDate).join(', ')} 줄은 가입 계정 주문으로 남겨 주문표에서 빠지지 않게 합니다`);
+  }
+  if (summary.settlements.length) {
+    summary.settlements.forEach(item => {
+      const tail = item.recalc ? ' <small>— 가입 계정의 그 달 배송과 합쳐 다시 계산합니다</small>' : '';
+      lines.push(`${escapeHtml(monthLabelKR(item.month))} 정산 <b>${formatMoney(item.billed)}</b> · 입금 ${formatMoney(item.paid)} · 미수 ${formatMoney(item.balance)}${tail}`);
+    });
+  } else {
+    lines.push('옮길 정산이 없습니다');
+  }
+  lines.push(`단가는 도시락 <b>${formatMoney(patch.user.lunchPrice)}</b> / 샐러드 <b>${formatMoney(patch.user.saladPrice)}</b> — 직접 등록한 단가를 씁니다`);
+  lines.push(keepSourceSettings
+    ? `업체명 "${escapeHtml(source.businessName || '-')}", 요일별 수량, 식사 시간, 배송지는 직접 등록한 내용으로 맞춥니다`
+    : `업체명·수량·식사 시간·배송지는 손님이 가입할 때 적은 내용("${escapeHtml(target.businessName || '-')}")을 둡니다`);
+  lines.push(`직접 등록한 "${escapeHtml(source.businessName || '-')}" 업체는 삭제회원으로 내려가고 주문표에서 빠집니다. <b>되돌릴 수 없습니다.</b>`);
+  return lines;
+}
+
+function renderMemberMergePreview() {
+  const preview = document.getElementById('member-merge-preview');
+  const overlapBox = document.getElementById('member-merge-overlap');
+  const confirmBtn = document.getElementById('member-merge-confirm');
+  const errorEl = document.getElementById('member-merge-error');
+  const targetLabel = document.getElementById('member-merge-target-label');
+  if (!preview || !overlapBox || !confirmBtn) return;
+  const source = allUsers[memberMergeSourceUid] || {};
+  const target = allUsers[memberMergeTargetUid];
+  targetLabel.textContent = target
+    ? `${target.businessName || '-'} · ${target.email || '이메일 없음'}`
+    : '아래에서 고르세요';
+  errorEl.textContent = memberMergeNotice;
+  overlapBox.hidden = true;
+  confirmBtn.disabled = true;
+  if (!target) {
+    preview.hidden = true;
+    return;
+  }
+  preview.hidden = false;
+  if (!memberMergeScan) {
+    preview.textContent = '옮길 기록을 확인하는 중…';
+    return;
+  }
+  const keepSourceSettings = document.getElementById('member-merge-keep-settings').checked;
+  const patch = memberMergeProfilePatch(source, target, { keepSourceSettings });
+  const summary = memberMergeSummary(memberMergeScan, { ...target, ...patch.user });
+  preview.innerHTML = `<strong>합치면 이렇게 됩니다</strong><ul>${
+    memberMergePreviewLines(summary, patch, source, target, keepSourceSettings).map(line => `<li>${line}</li>`).join('')
+  }</ul>`;
+
+  if (summary.blockedMonths.length) {
+    errorEl.textContent = [
+      memberMergeNotice,
+      `${summary.blockedMonths.map(monthLabelKR).join(', ')} 정산은 양쪽 모두 정산이 있고 다음 달로 이월돼 있어 자동으로 합칠 수 없습니다.`,
+      '정산 탭에서 그 달 이월을 취소한 뒤 다시 시도해주세요.'
+    ].filter(Boolean).join('\n');
+    return;
+  }
+  if (summary.overlaps.length) {
+    const sourceQty = summary.overlaps.reduce((sum, item) => sum + item.sourceQty, 0);
+    const targetQty = summary.overlaps.reduce((sum, item) => sum + item.targetQty, 0);
+    const option = (value, text) => `<label><input type="radio" name="member-merge-overlap-mode" value="${value}"${memberMergeOverlapMode === value ? ' checked' : ''} onchange="setMemberMergeOverlapMode(this.value)"> ${text}</label>`;
+    overlapBox.hidden = false;
+    overlapBox.innerHTML = `<strong>같은 날 양쪽에 배송기록이 있습니다</strong>
+      <div>${summary.overlaps.map(item => `${memberMergeShortDate(item.date)} 직접 등록 ${item.sourceQty}개 · 가입 계정 ${item.targetQty}개`).join('<br>')}</div>
+      <div style="margin-top:6px">같은 배송이 두 번 잡힌 것인지, 따로 나간 것인지 골라주세요. 고른 대로 그 달 정산을 다시 계산합니다.</div>
+      ${option('source', `직접 등록 쪽만 남긴다 (${sourceQty}개)`)}
+      ${option('target', `가입 계정 쪽만 남긴다 (${targetQty}개)`)}
+      ${option('sum', `둘 다 나간 것이라 더한다 (${sourceQty + targetQty}개)`)}`;
+    if (!memberMergeOverlapMode) return;
+  }
+  confirmBtn.disabled = memberMergeBusy;
+}
+
+async function confirmMemberMerge() {
+  if (memberMergeBusy) return;
+  const scan = memberMergeScan;
+  const source = allUsers[memberMergeSourceUid];
+  const target = allUsers[memberMergeTargetUid];
+  if (!scan || !source || !target) return;
+  const summary = memberMergeSummary(scan, target);
+  if (summary.blockedMonths.length || (summary.overlaps.length && !memberMergeOverlapMode)) return;
+  const overlapMode = memberMergeOverlapMode;
+  if (Date.now() - scan.at > MEMBER_MERGE_SCAN_TTL_MS) {
+    // 창을 오래 열어 뒀으면 그사이 배송완료나 입금이 들어갔을 수 있다.
+    await selectMemberMergeTarget(memberMergeTargetUid);
+    memberMergeOverlapMode = overlapMode;
+    memberMergeNotice = '시간이 지나 옮길 기록을 다시 확인했습니다. 내용을 보고 한 번 더 눌러주세요.';
+    renderMemberMergePreview();
+    return;
+  }
+  const sourceName = source.businessName || memberMergeSourceUid;
+  const targetName = `${target.businessName || '-'} (${target.email || '이메일 없음'})`;
+  const parts = [
+    summary.recordDays ? `배송기록 ${summary.recordDays}일` : '',
+    summary.settlements.length ? `정산 ${summary.settlements.length}개월` : '',
+    summary.orderMoves ? `주문·휴무 ${summary.orderMoves}건` : ''
+  ].filter(Boolean).join(', ') || '단가와 설정';
+  if (!confirm(`직접 등록한 "${sourceName}"을(를)\n가입 계정 ${targetName} 으로 합칠까요?\n\n${parts}이(가) 가입 계정으로 옮겨지고,\n직접 등록한 업체는 삭제회원으로 내려갑니다.\n\n되돌릴 수 없습니다.`)) return;
+
+  const confirmBtn = document.getElementById('member-merge-confirm');
+  const keepSourceSettings = document.getElementById('member-merge-keep-settings').checked;
+  memberMergeBusy = true;
+  memberMergeNotice = '';
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = '합치는 중…';
+  try {
+    await runMemberMerge(scan, {
+      keepSourceSettings,
+      overlapMode,
+      onProgress: (done, total) => { confirmBtn.textContent = `합치는 중… (${done}/${total})`; }
+    });
+    memberMergeBusy = false;
+    closeMemberMergeModal();
+    closeMemberModal();
+    await loadAllUsers();
+    renderMembers();
+    loadOrders();
+    if (activeAdminTab === 'settlements') loadSettlements();
+    showToast(`✅ ${sourceName}을(를) 가입 계정으로 합쳤습니다.`);
+  } catch(e) {
+    console.error('업체 합치기 실패:', e);
+    memberMergeBusy = false;
+    confirmBtn.textContent = '합치기';
+    // 직접 등록 쪽은 맨 마지막에 닫으므로 아직 살아 있다. 어디까지 옮겨졌는지 다시 읽어 보여준다.
+    await loadAllUsers().catch(() => {});
+    renderMembers();
+    const targetUid = memberMergeTargetUid;
+    if (allUsers[memberMergeSourceUid] && allUsers[targetUid]) await selectMemberMergeTarget(targetUid);
+    memberMergeOverlapMode = overlapMode;
+    memberMergeNotice = `합치는 도중 멈췄습니다: ${e.message}\n일부만 옮겨졌을 수 있습니다. 위 내용을 다시 확인하고 "합치기"를 한 번 더 눌러주세요. 남은 것만 이어서 옮깁니다.`;
+    renderMemberMergePreview();
+  }
 }
 
 // 저장된 정산 문서(settlements/{월}/items/{uid})를 배송기록 기준으로 다시 계산한다.
