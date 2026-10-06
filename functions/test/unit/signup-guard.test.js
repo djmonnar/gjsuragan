@@ -53,6 +53,31 @@ test('지워지거나 정지된 계정은 막지 않는다', () => {
   assert.equal(guard.findDuplicateAccount([{ ...순수식품, disabled: true }], candidate), null);
 });
 
+test('관리자가 직접 등록한 업체와 같아도 가입을 막지 않는다', () => {
+  // 직접 등록한 업체는 로그인 계정이 없다. "기존 계정으로 로그인하세요"라고 돌려보내면
+  // 그 업체는 앱을 쓸 길이 없다. 가입은 받고 관리자가 '가입 계정과 합치기'로 합친다.
+  const candidate = { businessName: '센코필라테스', phone: '010-4424-0000' };
+  const 직접등록 = { uid: 'biz_1790035140440', businessName: '센코필라테스', phone: '01044240000', adminRegistered: true };
+  assert.equal(guard.findDuplicateAccount([직접등록], candidate, 'new-uid'), null);
+  // 표시가 빠진 옛 문서도 uid 로 알아본다.
+  assert.equal(guard.findDuplicateAccount([{ ...직접등록, adminRegistered: undefined }], candidate, 'new-uid'), null);
+  // 같은 업체가 이미 앱으로 가입해 있으면 그 계정 때문에는 여전히 막힌다.
+  const 가입계정 = { uid: 'auth-senko', businessName: '센코 필라테스', phone: '010 4424 0000' };
+  assert.equal(guard.findDuplicateAccount([직접등록, 가입계정], candidate, 'new-uid')?.uid, 'auth-senko');
+});
+
+test('직접 등록 업체 판정은 관리자 화면과 같다', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const adminSource = fs.readFileSync(path.resolve(__dirname, '../../../admin.html'), 'utf8');
+  // 한쪽만 바꾸면, 화면에는 '직접 등록'으로 보이는데 가입은 막히는 업체가 생긴다.
+  assert.match(adminSource, /function isAdminRegisteredBusiness\(user = \{\}\) \{\s*return Boolean\(user\.adminRegistered\) \|\| String\(user\.uid \|\| ''\)\.startsWith\('biz_'\);/);
+  assert.equal(guard.isAdminRegistered({ adminRegistered: true }), true);
+  assert.equal(guard.isAdminRegistered({ uid: 'biz_123' }), true);
+  assert.equal(guard.isAdminRegistered({ uid: 'auth-uid' }), false);
+  assert.equal(guard.isAdminRegistered(), false);
+});
+
 test('자기 계정 때문에 막히지 않는다', () => {
   // 가입이 중간에 끊겨 다시 시도하는 경우 본인 문서가 이미 있을 수 있다.
   const candidate = { businessName: '주식회사 순수식품', phone: '01020343477' };

@@ -33,10 +33,19 @@ function duplicateKey(businessName, phone) {
   return `${name}|${digits}`;
 }
 
+// 관리자가 직접 등록한 업체(로그인 계정 없음). 관리자 화면의 isAdminRegisteredBusiness 와 같은 기준이다.
+function isAdminRegistered(user = {}) {
+  return Boolean(user.adminRegistered) || String(user.uid || '').startsWith('biz_');
+}
+
 // 지워지거나 정지된 계정은 막지 않는다.
 // 그만뒀다 다시 시작하는 업체가 가입을 못 하면 안 된다.
+//
+// 관리자가 직접 등록한 업체도 막지 않는다. 그 업체는 로그인할 계정이 없어서
+// "기존 계정으로 로그인하세요"라고 돌려보내면 앱을 쓸 길이 아예 없다.
+// 가입은 받고, 관리자가 고객 관리에서 '가입 계정과 합치기'로 하나로 합친다.
 function blocksSignup(user = {}) {
-  return !user.deleted && !user.disabled;
+  return !user.deleted && !user.disabled && !isAdminRegistered(user);
 }
 
 // 이미 가입된 업체를 찾는다. 없으면 null.
@@ -56,6 +65,7 @@ module.exports = {
   normalizeName,
   normalizePhone,
   duplicateKey,
+  isAdminRegistered,
   blocksSignup,
   findDuplicateAccount
 };
