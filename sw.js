@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v86-daily-once';
+const CACHE = 'gjsuragan-v87-event-price';
 const PRECACHE = [
   './customer.html',
   './admin.html',
@@ -22,7 +22,7 @@ const PRECACHE = [
   './assets/js/catering-catalog.js',
   './assets/js/notice-memos.js',
   './assets/img/event-lunch-banner.jpg',
-  './assets/img/event-menu.jpg',
+  './assets/img/event-menu-202610.webp',
   './icons/icon.svg',
   './manifest.json',
   './admin-manifest.json'
