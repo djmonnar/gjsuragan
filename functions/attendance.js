@@ -234,18 +234,30 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       // 태블릿에 보여줘야 각자 자기 것을 눌러 퇴근할 수 있다.
       shifts.where('checkOutAt', '==', null).get()
     ]);
+    const at = now();
     const floor = model.floor(device.floor);
     const people = snap.docs.map(serialize).filter(e => !e.deletedAt && model.floor(e.floor) === floor);
     const sharedIds = new Set(people.filter(model.isSharedSlot).map(e => e.id));
+    const open = openSnap.docs.map(serialize).filter(s => !s.voided);
+    const openById = new Map(open.map(s => [s.id, s]));
     const openBySlot = new Map();
-    openSnap.docs.map(serialize).filter(s => !s.voided && sharedIds.has(s.employeeId)).forEach(s => {
+    // 퇴근 누락으로 넘어간 근무는 태블릿에서 퇴근을 받지 않으므로 퇴근 칸을 띄우지 않는다.
+    // 관리자가 퇴근 시간을 넣을 때까지 관리 화면에만 남는다.
+    open.filter(s => sharedIds.has(s.employeeId) && !model.isForgottenShift(s, at)).forEach(s => {
       if (!openBySlot.has(s.employeeId)) openBySlot.set(s.employeeId, []);
       openBySlot.get(s.employeeId).push({ id: s.id, checkInAt: s.checkInAt, workerName: s.workerName || '' });
     });
     openBySlot.forEach(list => list.sort((a, b) => a.checkInAt - b.checkInAt));
     return {
-      employees: people.map(e => ({ ...model.kioskEmployee(e), openShifts: openBySlot.get(e.id) || [] })),
-      deviceName: device.name, floor, serverNow: now()
+      employees: people.map(e => {
+        // 걸려 있는 근무가 퇴근 누락이면 태블릿은 퇴근 대신 새 출근을 받는다.
+        // 출근 시각은 그 근무에서 읽는다. 관리자가 뒤의 날짜를 넣으면 lastShift 는 그 기록을 가리킨다.
+        const current = openById.get(e.currentShiftId);
+        const forgotten = !model.isSharedSlot(e) && model.isForgottenShift(current, at);
+        return { ...model.kioskEmployee(e), forgottenShift: forgotten,
+          forgottenCheckInAt: forgotten ? current.checkInAt : null, openShifts: openBySlot.get(e.id) || [] };
+      }),
+      deviceName: device.name, floor, serverNow: at
     };
   }
   async function authorizeDevice(token) {
@@ -277,7 +289,15 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       const dailyPaid = model.isDailyPaid(employee.payType);
       if (input.kind === 'in') {
         // 일일근무자 자리는 여러 사람이 같이 쓴다. 이미 누가 들어와 있어도 새로 찍을 수 있어야 한다.
-        if (!shared && employee.currentShiftId) model.fail('이미 출근한 상태입니다. 화면을 새로고침해 주세요.', 409);
+        // 걸려 있는 근무가 퇴근 누락(출근 뒤 18시간)이면 새 출근을 받는다. 그 근무는 관리자가
+        // 퇴근 시간을 넣을 때까지 열린 채 남고, 급여에는 잡히지 않는다.
+        if (!shared && employee.currentShiftId) {
+          const currentSnap = await tx.get(shifts.doc(employee.currentShiftId));
+          const current = currentSnap.exists ? serialize(currentSnap) : null;
+          if (current && !current.voided && current.checkOutAt === null && !model.isForgottenShift(current, at)) {
+            model.fail('이미 출근한 상태입니다. 화면을 새로고침해 주세요.', 409);
+          }
+        }
         // 일당은 하루 한 번이다. 퇴근한 뒤 출근을 또 누르면 그날 일당이 두 번 잡혔다.
         // 다시 일했다면 관리자가 첫 기록의 퇴근 시각을 늘려 고친다.
         const last = employee.lastShift;
@@ -286,9 +306,11 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         }
         // 자리는 퇴근할 사람이 자기 칸 대신 '출근' 칸을 눌러 기록이 하나 더 생기는 일이 있었다.
         // 오늘 이 칸으로 들어와 있는 사람이 있으면 '다른 분이 새로 출근'이라고 확인받아야 만든다.
+        // 퇴근 누락으로 넘어간 칸은 태블릿에 안 뜨므로 여기서도 세지 않는다. 세면 화면에 없는
+        // 사람 때문에 출근이 막힌다.
         if (shared && input.another !== true) {
           const openToday = (await tx.get(shifts.where('employeeId', '==', employee.id).where('checkOutAt', '==', null))).docs
-            .map(serialize).filter(s => !s.voided && model.workDate(s.checkInAt) === model.workDate(at))
+            .map(serialize).filter(s => !s.voided && model.workDate(s.checkInAt) === model.workDate(at) && !model.isForgottenShift(s, at))
             .sort((a, b) => a.checkInAt - b.checkInAt);
           if (openToday.length) {
             const times = openToday.map(s => model.clockText(s.checkInAt)).join(', ');
@@ -338,7 +360,11 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         // 다른 자리의 기록을 지정해 퇴근시키지 못하게 한다.
         if (before.employeeId !== employee.id) model.fail('이 자리의 출근 기록이 아닙니다.', 409);
         if (before.voided || before.checkOutAt !== null) model.fail('이미 처리된 근무입니다.', 409);
-        if (at - before.checkInAt > model.MAX_SHIFT_MS) model.fail('출근 후 36시간이 지났습니다. 관리자에게 시간 수정을 요청해 주세요.', 409);
+        // 퇴근 누락으로 넘어간 근무는 태블릿에서 퇴근을 받지 않는다. 다음 날 퇴근을 눌러
+        // 하루 넘는 근무가 급여로 잡히면 안 된다. 실제 퇴근 시간은 관리자가 넣는다.
+        if (model.isForgottenShift(before, at)) {
+          model.fail(`출근 후 ${model.FORGOTTEN_SHIFT_MS / 3600000}시간이 지나 퇴근 누락으로 넘어간 근무입니다. 목록을 새로고침한 뒤 출근을 새로 찍어 주세요. 지난 근무의 퇴근 시간은 관리자가 넣습니다.`, 409);
+        }
         if (at <= before.checkInAt) model.fail('출근 시간 이후에 퇴근할 수 있습니다.', 409);
         record = { ...before, checkOutAt: at, updatedAt: at, version: before.version + 1 };
         // 이 기능이 붙기 전에 출근한 기록에는 통상시급이 없다. 퇴근할 때 채워 준다.
@@ -377,7 +403,7 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       const dailyPaidShift = !remove && model.isDailyPaid(data.payType);
       const others = recordsSnap.docs.map(serialize).filter(s => s.id !== ref.id && !s.voided);
       // 일일근무자 자리는 여러 사람이 같은 시간에 일하는 것이 정상이다. 겹침은 오류가 아니다.
-      if (!remove && !model.isSharedSlot(employee) && others.some(s => model.overlaps(data, s))) {
+      if (!remove && !model.isSharedSlot(employee) && others.some(s => model.overlaps(data, s, now()))) {
         model.fail('이 직원의 다른 근무시간과 겹칩니다. 기존 기록을 확인해 주세요.', 409);
       }
       const after = remove ? { ...before, voided: true, updatedAt: now(), version: before.version + 1 } : {

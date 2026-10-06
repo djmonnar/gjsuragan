@@ -692,3 +692,85 @@ test('월급 직원 조퇴 차감이 기록에 남고 옛 화면이 저장해도
   assert.equal((await service.listAdmin('2026-09')).shifts[0].deductionAmount, 0);
   await assert.rejects(service.saveShift({ ...(await getShift(input.shiftId)), deductionAmount: -1 }, 'admin'), { status: 400 });
 });
+
+test('퇴근을 빠뜨리고 18시간이 지나면 다음 출근을 새로 받고, 빠뜨린 근무는 관리자 확인으로 남는다', async () => {
+  const first = await punch('in', 'forgot-in');
+  now += 18 * hour;
+  // 딱 18시간이면 아직 근무 중이다. 출근을 또 받지 않는다.
+  await assert.rejects(punch('in', 'too-early'), { status: 409 });
+  assert.equal((await service.listKiosk(token)).employees[0].forgottenShift, false);
+  now += 6 * hour;
+  let kiosk = (await service.listKiosk(token)).employees[0];
+  assert.equal(kiosk.forgottenShift, true);
+  assert.equal(kiosk.forgottenCheckInAt, first.at);
+  // 빠뜨린 근무의 퇴근은 태블릿에서 받지 않는다. 하루 넘는 근무가 급여로 잡히면 안 된다.
+  await assert.rejects(punch('out', 'late-out', first.shiftId), { status: 409 });
+  const second = await punch('in', 'next-day-in');
+  assert.notEqual(second.shiftId, first.shiftId);
+  assert.equal((await getEmployee()).currentShiftId, second.shiftId);
+  kiosk = (await service.listKiosk(token)).employees[0];
+  assert.equal(kiosk.forgottenShift, false);
+  assert.equal(kiosk.currentShiftId, second.shiftId);
+  now += 8 * hour;
+  await punch('out', 'next-day-out', second.shiftId);
+  let report = await service.listAdmin('2026-09');
+  // 빠뜨린 근무는 열린 채 남아 급여에서 빠지고, 다음 날 근무만 잡힌다.
+  assert.deepEqual(report.openShifts.map(s => s.id), [first.shiftId]);
+  assert.equal(report.shifts.reduce((sum, s) => sum + s.amount, 0), 96000);
+  // 관리자가 빠뜨린 날의 퇴근 시간을 넣으면 그날도 잡힌다. 다음 날 기록과 겹치지 않는다.
+  const forgotten = await getShift(first.shiftId);
+  await service.saveShift({ ...forgotten, checkOutAt: forgotten.checkInAt + 8 * hour, note: '퇴근 누락' }, 'admin');
+  report = await service.listAdmin('2026-09');
+  assert.equal(report.openShifts.length, 0);
+  assert.equal(report.shifts.reduce((sum, s) => sum + s.amount, 0), 192000);
+  assert.equal((await getEmployee()).currentShiftId, null);
+});
+
+test('빠뜨린 근무가 열려 있어도 관리자가 그 뒤의 다른 날 기록을 넣을 수 있다', async () => {
+  const first = await punch('in', 'gap-in');
+  now += 3 * 24 * hour;
+  const dayTwo = first.at + 24 * hour;
+  await service.saveShift({ employeeId, checkInAt: dayTwo, checkOutAt: dayTwo + 8 * hour, breakMinutes: 0,
+    payType: 'hourly', hourlyRate: 12000, note: '관리자 추가' }, 'admin');
+  // 빠뜨린 근무는 그대로 걸려 있고, 태블릿은 그 근무의 출근 시각으로 퇴근 누락을 띄운다.
+  assert.equal((await getEmployee()).currentShiftId, first.shiftId);
+  const kiosk = (await service.listKiosk(token)).employees[0];
+  assert.equal(kiosk.forgottenShift, true);
+  assert.equal(kiosk.forgottenCheckInAt, first.at);
+  // 빠뜨린 근무가 넘어가기 전(출근 뒤 18시간 안)과 겹치는 기록은 여전히 막는다.
+  await assert.rejects(service.saveShift({ employeeId, checkInAt: first.at + hour, checkOutAt: first.at + 2 * hour,
+    breakMinutes: 0, payType: 'hourly', hourlyRate: 12000, note: '' }, 'admin'), { status: 409 });
+  // 새 출근도 받는다.
+  const next = await punch('in', 'after-gap-in');
+  assert.equal((await getEmployee()).currentShiftId, next.shiftId);
+});
+
+test('일일근무자 자리의 퇴근 누락 칸은 태블릿에서 내린다', async () => {
+  const slotId = (await service.saveEmployee({ name: '일일근무자 (홀)', role: '홀', active: true, payType: 'daily',
+    dailyPay: 100000, breakMinutes: 0, note: '' }, 'admin')).id;
+  const stale = await service.punch({ employeeId: slotId, kind: 'in', requestId: 'slot-stale' }, token);
+  now += 20 * hour;
+  const fresh = await service.punch({ employeeId: slotId, kind: 'in', requestId: 'slot-fresh' }, token);
+  const slot = (await service.listKiosk(token)).employees.find(e => e.id === slotId);
+  assert.deepEqual(slot.openShifts.map(s => s.id), [fresh.shiftId]);
+  // 누락된 칸은 태블릿에서 퇴근을 받지 않고, 관리 화면에는 남는다.
+  await assert.rejects(service.punch({ employeeId: slotId, kind: 'out', shiftId: stale.shiftId, requestId: 'slot-stale-out' }, token), { status: 409 });
+  assert.ok((await service.listAdmin('2026-09')).openShifts.some(s => s.id === stale.shiftId));
+});
+
+test('자리의 퇴근 누락 칸은 같은 날이어도 다음 사람의 출근을 막지 않는다', async () => {
+  // 새벽에 들어온 사람이 퇴근을 빠뜨린 채 18시간이 지나면 그 칸은 태블릿에서 내려간다.
+  // 화면에 없는 사람 때문에 출근이 막히면, 눌러도 고칠 방법이 없다.
+  now = at('2026-09-11T00:30:00+09:00');
+  const slotId = (await service.saveEmployee({ name: '일일근무자 (주방)', role: '주방', active: true, payType: 'daily',
+    dailyPay: 100000, breakMinutes: 0, note: '' }, 'admin')).id;
+  const stale = await service.punch({ employeeId: slotId, kind: 'in', requestId: 'dawn-in' }, token);
+  now += 10 * hour;
+  // 같은 날 10시간째 — 아직 근무 중으로 본다. '다른 분' 확인 없이는 막힌다.
+  await assert.rejects(service.punch({ employeeId: slotId, kind: 'in', requestId: 'same-day-in' }, token), { status: 409 });
+  now += 9 * hour;
+  // 같은 날 19시간째 — 퇴근 누락. 태블릿에 그 칸이 없으니 새 출근을 받는다.
+  assert.deepEqual((await service.listKiosk(token)).employees.find(e => e.id === slotId).openShifts, []);
+  const next = await service.punch({ employeeId: slotId, kind: 'in', requestId: 'evening-in' }, token);
+  assert.notEqual(next.shiftId, stale.shiftId);
+});

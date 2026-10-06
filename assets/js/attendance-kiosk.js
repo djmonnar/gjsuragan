@@ -62,15 +62,20 @@
           action: '퇴근' }));
         return;
       }
-      const working = Boolean(employee.currentShiftId);
+      // 퇴근 누락(출근 뒤 18시간)으로 넘어간 근무는 서버가 알려준다. 그 사람은 퇴근이 아니라
+      // 새 출근을 찍는다. 지난 근무의 퇴근 시간은 관리자가 넣는다.
+      const forgotten = Boolean(employee.forgottenShift);
+      const forgottenAt = forgotten ? employee.forgottenCheckInAt ?? null : null;
+      const working = Boolean(employee.currentShiftId) && !forgotten;
       const last = employee.lastShift;
-      const finishedToday = !working && last?.checkOutAt && U.date(last.checkOutAt) === today;
-      cards.push({ employee, shiftId: employee.currentShiftId || '', working, finishedToday, name: employee.name, role,
-        pill: working ? '근무 중' : finishedToday ? '퇴근 완료' : '출근 전',
-        checkInAt: working ? last.checkInAt : null,
+      const finishedToday = !working && !forgotten && last?.checkOutAt && U.date(last.checkOutAt) === today;
+      cards.push({ employee, shiftId: working ? employee.currentShiftId : '', working, forgotten, finishedToday, name: employee.name, role,
+        pill: working ? '근무 중' : forgotten ? '퇴근 누락' : finishedToday ? '퇴근 완료' : '출근 전',
+        checkInAt: working ? last.checkInAt : forgottenAt,
         detail: working
           ? `${U.date(last.checkInAt) !== today ? `${U.date(last.checkInAt).slice(5)} ` : ''}${U.time(last.checkInAt)} 출근`
-          : finishedToday ? `${U.time(last.checkOutAt)} 퇴근` : '오늘도 반갑습니다',
+          : forgotten ? `${forgottenAt ? `${U.date(forgottenAt).slice(5)} ` : '지난 '}퇴근 안 찍힘`
+            : finishedToday ? `${U.time(last.checkOutAt)} 퇴근` : '오늘도 반갑습니다',
         action: working ? '퇴근' : '출근' });
     });
     return cards;
@@ -81,7 +86,7 @@
     $('kiosk-working').textContent = cards.filter(card => card.working).length;
     const query = $('kiosk-search').value.trim().toLowerCase();
     const visible = cards.filter(card => card.name.toLowerCase().includes(query) && (filter === 'all' || (filter === 'working' ? card.working : !card.working)));
-    const cardHtml = card => `<button class="att-person ${card.working ? 'working' : ''}${card.slot ? ' slot' : ''}" data-employee="${U.esc(card.employee.id)}" data-shift="${U.esc(card.shiftId)}" aria-label="${U.esc(card.name)}, ${card.action}하기"><div class="att-person-head"><span class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</span><span class="att-pill ${card.working ? 'green' : ''}">${U.esc(card.pill)}</span></div><div class="att-person-name">${U.esc(card.name)}</div><div class="att-person-role">${U.esc(card.role)}</div><div class="att-person-bottom"><span>${U.esc(card.detail)}</span><span class="att-person-action">${card.action} →</span></div></button>`;
+    const cardHtml = card => `<button class="att-person ${card.working ? 'working' : ''}${card.slot ? ' slot' : ''}" data-employee="${U.esc(card.employee.id)}" data-shift="${U.esc(card.shiftId)}" aria-label="${U.esc(card.name)}, ${card.action}하기"><div class="att-person-head"><span class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</span><span class="att-pill ${card.working ? 'green' : card.forgotten ? 'amber' : ''}">${U.esc(card.pill)}</span></div><div class="att-person-name">${U.esc(card.name)}</div><div class="att-person-role">${U.esc(card.role)}</div><div class="att-person-bottom"><span>${U.esc(card.detail)}</span><span class="att-person-action">${card.action} →</span></div></button>`;
     // 홀과 주방을 위아래로 나눈다. 보이는 파트가 하나뿐이면 제목 없이 예전처럼 한 덩어리로 둔다 —
     // 파트를 아직 안 고른 매장에서 '그 외' 제목만 하나 뜨는 것은 군더더기다.
     const groups = PARTS
@@ -176,6 +181,20 @@
       // 집계를 못 가져와도 출퇴근은 계속 찍혀야 한다. 화면의 숫자만 그대로 둔다.
     } finally { ordersBusy = false; }
   }
+  // 확인 창의 안내. 출근 · 퇴근 · 퇴근 누락 뒤의 출근 · 날짜를 넘긴 퇴근이 서로 다르다.
+  function confirmMessage(card) {
+    const when = card.checkInAt ? `${U.date(card.checkInAt).slice(5)} ${U.time(card.checkInAt)}` : '';
+    if (card.working) {
+      // 날짜를 넘긴 근무의 퇴근. 밤샘 근무일 수도 있지만, 전날 퇴근을 깜빡한 경우라면
+      // 누르는 순간 하루 넘는 근무가 급여로 잡힌다. 누르기 전에 한 번 멈추게 한다.
+      const crossedDay = card.checkInAt && U.date(card.checkInAt) !== U.date(Date.now() + offset);
+      return `<p class="att-meta">${when} 출근 · 지금 퇴근을 기록할까요?</p>${crossedDay ? '<p class="att-notice">날짜를 넘긴 근무입니다. 밤새 일하신 게 아니라 전날 퇴근을 깜빡하신 거라면, 누르지 말고 관리자에게 말해 주세요.</p>' : ''}`;
+    }
+    if (card.forgotten) {
+      return `<p class="att-meta">${when ? `${when} 출근의 ` : '지난 근무의 '}퇴근이 안 찍혀 있어요. 그 퇴근 시간은 관리자가 넣어 드립니다.<br>지금 출근을 기록할까요?</p>`;
+    }
+    return `<p class="att-meta">${card.slot ? '지금 출근을 기록할까요? 이 칸은 여러 분이 같이 쓸 수 있습니다.' : '지금 출근을 기록할까요?'}</p>`;
+  }
   // 일당 직원이 같은 날 퇴근한 뒤 출근을 또 누르면 일당이 두 번 잡혔다. 서버가 막지만,
   // 태블릿에서도 먼저 알려 헛걸음하지 않게 한다.
   function alreadyDone(card) {
@@ -203,7 +222,7 @@
       ? `<div class="att-slot-warning"><p><b>오늘 이 칸으로 출근한 분이 있어요.</b> 퇴근하시려면 자기 출근 시각 옆의 <b>퇴근하기</b>를 눌러 주세요.</p>${openToday.map(shift => `<button class="att-button" type="button" data-out-shift="${U.esc(shift.id)}">${U.esc(shift.workerName ? `${shift.workerName} · ` : '')}${U.time(shift.checkInAt)} 출근 → 퇴근하기</button>`).join('')}<p>새로 오신 <b>다른 분</b>만 아래 <b>다른 분 출근하기</b>를 눌러 주세요.</p></div>`
       : '';
     const el = U.dialog(card.name,
-      `<div class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</div><h2>${U.esc(card.name)} 님</h2><p class="att-confirm-kind">${working ? '오늘도 수고하셨습니다' : '좋은 하루 시작해요'}</p><p class="att-meta">${working ? `${U.date(card.checkInAt).slice(5)} ${U.time(card.checkInAt)} 출근 · 지금 퇴근을 기록할까요?` : card.slot ? '지금 출근을 기록할까요? 이 칸은 여러 분이 같이 쓸 수 있습니다.' : '지금 출근을 기록할까요?'}</p>${slotWarning}`,
+      `<div class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</div><h2>${U.esc(card.name)} 님</h2><p class="att-confirm-kind">${working ? '오늘도 수고하셨습니다' : '좋은 하루 시작해요'}</p>${confirmMessage(card)}${slotWarning}`,
       async (_form, dialog) => {
         const result = await U.request('kiosk.punch', pending, { device });
         dialog.querySelector('form').innerHTML = `<div class="att-kiosk-success" role="status"><div class="att-success-mark">✓</div><h2>${U.esc(result.name)} 님</h2><p class="att-confirm-kind">${result.kind === 'in' ? '출근' : '퇴근'}이 기록되었어요</p><div class="att-shift-times">${U.time(result.at)}</div><p class="att-meta">잠시 후 직원 목록으로 돌아갑니다.</p></div>`;

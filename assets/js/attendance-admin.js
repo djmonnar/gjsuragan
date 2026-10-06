@@ -32,6 +32,11 @@
   const DEFAULT_WORK_HOURS = 209, DEFAULT_WORK_DAYS = 22;
   const DEFAULT_DAILY_BASE_MINUTES = 480, DEFAULT_OVERTIME_UNIT_MINUTES = 30, DEFAULT_HALF_DAY_BEFORE_MINUTES = 17 * 60;
   const DEFAULT_EARLY_GRACE_MINUTES = 30;
+  // 퇴근 누락으로 보는 기준. attendanceModel 의 FORGOTTEN_SHIFT_MS 와 같아야 한다.
+  // 이 시간이 지난 미퇴근 기록은 태블릿이 퇴근을 받지 않고, 그 사람의 다음 출근을 새로 받는다.
+  // 아래 STALE_OPEN_HOURS(확인 알림)보다 늦다 — 알림은 일찍 띄우고, 태블릿 동작은 확실할 때만 바꾼다.
+  const FORGOTTEN_SHIFT_MS = 18 * 3600000;
+  const forgotten = shift => shift.checkOutAt === null && data.serverNow - shift.checkInAt > FORGOTTEN_SHIFT_MS;
   // 유예는 0 이 '안 봐줌'이라는 뜻이라 빈칸과 다르다. 저장된 값이 있을 때만 그대로 보여준다.
   const graceValue = o => (isDailyPaid(o.payType) && Number.isFinite(Number(o.earlyGraceMinutes))
     ? String(o.earlyGraceMinutes) : '');
@@ -263,7 +268,7 @@
     const active = data.employees.filter(inFloor).filter(e => e.active && !e.deletedAt && (!employeeId || e.id === employeeId));
     $('att-stats').innerHTML = [
       ['재직 직원', `${active.length}명`, '출퇴근 화면에 표시되는 직원'],
-      ['현재 근무 중', `${opens.length}명`, '퇴근하지 않은 전체 근무'],
+      ['현재 근무 중', `${opens.filter(s => !forgotten(s)).length}명`, '퇴근 누락은 빼고 셉니다'],
       ['이번 조회 월 유급 근무', U.duration(list.reduce((sum, s) => sum + s.payableMinutes, 0)), '퇴근 완료 · 무급 휴게 제외'],
       ['시급 직원 급여 합계', U.money(list.filter(s => s.payType === 'hourly').reduce((sum, s) => sum + s.amount - (s.checkOutAt === null ? 0 : shiftDeduction(s)), 0)), `${month.replace('-', '년 ')}월 · 퇴근 완료 · 특수일 배율·근무 차감 포함`]
     ].map(([label, value, detail]) => `<div class="att-stat"><div class="att-stat-label">${label}</div><div class="att-stat-value">${value}</div><small>${detail}</small></div>`).join('');
@@ -300,7 +305,7 @@
     // 두 줄은 att-day-summary 바깥에 있어서 여백을 따로 줘야 한다.
     // 안 그러면 패널 가장자리에 붙어 위아래 줄과 어긋난다.
     const dayMeta = `<div class="att-day-meta">${specialLine}${offLine}</div>`;
-    $('att-content').innerHTML = `<div class="att-layout"><section class="att-panel"><div class="att-panel-head att-row"><h3>${year}년 ${m}월</h3><div class="att-meta">날짜를 누르면 출퇴근 상세가 보여요</div></div><div class="att-calendar">${['일','월','화','수','목','금','토'].map(d => `<div class="att-weekday">${d}</div>`).join('')}${cells.join('')}</div></section><section class="att-panel"><div class="att-panel-head att-row"><h3>${Number(selectedDate.slice(5, 7))}월 ${Number(selectedDate.slice(8))}일</h3><div class="att-row" style="gap:8px"><button class="att-link-button" data-action="mark-absence">결근 표시</button><button class="att-link-button" data-action="new-shift">＋ 기록 추가</button></div></div>${dayMeta}<div class="att-day-summary">${daily.length ? daily.map(s => `<article class="att-shift-item"><div class="att-row"><strong>${U.esc(s.payType === 'daily' && s.workerName ? s.workerName : (person(s.employeeId)?.name || s.employeeName))}</strong><span class="att-pill ${s.checkOutAt === null ? 'amber' : 'green'}">${s.checkOutAt === null ? '근무 중' : '퇴근 완료'}</span></div><div class="att-shift-times">${U.time(s.checkInAt)} → ${s.checkOutAt !== null && U.date(s.checkOutAt) !== s.workDate ? '<small>익일 </small>' : ''}${U.time(s.checkOutAt)}</div><div class="att-meta">${s.checkOutAt === null ? '퇴근 후 근무시간과 금액이 계산됩니다.' : `${U.duration(s.payableMinutes)} · 휴게 ${s.breakMinutes}분`}</div><div class="att-row"><span class="att-meta">${s.payType === 'daily'
+    $('att-content').innerHTML = `<div class="att-layout"><section class="att-panel"><div class="att-panel-head att-row"><h3>${year}년 ${m}월</h3><div class="att-meta">날짜를 누르면 출퇴근 상세가 보여요</div></div><div class="att-calendar">${['일','월','화','수','목','금','토'].map(d => `<div class="att-weekday">${d}</div>`).join('')}${cells.join('')}</div></section><section class="att-panel"><div class="att-panel-head att-row"><h3>${Number(selectedDate.slice(5, 7))}월 ${Number(selectedDate.slice(8))}일</h3><div class="att-row" style="gap:8px"><button class="att-link-button" data-action="mark-absence">결근 표시</button><button class="att-link-button" data-action="new-shift">＋ 기록 추가</button></div></div>${dayMeta}<div class="att-day-summary">${daily.length ? daily.map(s => `<article class="att-shift-item"><div class="att-row"><strong>${U.esc(s.payType === 'daily' && s.workerName ? s.workerName : (person(s.employeeId)?.name || s.employeeName))}</strong><span class="att-pill ${s.checkOutAt === null ? 'amber' : 'green'}">${s.checkOutAt === null ? (forgotten(s) ? '퇴근 누락' : '근무 중') : '퇴근 완료'}</span></div><div class="att-shift-times">${U.time(s.checkInAt)} → ${s.checkOutAt !== null && U.date(s.checkOutAt) !== s.workDate ? '<small>익일 </small>' : ''}${U.time(s.checkOutAt)}</div><div class="att-meta">${s.checkOutAt === null ? (forgotten(s) ? '퇴근 시간을 넣어야 급여에 잡힙니다. 수정에서 실제 퇴근 시간을 넣어 주세요.' : '퇴근 후 근무시간과 금액이 계산됩니다.') : `${U.duration(s.payableMinutes)} · 휴게 ${s.breakMinutes}분`}</div><div class="att-row"><span class="att-meta">${s.payType === 'daily'
       ? `일일근무자 · ${U.money(s.amount)}${s.workerName ? ` · <strong>${U.esc(s.workerName)}</strong>` : ' · <b>이름 미입력</b>'}`
       : s.payType === 'hourly'
       ? `${U.money(s.hourlyRate)}/시간 · ${U.money(s.amount)}${s.extraAmount ? ` <strong>(${multiplierText(s.multiplierPercent)} · 가산 ${U.money(s.extraAmount)})</strong>` : ''}${s.earlyMinutes ? ` · 일찍 출근 ${s.earlyMinutes}분 제외` : ''}`

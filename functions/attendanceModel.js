@@ -3,6 +3,20 @@
 const MINUTE = 60000;
 const MAX_SHIFT_MS = 36 * 60 * MINUTE;
 
+// 퇴근을 빠뜨린 근무로 보는 기준. 출근하고 이만큼 지나도록 퇴근이 없으면
+// 그 근무는 관리자가 퇴근 시간을 넣을 때까지 '퇴근 누락'으로 남기고,
+// 태블릿은 그 사람의 다음 출근을 새로 받는다. 누락을 기다리게 하면 그동안
+// 출근을 하나도 못 찍어서, 일한 날이 통째로 빠진다 (2026-09 에 열흘치가 빠졌다).
+// 태블릿은 이 시간이 지난 근무의 퇴근을 받지 않는다 — 다음 날 퇴근을 눌러
+// 하루 넘는 근무가 급여로 잡히면 안 된다. 관리자가 넣는 기록은 MAX_SHIFT_MS 까지 된다.
+// 관리 화면의 '퇴근 확인이 필요한 기록' 알림과 같은 기준이다.
+const FORGOTTEN_SHIFT_MS = 18 * 60 * MINUTE;
+
+function isForgottenShift(shift, now) {
+  return Boolean(shift) && !shift.voided && shift.checkOutAt == null
+    && Number(now) - Number(shift.checkInAt) > FORGOTTEN_SHIFT_MS;
+}
+
 function fail(message, status = 400) {
   const error = new Error(message);
   error.status = status;
@@ -525,8 +539,16 @@ function totals(shift, specialDay = null) {
   return { workedMinutes, payableMinutes: paidMinutes, earlyMinutes, amount: extraAmount, baseAmount: 0, extraAmount, multiplierPercent, deductionAmount };
 }
 
-function overlaps(a, b) {
-  return !b.voided && a.checkInAt < (b.checkOutAt ?? Infinity) && b.checkInAt < (a.checkOutAt ?? Infinity);
+// 근무가 차지하는 끝. 퇴근이 없으면 끝이 없는 것으로 보되, 퇴근 누락으로 넘어간 근무는
+// 넘어간 시점(출근 + 18시간)까지만 차지한다. 끝을 모르는 근무가 그 뒤의 모든 시간을
+// 차지하면, 관리자가 그 직원의 다른 날 기록을 넣거나 고칠 수가 없다.
+function shiftEnd(shift, now) {
+  if (shift.checkOutAt != null) return shift.checkOutAt;
+  return now !== undefined && isForgottenShift(shift, now) ? shift.checkInAt + FORGOTTEN_SHIFT_MS : Infinity;
+}
+
+function overlaps(a, b, now) {
+  return !b.voided && a.checkInAt < shiftEnd(b, now) && b.checkInAt < shiftEnd(a, now);
 }
 
 function kioskEmployee(employee) {
@@ -541,7 +563,7 @@ function kioskEmployee(employee) {
 
 module.exports = {
   clockText,
-  MINUTE, MAX_SHIFT_MS, BASE_PERCENT, DEFAULT_MONTHLY_WORK_HOURS, DEFAULT_MONTHLY_WORK_DAYS, PAY_TYPES, isSharedSlot,
+  MINUTE, MAX_SHIFT_MS, FORGOTTEN_SHIFT_MS, isForgottenShift, BASE_PERCENT, DEFAULT_MONTHLY_WORK_HOURS, DEFAULT_MONTHLY_WORK_DAYS, PAY_TYPES, isSharedSlot,
   WORK_PARTS, workPart,
   DEFAULT_DAILY_BASE_MINUTES, DEFAULT_OVERTIME_UNIT_MINUTES, DEFAULT_HALF_DAY_BEFORE_MINUTES,
   DAY_PORTIONS, DAILY_MODES, DEFAULT_EARLY_GRACE_MINUTES, overtimeUnits, isDailyPaid, moneyValue,

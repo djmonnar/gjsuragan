@@ -59,7 +59,7 @@ test('standalone manager loads no employee data until allowed login and clears s
   assert.equal(page.window.AttendanceSession.isActive('reservations'), false);
   await assert.rejects(page.window.AttendanceSession.getToken());
 });
-test('사용 안내 탭은 다른 화면을 내리고 혼자 뜬다', () => {
+test('매뉴얼 탭은 다른 화면을 내리고 혼자 뜬다', () => {
   const page = shell();
   page.setUser({ email: 'sun1562@naver.com' });
   assert.ok(page.calls.includes('attendance.init'));
@@ -77,7 +77,7 @@ test('사용 안내 탭은 다른 화면을 내리고 혼자 뜬다', () => {
   assert.equal(page.element('staff-attendance-panel').hidden, false);
 });
 
-test('사용 안내가 안 실려도 근태 화면은 열린다', () => {
+test('매뉴얼이 안 실려도 근태 화면은 열린다', () => {
   // 안내는 없어도 되는 화면이고 급여는 없으면 안 되는 화면이다.
   const page = shell();
   delete page.window.StaffManual;
