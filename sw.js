@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v89-bulk-cancel';
+const CACHE = 'gjsuragan-v90-once-complete';
 const PRECACHE = [
   './customer.html',
   './admin.html',

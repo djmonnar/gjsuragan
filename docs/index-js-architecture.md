@@ -170,17 +170,24 @@ DOM availability can break a button while all static JavaScript still parses.
 
 ## Delivery policy that must be preserved
 
-- Employee one-time-order completion consumes the remaining order immediately
-  (`completeAllForOnce: true`).
-- Route-map completion and Imweb/delivery-management completion decrement one
-  remaining delivery.
+- One-time-order completion consumes the remaining order immediately on every
+  entry point: delivery management, the route map, the shadowed Imweb/rendering
+  defaults, and the KakaoTalk command in `functions/index.js`. A one-time order
+  is one delivery on one date whatever its quantity. The rule lives in
+  `deliveryStatePatch`; callers no longer choose it. Until 2026-10-06 only the
+  employee screen passed `completeAllForOnce`, so the route map still
+  decremented one. A quantity-2 order completed that way stays active with one
+  remaining that no delivery list ever shows again; five such records from
+  April 2026, when the employee screen also decremented one, were found in
+  production.
 - Regular subscription completion decrements one.
 - Repeating the same-date operation must remain idempotent through
   `runDeliveryTransaction`.
 - Cancelling a one-time order restores what the completion consumed: `total`
-  minus the completion dates that remain. This equals `+1` when deliveries were
-  decremented one per date, and the full quantity when the employee screen ended
-  the order in one action. Subscription cancellation restores one. (Issue #39)
+  minus the completion dates that remain. This equals `+1` for older records
+  that were decremented one per date, and the full quantity when the completion
+  ended the order in one action. Subscription cancellation restores one.
+  (Issue #39)
 - Completion is refused for a date that has not arrived yet. Bulk completion of
   a past date asks again and names the date.
 - `cancelAllDeliveries` cancels every order completed on the selected date,

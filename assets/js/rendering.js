@@ -32,6 +32,8 @@ function deliveryProductBadgeHtml(c){
 function isLastBoxDelivery(c){
   if(!c?.isDirect) return false;
   if(c.status !== 'active') return false;
+  // 선택주문은 수량이 몇 개든 그 한 번이 마지막 배송이다. 잔여를 횟수로 읽으면 수량 2개 주문에서 표시가 빠진다.
+  if(c.orderType === 'once') return Number(c.remain || 0) > 0;
   return Number(c.remain || 0) === 1;
 }
 

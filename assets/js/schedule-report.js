@@ -341,7 +341,7 @@ function jumpToDate(ds){
         deliveredAt: doneAt,
         updatedAt: doneAt,
         deliveryState: 'done'
-      }, { completeAllForOnce:true });
+      });
       if(!result.changed){
         deliveryToast(result.reason==='already_completed'?'이미 완료 처리된 날짜입니다.':'이미 배송 완료된 주문입니다.','er');
         return;
