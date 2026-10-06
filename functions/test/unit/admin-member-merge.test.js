@@ -9,6 +9,10 @@
 // 돈이 걸린 자리라 화면 코드(admin.html)의 실제 함수를 뽑아, 메모리 Firestore 위에서
 // 읽기(scanMemberMerge) → 옮기기(runMemberMerge)를 끝까지 돌려 결과 문서를 확인한다.
 
+// 관리자 화면은 요일을 브라우저 시간대로 따진다(weekdayKeyForDate 의 getDay). 화면은 한국에서 열린다.
+// 검사 서버는 UTC 라, 그대로 두면 월요일이 일요일로 읽혀 요일 기본수량이 하루씩 밀린다.
+process.env.TZ = 'Asia/Seoul';
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
