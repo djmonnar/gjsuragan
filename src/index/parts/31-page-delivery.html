@@ -11,10 +11,11 @@
       <span class="date-disp" id="todayDateDisp"></span>
       <button class="date-today-btn" onclick="resetTodayDate()">오늘</button>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <span style="font-size:12px;color:var(--text3);" id="todayCnt"></span>
       <button class="btn btn-g sm" onclick="printAllDeliveryList()">전체 인쇄</button>
       <button class="btn btn-s sm" onclick="markAll()">전체 완료</button>
+      <button class="btn btn-g sm" onclick="cancelAllDeliveries()" title="날짜 칸에 고른 날짜의 배송완료를 모두 되돌립니다">전체 완료 취소</button>
       <button class="btn btn-g sm" onclick="goTab('export')">택배 내보내기</button>
     </div>
   </div>

@@ -307,10 +307,33 @@ function jumpToDate(ds){
     const idx = window.custs.findIndex(c=>c.id===id);
     if(idx>=0) window.custs[idx] = {...window.custs[idx], ...patch};
   }
+  // '10월 26일(월)'. 확인 창에서 날짜를 헷갈리지 않게 요일까지 적는다.
+  function deliveryDateText(ds){
+    const [,m,d] = String(ds).split('-').map(Number);
+    return `${m}월 ${d}일(${['일','월','화','수','목','금','토'][dow(ds)]})`;
+  }
+  // 오지 않은 날짜는 완료 처리하지 않는다. 날짜 칸이 다른 날인 채로 전체 완료를 눌러
+  // 주문 14건이 20일 뒤 날짜로 완료되고 5건이 종료된 적이 있다 (2026-10-06).
+  function blockedFutureDate(ds){
+    if(deliveryDateKind(ds, todayStr()) !== 'future') return false;
+    deliveryToast(`${deliveryDateText(ds)}은 아직 오지 않은 날짜라 완료 처리할 수 없습니다. 날짜 칸을 확인해 주세요.`,'er');
+    return true;
+  }
+  // 완료할 때 같이 적어 둔 값을 취소할 때 맞춰 되돌린다. 남은 완료 이력의 마지막 날짜가 최근 배송일이다.
+  function cancelExtraPatch(current, patch){
+    const last = patch.deliveredDates.length ? patch.deliveredDates[patch.deliveredDates.length-1] : '';
+    return {
+      lastDeliveredDate: last,
+      deliveryState: last ? 'done' : '',
+      updatedAt: new Date().toISOString(),
+      ...(last ? {} : { deliveredAt: '' })
+    };
+  }
   async function stableMarkDone(id, ds){
     ds = ds || selectedDeliveryDate();
     if(!id){ deliveryToast('고객 ID가 없습니다.','er'); return; }
     if(!window.__DB){ deliveryToast('DB 연결을 확인해주세요.','er'); return; }
+    if(blockedFutureDate(ds)) return;
     const doneAt = new Date().toISOString();
     try{
       const result = await runDeliveryTransaction(window.__DB,id,ds,'complete',{
@@ -339,7 +362,7 @@ function jumpToDate(ds){
     if(!window.__DB){ deliveryToast('DB 연결을 확인해주세요.','er'); return; }
     if(!confirm(`${local?.name || '고객'}의 [${ds}] 배송완료를 취소하시겠습니까?`)) return;
     try{
-      const result = await runDeliveryTransaction(window.__DB,id,ds,'cancel');
+      const result = await runDeliveryTransaction(window.__DB,id,ds,'cancel',null,{ cancelPatch:cancelExtraPatch });
       if(!result.changed){ deliveryToast('해당 날짜는 완료 기록이 없습니다.','er'); return; }
       patchLocalCustomer(id, result.patch);
       rerenderDeliveryScreens();
@@ -351,28 +374,60 @@ function jumpToDate(ds){
   }
   async function markMany(list, ds, label){
     ds = ds || selectedDeliveryDate();
+    if(blockedFutureDate(ds)) return;
     const targets = list.filter(c=>!wasDeliveredOn(c,ds));
     if(!targets.length){ deliveryToast(label+' 완료할 대기 건이 없습니다.','er'); return; }
-    if(!confirm(`${label} ${targets.length}건 배송완료 처리할까요?`)) return;
+    // 지난 날짜를 뒤늦게 처리하는 것은 정상이지만, 날짜 칸이 다른 날인 줄 모르고 누르는 일이 있었다.
+    // 오늘이 아니면 어느 날짜 목록인지 한 번 더 알린다.
+    const notToday = deliveryDateKind(ds, todayStr()) === 'past'
+      ? `\n\n※ 오늘(${deliveryDateText(todayStr())})이 아닌 ${deliveryDateText(ds)} 목록입니다.` : '';
+    if(!confirm(`${deliveryDateText(ds)} ${label} ${targets.length}건 배송완료 처리할까요?${notToday}`)) return;
     for(const c of targets){
       await stableMarkDone(c.id, ds);
     }
     deliveryToast(label+' 전체 완료 처리됨','ok');
+  }
+  // 선택한 날짜의 배송완료를 한꺼번에 되돌린다. 날짜를 잘못 골라 전체 완료를 눌렀을 때 쓴다.
+  // 그날 목록에 뜨는 건만이 아니라 '그 날짜로 완료된 모든 주문'이 대상이다.
+  // 잔여가 0이 되어 종료된 주문도 같이 되돌려야 다음 배송 목록에서 빠지지 않는다.
+  async function cancelMany(ds){
+    ds = ds || selectedDeliveryDate();
+    if(!window.__DB){ deliveryToast('DB 연결을 확인해주세요.','er'); return; }
+    const targets = (typeof custs !== 'undefined' && Array.isArray(custs) ? custs : []).filter(c=>wasDeliveredOn(c,ds));
+    if(!targets.length){ deliveryToast(`${deliveryDateText(ds)}로 완료 처리된 건이 없습니다.`,'er'); return; }
+    const names = targets.slice(0,5).map(c=>c.name).join(', ') + (targets.length>5 ? ` 외 ${targets.length-5}건` : '');
+    if(!confirm(`${deliveryDateText(ds)} 배송완료 ${targets.length}건을 모두 취소할까요?\n\n${names}\n\n잔여 횟수가 돌아오고, 종료된 주문은 다시 진행 중이 됩니다.\n날짜를 잘못 골라 완료 처리했을 때만 쓰세요.`)) return;
+    let cancelled = 0, failed = 0;
+    for(const c of targets){
+      try{
+        const result = await runDeliveryTransaction(window.__DB,c.id,ds,'cancel',null,{ cancelPatch:cancelExtraPatch });
+        if(result.changed){ patchLocalCustomer(c.id, result.patch); cancelled += 1; }
+      }catch(e){
+        failed += 1;
+        console.error('cancelMany failed', c.id, e);
+      }
+    }
+    rerenderDeliveryScreens();
+    if(failed) deliveryToast(`${cancelled}건 취소, ${failed}건 실패. 새로고침한 뒤 다시 눌러 주세요.`,'er');
+    else deliveryToast(`${deliveryDateText(ds)} 배송완료 ${cancelled}건 취소됨`,'ok');
   }
   function installStableDeliveryHandlers(){
     window.markDone = stableMarkDone;
     window.undoMarkDone = stableUndoMarkDone;
     window.markAll = function(){
       const ds = selectedDeliveryDate();
-      markMany(listFor(ds), ds, '전체');
+      return markMany(listFor(ds), ds, '전체');
     };
     window.markAllDirect = function(){
       const ds = selectedDeliveryDate();
-      markMany(listFor(ds).filter(c=>c.isDirect), ds, '직배송');
+      return markMany(listFor(ds).filter(c=>c.isDirect), ds, '직배송');
     };
     window.markAllCourier = function(){
       const ds = selectedDeliveryDate();
-      markMany(listFor(ds).filter(c=>!c.isDirect), ds, '택배');
+      return markMany(listFor(ds).filter(c=>!c.isDirect), ds, '택배');
+    };
+    window.cancelAllDeliveries = function(){
+      return cancelMany(selectedDeliveryDate());
     };
   }
   installStableDeliveryHandlers();

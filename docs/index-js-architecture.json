@@ -18,18 +18,18 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 341255,
-    "lines": 7830,
-    "functionDeclarations": 456,
-    "uniqueCallableGlobals": 409,
-    "explicitWindowExports": 41,
+    "normalizedBytes": 346583,
+    "lines": 7910,
+    "functionDeclarations": 462,
+    "uniqueCallableGlobals": 411,
+    "explicitWindowExports": 43,
     "globalStateDeclarations": 66,
     "privateStateDeclarations": 5,
-    "asyncFunctions": 61,
+    "asyncFunctions": 62,
     "crossFileCallRelationships": 134,
     "firestoreAccessPoints": 33,
-    "inlineHandlerAttributes": 163,
-    "inlineHandlerFunctionNames": 82
+    "inlineHandlerAttributes": 164,
+    "inlineHandlerFunctionNames": 83
   },
   "files": [
     {
@@ -212,9 +212,9 @@
     {
       "path": "assets/js/delivery-transaction.js",
       "metrics": {
-        "bytes": 2962,
-        "lines": 78,
-        "functionDeclarations": 3,
+        "bytes": 4574,
+        "lines": 103,
+        "functionDeclarations": 5,
         "asyncFunctions": 1
       },
       "globalsDefined": [
@@ -226,7 +226,8 @@
       ],
       "requiredDefinitions": [
         "deliveryStatePatch",
-        "runDeliveryTransaction"
+        "runDeliveryTransaction",
+        "deliveryDateKind"
       ],
       "globalsConsumed": [],
       "globalState": [],
@@ -422,10 +423,10 @@
     {
       "path": "assets/js/schedule-report.js",
       "metrics": {
-        "bytes": 17588,
-        "lines": 382,
-        "functionDeclarations": 38,
-        "asyncFunctions": 3
+        "bytes": 21304,
+        "lines": 437,
+        "functionDeclarations": 42,
+        "asyncFunctions": 4
       },
       "globalsDefined": [
         "todayStr",
@@ -481,7 +482,8 @@
         "listFor",
         "renderReport",
         "stableMarkDone",
-        "stableUndoMarkDone"
+        "stableUndoMarkDone",
+        "cancelMany"
       ],
       "globalsConsumed": [
         "custs",
@@ -1790,7 +1792,9 @@
     "toggleNoticeMemoActive",
     "deleteNoticeMemo",
     "closeNoticeMemoPopup",
-    "openNoticeMemoTabFromPopup"
+    "openNoticeMemoTabFromPopup",
+    "deliveryDateKind",
+    "cancelAllDeliveries"
   ],
   "extractedFormatterFunctions": [
     {
@@ -1867,7 +1871,8 @@
     "sendSelectedLogenOrders",
     "sendUnsentLogenOrders",
     "inquireLogenSlipNos",
-    "saveNoticeMemo"
+    "saveNoticeMemo",
+    "cancelAllDeliveries"
   ],
   "duplicateDefinitions": [
     {
@@ -2170,7 +2175,9 @@
   "preservedDeliveryPolicies": [
     "employee one-time completion uses completeAllForOnce and ends remaining deliveries",
     "route-map and Imweb one-time completion decrement one delivery",
-    "D5 completion-cancellation asymmetry remains deferred to Issue #39"
+    "one-time cancellation restores the consumed count as total minus remaining completion dates; subscription cancellation restores one (Issue #39)",
+    "completion is refused for a future date; bulk completion of a past date asks again with the date",
+    "cancelAllDeliveries cancels every order completed on the selected date, including ended ones"
   ],
   "recommendedOwnership": {
     "auth-core.js": "auth, shared customer state, customer CRUD",

@@ -55,3 +55,27 @@ test('직원 일괄 완료는 직원 화면의 완료 함수를 그대로 사용
   assert.match(installHandlers, /window\.markAllDirect\s*=/);
   assert.match(installHandlers, /window\.markAllCourier\s*=/);
 });
+
+test('직원 화면의 완료는 오지 않은 날짜를 먼저 막고, 일괄 완료는 날짜를 보여준다', () => {
+  const source = read('assets/js/schedule-report.js');
+  const markDone = extractFunction(source, 'async function stableMarkDone');
+  const markMany = extractFunction(source, 'async function markMany');
+  // 기록을 쓰기 전에 막아야 한다.
+  assert.ok(markDone.indexOf('blockedFutureDate(ds)') > -1 && markDone.indexOf('blockedFutureDate(ds)') < markDone.indexOf('runDeliveryTransaction('));
+  assert.ok(markMany.indexOf('blockedFutureDate(ds)') > -1 && markMany.indexOf('blockedFutureDate(ds)') < markMany.indexOf('confirm('));
+  assert.match(markMany, /deliveryDateText\(ds\)/);
+});
+
+test('직원 화면의 취소는 한 건이든 전체든 같은 방식으로 되돌린다', () => {
+  const source = read('assets/js/schedule-report.js');
+  const undo = extractFunction(source, 'async function stableUndoMarkDone');
+  const cancelMany = extractFunction(source, 'async function cancelMany');
+  const installHandlers = extractFunction(source, 'function installStableDeliveryHandlers');
+  for (const body of [undo, cancelMany]) {
+    assert.match(body, /runDeliveryTransaction\([^;]+['"]cancel['"],\s*null,\s*\{\s*cancelPatch:\s*cancelExtraPatch\s*\}\)/s);
+  }
+  // 그날 목록이 아니라 그 날짜로 완료된 모든 주문이 대상이다. 종료된 주문은 목록에서 빠질 수 있다.
+  assert.match(cancelMany, /custs[^;]*\.filter\(c=>wasDeliveredOn\(c,ds\)\)/s);
+  assert.doesNotMatch(cancelMany, /listFor\(/);
+  assert.match(installHandlers, /window\.cancelAllDeliveries\s*=/);
+});
