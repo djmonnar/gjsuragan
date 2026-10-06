@@ -261,7 +261,8 @@ test('한 자리에 여러 사람이 동시에 출근하고 각자 자기 기록
   // 보통 직원이라면 두 번째 출근이 막힌다. 자리는 둘 다 들어가야 한다.
   const first = await punchSlot('in', 'a');
   now += 10 * 60000;
-  const second = await punchSlot('in', 'b');
+  // 두 번째 사람은 '다른 분 출근'을 골라야 들어간다.
+  const second = await service.punch({ employeeId: slotId, kind: 'in', requestId: 'b', another: true }, token);
   assert.notEqual(first.shiftId, second.shiftId);
   assert.equal((await db.collection('staffShifts').where('employeeId', '==', slotId).get()).size, 2);
   // 자리에는 '지금 근무 중인 한 명'을 물리지 않는다.
@@ -285,6 +286,27 @@ test('한 자리에 여러 사람이 동시에 출근하고 각자 자기 기록
   assert.equal(shifts.length, 2);
   // 일당은 시간과 무관하게 기록마다 하루치.
   assert.deepEqual(shifts.map(s => s.amount), [100000, 100000]);
+});
+
+test('자리 칸에 오늘 들어와 있는 사람이 있으면 다른 분이라고 확인해야 출근이 하나 더 생긴다', async () => {
+  // 퇴근할 사람이 자기 칸 대신 '출근' 칸을 또 눌러 일당이 두 번 잡혔다.
+  const slotId = await makeSlot();
+  const first = await service.punch({ employeeId: slotId, kind: 'in', requestId: 'a' }, token);
+  now += 6 * hour;
+  await assert.rejects(service.punch({ employeeId: slotId, kind: 'in', requestId: 'again' }, token),
+    err => err.status === 409 && /09:00 출근/.test(err.message));
+  assert.equal((await db.collection('staffShifts').where('employeeId', '==', slotId).get()).size, 1);
+  // 자기 칸으로 퇴근한 뒤에는 확인 없이 새로 출근할 수 있다.
+  await service.punch({ employeeId: slotId, kind: 'out', requestId: 'a-out', shiftId: first.shiftId }, token);
+  now += hour;
+  assert.ok((await service.punch({ employeeId: slotId, kind: 'in', requestId: 'next' }, token)).shiftId);
+});
+
+test('자리 칸에 어제 퇴근 안 한 기록이 남아 있어도 오늘 출근은 막지 않는다', async () => {
+  const slotId = await makeSlot();
+  await service.punch({ employeeId: slotId, kind: 'in', requestId: 'yesterday' }, token);
+  now += 24 * hour;
+  assert.ok((await service.punch({ employeeId: slotId, kind: 'in', requestId: 'today' }, token)).shiftId);
 });
 
 test('다른 자리의 기록으로는 퇴근시킬 수 없다', async () => {
@@ -462,6 +484,26 @@ test('일당 직원은 자리가 아니라 사람이라 두 번 출근할 수 �
   await service.punch({ employeeId: id, kind: 'in', requestId: 'a' }, token);
   await assert.rejects(service.punch({ employeeId: id, kind: 'in', requestId: 'b' }, token), /이미 출근/);
   assert.notEqual((await db.collection('staffEmployees').doc(id).get()).data().currentShiftId, null);
+});
+
+test('일당 직원은 같은 날 퇴근한 뒤 다시 출근할 수 없다 — 일당이 두 번 잡히지 않게', async () => {
+  const id = (await service.saveEmployee(perDiemInput, 'admin')).id;
+  const first = await service.punch({ employeeId: id, kind: 'in', requestId: 'in' }, token);
+  now += 8 * hour;
+  await service.punch({ employeeId: id, kind: 'out', requestId: 'out', shiftId: first.shiftId }, token);
+  now += 10 * 60000;
+  await assert.rejects(service.punch({ employeeId: id, kind: 'in', requestId: 'again' }, token),
+    err => err.status === 409 && /일당은 하루에 한 번/.test(err.message));
+  assert.equal((await service.listAdmin('2026-09')).shifts.filter(s => s.employeeId === id).length, 1);
+  // 다음 날은 그대로 출근한다.
+  now += 24 * hour;
+  assert.ok((await service.punch({ employeeId: id, kind: 'in', requestId: 'tomorrow' }, token)).shiftId);
+});
+
+test('시급 직원은 같은 날 다시 출근할 수 있다 (점심·저녁 따로)', async () => {
+  const first = await punch('in', 'lunch'); now += 3 * hour;
+  await punch('out', 'lunch-out', first.shiftId); now += 2 * hour;
+  assert.ok((await punch('in', 'dinner')).shiftId);
 });
 
 test('일당 직원의 반타임·풀타임 설정이 출근 기록에 실린다', async () => {
@@ -714,4 +756,21 @@ test('일일근무자 자리의 퇴근 누락 칸은 태블릿에서 내린다',
   // 누락된 칸은 태블릿에서 퇴근을 받지 않고, 관리 화면에는 남는다.
   await assert.rejects(service.punch({ employeeId: slotId, kind: 'out', shiftId: stale.shiftId, requestId: 'slot-stale-out' }, token), { status: 409 });
   assert.ok((await service.listAdmin('2026-09')).openShifts.some(s => s.id === stale.shiftId));
+});
+
+test('자리의 퇴근 누락 칸은 같은 날이어도 다음 사람의 출근을 막지 않는다', async () => {
+  // 새벽에 들어온 사람이 퇴근을 빠뜨린 채 18시간이 지나면 그 칸은 태블릿에서 내려간다.
+  // 화면에 없는 사람 때문에 출근이 막히면, 눌러도 고칠 방법이 없다.
+  now = at('2026-09-11T00:30:00+09:00');
+  const slotId = (await service.saveEmployee({ name: '일일근무자 (주방)', role: '주방', active: true, payType: 'daily',
+    dailyPay: 100000, breakMinutes: 0, note: '' }, 'admin')).id;
+  const stale = await service.punch({ employeeId: slotId, kind: 'in', requestId: 'dawn-in' }, token);
+  now += 10 * hour;
+  // 같은 날 10시간째 — 아직 근무 중으로 본다. '다른 분' 확인 없이는 막힌다.
+  await assert.rejects(service.punch({ employeeId: slotId, kind: 'in', requestId: 'same-day-in' }, token), { status: 409 });
+  now += 9 * hour;
+  // 같은 날 19시간째 — 퇴근 누락. 태블릿에 그 칸이 없으니 새 출근을 받는다.
+  assert.deepEqual((await service.listKiosk(token)).employees.find(e => e.id === slotId).openShifts, []);
+  const next = await service.punch({ employeeId: slotId, kind: 'in', requestId: 'evening-in' }, token);
+  assert.notEqual(next.shiftId, stale.shiftId);
 });

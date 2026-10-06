@@ -298,6 +298,25 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
             model.fail('이미 출근한 상태입니다. 화면을 새로고침해 주세요.', 409);
           }
         }
+        // 일당은 하루 한 번이다. 퇴근한 뒤 출근을 또 누르면 그날 일당이 두 번 잡혔다.
+        // 다시 일했다면 관리자가 첫 기록의 퇴근 시각을 늘려 고친다.
+        const last = employee.lastShift;
+        if (!shared && dailyPaid && last && last.checkOutAt !== null && model.workDate(last.checkInAt) === model.workDate(at)) {
+          model.fail('오늘은 이미 퇴근까지 기록했어요. 일당은 하루에 한 번만 계산됩니다. 다시 일하셨다면 관리자에게 퇴근 시간 수정을 요청해 주세요.', 409);
+        }
+        // 자리는 퇴근할 사람이 자기 칸 대신 '출근' 칸을 눌러 기록이 하나 더 생기는 일이 있었다.
+        // 오늘 이 칸으로 들어와 있는 사람이 있으면 '다른 분이 새로 출근'이라고 확인받아야 만든다.
+        // 퇴근 누락으로 넘어간 칸은 태블릿에 안 뜨므로 여기서도 세지 않는다. 세면 화면에 없는
+        // 사람 때문에 출근이 막힌다.
+        if (shared && input.another !== true) {
+          const openToday = (await tx.get(shifts.where('employeeId', '==', employee.id).where('checkOutAt', '==', null))).docs
+            .map(serialize).filter(s => !s.voided && model.workDate(s.checkInAt) === model.workDate(at) && !model.isForgottenShift(s, at))
+            .sort((a, b) => a.checkInAt - b.checkInAt);
+          if (openToday.length) {
+            const times = openToday.map(s => model.clockText(s.checkInAt)).join(', ');
+            model.fail(`오늘 이 칸으로 출근한 분이 있어요 (${times} 출근). 퇴근하시려면 자기 출근 시각이 적힌 칸을 눌러 주세요. 다른 분이 새로 출근하는 거면 화면을 새로고침한 뒤 다시 눌러 주세요.`, 409);
+          }
+        }
         ref = newShiftRef;
         record = { employeeId: employee.id, employeeName: employee.name, floor: model.floor(employee.floor), workDate: model.workDate(at),
           checkInAt: at, checkOutAt: null, payType: employee.payType, hourlyRate: employee.hourlyRate,

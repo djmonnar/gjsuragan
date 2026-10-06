@@ -15,7 +15,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
-<script src="./assets/js/catering-catalog.js?v=20260724-catering1"></script>
+<script src="./assets/js/catering-catalog.js?v=20261007-price"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
@@ -3047,15 +3047,15 @@ const DEFAULT_MANUAL_MONTHLY_SETTLEMENTS = {};
 const EVENT_LUNCH_MENUS = [
   { category: '한상 도시락', name: '제육 한상 (간장, 양념)', price: 9000 },
   { category: '한상 도시락', name: '순살닭구이 한상', price: 9500 },
-  { category: '수라상 도시락', name: '양념닭구이&떡갈비', price: 13900 },
-  { category: '수라상 도시락', name: '김치제육&떡갈비', price: 14900 },
-  { category: '수라상 도시락', name: '간장제육&양념닭구이', price: 15900 },
-  { category: 'VIP 일품 도시락', name: '직화제육&간장제육 한정식', price: 17900 },
-  { category: 'VIP 일품 도시락', name: '소불고기 한정식', price: 18900 },
-  { category: 'VIP 일품 도시락', name: '소불고기&생선구이 한정식', price: 19900 },
-  { category: 'VIP 일품 도시락', name: '프리미엄 장어구이&전복', price: 27900 },
-  { category: 'VIP 일품 도시락', name: '프리미엄 LA갈비&연어스테이크', price: 29900 },
-  { category: 'VIP 일품 도시락', name: '프리미엄 VIP 도시락', price: 33900 }
+  { category: '수라상 도시락', name: '양념닭구이&떡갈비', price: 14900 },
+  { category: '수라상 도시락', name: '김치제육&떡갈비', price: 15900 },
+  { category: '수라상 도시락', name: '간장제육&양념닭구이', price: 16900 },
+  { category: 'VIP 임금 도시락', name: '직화제육&간장제육 한정식', price: 18900 },
+  { category: 'VIP 임금 도시락', name: '소불고기 한정식', price: 19900 },
+  { category: 'VIP 임금 도시락', name: '소불고기&생선구이 한정식', price: 20900 },
+  { category: 'VIP 임금 도시락', name: '프리미엄 장어구이&전복', price: 28900 },
+  { category: 'VIP 임금 도시락', name: '프리미엄 LA갈비&연어스테이크', price: 30900 },
+  { category: 'VIP 임금 도시락', name: '프리미엄 VIP 도시락', price: 34900 }
 ];
 const USER_PRIVATE_FIELDS = [
   'deliveryPlace',
@@ -3874,7 +3874,7 @@ function settlementEventAmount(row = {}) {
 }
 function settlementCateringSummary(row = {}) {
   const sourceItems = Array.isArray(row.cateringItems) ? row.cateringItems : [];
-  const summary = orderCateringSummary({ cateringItems: sourceItems }, { preserveSnapshot: true });
+  const summary = orderCateringSummary({ cateringItems: sourceItems }, { preserveSnapshot: true, date: orderCateringDate(row) });
   const fallbackQty = Number(row.catering ?? row.cateringTotal ?? 0) || 0;
   const fallbackAmount = Number(row.cateringAmount ?? 0) || 0;
   return {
@@ -4044,9 +4044,14 @@ function orderEventLunchPrice(order = {}) {
 function orderDisposableLunchPrice(order = {}, user = {}) {
   return orderEventLunchPrice(order) || orderLunchPrice(order, user);
 }
+// 단가가 저장되지 않은 주문은 배송일의 가격으로 센다. 가격을 올려도 지난 주문 금액이 움직이지 않게.
+function orderCateringDate(order = {}) {
+  return order.targetDate || order.date || order.deliveryDate || '';
+}
 function orderCateringSummary(order = {}, options = {}) {
   return window.GJS_CATERING.summarize(order.cateringItems || [], {
-    preserveSnapshot: Boolean(options.preserveSnapshot)
+    preserveSnapshot: Boolean(options.preserveSnapshot),
+    date: options.date || orderCateringDate(order)
   });
 }
 function orderCateringQty(order = {}) {
@@ -7040,6 +7045,12 @@ function updateOrderQtyModalTotal() {
   if (totalEl) totalEl.textContent = `${lunch + salad + eventLunch + cateringQty}개`;
 }
 
+// 전화로 받는 행사도시락의 배송일. 그날의 가격으로 담는다.
+function adminCateringDate() {
+  const row = currentOrderRows.find(item => item.uid === currentAdminCateringUid) || {};
+  return orderCateringDate(row) || currentDateStr;
+}
+
 function adminCateringDraftQty(menuId) {
   return Number(adminCateringDraft.find(item => item.menuId === menuId)?.qty || 0);
 }
@@ -7050,7 +7061,8 @@ function openAdminCateringOrderModal(uid) {
   if (!uid) return;
   currentAdminCateringUid = uid;
   adminCateringDraft = window.GJS_CATERING.summarize(row.cateringItems || [], {
-    preserveSnapshot: true
+    preserveSnapshot: true,
+    date: adminCateringDate()
   }).items.map(item => ({
     menuId: item.menuId,
     qty: item.qty,
@@ -7084,7 +7096,7 @@ function changeAdminCateringQty(menuId, delta) {
       menuId: menu.id,
       qty: next,
       name: menu.name,
-      unitPrice: menu.unitPrice
+      unitPrice: window.GJS_CATERING.priceOn(menu.id, adminCateringDate())
     });
   }
   renderAdminCateringOrderModal();
@@ -7099,7 +7111,7 @@ function renderAdminCateringOrderModal() {
       <div class="admin-catering-row">
         <div class="admin-catering-name">
           <strong>${escapeHtml(menu.name)}</strong>
-          <span>${escapeHtml(menu.category)} · ${formatMoney(menu.unitPrice)}</span>
+          <span>${escapeHtml(menu.category)} · ${formatMoney(window.GJS_CATERING.priceOn(menu.id, adminCateringDate()))}</span>
         </div>
         <div class="qty-stepper">
           <button type="button" class="qty-step-btn" onclick="changeAdminCateringQty('${jsString(menu.id)}', -1)">−</button>
@@ -7119,7 +7131,8 @@ function saveAdminCateringOrderSelection() {
   const row = currentOrderRows.find(item => item.uid === uid);
   if (!uid || !row) return;
   row.cateringItems = window.GJS_CATERING.summarize(adminCateringDraft, {
-    preserveSnapshot: true
+    preserveSnapshot: true,
+    date: adminCateringDate()
   }).items.map(item => ({
     menuId: item.menuId,
     qty: item.qty,
@@ -14932,7 +14945,10 @@ function mergedDeliveryRecordFor(targetUid, user, existing, incoming) {
     ...(Array.isArray(base.cateringItems) ? base.cateringItems : []),
     ...(Array.isArray(incoming.cateringItems) ? incoming.cateringItems : [])
   ]);
-  const cateringSummary = orderCateringSummary({ cateringItems }, { preserveSnapshot: true });
+  const cateringSummary = orderCateringSummary({ cateringItems }, {
+    preserveSnapshot: true,
+    date: orderCateringDate(base) || orderCateringDate(incoming)
+  });
   const lunchPrice = orderLunchPrice(base, user) || orderLunchPrice(incoming, user);
   const saladPrice = orderSaladPrice(base, user) || orderSaladPrice(incoming, user);
   const eventLunchPrice = orderEventLunchPrice(base) || orderEventLunchPrice(incoming) || lunchPrice;

@@ -45,6 +45,11 @@ function floor(value = 1) {
   return integer(value, '근무 매장', 1, 2);
 }
 
+// 한국시간 '14:05'. 태블릿 안내문에 쓴다.
+function clockText(ms) {
+  return new Date(Number(ms) + 9 * 3600000).toISOString().slice(11, 16);
+}
+
 function workDate(ms) {
   return new Date(ms + 9 * 3600000).toISOString().slice(0, 10);
 }
@@ -557,6 +562,7 @@ function kioskEmployee(employee) {
 }
 
 module.exports = {
+  clockText,
   MINUTE, MAX_SHIFT_MS, FORGOTTEN_SHIFT_MS, isForgottenShift, BASE_PERCENT, DEFAULT_MONTHLY_WORK_HOURS, DEFAULT_MONTHLY_WORK_DAYS, PAY_TYPES, isSharedSlot,
   WORK_PARTS, workPart,
   DEFAULT_DAILY_BASE_MINUTES, DEFAULT_OVERTIME_UNIT_MINUTES, DEFAULT_HALF_DAY_BEFORE_MINUTES,

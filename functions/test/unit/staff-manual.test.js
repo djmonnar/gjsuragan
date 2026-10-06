@@ -365,7 +365,7 @@ test('관리 화면·태블릿의 시간 규칙이 코드와 같다', () => {
   // 퇴근 누락 기준. 관리 화면의 알림과 태블릿이 서버와 같은 시간을 쓴다.
   const 누락 = M.FORGOTTEN_SHIFT_MS / 3600000;
   assert.match(source('assets/js/attendance-admin.js'), new RegExp(`const FORGOTTEN_SHIFT_MS = ${누락} \\* 3600000;`));
-  assert.match(section(html, 'daily'), new RegExp(`${누락}시간이 넘도록`));
+  assert.match(section(html, 'daily'), new RegExp(`${누락}시간</b>이 지나도록`));
   assert.match(section(html, 'fix'), new RegExp(`${누락}시간`));
   // 태블릿은 누락된 근무의 퇴근을 이 문구로 막는다.
   assert.match(source('functions/attendance.js'), /퇴근 누락으로 넘어간 근무입니다/);
@@ -460,4 +460,17 @@ test('용어 풀이의 숫자가 실제 기본값과 같다', () => {
   // 3.3% = 소득세 3% + 지방소득세 0.3%
   assert.equal(M.WITHHOLDING_PER_MILLE, 33);
   assert.match(body, /소득세 3% \+ 지방소득세 0\.3%/);
+});
+
+test('확인이 필요한 근무 팝업 안내의 기준이 관리 화면 코드와 같다', () => {
+  const { html } = render();
+  const admin = fs.readFileSync(path.join(root, 'assets/js/attendance-admin.js'), 'utf8');
+  const stale = Number(/const STALE_OPEN_HOURS = (\d+);/.exec(admin)[1]);
+  const doubleTap = Number(/const DOUBLE_TAP_MINUTES = (\d+);/.exec(admin)[1]);
+  assert.match(html, new RegExp(`출근한 지 ${stale}시간이 지났는데 퇴근 기록이 없는 근무`));
+  assert.match(html, new RegExp(`<b>${doubleTap}분 안에</b> 붙어 찍힌`));
+  assert.match(html, /같은 날 퇴근한 뒤에는 다시 출근할 수 없습니다/);
+  assert.match(html, /다른 분 출근하기/);
+  // 알림(12시간)은 태블릿이 새 출근을 받기 시작하는 시점(18시간)보다 먼저 뜬다.
+  assert.ok(stale * 3600000 < M.FORGOTTEN_SHIFT_MS);
 });
