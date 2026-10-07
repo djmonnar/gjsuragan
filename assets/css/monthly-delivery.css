@@ -11,10 +11,15 @@
 .mb-root input[type=date]{background:#fff;border:1px solid var(--mb-line);border-radius:8px;padding:8px;color:var(--mb-text);min-height:38px}
 .mb-root .mb-summary{display:flex;align-items:center;flex-wrap:wrap;gap:10px 20px;background:#fff;border:1px solid var(--mb-line);border-radius:10px;padding:12px 15px;margin-bottom:14px;color:var(--mb-sub);font-size:13px}
 .mb-root .mb-summary b{color:var(--mb-text);font-size:15px;font-variant-numeric:tabular-nums}
+.mb-root .mb-source{margin:-3px 0 14px;color:var(--mb-sub);font-size:12px;line-height:1.7}
+.mb-root .mb-source summary{cursor:pointer}
+.mb-root .mb-source p{margin:7px 0;overflow-wrap:anywhere}
+.mb-root .mb-source a{color:var(--mb-green)}
 .mb-root .mb-status{color:var(--mb-green);font-size:13px;margin-left:auto;overflow-wrap:anywhere}
 .mb-root .mb-status.error,.mb-root .mb-error{color:#a13521}
 .mb-root .mb-error{padding:12px;margin-bottom:12px;border:1px solid #e5b8b0;border-radius:9px;background:#fff3f0}
 .mb-root .mb-board{display:grid;gap:12px}
+.mb-root .mb-course-nav{display:none}
 .mb-root .mb-lane{min-width:0;background:#fff;border:1px solid var(--mb-line);border-radius:10px}
 .mb-root .mb-lane-header{background:var(--mb-soft);border-bottom:1px solid var(--mb-line);padding:12px 15px;border-radius:9px 9px 0 0;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .mb-root .mb-lane-title{font-size:15px;font-weight:800}
@@ -30,6 +35,8 @@
 .mb-root .mb-stop-name{font-size:14px;font-weight:700;overflow-wrap:anywhere}
 .mb-root .mb-qty{font-size:12px;color:var(--mb-sub);margin-top:5px;overflow-wrap:anywhere}
 .mb-root .mb-stop-name+.mb-qty{font-weight:700;color:var(--mb-green)}
+.mb-root .mb-time{display:inline-block;border-radius:6px;background:var(--mb-soft);color:var(--mb-green);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;padding:4px 7px;margin-top:7px}
+.mb-root .mb-time.unset{background:#f2f4f3;color:var(--mb-sub);font-weight:500}
 .mb-root .mb-stop.done{background:#f7fbf8}
 .mb-root .mb-completed{font-size:11px;color:var(--mb-green)}
 .mb-root .mb-menu{position:relative}
@@ -76,9 +83,58 @@
 .monthly-driver-app .md-name+.md-info{font-size:14px;font-weight:700;color:var(--mb-green)}
 .monthly-driver-app .md-links{display:flex;gap:16px;flex-wrap:wrap;margin-top:9px}
 .monthly-driver-app .md-links a{color:var(--mb-green);font-size:13px;text-decoration:underline}
+.monthly-driver-app .md-time{font-size:14px;margin-top:8px}
 .monthly-driver-app .md-check{display:flex;align-items:center;gap:6px;font-size:14px;min-height:44px;align-self:start;white-space:nowrap;cursor:pointer}
 .monthly-driver-app .md-check input{width:22px;height:22px;accent-color:var(--mb-green)}
 .monthly-driver-app .md-note{font-size:12px;color:var(--mb-sub);padding:5px 0 20px}
 #monthly-delivery-board{padding:20px;max-width:1400px;margin:0 auto;background:#f5f8f6;border-radius:12px}
-@media(max-width:600px){#monthly-delivery-board{padding:12px}.mb-root .mb-summary{gap:8px 12px}.mb-root .mb-status{width:100%;margin-left:0}.mb-root .mb-toolbar{gap:12px}.mb-root .mb-stops{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));padding:9px;gap:8px}.mb-root .mb-lane-header{padding:10px}.mb-root h2{font-size:20px}.mb-root .mb-footer{align-items:flex-start}.mb-root .mb-menu-content{width:180px}.monthly-driver-app{padding:12px}}
+@media(max-width:600px){
+  #monthly-delivery-board{padding:12px 10px;border-radius:0}
+  .mb-root .mb-toolbar{gap:12px;align-items:stretch}
+  .mb-root .mb-toolbar>div{width:100%;min-width:0}
+  .mb-root .mb-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px}
+  .mb-root .mb-actions button{padding:9px 7px;font-size:12px;min-height:44px}
+  .mb-root .mb-date-controls{gap:5px}
+  .mb-root .mb-date-controls button{min-width:40px;min-height:44px;padding:8px}
+  .mb-root input[type=date]{min-width:0;max-width:155px;font-size:16px;min-height:44px}
+  .mb-root .mb-summary{gap:8px 14px;padding:12px;font-size:13px}
+  .mb-root .mb-status{width:100%;margin-left:0}
+  .mb-root .mb-source summary{line-height:1.8}
+  .mb-root .mb-course-nav{display:flex;gap:7px;overflow-x:auto;position:sticky;top:106px;z-index:30;background:#f5f8f6;padding:8px 0;margin:0 0 10px;scrollbar-width:thin}
+  .mb-root .mb-course-nav button{flex:0 0 auto;min-height:44px;font-size:12px;border-radius:20px;padding:8px 11px}
+  .mb-root .mb-course-nav b{color:var(--mb-green);margin-left:3px}
+  .mb-root .mb-lane{scroll-margin-top:168px}
+  .mb-root .mb-lane-header{padding:12px;gap:10px}
+  .mb-root .mb-lane-header>div{width:100%;min-width:0}
+  .mb-root .mb-lane-title{font-size:17px}
+  .mb-root .mb-lane-meta{font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+  .mb-root .mb-lane-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .mb-root .mb-lane-actions:empty{display:none}
+  .mb-root .mb-lane-actions button{min-height:44px;padding:8px 5px}
+  .mb-root .mb-stops{grid-template-columns:minmax(0,1fr);padding:10px;gap:9px}
+  .mb-root .mb-stop{grid-template-columns:36px minmax(0,1fr) 36px;padding:12px 8px;gap:8px}
+  .mb-root .mb-handle,.mb-root .mb-menu summary{min-height:44px;min-width:36px}
+  .mb-root .mb-stop-name{font-size:16px;line-height:1.5}
+  .mb-root .mb-qty{font-size:14px;line-height:1.5}
+  .mb-root .mb-time{font-size:13px;padding:5px 8px}
+  .mb-root .mb-num{font-size:12px}
+  .mb-root h2{font-size:20px}
+  .mb-root .mb-footer{align-items:flex-start;line-height:1.7}
+  .mb-root .mb-footer button{width:100%;min-height:44px}
+  .mb-root .mb-menu-content{width:220px;top:44px;right:0}
+  .mb-root .mb-menu-content button{font-size:14px;min-height:44px}
+  .mb-root .mb-menu-content select{font-size:16px;min-height:44px}
+  .mb-root .mb-before{box-shadow:0 -3px 0 var(--mb-green)}
+  .mb-root .mb-after{box-shadow:0 3px 0 var(--mb-green)}
+  .mb-root dialog{padding:18px;max-height:calc(100dvh - 24px);overflow-y:auto}
+  .mb-root .mb-dialog-actions button{min-height:44px;flex:1 1 auto}
+  .monthly-driver-app{padding:12px}
+  .monthly-driver-app .md-stop{padding:14px 12px;gap:10px}
+  .monthly-driver-app .md-name{font-size:17px;line-height:1.5}
+  .monthly-driver-app .md-info{font-size:14px;line-height:1.6}
+  .monthly-driver-app .md-links{gap:8px}
+  .monthly-driver-app .md-links a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:68px;padding:8px 12px;background:var(--mb-soft);border-radius:8px;text-decoration:none;font-weight:700;font-size:14px}
+  .monthly-driver-app .md-check{min-height:44px;padding:5px 0}
+  .monthly-driver-app .md-check input{width:26px;height:26px}
+}
 @media(pointer:coarse){.mb-root button{min-height:44px}.mb-root .mb-handle{min-height:44px}.mb-root .mb-menu summary{min-height:44px}.mb-root .mb-menu-content select{font-size:16px}.mb-root .mb-lane-actions button{min-height:44px}}

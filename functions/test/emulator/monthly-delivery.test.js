@@ -11,7 +11,7 @@ const noDelivery = (day,custom={}) => [0,6].includes(new Date(`${day}T00:00:00Z`
 test.before(() => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST,'Run with Firestore emulator only');
   app = initializeApp({ projectId },`monthly-${Date.now()}`); db = getFirestore(app);
-  service = createMonthlyDeliveryService({ db,timestamp:() => FieldValue.serverTimestamp(),isNoDeliveryDate:noDelivery,adminEmails:() => ['admin@example.invalid'],now:() => clock });
+  service = createMonthlyDeliveryService({ db,timestamp:() => FieldValue.serverTimestamp(),isNoDeliveryDate:noDelivery,adminEmails:() => ['admin@example.invalid'],now:() => clock,sourceLoader:async () => ({ routes:[],tab:'',url:'' }) });
 });
 test.after(async () => { await deleteApp(app); });
 test.beforeEach(async () => {
@@ -48,6 +48,68 @@ test('board revisions conflict and templates apply only to unsaved dates', async
   const stored = await service.readBoard(date); const newer = structuredClone(board.plan);newer.order.center=[];newer.order.west=['a','b','c'];
   await service.saveTemplate({ date,templateRevision:1,plan:newer },actor);
   assert.deepEqual((await service.readBoard(date)).plan,stored.plan);
+});
+
+test('weekday sheet routes automatically seed fresh boards and preserve manual templates and live shared courses', async () => {
+  const sourceService = createMonthlyDeliveryService({ db,timestamp:() => FieldValue.serverTimestamp(),isNoDeliveryDate:noDelivery,adminEmails:() => ['admin@example.invalid'],now:() => clock,
+    sourceLoader:async day => ({ tab:day === 'wed' ? '수' : '목',url:'https://docs.google.com/spreadsheets/d/example/edit',routes:[
+      { laneId:'center',names:day === 'wed' ? ['테스트 b','테스트 a','신규 테스트'] : ['테스트 c'] },
+      { laneId:'west',names:day === 'wed' ? ['테스트 c'] : ['테스트 a','테스트 b'] }
+    ] }) });
+  let board = await sourceService.readBoard(date);
+  assert.deepEqual(board.plan.order.center,['b','a']);assert.deepEqual(board.plan.order.west,['c']);assert.deepEqual(board.plan.order.unassigned,[]);
+  assert.equal(board.routeSource.weekReady,true);
+  for (const day of ['mon','tue','wed','thu','fri']) assert.equal((await db.collection(TEMPLATES).doc(day).get()).exists,true);
+  assert.equal((await sourceService.readBoard(date)).templateRevision,board.templateRevision);
+  assert.equal((await db.collection(BOARDS).doc(date).get()).exists,false);
+  assert.deepEqual((await sourceService.readBoard('2026-10-08')).plan.order.west,['a','b']);
+  const link = await sourceService.share({ date,laneId:'center',revision:0 },actor);
+  assert.deepEqual((await sourceService.driverRead({ token:link.token })).rows.map(row=>row.uid),['b','a']);
+  await db.collection('orders').doc(date).collection('items').doc('b').set({ selfHoliday:true });
+  assert.deepEqual((await sourceService.driverRead({ token:link.token })).rows.map(row=>row.uid),['a']);
+  await db.collection('orders').doc(date).collection('items').doc('b').delete();
+  assert.deepEqual((await sourceService.driverRead({ token:link.token })).rows.map(row=>row.uid),['b','a']);
+  await db.collection('users').doc('new').set({ businessName:'신규 테스트',defaultLunch:3 });
+  const refreshed = await sourceService.driverRead({ token:link.token });
+  assert.deepEqual(refreshed.rows.map(row=>row.uid),['b','a','new']);
+  const newRow = refreshed.rows.find(row=>row.uid==='new');
+  await sourceService.complete({ token:link.token,uid:'new',delivered:true,signature:newRow.signature });
+  assert.equal((await db.collection('deliveryRecords').doc(date).get()).data().records.new.delivered,true);
+  board = await sourceService.readBoard(date); board.plan.order.center=['new'];board.plan.order.west=['c','a'];board.plan.order.unassigned=['b'];
+  await sourceService.saveBoard({ date,revision:board.revision,plan:board.plan },actor);
+  assert.deepEqual((await sourceService.readBoard(date)).plan.order,board.plan.order);
+  await sourceService.saveTemplate({ date,templateRevision:board.templateRevision,plan:board.plan },actor);
+  assert.deepEqual((await sourceService.readBoard('2026-10-14')).plan.order,board.plan.order);
+});
+test('a new member with a route on another weekday is added to an existing driver course', async () => {
+  const sourceService = createMonthlyDeliveryService({ db,timestamp:() => FieldValue.serverTimestamp(),isNoDeliveryDate:noDelivery,adminEmails:() => ['admin@example.invalid'],now:() => clock,
+    sourceLoader:async day => ({ tab:day,url:'',routes:[{ laneId:'center',names:['테스트 a'] },{ laneId:'west',names:day === 'wed' ? [] : ['다른 요일 업체'] }] }) });
+  await sourceService.readBoard(date);
+  const link = await sourceService.share({ date,laneId:'west',revision:0 },actor);
+  assert.deepEqual((await sourceService.driverRead({ token:link.token })).rows,[]);
+  await db.collection('users').doc('new').set({ businessName:'다른 요일 업체',defaultLunch:2 });
+  assert.deepEqual((await sourceService.driverRead({ token:link.token })).rows.map(row=>row.uid),['new']);
+});
+
+test('all weekday seeds retain separate same-office registrations and apply their route to future deliveries', async () => {
+  const sourceService = createMonthlyDeliveryService({ db,timestamp:() => FieldValue.serverTimestamp(),isNoDeliveryDate:noDelivery,adminEmails:() => ['admin@example.invalid'],now:() => clock,
+    sourceLoader:async day => ({ tab:day,url:'',routes:[{ laneId:'east',names:['센코필라테스'] },{ laneId:'west',names:['하얀약국'] }] }) });
+  await db.collection('users').doc('a').update({ businessName:'센코필라테스',deliveryPlace:'경남 진주시 에나로128번길 29',deliveryPlaceDetail:'3층' });
+  await db.collection('users').doc('b').update({ businessName:'센코필라테스',deliveryPlace:'경남 진주시 에나로128번길 29',deliveryPlaceDetail:'307호',defaultLunch:0 });
+  await db.collection('users').doc('c').update({ businessName:'진주하얀약국',deliveryPlace:'경남 진주시 진양호로 288' });
+  await db.collection('users').doc('earlier').set({ businessName:'신안동 하얀약국',defaultLunch:0 });
+  let board = await sourceService.readBoard(date);
+  assert.deepEqual(board.plan.order.east,['a','b']);assert.deepEqual(board.plan.order.west,['c','earlier']);
+  assert.deepEqual(board.rows.map(row=>row.uid).sort(),['a','c']);
+  for (const day of ['mon','tue','wed','thu','fri']) {
+    const template = (await db.collection(TEMPLATES).doc(day).get()).data();
+    assert.deepEqual(template.order.east,['a','b']);assert.deepEqual(template.order.west,['c','earlier']);
+  }
+  await db.collection('orders').doc('2026-10-08').collection('items').doc('b').set({ lunchCount:3 });
+  board = await sourceService.readBoard('2026-10-08');
+  assert.deepEqual(board.plan.order.east,['a','b']);assert.deepEqual(board.rows.filter(row=>['a','b'].includes(row.uid)).map(row=>[row.uid,row.lunchCount]).sort(),[['a',2],['b',3]]);
+  assert.equal((await db.collection(BOARDS).doc('2026-10-08').get()).exists,false);
+  assert.deepEqual(board.routeSource.ambiguous,[]);
 });
 test('share revocation, expiry and deleting course deny old links', async () => {
   const { link } = await assigned();
