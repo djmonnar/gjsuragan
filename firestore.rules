@@ -592,6 +592,19 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // 월식 코스와 링크는 관리자만 조회한다. 편집 및 기사님 접근은 검증된 API가 담당한다.
+    match /monthlyDeliveryBoards/{dateId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /monthlyDeliveryTemplates/{weekdayId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /monthlyDeliveryShares/{shareId} {
+      allow read, write: if false;
+    }
+
     // 용량 정리로 먼저 빼뒀던 옛 기록. 이관이 끝나면 비게 된다.
     match /deliveryRecordArchive/{dateId} {
       allow read, write: if isAdmin();

@@ -12,6 +12,7 @@ const kakaoAuth = require('./kakaoAuth');
 const imwebSync = require('./imwebSync');
 const signupGuard = require('./signupGuard');
 const deliveryLookup = require('./deliveryLookup');
+const { createMonthlyDeliveryService, createMonthlyDeliveryHandler } = require('./monthlyDelivery');
 
 const logenSecretKey = defineSecret('LOGEN_SECRET_KEY');
 const logenHealthToken = defineSecret('LOGEN_HEALTH_TOKEN');
@@ -21,6 +22,12 @@ const imwebSecretKey = defineSecret('IMWEB_SECRET_KEY');
 admin.initializeApp();
 
 const db = admin.firestore();
+exports.monthlyDeliveryApi = onRequest({ region: 'asia-northeast3', invoker: 'public', maxInstances: 5 },
+  createMonthlyDeliveryHandler({
+    service: createMonthlyDeliveryService({ db, timestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+      isNoDeliveryDate: kakaoIsNoMonthlyDeliveryDate, adminEmails: kakaoAdminEmails }),
+    authorize: verifyAdminRequest, logError: (message, detail) => logger.error(message, detail)
+  }));
 const { createAttendanceService, createAttendanceHandler } = require('./attendance');
 const orderTotals = require('./orderTotals');
 const { createBookingReader, createBookingsHandler, createBookingWriter } = require('./attendanceBookings');
