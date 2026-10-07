@@ -431,6 +431,7 @@ tr:hover td { background: #f8fafb; }
     <a class="toc-item active" href="#login">🔐 로그인</a>
     <a class="toc-item" href="#dashboard">📊 대시보드</a>
     <a class="toc-item" href="#delivery">🚚 배송관리</a>
+    <a class="toc-item" href="#monthly-delivery">월식 배송 보드</a>
     <a class="toc-item" href="#customers">👥 고객관리</a>
     <a class="toc-item" href="#register">✏️ 고객등록</a>
     <a class="toc-item" href="#import">📥 일괄등록</a>
@@ -464,6 +465,7 @@ tr:hover td { background: #f8fafb; }
       <li><a class="sidebar-link" href="#dashboard">📊 대시보드</a></li>
       <li class="sidebar-section">배송 업무</li>
       <li><a class="sidebar-link" href="#delivery">🚚 배송 관리</a></li>
+      <li><a class="sidebar-link" href="#monthly-delivery">월식 배송 보드</a></li>
       <li><a class="sidebar-link" href="#export">📦 택배사 전달</a></li>
       <li class="sidebar-section">고객 관리</li>
       <li><a class="sidebar-link" href="#customers">👥 고객 목록</a></li>
@@ -646,6 +648,33 @@ tr:hover td { background: #f8fafb; }
       <div class="tip-box warn">
         <span class="tip-icon">⚠️</span>
         <div>아임웹 자동등록 주문은 주문자 이름·번호를 따로 저장해 두므로 그대로 조회됩니다. <strong>직접 등록한 주문과 2026년 9월 이전 자동등록 주문</strong>은 고객 정보의 <strong>고객명·연락처</strong>로만 찾으니, 이 두 칸이 손님이 넣을 이름·번호와 같아야 합니다. 이름에 "(선물)" 같은 메모를 붙이거나 연락처를 지우면 손님이 찾을 수 없어요. 띄어쓰기와 하이픈(-)은 달라도 괜찮습니다. 손님은 <strong>배송완료 처리한 만큼만</strong> 줄어든 횟수를 봅니다.</div>
+      </div>
+    </section>
+
+    <section class="section" id="monthly-delivery">
+      <div class="section-header"><div class="section-icon">🚚</div><div><div class="section-title">월식 배송 보드</div><div class="section-subtitle">admin → 월식 배송 탭 · 동네별 코스와 방문 순서</div></div></div>
+      <div class="card">
+        <div class="card-title">배송 날짜 선택과 코스 편집</div>
+        <p>선택한 날짜에 <strong>실제로 배송할 전체 월식</strong>이 나옵니다. 그날 접수한 주문만 모으는 화면이 아닙니다. 요일 기본수량, 날짜별 주문, 잠금 시점 기본수량, 직접 입력한 월식 배송을 함께 반영합니다. 행사도시락은 기존 행사 화면에서 관리합니다.</p>
+        <ol>
+          <li>처음에는 업체가 <strong>미배정</strong>에 있습니다. 코스 설정에서 동네명·차량 표시를 바꾸거나 코스를 추가하세요.</li>
+          <li>업체 카드의 <strong>⠿ 손잡이</strong>를 드래그해 코스와 방문 순서를 정합니다. 카드의 <strong>⋯ 메뉴 → 배송코스·앞으로·뒤로</strong>로도 이동할 수 있습니다. 변경하면 해당 날짜의 코스가 자동 저장됩니다.</li>
+          <li><strong>요일 기본 코스로 저장</strong>하면, 아직 따로 편집하지 않은 같은 요일의 날짜에도 배정과 순서가 적용됩니다. 이미 저장한 날짜는 그 날짜의 코스를 유지합니다. 새 업체는 미배정에 추가됩니다.</li>
+          <li><strong>이전 편집 되돌리기</strong>는 현재 화면에서 편집한 코스·순서를 되돌립니다. 주문과 완료 상태는 별도로 유지됩니다. 다른 관리자가 동시에 바꾸면 최신 보드를 확인한 뒤 다시 편집하세요.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <div class="card-title">취소·휴무와 수량 변경</div>
+        <p>자체 휴무, 수량이 없는 업체, 중지 기간, 배송 시작 전, 주문 삭제는 배송 대상에서 자동 제외됩니다. 공휴일·등록한 휴무일·주말에는 월식 배송을 표시하지 않습니다. 주문이 있는 업체는 기존 주문 화면의 날짜별 주문 기준을 따릅니다.</p>
+        <p>카드의 <strong>⋯ → 오늘 휴무로 변경</strong>은 선택한 날짜의 주문을 휴무로 저장합니다. 배송완료한 업체는 주문 화면에서 완료를 취소한 다음 휴무로 바꾸세요. <strong>고객정보 · 휴무 수정</strong>과 하단 자체 휴무 목록에서는 기존 고객·휴무 화면을 엽니다.</p>
+        <p>빠진 업체의 기본 코스·순서는 남겨두므로 다시 배송하게 되면 원래 자리로 돌아옵니다. admin은 주문 변경을 구독하고, 보드와 기사님 화면은 <strong>20초마다</strong> 목록을 갱신합니다. 바로 확인하려면 새로고침을 누르세요.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">기사님 링크와 완료 체크</div>
+        <p>오늘 또는 앞으로 배송할 날짜의 각 코스에서 <strong>기사님 링크 → 링크 복사</strong>를 누르고 해당 기사님께 전달하세요. 링크는 해당 날짜·코스만 열며 배송일 이후 <strong>2일</strong>이 지난 날의 자정에 만료됩니다. 링크 해제로 기존 링크를 즉시 막고 새 링크를 만들 수 있습니다. 링크를 가진 사람은 해당 코스를 볼 수 있으므로 담당 기사님께 전달하세요.</p>
+        <p>기사님은 업체명·수량·식사시간·주소·배송 메모를 보고 길찾기·전화를 이용합니다. <strong>admin만 코스·순서를 편집</strong>하고, 기사님은 <strong>조회와 완료 체크만</strong> 할 수 있습니다. 다른 코스와 단가·정산·입금 정보는 기사님 화면에 나오지 않습니다.</p>
+        <p>기사님 완료 체크·취소는 <strong>오늘 배송만</strong> 가능하며 기존 월식 배송기록과 정산에 함께 저장됩니다. 중복 체크는 한 번만 반영됩니다. 취소 시 해당 날짜의 정산 수량을 다시 계산하며 입금·조정·이월 정보를 보존합니다. 보류 정산은 완료 때 자동 청구하지 않으며, 엑셀로 관리하는 수동 정산 업체는 관리자 정산 화면에서 확인해야 합니다.</p>
+        <p>주문 수량·주소가 바뀌면 최신 목록을 확인한 뒤 다시 체크해야 합니다. 연결 실패 시 완료 체크는 잠기며, 새로고침해서 최신 상태를 확인하세요.</p>
       </div>
     </section>
 

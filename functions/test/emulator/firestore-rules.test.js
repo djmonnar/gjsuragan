@@ -107,6 +107,21 @@ test('signed-in owner can create a profile without price fields', async () => {
   await assertSucceeds(setDoc(doc(db, 'users/test-owner'), validProfile()));
 });
 
+test('monthly boards and templates are admin-readable but writes and all share secrets are API-only', async () => {
+  const clients=[env.unauthenticatedContext().firestore(),env.authenticatedContext('customer',{ email:'customer@example.invalid' }).firestore(),env.authenticatedContext('driver',{ firebase:{ sign_in_provider:'anonymous' } }).firestore(),env.authenticatedContext('admin',{ email:testAdminEmail }).firestore()];
+  await env.withSecurityRulesDisabled(async context => {
+    for (const collection of ['monthlyDeliveryBoards','monthlyDeliveryTemplates','monthlyDeliveryShares']) await setDoc(doc(context.firestore(),`${collection}/test`),{ token:'secret',revision:1 });
+  });
+  for (const collection of ['monthlyDeliveryBoards','monthlyDeliveryTemplates']) {
+    await assertSucceeds(getDoc(doc(clients[3],`${collection}/test`)));
+    for (const client of clients.slice(0,3)) await assertFails(getDoc(doc(client,`${collection}/test`)));
+  }
+  for (const client of clients) {
+    await assertFails(getDoc(doc(client,'monthlyDeliveryShares/test')));
+    for (const collection of ['monthlyDeliveryBoards','monthlyDeliveryTemplates','monthlyDeliveryShares']) await assertFails(setDoc(doc(client,`${collection}/test`),{ revision:2 }));
+  }
+});
+
 test('owner cannot set price fields during profile creation', async () => {
   const db = env.authenticatedContext('test-owner', { email: 'owner@example.invalid' }).firestore();
   await assertFails(setDoc(doc(db, 'users/test-owner'), {

@@ -16,6 +16,8 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 <script src="./assets/js/catering-catalog.js?v=20261007-price"></script>
+<link rel="stylesheet" href="./assets/css/monthly-delivery.css?v=20261007-monthly-board">
+<script src="./assets/js/monthly-delivery-board.js?v=20261007-monthly-board"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
@@ -29,6 +31,7 @@ const messaging=firebase.messaging.isSupported()?firebaseApp.messaging():null;
 const FCM_VAPID_PUBLIC_KEY='BHXtN0pC4FNWDwQtAUaCTAWcKseMEWdaZuYMoJdjajZsWARrLQfcU_a57F2BKOFXSlyg30etqA7pbwa0AQixQ3A';
 const ADMIN_EMAILS=['sun1562@naver.com'];
 const FUNCTIONS_API_BASE='https://asia-northeast3-gjsuragan-60505.cloudfunctions.net/api';
+const MONTHLY_DELIVERY_API_BASE='https://asia-northeast3-gjsuragan-60505.cloudfunctions.net/monthlyDeliveryApi';
 auth.setPersistence('local').catch(()=>{});
 </script>
 <style>
@@ -1281,6 +1284,7 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
 
   <div class="admin-tabs">
     <button class="tab-btn active" id="tab-orders" onclick="switchAdminTab('orders')"><svg class="admin-icon"><use href="#admin-i-orders"></use></svg><span>주문</span></button>
+    <button class="tab-btn" id="tab-monthlyDelivery" onclick="switchAdminTab('monthlyDelivery')"><svg class="admin-icon"><use href="#admin-i-map"></use></svg><span>월식 배송</span></button>
     <button class="tab-btn" id="tab-members" onclick="switchAdminTab('members')"><svg class="admin-icon"><use href="#admin-i-members"></use></svg><span>고객관리</span></button>
     <button class="tab-btn" id="tab-events" onclick="switchAdminTab('events')"><svg class="admin-icon"><use href="#admin-i-event"></use></svg><span>행사도시락</span></button>
     <button class="tab-btn" id="tab-menus" onclick="switchAdminTab('menus')"><svg class="admin-icon"><use href="#admin-i-menu"></use></svg><span>식단관리</span></button>
@@ -1293,6 +1297,8 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
     <button class="tab-btn" id="tab-manual" onclick="switchAdminTab('manual')"><svg class="admin-icon"><use href="#admin-i-help"></use></svg><span>메뉴얼</span></button>
     <button class="tab-btn" id="tab-map" onclick="switchAdminTab('map')"><svg class="admin-icon"><use href="#admin-i-map"></use></svg><span>지도</span></button>
   </div>
+
+  <div class="admin-tab-panel" data-tab="monthlyDelivery" style="display:none"><div id="monthly-delivery-board"></div></div>
 
   <div class="controls-bar admin-tab-panel" data-tab="orders">
     <div class="date-nav">
@@ -5899,14 +5905,17 @@ auth.onAuthStateChanged(async (user) => {
       updateDateLabel();
       loadOrders();
       if (location.hash === '#changeRequests') switchAdminTab('changeRequests');
+      if (location.hash === '#monthlyDelivery') switchAdminTab('monthlyDelivery');
     }
   } else if (user) {
+    window.MonthlyDeliveryBoard.close();
     loadingEl.style.display = 'none';
     mainScreen.classList.remove('active');
     authScreen.classList.add('active');
     document.getElementById('login-info').textContent = `고객 계정(${user.email})이 열려 있습니다. 관리자 비밀번호를 입력하면 전환됩니다.`;
     document.getElementById('login-info').classList.add('show');
   } else {
+    window.MonthlyDeliveryBoard.close();
     loadingEl.style.display = 'none';
     mainScreen.classList.remove('active');
     authScreen.classList.add('active');
@@ -5931,6 +5940,7 @@ async function doAdminLogin() {
 }
 
 function doAdminLogout() {
+  window.MonthlyDeliveryBoard.close();
   _appInitialized = false;
   changeRequestsInitialized = false;
   if (changeRequestsUnsub) { changeRequestsUnsub(); changeRequestsUnsub = null; }
@@ -10792,15 +10802,27 @@ async function saveMealPdfCandidates() {
 }
 
 function switchAdminTab(tab) {
+  const previousTab = activeAdminTab;
   activeAdminTab = tab;
   if (tab !== 'orders') closeOrderMobileSearch();
-  ['orders','members','events','menus','changeRequests','settlements','taxInvoices','receipts','stats','settings','manual','map'].forEach(name => {
+  ['orders','monthlyDelivery','members','events','menus','changeRequests','settlements','taxInvoices','receipts','stats','settings','manual','map'].forEach(name => {
     document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
   });
   document.querySelectorAll('.admin-tab-panel').forEach(el => {
     el.style.display = el.dataset.tab === tab ? '' : 'none';
   });
+  if (tab === 'monthlyDelivery') {
+    window.MonthlyDeliveryBoard.open({ root:document.getElementById('monthly-delivery-board'), auth, db, apiUrl:MONTHLY_DELIVERY_API_BASE, date:currentDateStr,
+      onDate: value => { currentDateStr = value; updateDateLabel(); },
+      openCustomer: async (uid, value) => {
+        currentDateStr = value; updateDateLabel();
+        try { await loadAllUsers(); openOrderMemberInfo(uid); }
+        catch (e) { alert('고객 정보를 불러오지 못했습니다. 다시 시도해주세요.'); }
+      }
+    });
+  } else window.MonthlyDeliveryBoard.close();
   if (tab === 'orders') {
+    if (previousTab === 'monthlyDelivery') { invalidateDeliveryDateCache(currentDateStr); loadOrders(); }
     renderOrderEventLunches();
     renderOrderReferencePanel();
   }
