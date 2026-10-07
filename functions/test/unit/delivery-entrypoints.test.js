@@ -26,24 +26,33 @@ function extractFunction(source, signature) {
   throw new Error(`${signature} 함수 끝을 찾지 못했습니다.`);
 }
 
-test('직원 화면은 선택주문 완료 시 기존 즉시 종료 옵션을 유지한다', () => {
-  const source = read('assets/js/schedule-report.js');
-  const markDone = extractFunction(source, 'async function stableMarkDone');
-  assert.match(markDone, /completeAllForOnce\s*:\s*true/);
+// 선택주문을 한 번에 끝내는 규칙은 배송 처리 한곳(delivery-transaction.js)에 있다.
+// 예전에는 화면이 옵션(completeAllForOnce)으로 정했고, 옵션을 주지 않은 배송지도만 1개씩 차감했다.
+// 실제로 눌렀을 때의 결과는 once-order-single-delivery.test.js 가 화면별로 돌려 본다.
+test('선택주문을 한 번에 끝내는 규칙을 화면이 따로 정하지 않는다', () => {
+  for (const file of ['assets/js/schedule-report.js', 'map/index.html', 'assets/js/imweb.js', 'assets/js/rendering.js']) {
+    assert.doesNotMatch(read(file), /completeAllForOnce|completeAll\s*:/, file);
+  }
+  const core = read('assets/js/delivery-transaction.js');
+  assert.doesNotMatch(core, /completeAllForOnce|opts\.completeAll/);
+  assert.match(extractFunction(core, 'function deliveryStatePatch'), /current\.orderType === 'once' \? 0 :/);
 });
 
-test('배송지도는 선택주문도 기존처럼 한 회차만 차감한다', () => {
-  const source = read('map/index.html');
-  const markDone = extractFunction(source, 'async function markDone');
-  assert.match(markDone, /runDeliveryTransaction\([^;]+['"]complete['"]\)/s);
-  assert.doesNotMatch(markDone, /completeAllForOnce/);
-});
-
-test('아임웹 기본 완료 함수는 기존처럼 한 회차만 차감한다', () => {
-  const source = read('assets/js/imweb.js');
-  const markDone = extractFunction(source, 'async function markDone');
-  assert.match(markDone, /runDeliveryTransaction\([^;]+['"]complete['"]\)/s);
-  assert.doesNotMatch(markDone, /completeAllForOnce/);
+test('화면의 완료 함수는 모두 같은 배송 처리를 거친다', () => {
+  const entries = [
+    ['assets/js/schedule-report.js', 'async function stableMarkDone'],
+    ['map/index.html', 'async function markDone('],
+    ['assets/js/imweb.js', 'async function markDone('],
+    ['assets/js/imweb.js', 'async function markAll('],
+    ['assets/js/rendering.js', 'async function markAllDirect('],
+    ['assets/js/rendering.js', 'async function markAllCourier(']
+  ];
+  for (const [file, signature] of entries) {
+    const body = extractFunction(read(file), signature);
+    assert.match(body, /runDeliveryTransaction\([^;]+['"]complete['"]/s, `${file} ${signature}`);
+    // 잔여 횟수를 화면이 직접 계산해 쓰지 않는다.
+    assert.doesNotMatch(body, /remain\s*:/, `${file} ${signature}`);
+  }
 });
 
 test('직원 일괄 완료는 직원 화면의 완료 함수를 그대로 사용한다', () => {

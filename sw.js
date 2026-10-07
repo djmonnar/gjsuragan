@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v88-hosting-link';
+const CACHE = 'gjsuragan-v91-hosting-link';
 const PRECACHE = [
   './customer.html',
   './admin.html',

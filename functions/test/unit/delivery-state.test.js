@@ -9,9 +9,9 @@ test('regular order remain 2 completion decrements once', () => {
   assert.deepEqual(result.patch, { remain: 1, deliveredDates: ['2026-07-10'], status: 'active' });
 });
 
-test('map and imweb one-time order remain 2 completion decrements once', () => {
+test('subscription remain 2 completion decrements once', () => {
   const result = deliveryStatePatch(
-    { remain: 2, deliveredDates: [], status: 'active', orderType: 'once' },
+    { remain: 2, deliveredDates: [], status: 'active', orderType: 'sub' },
     '2026-07-10',
     'complete'
   );
@@ -25,14 +25,35 @@ test('remain 1 completion ends without becoming negative', () => {
   assert.equal(noRemaining.changed, false);
 });
 
-test('existing employee-screen rule can finish a one-time order in one action', () => {
-  const result = deliveryStatePatch(
-    { remain: 2, deliveredDates: [], status: 'active', orderType: 'once' },
-    '2026-07-10',
-    'complete',
-    { completeAll: true }
-  );
-  assert.deepEqual(result.patch, { remain: 0, deliveredDates: ['2026-07-10'], status: 'end' });
+// 선택주문은 수량이 몇 개든 한 날짜에 한 번 나가는 배송이다. 부르는 화면과 상관없이 완료하면 끝난다.
+// 예전에는 화면이 옵션으로 정해서 배송지도만 1개씩 차감했고, 남은 1개는 어느 목록에도 다시 나오지 않았다.
+test('one-time order finishes in one completion whatever the quantity', () => {
+  for (const quantity of [1, 2, 5]) {
+    const result = deliveryStatePatch(
+      { remain: quantity, total: quantity, qty: quantity, deliveredDates: [], status: 'active', orderType: 'once' },
+      '2026-07-10',
+      'complete'
+    );
+    assert.deepEqual(result.patch, { remain: 0, deliveredDates: ['2026-07-10'], status: 'end' }, String(quantity));
+  }
+});
+
+test('a caller can no longer switch the one-time rule on or off', () => {
+  const once = { remain: 2, deliveredDates: [], status: 'active', orderType: 'once' };
+  const sub = { remain: 2, deliveredDates: [], status: 'active', orderType: 'sub' };
+  for (const options of [undefined, {}, { completeAll: false }, { completeAll: true }]) {
+    assert.equal(deliveryStatePatch(once, '2026-07-10', 'complete', options).patch.remain, 0);
+    assert.equal(deliveryStatePatch(sub, '2026-07-10', 'complete', options).patch.remain, 1);
+  }
+});
+
+test('one-time order left half-completed by the old rule is closed by the next completion', () => {
+  // 실제로 남아 있던 모양: 수량 2개, 4월 20일에 1개만 차감된 채 진행중.
+  const stale = { remain: 1, total: 2, qty: 2, deliveredDates: ['2026-04-20'], status: 'active', orderType: 'once' };
+  assert.deepEqual(deliveryStatePatch(stale, '2026-04-21', 'complete').patch,
+    { remain: 0, deliveredDates: ['2026-04-20', '2026-04-21'], status: 'end' });
+  // 같은 날짜를 다시 누르면 이미 완료된 날짜라 바뀌지 않는다.
+  assert.equal(deliveryStatePatch(stale, '2026-04-20', 'complete').changed, false);
 });
 
 test('same date completion is idempotent', () => {
@@ -57,10 +78,10 @@ test('invalid remain is rejected instead of guessing a new value', () => {
 // ── 선택주문 취소와 날짜 구분 (Issue #39) ──
 const { deliveryDateKind } = require('../../../assets/js/delivery-transaction');
 
-test('one-time order cancel restores the full quantity the employee screen consumed', () => {
-  // 수량 2개짜리 선택주문. 직원 화면은 한 번에 전부 완료한다 (잔여 2 → 0).
+test('one-time order cancel restores the full quantity the completion consumed', () => {
+  // 수량 2개짜리 선택주문. 완료하면 한 번에 끝난다 (잔여 2 → 0).
   const order = { remain: 2, total: 2, deliveredDates: [], status: 'active', orderType: 'once' };
-  const completed = deliveryStatePatch(order, '2026-07-10', 'complete', { completeAll: true });
+  const completed = deliveryStatePatch(order, '2026-07-10', 'complete');
   assert.deepEqual(completed.patch, { remain: 0, deliveredDates: ['2026-07-10'], status: 'end' });
   // 예전에는 취소가 1만 돌려줘서 2개짜리 주문이 1개로 남았다.
   const restored = deliveryStatePatch({ ...order, ...completed.patch }, '2026-07-10', 'cancel');
@@ -68,11 +89,11 @@ test('one-time order cancel restores the full quantity the employee screen consu
 });
 
 test('one-time order decremented one per date still restores exactly one', () => {
-  // 배송지도·아임웹 경로는 하루에 한 회씩 차감한다. 취소도 한 회만 돌아와야 한다.
+  // 예전 배송지도·아임웹 경로는 하루에 한 회씩 차감했다. 그렇게 남은 기록은 취소도 한 회만 돌아와야 한다.
   const afterTwo = { remain: 1, total: 3, deliveredDates: ['2026-07-10', '2026-07-11'], status: 'active', orderType: 'once' };
   assert.deepEqual(deliveryStatePatch(afterTwo, '2026-07-11', 'cancel').patch,
     { remain: 2, deliveredDates: ['2026-07-10'], status: 'active' });
-  // 한 회 차감한 뒤 직원 화면이 나머지를 한 번에 끝낸 경우 — 끝낸 몫(2)이 돌아온다.
+  // 한 회 차감된 뒤 다음 완료가 나머지를 한 번에 끝낸 경우 — 끝낸 몫(2)이 돌아온다.
   const mixed = { remain: 0, total: 3, deliveredDates: ['2026-07-10', '2026-07-11'], status: 'end', orderType: 'once' };
   assert.deepEqual(deliveryStatePatch(mixed, '2026-07-11', 'cancel').patch,
     { remain: 2, deliveredDates: ['2026-07-10'], status: 'active' });
