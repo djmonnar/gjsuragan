@@ -52,6 +52,7 @@ npm run test:emulator  # 규칙·서비스 (firebase-tools 필요)
 | `functions/attendance*.js` | Deploy Functions → `functions:attendanceApi` |
 | `functions/imweb*.js` | Deploy Functions → `functions:syncImwebOrders` |
 | `firestore.rules` | Deploy Firestore Rules (입력값 없음) |
+| `attendance.html`, `assets/js/attendance-*.js`, `assets/css/attendance.css` | 위와 별개로 Deploy Attendance Hosting (입력값 없음). 오래된 태블릿용 `gjsuragan-60505.web.app` |
 
 전체 함수 배포(`functions`)는 `functions/.env` 가 러너에 없어서 운영 환경변수가
 지워질 수 있다. 대상을 하나씩 지정한다.

@@ -1,0 +1,62 @@
+name: Deploy Attendance Hosting
+
+# 출퇴근 태블릿 화면을 gjsuragan-60505.web.app 에 올린다. 입력값 없이 버튼만 누른다.
+# Actions 탭 → "Deploy Attendance Hosting" → "Run workflow"
+#
+# 안드로이드 6 처럼 오래된 태블릿은 github.io 인증서를 믿지 못해 출퇴근 화면이 안 열린다.
+# web.app 은 출퇴근 서버와 같은 구글 인증서라 그런 기기에서도 열린다.
+# 출퇴근 화면(attendance.html, assets/js/attendance-*.js, attendance.css)을 고쳤으면
+# GitHub Pages 와 별개로 이것도 다시 눌러야 web.app 쪽이 바뀐다.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-hosting
+  cancel-in-progress: false
+
+env:
+  FIREBASE_PROJECT_ID: gjsuragan-60505
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # 출퇴근 화면에 필요한 파일만 .hosting/ 에 모은다. 저장소 전체를 올리지 않는다.
+      - name: Collect attendance page
+        run: node scripts/build-attendance-hosting.js
+
+      - name: Write service account key
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT 시크릿이 없습니다."
+            exit 1
+          fi
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service-account.json" >> "$GITHUB_ENV"
+
+      # 호스팅만 올린다. 함수·규칙은 건드리지 않는다.
+      - name: Deploy hosting
+        run: |
+          npx --yes firebase-tools@15 deploy \
+            --only hosting \
+            --project "$FIREBASE_PROJECT_ID" \
+            --non-interactive \
+            --force
+
+      - name: Remove service account key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/service-account.json"
