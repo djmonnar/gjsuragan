@@ -4,8 +4,8 @@ const M = require('./monthlyDeliveryModel');
 
 const SOURCE_ID = '1XlFWqDD_6N-S8Dvr-4gdh_usx9kOgSzXbAnhKx2rGu4';
 const SOURCE_URL = `https://docs.google.com/spreadsheets/d/${SOURCE_ID}/edit`;
-// The current route blocks at the top of each verified tab. Friday also has an
-// older route list below row 19; it must not override the current list.
+// The primary route blocks at the top of each verified tab. Friday also has a
+// separate list below row 19; it must not override the weekday's top blocks.
 const TABS = Object.freeze({
   mon: { title:'월', gid:1559617652, starts:[0,6,10] },
   tue: { title:'화', gid:1031551462, starts:[0,4,8] },

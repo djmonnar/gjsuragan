@@ -20,7 +20,7 @@ const users = {
   d:{ businessName:'진주목산정형외과의원' }, e:{ businessName:'(주)래디콜' }, f:{ businessName:'진주어린e치과' },
   g:{ businessName:'주식회사 코엠엔지니어링' }, h:{ businessName:'멘토즈 스터디카페' }, i:{ businessName:'진주하나치과기공소' }
 };
-test('verified weekday blocks retain source order, deduplicate stops and ignore Friday historical rows', () => {
+test('verified weekday blocks retain source order, deduplicate stops and keep separate Friday lower blocks from overriding them', () => {
   for (const day of Object.keys(S.TABS)) {
     const matched = S.matchRoutes(S.parseRoutes(sheet(day),day),users);
     assert.deepEqual(matched.plan.order.center,['a','b','c']);
