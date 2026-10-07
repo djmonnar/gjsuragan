@@ -43,27 +43,36 @@ test('remain 1 completion ends and never becomes negative', async () => {
   assert.deepEqual(saved.deliveredDates, ['2026-07-10']);
 });
 
-test('employee screen finishes a one-time remain 2 order', async () => {
-  const ref = db.collection('customers').doc('employee-once-complete');
-  await ref.set({ remain: 2, deliveredDates: [], status: 'active', orderType: 'once' });
-  await runDeliveryTransaction(
-    db,
-    ref.id,
-    '2026-07-10',
-    'complete',
-    {},
-    { completeAllForOnce: true }
-  );
+// 선택주문은 수량이 몇 개든 한 번의 배송이다. 부르는 화면이 옵션을 주든 안 주든 완료하면 끝난다.
+// 예전에는 옵션을 준 직원 화면만 한 번에 끝냈고, 배송지도·아임웹 경로는 1개씩 차감했다.
+test('a one-time remain 2 order is finished by one completion with no caller option', async () => {
+  const ref = db.collection('customers').doc('once-complete');
+  await ref.set({ remain: 2, total: 2, qty: 2, deliveredDates: [], status: 'active', orderType: 'once' });
+  await runDeliveryTransaction(db, ref.id, '2026-07-10', 'complete');
   const saved = (await ref.get()).data();
   assert.equal(saved.remain, 0);
   assert.equal(saved.status, 'end');
   assert.deepEqual(saved.deliveredDates, ['2026-07-10']);
 });
 
-test('map and imweb complete a one-time remain 2 order by one delivery', async () => {
-  const ref = db.collection('customers').doc('map-imweb-once-complete');
-  await ref.set({ remain: 2, deliveredDates: [], status: 'active', orderType: 'once' });
-  await runDeliveryTransaction(db, ref.id, '2026-07-10', 'complete');
+test('two concurrent completions of a one-time order on different dates record only one', async () => {
+  const ref = db.collection('customers').doc('once-concurrent');
+  await ref.set({ remain: 2, total: 2, qty: 2, deliveredDates: [], status: 'active', orderType: 'once' });
+  const results = await Promise.all([
+    runDeliveryTransaction(db, ref.id, '2026-07-10', 'complete'),
+    runDeliveryTransaction(db, ref.id, '2026-07-11', 'complete')
+  ]);
+  const saved = (await ref.get()).data();
+  assert.equal(saved.remain, 0);
+  assert.equal(saved.status, 'end');
+  assert.equal(saved.deliveredDates.length, 1);
+  assert.equal(results.filter(result => result.changed).length, 1);
+});
+
+test('a subscription still decrements one, and an old caller option changes nothing', async () => {
+  const ref = db.collection('customers').doc('sub-with-old-option');
+  await ref.set({ remain: 2, total: 4, deliveredDates: [], status: 'active', orderType: 'sub' });
+  await runDeliveryTransaction(db, ref.id, '2026-07-10', 'complete', {}, { completeAllForOnce: true });
   const saved = (await ref.get()).data();
   assert.equal(saved.remain, 1);
   assert.equal(saved.status, 'active');
@@ -94,10 +103,10 @@ test('a missing completion date is a no-op even with stale caller state', async 
   assert.deepEqual(saved.deliveredDates, []);
 });
 
-test('employee screen cancel restores a one-time order to its full quantity (Issue #39)', async () => {
-  const ref = db.collection('customers').doc('employee-once-cancel');
+test('cancel restores a one-time order to its full quantity (Issue #39)', async () => {
+  const ref = db.collection('customers').doc('once-cancel');
   await ref.set({ remain: 2, total: 2, qty: 2, deliveredDates: [], status: 'active', orderType: 'once' });
-  await runDeliveryTransaction(db, ref.id, '2026-07-10', 'complete', {}, { completeAllForOnce: true });
+  await runDeliveryTransaction(db, ref.id, '2026-07-10', 'complete');
   assert.equal((await ref.get()).data().remain, 0);
   await runDeliveryTransaction(db, ref.id, '2026-07-10', 'cancel');
   const saved = (await ref.get()).data();

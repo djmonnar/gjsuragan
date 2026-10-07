@@ -174,7 +174,10 @@ function deliveryProductBadgeHtml(c){
   return `<span class="badge ${productBadgeClass(id)}">${productLabel(id)}</span>`;
 }
 function lastBoxDeliveryBadge(c){
-  if (c?.isDirect === true && Number(c.remain || 0) === 1) {
+  // 선택주문은 수량이 몇 개든 그 한 번이 마지막 배송이다. 잔여를 횟수로 읽으면 수량 2개 주문에서 표시가 빠진다.
+  const remain = Number(c?.remain || 0);
+  const lastDelivery = c?.orderType === 'once' ? remain > 0 : remain === 1;
+  if (c?.isDirect === true && lastDelivery) {
     return '<span class="badge" style="background:#fff7ed;color:#9a3412;border-color:#fed7aa;">박스</span>';
   }
   return '';
@@ -268,7 +271,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
-<script src="../assets/js/delivery-transaction.js?v=20261006-bulkcancel1" defer></script>
+<script src="../assets/js/delivery-transaction.js?v=20261006-onceall1" defer></script>
 <script src="../assets/js/route-map.js?v=20260626-roundtrip1" defer></script>
 </body>
 </html>

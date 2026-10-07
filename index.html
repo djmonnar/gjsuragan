@@ -802,7 +802,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
     <div class="mn-step"><div class="mn-num">1</div><div>보낼 고객을 체크하고 <span class="mn-btn">선택 로젠 전송</span> (또는 <span class="mn-btn">미전송 전체 전송</span>)을 누르면 로젠에 주문이 접수됩니다.</div></div>
     <div class="mn-step"><div class="mn-num">2</div><div><span class="mn-btn">송장번호 조회</span>를 누르면 발급된 송장번호가 표에 채워집니다.</div></div>
     <div class="mn-step"><div class="mn-num">3</div><div>발송이 끝나면 체크 후 <span class="mn-btn">택배 전체 완료</span>로 완료 처리합니다.</div></div>
-    <div class="mn-tip">💡 배송 완료를 누르면 <b>잔여 횟수가 1회 차감</b>되고, 잔여가 0이 되면 그 주문은 자동으로 <b>종료</b> 상태가 됩니다. 완료 처리는 고객 관리의 배송 이력에서 언제든 <b>↩ 취소</b>할 수 있습니다.</div>
+    <div class="mn-tip">💡 배송 완료를 누르면 정기배송은 <b>잔여 횟수가 1회 차감</b>되고, 잔여가 0이 되면 그 주문은 자동으로 <b>종료</b> 상태가 됩니다. <b>선택주문은 수량이 몇 개든 한 번에 같이 나가는 배송</b>이라 완료를 누르면 바로 종료되고, 취소하면 수량이 그대로 돌아옵니다. 완료 처리는 고객 관리의 배송 이력에서 언제든 <b>↩ 취소</b>할 수 있습니다.</div>
     <div class="mn-tip">💡 <b>날짜 칸을 꼭 확인하세요.</b> 전체 완료는 날짜 칸에 고른 날짜로 처리됩니다. <b>아직 오지 않은 날짜는 완료 처리할 수 없고</b>, 오늘이 아닌 지난 날짜면 어느 날짜 목록인지 한 번 더 묻습니다. 날짜를 잘못 골라 완료했다면 날짜 칸을 그 날짜로 맞추고 <span class="mn-btn">전체 완료 취소</span>를 누르세요. 그 날짜로 완료된 주문이 모두 되돌아가고, 잔여가 0이 되어 종료됐던 주문도 다시 진행 중이 됩니다.</div>
   </div>
 
@@ -813,7 +813,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
       <li>오늘의 <b>직배송 고객만</b> 지도와 카드로 보여줍니다. 휴대폰에서 쓰기 좋게 만들어져 있습니다.</li>
       <li><span class="mn-btn">왕복 추천 순서</span>: 돌담 출발·복귀 기준으로 효율적인 방문 순서를 자동 계산합니다.</li>
       <li><span class="mn-btn">주소 전체 복사</span>: 내비게이션에 붙여넣기 좋게 주소를 복사합니다.</li>
-      <li><b>미완료만 보기</b>를 켜면 남은 집만 표시됩니다. 각 카드에서 바로 배송완료 처리할 수 있습니다.</li>
+      <li><b>미완료만 보기</b>를 켜면 남은 집만 표시됩니다. 각 카드에서 바로 배송완료 처리할 수 있습니다. 완료 규칙은 배송 관리와 같습니다(선택주문은 완료를 누르면 바로 종료).</li>
     </ul>
   </div>
 
@@ -916,7 +916,7 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
         <tr><td><span class="badge b-direct">직배송</span></td><td>택배가 아닌 직접 배달 고객</td></tr>
         <tr><td><span class="badge" style="background:#fef3c7;color:#92400e;border-color:#f59e0b;">변경예약</span></td><td>배송 요일 변경이 예약됨 (적용일에 자동 전환)</td></tr>
         <tr><td><span class="badge" style="background:#ecfdf5;color:#047857;border-color:#86efac;">첫주문</span></td><td>이 고객의 첫 배송 전 주문 — 인사·안내에 신경 써주세요</td></tr>
-        <tr><td><span class="badge" style="background:#fef3c7;color:#92400e;border-color:#f59e0b;">박스</span></td><td>마지막 직배송 — 보냉가방 회수 대신 박스로 발송</td></tr>
+        <tr><td><span class="badge" style="background:#fef3c7;color:#92400e;border-color:#f59e0b;">박스</span></td><td>마지막 직배송 — 보냉가방 회수 대신 박스로 발송. 정기배송은 마지막 회차에, 선택주문은 수량과 상관없이 항상 표시됩니다</td></tr>
         <tr><td>잔여 게이지(빨간색)</td><td>잔여 3회 이하 — 재구독(충전) 안내 시점</td></tr>
       </tbody>
     </table>
@@ -1365,12 +1365,12 @@ const DELIVERY_ADMIN_EMAIL = 'sun1562@naver.com';
 
 
 <script src="assets/js/auth-core.js?v=20260910-missed2" defer></script>
-<script src="assets/js/delivery-transaction.js?v=20261006-bulkcancel1" defer></script>
+<script src="assets/js/delivery-transaction.js?v=20261006-onceall1" defer></script>
 <script src="assets/js/imweb.js?v=20260910-cancel1" defer></script>
-<script src="assets/js/schedule-report.js?v=20261006-bulkcancel1" defer></script>
+<script src="assets/js/schedule-report.js?v=20261006-onceall1" defer></script>
 <script src="assets/js/manual-delivery-dates.js?v=20260806-manualorder2" defer></script>
 <script src="assets/js/rendering-formatters.js?v=20260711-helper1" defer></script>
-<script src="assets/js/rendering.js?v=20260916-cancel1" defer></script>
+<script src="assets/js/rendering.js?v=20261006-onceall1" defer></script>
 <script src="assets/js/order-settlement.js?v=20260712-sales1" defer></script>
 <script src="assets/js/route-map.js?v=20260626-roundtrip1" defer></script>
 <script src="assets/js/import-export.js?v=20260625-door-x1" defer></script>

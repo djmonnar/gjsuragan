@@ -18,7 +18,7 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 346583,
+    "normalizedBytes": 347034,
     "lines": 7910,
     "functionDeclarations": 462,
     "uniqueCallableGlobals": 411,
@@ -212,8 +212,8 @@
     {
       "path": "assets/js/delivery-transaction.js",
       "metrics": {
-        "bytes": 4574,
-        "lines": 103,
+        "bytes": 4834,
+        "lines": 101,
         "functionDeclarations": 5,
         "asyncFunctions": 1
       },
@@ -423,7 +423,7 @@
     {
       "path": "assets/js/schedule-report.js",
       "metrics": {
-        "bytes": 21304,
+        "bytes": 21275,
         "lines": 437,
         "functionDeclarations": 42,
         "asyncFunctions": 4
@@ -710,8 +710,8 @@
     {
       "path": "assets/js/rendering.js",
       "metrics": {
-        "bytes": 101677,
-        "lines": 2035,
+        "bytes": 101897,
+        "lines": 2037,
         "functionDeclarations": 104,
         "asyncFunctions": 7
       },
@@ -2173,8 +2173,8 @@
     "chatbotSessions"
   ],
   "preservedDeliveryPolicies": [
-    "employee one-time completion uses completeAllForOnce and ends remaining deliveries",
-    "route-map and Imweb one-time completion decrement one delivery",
+    "one-time completion ends the order in one action on every entry point; the rule lives in deliveryStatePatch, not in a caller option",
+    "subscription completion decrements one delivery",
     "one-time cancellation restores the consumed count as total minus remaining completion dates; subscription cancellation restores one (Issue #39)",
     "completion is refused for a future date; bulk completion of a past date asks again with the date",
     "cancelAllDeliveries cancels every order completed on the selected date, including ended ones"

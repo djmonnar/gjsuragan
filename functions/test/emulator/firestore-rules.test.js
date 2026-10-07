@@ -215,3 +215,37 @@ test('owner cannot submit invalid catering quantities or catering while on holid
     selfHoliday: true
   })));
 });
+
+// 배송지도는 기사님이 익명 로그인으로 쓴다. 규칙은 직배송 주문의 remain·deliveredDates·status 만 고치게 한다.
+// 선택주문을 한 번에 끝내는 완료(잔여 2 → 0, 종료)와 그 취소가 이 규칙을 통과해야 지도에서도 같은 결과가 난다.
+test('route-map driver finishes a direct one-time order of quantity 2 in one completion', async () => {
+  const { runDeliveryTransaction } = require('../../../assets/js/delivery-transaction');
+  const order = { name: '선택주문', orderType: 'once', status: 'active', remain: 2, total: 2, qty: 2, deliveredDates: [], onceDate: '2026-10-06' };
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'customers/direct-once'), { ...order, isDirect: true });
+    await setDoc(doc(context.firestore(), 'customers/courier-once'), { ...order, isDirect: false });
+  });
+  const saved = async id => {
+    let data;
+    await env.withSecurityRulesDisabled(async context => { data = (await getDoc(doc(context.firestore(), `customers/${id}`))).data(); });
+    return data;
+  };
+  const driverDb = env.authenticatedContext('driver', { firebase: { sign_in_provider: 'anonymous' } }).firestore();
+
+  const completed = await assertSucceeds(runDeliveryTransaction(driverDb, 'direct-once', '2026-10-06', 'complete'));
+  assert.equal(completed.changed, true);
+  let now = await saved('direct-once');
+  assert.equal(now.remain, 0);
+  assert.equal(now.status, 'end');
+  assert.deepEqual(now.deliveredDates, ['2026-10-06']);
+
+  await assertSucceeds(runDeliveryTransaction(driverDb, 'direct-once', '2026-10-06', 'cancel'));
+  now = await saved('direct-once');
+  assert.equal(now.remain, 2);
+  assert.equal(now.status, 'active');
+  assert.deepEqual(now.deliveredDates, []);
+
+  // 택배 주문은 기사 로그인으로 읽지도 고치지도 못한다. 지도에는 직배송만 뜬다.
+  await assertFails(runDeliveryTransaction(driverDb, 'courier-once', '2026-10-06', 'complete'));
+  assert.equal((await saved('courier-once')).remain, 2);
+});
