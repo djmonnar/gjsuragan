@@ -1,10 +1,10 @@
-const CACHE = 'gjsuragan-v92-monthly-board';
+const CACHE = 'gjsuragan-v93-sheet-routes';
 const PRECACHE = [
   './customer.html',
   './admin.html',
   './monthly-delivery.html',
-  './assets/css/monthly-delivery.css?v=20261007-monthly-board',
-  './assets/js/monthly-delivery-board.js?v=20261007-monthly-board',
+  './assets/css/monthly-delivery.css?v=20261007-sheet-routes',
+  './assets/js/monthly-delivery-board.js?v=20261007-sheet-routes',
   './assets/js/monthly-delivery-driver.js?v=20261007-monthly-board',
   './attendance.html',
   './staff-admin.html',

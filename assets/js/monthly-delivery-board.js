@@ -47,10 +47,13 @@
       return;
     }
     const sum = totals(data.rows), unassigned = laneRows('unassigned').length;
+    const source = data.routeSource;
     root.querySelector('[data-template]').textContent = `${weekdayLabel(date)}요일 기본 코스로 저장`;
     root.querySelector('[data-template]').disabled = busy || data.noDelivery;
     root.querySelector('[data-body]').innerHTML = `${failure ? `<div class="mb-error" role="alert">${esc(failure)}</div>` : ''}
       <div class="mb-summary"><span>배송 <b>${data.rows.length}곳</b></span><span>도시락 <b>${sum.lunch}개</b></span><span>샐러드 <b>${sum.salad}개</b></span>${sum.event ? `<span>일회용 <b>${sum.event}개</b></span>` : ''}<span>미배정 <b>${unassigned}곳</b></span><span class="mb-status${failure ? ' error' : ''}" role="status" aria-live="polite">${esc(busy ? '저장 중…' : status)}</span></div>
+      ${source?.warning ? `<div class="mb-error" role="alert">${esc(source.warning)} 저장한 코스는 유지됩니다. 미배정 업체를 확인해주세요.</div>` : ''}
+      ${source?.tab ? `<details class="mb-source"><summary>${source.weekReady ? '월~금 기본 배정 저장됨 · ' : ''}배달동선 시트 · ${esc(source.tab)}요일 기준 · 직접 편집한 배정 우선</summary><p>전체 고객의 기본 코스를 미리 저장하고, 선택한 날짜의 실제 배송 업체만 표시합니다. 취소·휴무 업체는 제외하고 복귀하면 원래 순서로 표시합니다. 새 업체는 시트 이름이 연결되면 자동 배정되며, 연결되지 않으면 미배정에 표시됩니다. <a href="${esc(source.url)}" target="_blank" rel="noopener">원본 시트 보기</a></p>${source.ambiguous.length || source.unmatched.length ? `<p>시트에서 고객을 찾지 못했거나 이름이 모호한 항목: ${[...source.unmatched,...source.ambiguous].map(esc).join(' · ')}. 미등록·중지 업체가 포함될 수 있습니다.</p>` : ''}</details>` : ''}
       ${data.noDelivery ? '<div class="mb-empty">공휴일·휴무일 또는 주말입니다. 오늘 월식 배송은 없습니다.</div>' : `<div class="mb-board">${data.plan.lanes.map(lane => laneHtml(lane)).join('')}</div>`}
       <details class="mb-excluded"><summary>자체 휴무 ${data.excluded.length}곳</summary><div class="mb-excluded-items">${data.excluded.map(row => `<button type="button" data-customer="${esc(row.uid)}">${esc(row.businessName)} · 휴무 수정</button>`).join('')}</div></details>
       <div class="mb-footer"><span>⠿ 손잡이로 순서 변경·코스 이동 · 변경 후 자동 저장 · 취소·휴무는 자동 제외</span><button type="button" data-undo${!history.length || busy ? ' disabled' : ''}>이전 편집 되돌리기</button></div>`;

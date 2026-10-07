@@ -194,6 +194,23 @@ function validatePlan(value) {
   if (value.lanes.some(l => typeof l.name !== 'string' || !l.name.trim() || l.name.length > 60 || typeof l.driver !== 'string' || l.driver.length > 60)) throw error(400, '코스명과 담당 차량을 확인해주세요.');
   return normalizePlan(value);
 }
+function planWithSource(value, rows, sourcePlan) {
+  const plan = normalizePlan(value), seen = new Set(Object.values(plan.order).flat());
+  // Existing assignments (including an explicitly unassigned stop), deleted
+  // categories and manual visit order win over the reference sheet.
+  Object.entries(sourcePlan.order).forEach(([id, uids]) => {
+    if (!plan.order[id]) return;
+    uids.forEach(uid => { if (!seen.has(uid)) { plan.order[id].push(uid); seen.add(uid); } });
+  });
+  rows.forEach(row => { if (!seen.has(row.uid)) { plan.order.unassigned.push(row.uid); seen.add(row.uid); } });
+  return plan;
+}
+function samePlan(left, right) {
+  // Firestore map keys need not retain JavaScript insertion order. The lane
+  // array and each stop array define the order; object key order does not.
+  const ordered = value => (value.lanes || []).map(lane => [lane.id,lane.name,lane.driver,value.order?.[lane.id] || []]);
+  return JSON.stringify(ordered(left)) === JSON.stringify(ordered(right));
+}
 function validLaneId(id) { return typeof id === 'string' && /^[a-zA-Z0-9_-]{1,40}$/.test(id) && !['__proto__', 'prototype', 'constructor'].includes(id); }
 function publicRow(row) {
   const { uid, businessName, phone, address, addressDetail, mealTime, note, lunchCount, saladCount, eventLunchCount, delivered, signature: stamp } = row;
@@ -268,5 +285,5 @@ function buildSettlement({ uid, month, records, user, saved = {}, invoiceNo, noD
 }
 
 module.exports = { DEFAULT_LANES, POLL_MS, MAX_STOPS, error, count, money, validDate, requireDate, weekday, kstDate, paused, activeDefault,
-  defaultsFor, mergeRecord, legacyRecords, mergeRecords, quantities, resolveRows, normalizePlan, validatePlan, validUid, publicRow,
+  defaultsFor, mergeRecord, legacyRecords, mergeRecords, quantities, resolveRows, normalizePlan, validatePlan, planWithSource, samePlan, validUid, publicRow,
   completionRecord, buildSettlement, signature };

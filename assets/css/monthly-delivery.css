@@ -11,6 +11,10 @@
 .mb-root input[type=date]{background:#fff;border:1px solid var(--mb-line);border-radius:8px;padding:8px;color:var(--mb-text);min-height:38px}
 .mb-root .mb-summary{display:flex;align-items:center;flex-wrap:wrap;gap:10px 20px;background:#fff;border:1px solid var(--mb-line);border-radius:10px;padding:12px 15px;margin-bottom:14px;color:var(--mb-sub);font-size:13px}
 .mb-root .mb-summary b{color:var(--mb-text);font-size:15px;font-variant-numeric:tabular-nums}
+.mb-root .mb-source{margin:-3px 0 14px;color:var(--mb-sub);font-size:12px;line-height:1.7}
+.mb-root .mb-source summary{cursor:pointer}
+.mb-root .mb-source p{margin:7px 0;overflow-wrap:anywhere}
+.mb-root .mb-source a{color:var(--mb-green)}
 .mb-root .mb-status{color:var(--mb-green);font-size:13px;margin-left:auto;overflow-wrap:anywhere}
 .mb-root .mb-status.error,.mb-root .mb-error{color:#a13521}
 .mb-root .mb-error{padding:12px;margin-bottom:12px;border:1px solid #e5b8b0;border-radius:9px;background:#fff3f0}

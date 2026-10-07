@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const { FieldPath } = require('firebase-admin/firestore');
 const M = require('./monthlyDeliveryModel');
+const Sheet = require('./monthlyDeliverySheet');
 
 const BOARDS = 'monthlyDeliveryBoards';
 const TEMPLATES = 'monthlyDeliveryTemplates';
@@ -38,7 +39,7 @@ function invoiceNumber(month, settlements, users, administrators) {
   return `${prefix}${String(seq + 1).padStart(3, '0')}`;
 }
 
-function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEmails, now = () => new Date() }) {
+function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEmails, now = () => new Date(), sourceLoader = Sheet.loadSource }) {
   const get = (reader, ref) => reader === db ? ref.get() : reader.get(ref);
   const boardRef = date => db.collection(BOARDS).doc(date);
   const templateRef = date => db.collection(TEMPLATES).doc(M.weekday(date));
@@ -108,15 +109,53 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
     data.rows = M.resolveRows(data);
     return data;
   }
+  async function ensureWeekTemplates(users, sources) {
+    if (!Object.values(sources).some(source => source.routes.length)) return;
+    const seeds = Sheet.weekPlans(sources, users);
+    await db.runTransaction(async tx => {
+      const days = Object.keys(Sheet.TABS), snapshots = await Promise.all(days.map(day => tx.get(db.collection(TEMPLATES).doc(day))));
+      days.forEach((day, index) => {
+        if (!sources[day].routes.length) return;
+        const saved = snapshots[index].exists ? snapshots[index].data() : {}, seed = seeds[day];
+        const plan = M.planWithSource(saved.lanes && !saved.sourceSeeded ? saved : seed, Object.values(seed.order).flat().map(uid => ({ uid })), seed);
+        if (M.samePlan(saved, plan)) return;
+        tx.set(db.collection(TEMPLATES).doc(day), { ...plan,weekday:day,revision:revision(saved.revision) + 1,
+          sourceSeeded:saved.lanes ? Boolean(saved.sourceSeeded) : true,updatedAt:timestamp(),updatedBy:'sheet-auto' }, { merge:true });
+      });
+    });
+  }
   async function readBoard(date) {
     M.requireDate(date);
-    const [board, template, data] = await Promise.all([boardRef(date).get(), templateRef(date).get(), load(date)]);
-    const stored = board.exists ? board.data() : {}, defaults = template.exists ? template.data() : {};
-    const plan = M.normalizePlan(stored.lanes ? stored : defaults, data.rows);
+    const [board, data, sources] = await Promise.all([boardRef(date).get(), load(date),
+      Promise.all(Object.keys(Sheet.TABS).map(async day => [day,await sourceLoader(day)])).then(Object.fromEntries)]);
+    await ensureWeekTemplates(data.users, sources);
+    const template = await templateRef(date).get(), source = sources[M.weekday(date)] || { routes:[],tab:'',url:Sheet.SOURCE_URL };
+    let stored = board.exists ? board.data() : {};
+    const defaults = template.exists ? template.data() : {}, matched = Sheet.matchRoutes(source.routes, data.users, data.rows);
+    const additions = M.planWithSource(defaults.lanes ? defaults : matched.plan, [], matched.plan);
+    let plan = M.planWithSource(stored.lanes ? stored : additions, data.rows, additions);
+    // A shared/saved board must also include newly matched members, so drivers
+    // can see and complete them. Reads of an unedited date stay unsaved and keep
+    // following the weekday template. Never overwrite an administrator's edit.
+    if (board.exists && !M.samePlan(stored, plan)) {
+      const synced = await db.runTransaction(async tx => {
+        const [current, currentTemplate] = await Promise.all([tx.get(boardRef(date)), tx.get(templateRef(date))]);
+        const saved = current.exists ? current.data() : {}, weekdayDefault = currentTemplate.exists ? currentTemplate.data() : matched.plan;
+        const seed = M.planWithSource(weekdayDefault, [], matched.plan), base = saved.lanes ? saved : seed;
+        const next = M.planWithSource(base, data.rows, seed);
+        if (current.exists && !M.samePlan(saved, next)) {
+          saved.revision = revision(saved.revision) + 1;
+          tx.set(boardRef(date), { ...next,revision:saved.revision,updatedAt:timestamp(),updatedBy:'sheet-auto' }, { merge:true });
+        }
+        return { stored:saved,plan:next };
+      });
+      stored = synced.stored; plan = synced.plan;
+    }
     return {
       date, revision: revision(stored.revision), templateRevision: revision(defaults.revision), plan,
       rows: data.rows.map(M.publicRow), noDelivery: data.noDelivery, pollMs: M.POLL_MS,
       updatedAt: stored.updatedAt?.toDate?.().toISOString() || '',
+      routeSource: { tab:source.tab,url:source.url,weekReady:Object.values(sources).every(value => value.routes.length > 0),warning:source.warning || '',unmatched:matched.unmatched,ambiguous:matched.ambiguous },
       excluded: Object.entries(data.orders).filter(([, order]) => order.selfHoliday).map(([uid, order]) => ({ uid, businessName: data.users[uid]?.businessName || order.businessName || uid, reason: '자체 휴무' }))
     };
   }
@@ -152,9 +191,11 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
   async function share(body, actor) {
     const date = M.requireDate(body.date);
     if (date < M.kstDate(now())) throw M.error(400, '오늘 또는 앞으로 배송할 날짜의 링크를 만들어주세요.');
+    const source = await sourceLoader(M.weekday(date));
     return db.runTransaction(async tx => {
       const [board, template, data] = await Promise.all([tx.get(boardRef(date)), tx.get(templateRef(date)), load(date, tx)]);
-      const stored = board.exists ? board.data() : {}, plan = M.normalizePlan(stored.lanes ? stored : (template.exists ? template.data() : {}), data.rows);
+      const stored = board.exists ? board.data() : {}, seeded = Sheet.matchRoutes(source.routes, data.users, data.rows).plan;
+      const plan = M.planWithSource(stored.lanes ? stored : (template.exists ? template.data() : seeded), data.rows, seeded);
       expectRevision(stored.revision, body.revision);
       const lane = plan.lanes.find(l => l.id === body.laneId && l.id !== 'unassigned');
       if (!lane) throw M.error(400, '배정된 배송코스를 선택해주세요.');
@@ -179,14 +220,14 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
   }
   async function driverRead(body) {
     const link = await scope(body.token);
+    const data = await readBoard(link.date);
     const boardSnapshot = await boardRef(link.date).get();
     const board = boardSnapshot.exists ? boardSnapshot.data() : {};
     checkScope(link, board);
     const lane = board.lanes?.find(l => l.id === link.laneId && l.id !== 'unassigned');
     if (!lane) throw M.error(403, '이 배송코스가 해제되었습니다.');
-    const data = await load(link.date, db, board.order?.[lane.id] || []);
     const byUid = new Map(data.rows.map(row => [row.uid, row]));
-    return { date: link.date, lane, rows: (board.order?.[lane.id] || []).filter(uid => byUid.has(uid)).map(uid => M.publicRow(byUid.get(uid))),
+    return { date: link.date, lane, rows: (board.order?.[lane.id] || []).filter(uid => byUid.has(uid)).map(uid => byUid.get(uid)),
       canComplete: link.date === M.kstDate(now()) && !data.noDelivery, noDelivery: data.noDelivery, pollMs: M.POLL_MS };
   }
   async function revoke(body, actor) {

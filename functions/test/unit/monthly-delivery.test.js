@@ -113,7 +113,10 @@ test('manual polling and share expiry match service constants, with cache and ta
   const manual = fs.readFileSync(path.join(root,'manual.html'),'utf8').split('id="monthly-delivery"')[1].split('</section>')[0];
   assert.match(manual,new RegExp(`${M.POLL_MS/1000}초마다`)); assert.match(manual,new RegExp(`<strong>${SHARE_TTL_DAYS}일</strong>`));
   const admin = fs.readFileSync(path.join(root,'admin.html'),'utf8'), sw = fs.readFileSync(path.join(root,'sw.js'),'utf8');
-  for (const asset of ['monthly-delivery.css','monthly-delivery-board.js']) { assert.ok(admin.includes(`${asset}?v=20261007-monthly-board`)); assert.ok(sw.includes(`${asset}?v=20261007-monthly-board`)); }
+  for (const asset of ['monthly-delivery.css','monthly-delivery-board.js']) {
+    const url = admin.split(asset + '?v=')[1]?.split('"')[0];
+    assert.ok(url); assert.ok(sw.includes(`${asset}?v=${url}`));
+  }
   assert.ok(admin.includes('data-tab="monthlyDelivery"')); assert.ok(sw.includes("'./monthly-delivery.html'"));
 });
 test('board customer editor loads the selected manual date and does not open after navigating away', async () => {
