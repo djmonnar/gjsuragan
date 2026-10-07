@@ -42,6 +42,31 @@ test('operator-confirmed school name maps the source abbreviation to the current
   const matched = S.matchRoutes([{ laneId:'center',names:['도동초'] }],{ school:{ businessName:'서부거점형 다문화교육센터' } });
   assert.deepEqual(matched.plan.order.center,['school']);assert.deepEqual(matched.unmatched,[]);
 });
+
+test('operator-confirmed pharmacy registrations both receive the source course even when one address is empty', () => {
+  const matched = S.matchRoutes([{ laneId:'west',names:['하얀약국'] }],{
+    current:{ businessName:'진주하얀약국',deliveryPlace:'경남 진주시 진양호로 288' },
+    earlier:{ businessName:'신안동 하얀약국' }
+  });
+  assert.deepEqual(matched.plan.order.west,['current','earlier']);assert.deepEqual(matched.ambiguous,[]);
+});
+
+test('exact same-office registrations share a course while different or incomplete addresses remain ambiguous', () => {
+  const route = [{ laneId:'east',names:['센코필라테스'] }];
+  const customers = {
+    manual:{ businessName:'센코필라테스',deliveryPlace:'경남 진주시 에나로128번길 29',deliveryPlaceDetail:'3층',defaultLunch:1 },
+    signup:{ businessName:'센코 필라테스',deliveryPlace:'경남 진주시 에나로128번길 29',deliveryPlaceDetail:'307호, 308호',defaultLunch:3 }
+  };
+  const matched = S.matchRoutes(route,customers);
+  assert.deepEqual(matched.plan.order.east,['manual','signup']);assert.deepEqual(matched.ambiguous,[]);
+  assert.deepEqual(M.resolveRows({ date:'2026-10-08',users:customers }).map(row=>[row.uid,row.lunchCount]).sort(),[['manual',1],['signup',3]]);
+  for (const deliveryPlace of ['', '경남 진주시', '경남 진주시 에나로128번길 30', '경남 진주시 에나로128번길 2-9']) {
+    const different = S.matchRoutes(route,{ ...customers,signup:{ ...customers.signup,deliveryPlace } });
+    assert.deepEqual(different.plan.order.east,[]);assert.deepEqual(different.ambiguous,['센코필라테스']);
+  }
+  const abbreviated = S.matchRoutes([{ laneId:'east',names:['센코'] }],customers);
+  assert.deepEqual(abbreviated.plan.order.east,[]);assert.deepEqual(abbreviated.ambiguous,['센코']);
+});
 test('operator-confirmed separate customs office is an adjacent stop without merging customer records', () => {
   const matched = S.matchRoutes([{ laneId:'center',names:['동북관세법인','다도'] }],{ main:{ businessName:'동북관세법인' },office:{ businessName:'진주관세사무소' },a:{ businessName:'다도 OA' } });
   assert.deepEqual(matched.plan.order.center,['main','office','a']);
@@ -62,6 +87,25 @@ test('all weekday base plans include dormant customers and inherit a known route
   const plans = S.weekPlans(sources,{ a:{ businessName:'다도 OA',mealPaused:true },unknown:{ businessName:'미등록 업체' },deleted:{ businessName:'삭제 업체',deleted:true } });
   for (const plan of Object.values(plans)) { assert.deepEqual(Object.values(plan.order).flat().sort(),['a','unknown']);assert.deepEqual(plan.order.unassigned,['unknown']); }
   assert.deepEqual(plans.wed.order.west,['a']);assert.deepEqual(plans.fri.order.center,['a']);
+});
+
+test('Friday staffing variant only fills customers missing from every primary weekday course', () => {
+  const rows = sheet('fri');
+  rows[18] = ['하대 시내 초전','멘토스스터디카페'];
+  rows[22] = ['평거동','패스독서실','다도','다른 요일 업체'];
+  rows[26] = ['사천','타이어프로'];rows[30] = ['혁신'];
+  const routes = S.parseRoutes(rows,'fri');
+  assert.equal(routes.filter(route=>route.fallback).length,3);
+  const sources = Object.fromEntries(Object.keys(S.TABS).map(day=>[day,{ routes:day === 'fri' ? routes : [{ laneId:'center',names:['다도','다른 요일 업체'] }] }]));
+  const plans = S.weekPlans(sources,{ ...users,otherDay:{ businessName:'다른 요일 업체' },pass:{ businessName:'PASS프리미엄관리형독서실' },tire:{ businessName:'타이어프로 사천점' } });
+  for (const plan of Object.values(plans)) {
+    assert.ok(plan.order.center.includes('a'));assert.ok(!plan.order.west.includes('a'));
+    assert.ok(plan.order.center.includes('otherDay'));assert.ok(!plan.order.west.includes('otherDay'));
+    assert.ok(plan.order.east.includes('h'));assert.ok(!plan.order.center.includes('h'));
+    assert.ok(plan.order.west.includes('pass'));assert.ok(plan.order.east.includes('tire'));
+  }
+  rows[26][0] = '다른 형식';
+  assert.equal(S.parseRoutes(rows,'fri').filter(route=>route.fallback).length,0);
 });
 test('Firestore map key order does not create phantom routing edits, but stop and category order do', () => {
   const plan = S.matchRoutes(S.parseRoutes(sheet('wed'),'wed'),users).plan;

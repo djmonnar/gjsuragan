@@ -90,6 +90,27 @@ test('a new member with a route on another weekday is added to an existing drive
   await db.collection('users').doc('new').set({ businessName:'다른 요일 업체',defaultLunch:2 });
   assert.deepEqual((await sourceService.driverRead({ token:link.token })).rows.map(row=>row.uid),['new']);
 });
+
+test('all weekday seeds retain separate same-office registrations and apply their route to future deliveries', async () => {
+  const sourceService = createMonthlyDeliveryService({ db,timestamp:() => FieldValue.serverTimestamp(),isNoDeliveryDate:noDelivery,adminEmails:() => ['admin@example.invalid'],now:() => clock,
+    sourceLoader:async day => ({ tab:day,url:'',routes:[{ laneId:'east',names:['센코필라테스'] },{ laneId:'west',names:['하얀약국'] }] }) });
+  await db.collection('users').doc('a').update({ businessName:'센코필라테스',deliveryPlace:'경남 진주시 에나로128번길 29',deliveryPlaceDetail:'3층' });
+  await db.collection('users').doc('b').update({ businessName:'센코필라테스',deliveryPlace:'경남 진주시 에나로128번길 29',deliveryPlaceDetail:'307호',defaultLunch:0 });
+  await db.collection('users').doc('c').update({ businessName:'진주하얀약국',deliveryPlace:'경남 진주시 진양호로 288' });
+  await db.collection('users').doc('earlier').set({ businessName:'신안동 하얀약국',defaultLunch:0 });
+  let board = await sourceService.readBoard(date);
+  assert.deepEqual(board.plan.order.east,['a','b']);assert.deepEqual(board.plan.order.west,['c','earlier']);
+  assert.deepEqual(board.rows.map(row=>row.uid).sort(),['a','c']);
+  for (const day of ['mon','tue','wed','thu','fri']) {
+    const template = (await db.collection(TEMPLATES).doc(day).get()).data();
+    assert.deepEqual(template.order.east,['a','b']);assert.deepEqual(template.order.west,['c','earlier']);
+  }
+  await db.collection('orders').doc('2026-10-08').collection('items').doc('b').set({ lunchCount:3 });
+  board = await sourceService.readBoard('2026-10-08');
+  assert.deepEqual(board.plan.order.east,['a','b']);assert.deepEqual(board.rows.filter(row=>['a','b'].includes(row.uid)).map(row=>[row.uid,row.lunchCount]).sort(),[['a',2],['b',3]]);
+  assert.equal((await db.collection(BOARDS).doc('2026-10-08').get()).exists,false);
+  assert.deepEqual(board.routeSource.ambiguous,[]);
+});
 test('share revocation, expiry and deleting course deny old links', async () => {
   const { link } = await assigned();
   await service.revoke({ date,laneId:'center' },actor);
