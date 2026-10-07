@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 const M = require('../../monthlyDeliveryModel');
 const catering = require('../../cateringCatalog');
 const { createMonthlyDeliveryHandler, SHARE_TTL_DAYS, shareHash } = require('../../monthlyDelivery');
@@ -108,4 +109,13 @@ test('manual polling and share expiry match service constants, with cache and ta
   const admin = fs.readFileSync(path.join(root,'admin.html'),'utf8'), sw = fs.readFileSync(path.join(root,'sw.js'),'utf8');
   for (const asset of ['monthly-delivery.css','monthly-delivery-board.js']) { assert.ok(admin.includes(`${asset}?v=20261007-monthly-board`)); assert.ok(sw.includes(`${asset}?v=20261007-monthly-board`)); }
   assert.ok(admin.includes('data-tab="monthlyDelivery"')); assert.ok(sw.includes("'./monthly-delivery.html'"));
+});
+test('board customer editor loads the selected manual date and does not open after navigating away', async () => {
+  const admin=fs.readFileSync(path.resolve(__dirname,'../../../admin.html'),'utf8').replace(/\r\n/g,'\n');
+  const body=admin.match(/openCustomer: async \(uid, value\) => \{([\s\S]*?)\n      }\n    }\);/)[1];
+  const calls=[], context={ currentDateStr:'2026-10-06',activeAdminTab:'monthlyDelivery',allUsers:{},deletedUsers:{},updateDateLabel(){},loadAllUsers:async()=>{},loadOrders:async()=>calls.push('orders'),openOrderMemberInfo:uid=>calls.push(uid),alert:message=>{ throw new Error(message); } };
+  const open=vm.runInNewContext(`async (uid,value)=>{${body}}`,context);
+  await open('manual_x',date);assert.deepEqual(calls,['orders','manual_x']);assert.equal(context.currentDateStr,date);
+  calls.length=0;context.loadAllUsers=async()=>{context.activeAdminTab='orders';};
+  await open('manual_x',date);assert.deepEqual(calls,[]);
 });

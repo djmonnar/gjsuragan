@@ -10816,7 +10816,13 @@ function switchAdminTab(tab) {
       onDate: value => { currentDateStr = value; updateDateLabel(); },
       openCustomer: async (uid, value) => {
         currentDateStr = value; updateDateLabel();
-        try { await loadAllUsers(); openOrderMemberInfo(uid); }
+        try {
+          await loadAllUsers();
+          if (currentDateStr !== value || activeAdminTab !== 'monthlyDelivery') return;
+          if (!allUsers[uid] && !deletedUsers[uid]) await loadOrders();
+          if (currentDateStr !== value || activeAdminTab !== 'monthlyDelivery') return;
+          openOrderMemberInfo(uid);
+        }
         catch (e) { alert('고객 정보를 불러오지 못했습니다. 다시 시도해주세요.'); }
       }
     });
