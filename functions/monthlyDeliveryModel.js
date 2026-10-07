@@ -186,7 +186,7 @@ function normalizePlan(value = {}, rows = []) {
   return { lanes, order };
 }
 function validatePlan(value) {
-  if (!value || !Array.isArray(value.lanes) || value.lanes.length < 2 || value.lanes.length > 15) throw error(400, '배송코스를 확인해주세요.');
+  if (!value || !Array.isArray(value.lanes) || value.lanes.length < 1 || value.lanes.length > 15) throw error(400, '배송코스를 확인해주세요.');
   const ids = value.lanes.map(l => l?.id);
   if (new Set(ids).size !== ids.length || !ids.includes('unassigned') || ids.some(id => !validLaneId(id))) throw error(400, '배송코스 ID가 올바르지 않습니다.');
   const all = ids.flatMap(id => Array.isArray(value.order?.[id]) ? value.order[id] : [null]);

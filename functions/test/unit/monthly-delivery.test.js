@@ -63,6 +63,12 @@ test('saved ranks survive inactive meals and new members are unassigned', () => 
   assert.throws(() => M.validatePlan({ ...plan,lanes:[{ id:'__proto__',name:'bad',driver:'' },{ id:'unassigned',name:'미배정',driver:'' }] }), /ID/);
   assert.throws(() => M.requireDate('2026-02-30'), /날짜/);
 });
+test('course categories can be fully replaced, keeping only the unassigned pool between edits', () => {
+  const empty={ lanes:[{ id:'unassigned',name:'미배정',driver:'' }],order:{ unassigned:['a','b'] } };
+  assert.deepEqual(M.validatePlan(empty),empty);
+  const custom={ lanes:[{ id:'custom_route',name:'초전 B코스',driver:'임기사 · 4호차' },...empty.lanes],order:{ custom_route:['a'],unassigned:['b'] } };
+  assert.deepEqual(M.validatePlan(custom),custom);
+});
 test('completion quantity and amounts match monthly settlement; cancellation removes the date', () => {
   const row = rows({ orders:{ a:{ lunchCount:2,saladCount:1 } } })[0];
   const record = M.completionRecord(row, {}, date, true, 'driver', 'timestamp');

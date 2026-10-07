@@ -124,3 +124,18 @@ test('manual deliveries also disappear on pause and concurrent bills receive dis
   const bills=await db.collection('settlements').doc('2026-10').collection('items').get();
   assert.equal(new Set(bills.docs.map(doc => doc.data().invoiceNo)).size,2);
 });
+test('custom categories rename and reorder without losing assignments; deleting every course is allowed', async () => {
+  const { link }=await assigned();let board=await service.readBoard(date);
+  board.plan.lanes.unshift({ id:'custom_route',name:'초전 B코스',driver:'임기사 · 4호차' });
+  board.plan.order.custom_route=['c'];board.plan.order.west=[];
+  await service.saveBoard({ date,revision:board.revision,plan:board.plan },actor);
+  board=await service.readBoard(date);
+  board.plan.lanes.find(l=>l.id==='center').name='하대 커스텀';board.plan.lanes.find(l=>l.id==='center').driver='박기사';
+  await service.saveBoard({ date,revision:board.revision,plan:board.plan },actor);
+  const read=await service.driverRead({ token:link.token });assert.equal(read.lane.name,'하대 커스텀');assert.equal(read.lane.driver,'박기사');assert.deepEqual(read.rows.map(r=>r.uid),['a','b']);
+  board=await service.readBoard(date);board.plan={ lanes:[{ id:'unassigned',name:'미배정',driver:'' }],order:{ unassigned:['a','b','c'] } };
+  await service.saveBoard({ date,revision:board.revision,plan:board.plan },actor);
+  assert.deepEqual((await service.readBoard(date)).plan,board.plan);
+  await assert.rejects(service.driverRead({ token:link.token }),e=>e.status===403);
+  assert.equal((await db.collection('orders').doc(date).collection('items').get()).empty,true);
+});

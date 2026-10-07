@@ -59,6 +59,8 @@
 .mb-root dialog input{width:100%;border:1px solid var(--mb-line);padding:10px;border-radius:8px;margin-top:6px;font-size:16px;color:var(--mb-text);background:#fff}
 .mb-root .mb-dialog-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:16px}
 .mb-root .mb-dialog-note{color:var(--mb-sub);font-size:13px;margin-top:10px}
+.mb-root .mb-category-order{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:14px;font-size:13px}
+.mb-root [hidden]{display:none!important}
 .mb-root .mb-share-open{display:inline-block;margin-top:14px;color:var(--mb-green);text-decoration:underline}
 .monthly-driver-app{max-width:540px;margin:0 auto;padding:16px;background:#f5f8f6;min-height:100vh}
 .monthly-driver-app .md-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:22px}

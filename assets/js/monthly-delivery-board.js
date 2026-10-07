@@ -2,7 +2,7 @@
   'use strict';
   let config, root, data, date, active = false, busy = false, loading = false;
   let generation = 0, mutation = 0, timer = null, refreshTimer = null, subscriptions = [], history = [], drag = null;
-  let status = '', failure = '', deferredRefresh = false, editingLane = '', shareLane = '';
+  let status = '', failure = '', deferredRefresh = false, editingLane = '', editingRevision = 0, shareLane = '';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   const byUid = () => new Map((data?.rows || []).map(row => [row.uid, row]));
   const laneRows = id => (data?.plan.order[id] || []).map(uid => byUid().get(uid)).filter(Boolean);
@@ -27,7 +27,7 @@
   }
   function init() {
     root.classList.add('mb-root');
-    root.innerHTML = `<div class="mb-toolbar"><div><h2>월식 배송 보드</h2><div class="mb-date-controls"><button type="button" data-date-step="-1" aria-label="이전 날짜">◀</button><input type="date" data-date aria-label="월식 배송 날짜"><button type="button" data-date-step="1" aria-label="다음 날짜">▶</button><button type="button" data-today>오늘</button><span data-weekday></span></div></div><div class="mb-actions"><button type="button" data-refresh>새로고침</button><button type="button" data-add-lane>코스 추가</button><button type="button" class="mb-primary" data-template>요일 기본 코스로 저장</button></div></div><div data-body></div><dialog data-lane-dialog><form method="dialog"><h3>배송코스 설정</h3><label>코스명<input name="laneName" required maxlength="60"></label><label>기사님 · 차량 표시<input name="driver" maxlength="60" placeholder="예: 1호차"></label><div class="mb-dialog-actions"><button type="button" class="mb-danger" data-delete-lane>코스 삭제</button><button type="button" data-dialog-close>취소</button><button type="submit" class="mb-primary">저장</button></div></form></dialog><dialog data-share-dialog><h3>기사님 코스 링크</h3><div data-share-content></div><div class="mb-dialog-actions"><button type="button" class="mb-danger" data-revoke>링크 해제</button><button type="button" data-copy-share>링크 복사</button><button type="button" data-share-close>닫기</button></div></dialog>`;
+    root.innerHTML = `<div class="mb-toolbar"><div><h2>월식 배송 보드</h2><div class="mb-date-controls"><button type="button" data-date-step="-1" aria-label="이전 날짜">◀</button><input type="date" data-date aria-label="월식 배송 날짜"><button type="button" data-date-step="1" aria-label="다음 날짜">▶</button><button type="button" data-today>오늘</button><span data-weekday></span></div></div><div class="mb-actions"><button type="button" data-refresh>새로고침</button><button type="button" data-add-lane>+ 코스 카테고리 추가</button><button type="button" class="mb-primary" data-template>요일 기본 코스로 저장</button></div></div><div data-body></div><dialog data-lane-dialog><form method="dialog"><h3 data-lane-title>코스 카테고리 추가</h3><label>코스명 · 동네명<input name="laneName" required maxlength="60" placeholder="예: 평거 A코스"></label><label>기사님 · 차량 표시<input name="driver" maxlength="60" placeholder="예: 김기사님 · 1호차"></label><div class="mb-category-order" data-category-order><span>보드 표시 순서</span><button type="button" data-lane-step="-1">↑ 위로</button><button type="button" data-lane-step="1">↓ 아래로</button></div><p class="mb-dialog-note" data-category-note></p><div class="mb-dialog-actions"><button type="button" class="mb-danger" data-delete-lane>카테고리 삭제</button><button type="button" data-dialog-close>취소</button><button type="submit" class="mb-primary">저장</button></div></form></dialog><dialog data-share-dialog><h3>기사님 코스 링크</h3><div data-share-content></div><div class="mb-dialog-actions"><button type="button" class="mb-danger" data-revoke>링크 해제</button><button type="button" data-copy-share>링크 복사</button><button type="button" data-share-close>닫기</button></div></dialog>`;
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);
     root.querySelector('[data-lane-dialog] form').addEventListener('submit', saveLaneForm);
@@ -129,16 +129,26 @@
     config.onDate?.(date); watch(); refresh();
   }
   function editLane(id = '') {
-    editingLane = id;
+    editingLane = id; editingRevision = data.revision;
     const lane = data.plan.lanes.find(l => l.id === id), dialog = root.querySelector('[data-lane-dialog]');
     dialog.querySelector('[name=laneName]').value = lane?.name || '';
     dialog.querySelector('[name=driver]').value = lane?.driver || '';
+    dialog.querySelector('[data-lane-title]').textContent = id ? '코스 카테고리 수정' : '코스 카테고리 추가';
     dialog.querySelector('[data-delete-lane]').hidden = !id;
+    dialog.querySelector('[data-category-order]').hidden = !id;
+    const index = data.plan.lanes.findIndex(l => l.id === id);
+    dialog.querySelector('[data-lane-step="-1"]').disabled = index <= 0;
+    dialog.querySelector('[data-lane-step="1"]').disabled = index >= data.plan.lanes.length-2;
+    dialog.querySelector('[data-category-note]').textContent = id ? '이름·차량을 바꿔도 배정된 업체와 기사님 링크는 유지됩니다. 삭제하면 업체는 미배정으로 이동하고 링크는 해제됩니다.' : '필요한 동네·차량별 코스를 만들고 업체 카드를 옮겨주세요.';
     dialog.showModal();
+  }
+  function checkLaneEdit() {
+    if (data?.revision === editingRevision) return true;
+    root.querySelector('[data-lane-dialog]').close(); failure = '다른 화면에서 코스가 바뀌었습니다. 최신 카테고리를 다시 열어 수정해주세요.'; render(); return false;
   }
   function saveLaneForm(event) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || !checkLaneEdit()) return;
     const dialog = root.querySelector('[data-lane-dialog]'), plan = clone(data.plan);
     const name = dialog.querySelector('[name=laneName]').value.trim(), driver = dialog.querySelector('[name=driver]').value.trim();
     if (!name) return;
@@ -176,9 +186,22 @@
       if (rows[index+step]) move(uid, lane.id, rows[index+step].uid, step > 0); return;
     }
     if (button.hasAttribute('data-delete-lane')) {
+      if (busy || !checkLaneEdit()) return;
       if (!confirm('이 코스를 삭제하고 배정 업체를 미배정으로 옮길까요? 기사님 링크도 더 이상 사용할 수 없습니다.')) return;
       const plan = clone(data.plan); plan.order.unassigned.push(...plan.order[editingLane]); delete plan.order[editingLane]; plan.lanes = plan.lanes.filter(l => l.id !== editingLane);
       root.querySelector('[data-lane-dialog]').close(); persist(plan, '코스 삭제 · 업체는 미배정으로 이동'); return;
+    }
+    if (button.hasAttribute('data-lane-step')) {
+      if (busy || !checkLaneEdit()) return;
+      const plan = clone(data.plan), index = plan.lanes.findIndex(l => l.id === editingLane), next = index+Number(button.dataset.laneStep);
+      if (index < 0 || next < 0 || next >= plan.lanes.length-1) return;
+      [plan.lanes[index], plan.lanes[next]] = [plan.lanes[next], plan.lanes[index]];
+      const dialog = root.querySelector('[data-lane-dialog]');
+      const lane = plan.lanes.find(l => l.id === editingLane);
+      const name = dialog.querySelector('[name=laneName]').value.trim();
+      if (!name) { dialog.querySelector('[name=laneName]').reportValidity(); return; }
+      lane.name = name; lane.driver = dialog.querySelector('[name=driver]').value.trim();
+      dialog.close(); await persist(plan, '카테고리 표시 순서 저장 완료'); return;
     }
     if (button.hasAttribute('data-undo')) { const plan = history.pop(); if (plan) await persist(plan, '이전 편집으로 되돌렸습니다.', false); return; }
     if (button.hasAttribute('data-copy-share')) {

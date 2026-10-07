@@ -22,6 +22,8 @@ Google Sheets 생성·복사 없이 기존 월식 주문·배송·정산 데이�
 - 기존 `orders`, `orderDefaultSnapshots`, `orderLocks`, `users`, `userPrivate`,
   `config`, `deliveryRecords`, `deliveryRecordArchive`에서 실제 배송 대상을 계산한다.
 - 최초 업체 배정은 미배정에서 시작한다. 주소로 동네를 임의 추정하지 않는다.
+- admin이 코스 카테고리를 추가·이름/차량 수정·표시 순서 변경·삭제한다.
+  삭제 시 업체는 미배정으로 옮기고 공유 링크를 해제한다. 미배정만 남아도 저장할 수 있다.
 - 클라이언트 Firestore 쓰기는 모두 차단한다. admin은 보드·템플릿만 읽는다.
   공유 토큰은 Firestore에서 읽을 수 없고, admin API가 해당 코스 토큰을 반환한다.
 - 기사님은 날짜·코스에 묶인 무작위 링크로 API를 호출한다. URL fragment로 전달해
