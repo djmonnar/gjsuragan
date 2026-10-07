@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v89-bulk-cancel';
+const CACHE = 'gjsuragan-v88-hosting-link';
 const PRECACHE = [
   './customer.html',
   './admin.html',
@@ -7,7 +7,7 @@ const PRECACHE = [
   './staff-admin-manifest.json',
   './assets/css/staff-admin.css?v=20260929-manual',
   './assets/js/staff-admin.js?v=20260929-manual',
-  './assets/js/staff-manual.js?v=20261006-manual',
+  './assets/js/staff-manual.js?v=20261007-webapp',
   './assets/js/staff-admin-redirect.js?v=20260910-stores',
   './assets/css/attendance.css?v=20261002-daily-once',
   './assets/js/attendance-ui.js?v=20260910-calendar',
