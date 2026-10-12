@@ -157,7 +157,7 @@ async function call(action, options = {}) {
   return { res, calls };
 }
 test('all admin actions require a verified allowlisted Firebase account', async () => {
-  for (const action of ['admin.list','employee.save','employee.private','employee.bank','employee.delete','shift.save','shift.delete','device.create','device.floor','device.revoke']) {
+  for (const action of ['admin.list','employee.save','payroll.recalculateHourly','employee.private','employee.bank','employee.delete','shift.save','shift.delete','device.create','device.floor','device.revoke']) {
     const missing = await call(action);
     assert.equal(missing.res.statusCode, 401); assert.equal(missing.calls.length, 0);
     const customer = await call(action, { headers: { authorization: 'Bearer customer' }, email: 'customer@example.invalid' });
@@ -165,6 +165,7 @@ test('all admin actions require a verified allowlisted Firebase account', async 
   }
   assert.equal((await call('admin.list', { headers: { authorization: 'Bearer expired' }, invalid: true })).res.statusCode, 401);
   assert.equal((await call('admin.list', { headers: { authorization: 'Bearer admin' } })).calls[0][0], 'listAdmin');
+  assert.equal((await call('payroll.recalculateHourly', { headers: { authorization: 'Bearer admin' } })).calls[0][0], 'recalculateHourly');
 });
 test('device credentials only reach kiosk service methods', async () => {
   const result = await call('kiosk.list', { headers: { 'x-attendance-device': 'device' } });

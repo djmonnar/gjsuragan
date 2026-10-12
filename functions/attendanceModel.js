@@ -561,6 +561,20 @@ function kioskEmployee(employee) {
   };
 }
 
+// Explicit monthly correction after a named daily-paid employee switches to hourly.
+// Keep the recorded times, breaks, scheduled starts, deductions and notes.
+function hourlyRecalculation(shift, employee) {
+  if (employee.payType !== 'hourly') fail('현재 시급 직원만 재계산할 수 있습니다.');
+  const hourlyRate = integer(employee.hourlyRate, '현재 시급', 1, 1000000);
+  if (shift.employeeId !== employee.id || shift.payType !== 'perDiem' || shift.voided) {
+    fail('이 직원의 일당 기록만 시급으로 변경할 수 있습니다.');
+  }
+  return { ...shift, payType: 'hourly', hourlyRate, ordinaryHourlyRate: 0,
+    dailyPay: 0, halfDayPay: 0, halfDayBeforeMinutes: 0, dailyMode: 'portion',
+    earlyGraceMinutes: 0, dayPortion: 'auto', dailyBaseMinutes: 0,
+    overtimeUnitMinutes: 0, overtimePay: 0, overtimeHourlyRate: 0, withholding: false };
+}
+
 module.exports = {
   clockText,
   MINUTE, MAX_SHIFT_MS, FORGOTTEN_SHIFT_MS, isForgottenShift, BASE_PERCENT, DEFAULT_MONTHLY_WORK_HOURS, DEFAULT_MONTHLY_WORK_DAYS, PAY_TYPES, isSharedSlot,
@@ -572,6 +586,6 @@ module.exports = {
   dayPortionOf, dailyModeOf, earlyGraceOf, payableMinutesOf, proratedPay, kstMinutesOfDay,
   WITHHOLDING_PER_MILLE, withholdingTax, netPay, MAX_SHIFT_DEDUCTION, shiftDeductionOf, deductionForMinutes,
   fail, text, integer, id, floor, workDate, workDateString, monthRange,
-  employeeInput, shiftInput, totals, overlaps, kioskEmployee,
+  employeeInput, shiftInput, totals, overlaps, kioskEmployee, hourlyRecalculation,
   ordinaryHourlyRate, dailyDeduction, specialDayInput, absenceInput, shiftMultiplierPercent
 };
