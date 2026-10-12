@@ -153,6 +153,37 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       return { id: ref.id };
     });
   }
+  async function recalculateHourly(input, actor) {
+    const employeeRef = employees.doc(model.id(input.employeeId));
+    const range = model.monthRange(input.month);
+    const scope = input.floor === undefined ? null : model.floor(input.floor);
+    return db.runTransaction(async tx => {
+      const [employeeSnap, recordsSnap] = await Promise.all([
+        tx.get(employeeRef), tx.get(shifts.where('employeeId', '==', employeeRef.id))
+      ]);
+      const employee = existing(employeeSnap, '직원');
+      revision(input, employee);
+      if (employee.deletedAt || employee.payType !== 'hourly') model.fail('현재 시급 직원만 재계산할 수 있습니다.');
+      const records = recordsSnap.docs.map(serialize).filter(s => !s.voided && s.payType === 'perDiem'
+        && s.workDate >= range.start && s.workDate < range.end
+        && (scope === null || model.floor(s.floor) === scope));
+      // Each correction and its audit entry use two writes; stay under Firestore's limit.
+      if (records.length > 200) model.fail('기록이 너무 많습니다. 매장별로 나누어 재계산해 주세요.');
+      const at = now();
+      for (const before of records) {
+        const { id, ...after } = { ...model.hourlyRecalculation(before, employee),
+          version: (before.version || 0) + 1, updatedAt: at };
+        tx.set(shifts.doc(id), after);
+        log(tx, actor, 'shift.recalculateHourly', id, before, after);
+      }
+      if (records.length) {
+        // Serialize against concurrent employee settings and shift corrections.
+        // The active shift and lastShift pointers remain valid because times do not change.
+        tx.update(employeeRef, { version: employee.version + 1, updatedAt: at });
+      }
+      return { count: records.length, hourlyRate: employee.hourlyRate };
+    });
+  }
   async function getEmployeePrivate(input, actor, bankOnly = false) {
     const id = model.id(input.id);
     return db.runTransaction(async tx => {
@@ -474,7 +505,7 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       return { id: ref.id };
     });
   }
-  return { listAdmin, saveEmployee, getEmployeePrivate, deleteEmployee, createDevice, setDeviceFloor, revokeDevice, listKiosk, kioskOrders, punch, saveShift, authorizeDevice, saveSpecialDay, deleteSpecialDay, saveAbsence, deleteAbsence };
+  return { listAdmin, saveEmployee, recalculateHourly, getEmployeePrivate, deleteEmployee, createDevice, setDeviceFloor, revokeDevice, listKiosk, kioskOrders, punch, saveShift, authorizeDevice, saveSpecialDay, deleteSpecialDay, saveAbsence, deleteAbsence };
 }
 
 function createAttendanceHandler({ service, verifyToken, logError = console.error }) {
@@ -502,6 +533,7 @@ function createAttendanceHandler({ service, verifyToken, logError = console.erro
         switch (input.action) {
           case 'admin.list': result = await service.listAdmin(input.month); break;
           case 'employee.save': result = await service.saveEmployee(input, user.uid); break;
+          case 'payroll.recalculateHourly': result = await service.recalculateHourly(input, user.uid); break;
           case 'employee.private': result = await service.getEmployeePrivate(input, user.uid); break;
           case 'employee.bank': result = await service.getEmployeePrivate(input, user.uid, true); break;
           case 'employee.delete': result = await service.deleteEmployee(input, user.uid); break;

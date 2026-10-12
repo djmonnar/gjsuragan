@@ -35,6 +35,14 @@ function kiosk(employees) {
 
 const 자리 = { id: 'd1', name: '일일근무자 (홀)', role: '홀', payType: 'daily', currentShiftId: null, lastShift: null, openShifts: [] };
 const 직원 = { id: 'h1', name: '박알바', role: '포장', payType: 'hourly', currentShiftId: null, lastShift: null, openShifts: [] };
+test('hourly checkout today offers a distinct clock-in for the next shift', () => {
+  const now = Date.now();
+  const { cards, html } = kiosk([{ ...직원, lastShift: { id: 'done', checkInAt: now - 7200000, checkOutAt: now - 1000 } }]);
+  assert.equal(cards[0].working, false);
+  assert.equal(cards[0].action, '다시 출근');
+  assert.equal(cards[0].shiftId, '');
+  assert.match(html, /다시 출근하기/);
+});
 
 test('아무도 없는 자리는 출근 칸 하나만 낸다', () => {
   const { cards } = kiosk([자리]);

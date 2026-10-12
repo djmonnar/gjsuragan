@@ -76,7 +76,7 @@
           ? `${U.date(last.checkInAt) !== today ? `${U.date(last.checkInAt).slice(5)} ` : ''}${U.time(last.checkInAt)} 출근`
           : forgotten ? `${forgottenAt ? `${U.date(forgottenAt).slice(5)} ` : '지난 '}퇴근 안 찍힘`
             : finishedToday ? `${U.time(last.checkOutAt)} 퇴근` : '오늘도 반갑습니다',
-        action: working ? '퇴근' : '출근' });
+        action: working ? '퇴근' : finishedToday && employee.payType === 'hourly' ? '다시 출근' : '출근' });
     });
     return cards;
   }
@@ -193,6 +193,9 @@
     if (card.forgotten) {
       return `<p class="att-meta">${when ? `${when} 출근의 ` : '지난 근무의 '}퇴근이 안 찍혀 있어요. 그 퇴근 시간은 관리자가 넣어 드립니다.<br>지금 출근을 기록할까요?</p>`;
     }
+    if (card.finishedToday && card.employee.payType === 'hourly') {
+      return '<p class="att-meta">퇴근 후 다시 출근할 수 있습니다. 새 근무시간을 별도 기록하고 오늘 급여에 합산합니다.<br>지금 다시 출근을 기록할까요?</p>';
+    }
     return `<p class="att-meta">${card.slot ? '지금 출근을 기록할까요? 이 칸은 여러 분이 같이 쓸 수 있습니다.' : '지금 출근을 기록할까요?'}</p>`;
   }
   // 일당 직원이 같은 날 퇴근한 뒤 출근을 또 누르면 일당이 두 번 잡혔다. 서버가 막지만,
@@ -228,7 +231,7 @@
         dialog.querySelector('form').innerHTML = `<div class="att-kiosk-success" role="status"><div class="att-success-mark">✓</div><h2>${U.esc(result.name)} 님</h2><p class="att-confirm-kind">${result.kind === 'in' ? '출근' : '퇴근'}이 기록되었어요</p><div class="att-shift-times">${U.time(result.at)}</div><p class="att-meta">잠시 후 직원 목록으로 돌아갑니다.</p></div>`;
         await new Promise(resolve => setTimeout(resolve, 1800));
         await load();
-      }, { submitLabel: working ? '퇴근하기' : openToday.length ? '다른 분 출근하기' : '출근하기' });
+      }, { submitLabel: working ? '퇴근하기' : openToday.length ? '다른 분 출근하기' : card.finishedToday && card.employee.payType === 'hourly' ? '다시 출근하기' : '출근하기' });
     el.classList.add('att-kiosk-dialog');
     el.querySelector('.att-dialog-head').remove();
     el.addEventListener('close', () => { dialogOpen = false; load(); });

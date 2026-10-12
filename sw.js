@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v94-mobile-time';
+const CACHE = 'gjsuragan-v95-hourly';
 const PRECACHE = [
   './customer.html',
   './admin.html',
@@ -15,8 +15,8 @@ const PRECACHE = [
   './assets/js/staff-admin-redirect.js?v=20260910-stores',
   './assets/css/attendance.css?v=20261002-daily-once',
   './assets/js/attendance-ui.js?v=20260910-calendar',
-  './assets/js/attendance-admin.js?v=20261006-forgotten',
-  './assets/js/attendance-kiosk.js?v=20261006-forgotten',
+  './assets/js/attendance-admin.js?v=20261012-hourly',
+  './assets/js/attendance-kiosk.js?v=20261012-hourly',
   './assets/js/attendance-bookings.js?v=20260910',
   './assets/js/attendance-booking-form.js?v=20260910',
   './assets/js/attendance-bookings-admin.js?v=20260910-calendar',

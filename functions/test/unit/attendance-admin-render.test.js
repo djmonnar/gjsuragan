@@ -24,7 +24,7 @@ function screen(state) {
   const document = { getElementById: el, querySelector: () => null, querySelectorAll: () => [], addEventListener() {}, removeEventListener() {} };
   const source = fs.readFileSync(path.join(root, 'assets/js/attendance-admin.js'), 'utf8')
     .replace('window.AttendanceAdmin = { init, dispose };',
-      'window.AttendanceAdmin = { render, payrollRows, records, load: s => { data = s.data; view = s.view; month = s.month; selectedDate = s.selectedDate; floor = s.floor ?? "all"; employeeId = s.employeeId ?? ""; } };');
+      'window.AttendanceAdmin = { render, payrollRows, records, newShiftStart, load: s => { data = s.data; view = s.view; month = s.month; selectedDate = s.selectedDate; floor = s.floor ?? "all"; employeeId = s.employeeId ?? ""; } };');
   vm.runInNewContext(source, { window, document, Intl, URLSearchParams, setTimeout, clearTimeout, navigator: {} });
   window.AttendanceAdmin.load(state);
   window.AttendanceAdmin.render();
@@ -32,6 +32,21 @@ function screen(state) {
 }
 
 const 시급직원 = { id: 'h1', name: '박알바', role: '', floor: 2, payType: 'hourly', hourlyRate: 12000, breakMinutes: 60, active: true };
+test('hourly payroll offers scoped daily-record recalculation and second calendar shift starts after checkout', () => {
+  const state = { view: 'payroll', month: '2026-10', selectedDate: '2026-10-10', floor: 2,
+    data: { employees: [시급직원], shifts: [{ id: 'old', employeeId: 'h1', employeeName: 시급직원.name,
+      floor: 2, workDate: '2026-10-10', payType: 'perDiem', checkInAt: at('2026-10-10T09:00:00+09:00'),
+      checkOutAt: at('2026-10-10T13:00:00+09:00'), payableMinutes: 240, amount: 60000, breakMinutes: 0 }],
+      openShifts: [], specialDays: [], absences: [], serverNow: at('2026-10-10T20:00:00+09:00') } };
+  const before = screen(state);
+  assert.match(before.html, /급여 유형 확인 필요/);
+  assert.match(before.html, /이달 일당 1건을 시급으로 재계산/);
+  assert.equal(before.api.newShiftStart(시급직원), at('2026-10-10T13:00:00+09:00'));
+  state.data.shifts[0] = { ...state.data.shifts[0], payType: 'hourly', amount: 48000 };
+  const after = screen(state);
+  assert.doesNotMatch(after.html, /급여 유형 확인 필요|이달 일당/);
+  assert.match(after.html, /48,000원/);
+});
 const 월급직원 = { id: 's1', name: '김수라', role: '', floor: 2, payType: 'salaried', monthlySalary: 3000000, monthlyWorkHours: 209, monthlyWorkDays: 22, breakMinutes: 60, active: true };
 // 설날 1.5배가 적용된 하루 (서버가 붙여 보내는 모양 그대로)
 const 시급근무 = { id: 'x1', employeeId: 'h1', employeeName: '박알바', floor: 2, workDate: '2026-09-17', checkInAt: at('2026-09-17T09:00:00+09:00'), checkOutAt: at('2026-09-17T18:00:00+09:00'), breakMinutes: 60, payType: 'hourly', hourlyRate: 12000, payableMinutes: 480, amount: 144000, baseAmount: 96000, extraAmount: 48000, multiplierPercent: 150, note: '' };

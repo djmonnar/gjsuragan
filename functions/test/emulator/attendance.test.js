@@ -68,6 +68,48 @@ test('overnight month boundary belongs to clock-in month and open shifts stay di
   await punch('out', 'morning', input.shiftId);
   assert.equal((await service.listAdmin('2026-08')).shifts[0].amount, 96000);
 });
+
+test('monthly hourly recalculation preserves history, open state and corrections, and is retry safe', async () => {
+  const manual = { employeeId, payType: 'perDiem', dailyPay: 120000, hourlyRate: 0,
+    breakMinutes: 30, note: '원래 메모', deductionAmount: 5000, deductionReason: '조퇴' };
+  const previous = await service.saveShift({ ...manual,
+    checkInAt: at('2026-08-10T09:00:00+09:00'), checkOutAt: at('2026-08-10T17:00:00+09:00') }, 'admin');
+  const closed = await service.saveShift({ ...manual,
+    checkInAt: at('2026-09-09T09:00:00+09:00'), checkOutAt: at('2026-09-09T17:00:00+09:00') }, 'admin');
+  const hourly = await service.saveShift({ ...manual, payType: 'hourly', hourlyRate: 11000,
+    checkInAt: at('2026-09-08T09:00:00+09:00'), checkOutAt: at('2026-09-08T17:00:00+09:00') }, 'admin');
+  const open = await service.saveShift({ ...manual, breakMinutes: 0, checkInAt: now, checkOutAt: null }, 'admin');
+  const employee = await getEmployee(), before = await getShift(closed.id);
+  const input = { employeeId, version: employee.version, month: '2026-09', floor: 1 };
+  assert.deepEqual(await service.recalculateHourly(input, 'admin'), { count: 2, hourlyRate: 12000 });
+  assert.equal((await getShift(previous.id)).payType, 'perDiem');
+  assert.equal((await getShift(hourly.id)).hourlyRate, 11000);
+  const after = await getShift(closed.id);
+  assert.equal(after.hourlyRate, 12000); assert.equal(after.note, before.note);
+  assert.equal(after.checkOutAt, before.checkOutAt); assert.equal(after.breakMinutes, 30);
+  assert.equal(after.deductionAmount, 5000); assert.equal(after.version, before.version + 1);
+  assert.equal((await getEmployee()).currentShiftId, open.id);
+  assert.equal((await getShift(open.id)).payType, 'hourly');
+  await assert.rejects(service.recalculateHourly(input, 'admin'), { status: 409 });
+  assert.equal((await service.recalculateHourly({ ...input, version: (await getEmployee()).version }, 'admin')).count, 0);
+  const audits = await db.collection('attendanceAudit').where('action', '==', 'shift.recalculateHourly').get();
+  assert.equal(audits.size, 2);
+});
+
+test('converted hourly employee can clock out then clock in and out again on the same date', async () => {
+  await service.saveEmployee({ ...await getEmployee(), payType: 'perDiem', hourlyRate: 0, dailyPay: 120000 }, 'admin');
+  const first = await punch('in', 'daily-in'); now += 3 * hour;
+  await punch('out', 'daily-out', first.shiftId);
+  await service.saveEmployee({ ...await getEmployee(), payType: 'hourly', hourlyRate: 13000 }, 'admin');
+  await service.recalculateHourly({ employeeId, version: (await getEmployee()).version, month: '2026-09' }, 'admin');
+  now += hour;
+  const second = await punch('in', 'hourly-again'); now += 2 * hour;
+  await punch('out', 'hourly-out', second.shiftId);
+  const report = await service.listAdmin('2026-09');
+  assert.equal(report.shifts.length, 2);
+  assert.equal(report.shifts.reduce((sum, shift) => sum + shift.amount, 0), 65000);
+  assert.equal((await getEmployee()).currentShiftId, null);
+});
 test('corrections recalculate pay, reject stale edits and repair kiosk state', async () => {
   const input = await punch('in', 'a'); now += 9 * hour;
   const before = await getShift(input.shiftId);
