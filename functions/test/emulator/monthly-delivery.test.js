@@ -111,6 +111,73 @@ test('all weekday seeds retain separate same-office registrations and apply thei
   assert.equal((await db.collection(BOARDS).doc('2026-10-08').get()).exists,false);
   assert.deepEqual(board.routeSource.ambiguous,[]);
 });
+test('pickups follow the previous delivery day into the board and the driver course', async () => {
+  const { link } = await assigned();
+  let board = await service.readBoard(date);
+  assert.equal(board.pickupDate,'2026-10-06');assert.deepEqual(board.pickups,[]);
+  await db.collection('orders').doc(date).collection('items').doc('b').set({ selfHoliday:true });
+  board = await service.readBoard(date);
+  assert.deepEqual(board.pickups.map(row=>[row.uid,row.laneId,row.lunchCount,row.address]),[['b','center',2,'주소 b']]);
+  assert.equal('lunchPrice' in board.pickups[0],false);
+  const read = await service.driverRead({ token:link.token });
+  assert.deepEqual(read.rows.map(row=>row.uid),['a']);assert.deepEqual(read.pickups.map(row=>row.uid),['b']);assert.equal(read.pickupDate,'2026-10-06');
+  // A member removed since the last delivery is still collected from, by the delivery record.
+  await db.collection('deliveryRecords').doc('2026-10-06').set({ records:{ c:{ delivered:true,lunchCount:4 } } });
+  await db.collection('users').doc('c').update({ deleted:true });
+  board = await service.readBoard(date);
+  assert.deepEqual(board.rows.map(row=>row.uid),['a']);
+  assert.deepEqual(board.pickups.map(row=>[row.uid,row.laneId,row.lunchCount]),[['b','center',2],['c','west',4]]);
+  // Not visited on the previous delivery day: nothing was left there.
+  await db.collection('orders').doc('2026-10-06').collection('items').doc('b').set({ selfHoliday:true });
+  assert.deepEqual((await service.readBoard(date)).pickups.map(row=>row.uid),['c']);
+  // A registered holiday is skipped, as is the weekend before a Monday.
+  await db.collection('config').doc('holidays').set({ custom:{ '2026-10-06':'임시 휴무' } });
+  board = await service.readBoard(date);
+  assert.equal(board.pickupDate,'2026-10-05');assert.deepEqual(board.pickups.map(row=>row.uid),['b']);
+  assert.equal((await service.readBoard('2026-10-12')).pickupDate,'2026-10-09');
+  await db.collection('config').doc('holidays').set({ custom:{ [date]:'휴무' } });
+  board = await service.readBoard(date);
+  assert.equal(board.pickupDate,'');assert.deepEqual(board.pickups,[]);
+});
+test('all-courses link lists every course, completes any stop of the date and is revoked on its own', async () => {
+  const { link } = await assigned();
+  let board = await service.readBoard(date);
+  await assert.rejects(service.share({ date,all:true,revision:board.revision+1 },actor),e => e.status===409);
+  const all = await service.share({ date,all:true,revision:board.revision },actor);
+  assert.notEqual(all.token,link.token);
+  assert.equal((await service.share({ date,all:true,revision:all.revision },actor)).token,all.token);
+  assert.equal((await db.collection(SHARES).doc(shareHash(all.token)).get()).data().all,true);
+  await db.collection('orders').doc(date).collection('items').doc('b').set({ selfHoliday:true });
+  let read = await service.driverRead({ token:all.token });
+  assert.equal(read.all,true);assert.equal(read.canComplete,true);
+  assert.deepEqual(read.courses.map(course=>[course.lane.id,course.rows.map(row=>row.uid),course.pickups.map(row=>row.uid)]),[['center',['a'],['b']],['west',['c'],[]],['east',[],[]]]);
+  assert.deepEqual(read.rows.map(row=>row.uid),['a','c']);assert.equal(read.rows[0].lunchPrice,undefined);
+  // The single-course link still cannot reach another course; the all-courses link can.
+  const stop = read.rows.find(row=>row.uid==='c');
+  await assert.rejects(service.complete({ token:link.token,uid:'c',delivered:true,signature:stop.signature }),e => e.status===403);
+  assert.equal((await service.complete({ token:all.token,uid:'c',delivered:true,signature:stop.signature })).changed,true);
+  assert.equal((await db.collection('deliveryRecords').doc(date).get()).data().records.c.delivered,true);
+  await assert.rejects(service.complete({ token:all.token,uid:'ghost',delivered:true,signature:'any' }),e => e.status===403);
+  // A member not yet given a course is listed, so no stop is missed.
+  await db.collection('users').doc('new').set({ businessName:'신규 테스트',defaultLunch:3 });
+  read = await service.driverRead({ token:all.token });
+  assert.deepEqual(read.courses.map(course=>course.lane.id),['center','west','east','unassigned']);
+  assert.deepEqual(read.courses.at(-1).rows.map(row=>row.uid),['new']);
+  // Each link is revoked on its own, and editing courses leaves the all-courses link alone.
+  await service.revoke({ date,laneId:'center' },actor);
+  await assert.rejects(service.driverRead({ token:link.token }),e => e.status===403);
+  board = await service.readBoard(date);
+  board.plan.lanes=board.plan.lanes.filter(lane=>lane.id!=='east');delete board.plan.order.east;
+  await service.saveBoard({ date,revision:board.revision,plan:board.plan },actor);
+  assert.deepEqual((await service.driverRead({ token:all.token })).courses.map(course=>course.lane.id),['center','west','unassigned']);
+  await service.revoke({ date,all:true },actor);
+  await assert.rejects(service.driverRead({ token:all.token }),e => e.status===403);
+  await assert.rejects(service.complete({ token:all.token,uid:'a',delivered:true,signature:'any' }),e => e.status===403);
+  board = await service.readBoard(date);
+  assert.notEqual((await service.share({ date,all:true,revision:board.revision },actor)).token,all.token);
+  clock = new Date('2026-10-08T03:00:00Z');
+  await assert.rejects(service.share({ date,all:true,revision:board.revision },actor),e => e.status===400);
+});
 test('share revocation, expiry and deleting course deny old links', async () => {
   const { link } = await assigned();
   await service.revoke({ date,laneId:'center' },actor);

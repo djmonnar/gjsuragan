@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const M = require('../../monthlyDeliveryModel');
 const catering = require('../../cateringCatalog');
-const { createMonthlyDeliveryHandler, SHARE_TTL_DAYS, shareHash } = require('../../monthlyDelivery');
+const { createMonthlyDeliveryHandler, SHARE_TTL_DAYS, PICKUP_LOOKBACK_DAYS, shareHash } = require('../../monthlyDelivery');
 const date = '2026-10-07';
 const profile = extra => ({ businessName:'테스트 업체', defaultLunch:2, defaultSalad:0, lunchPrice:8000, saladPrice:9000, ...extra });
 const rows = extra => M.resolveRows({ date, users:{ a:profile() }, ...extra });
@@ -63,6 +63,23 @@ test('saved ranks survive inactive meals and new members are unassigned', () => 
   assert.throws(() => M.validatePlan({ ...plan,lanes:[{ id:'__proto__',name:'bad',driver:'' },{ id:'unassigned',name:'미배정',driver:'' }] }), /ID/);
   assert.throws(() => M.requireDate('2026-02-30'), /날짜/);
 });
+test('pickups are earlier stops without a delivery today, kept in their course and without disposable lunches', () => {
+  const users = { a:profile(), rest:profile({ businessName:'쉬는 업체',deliveryPlace:'쉬는 주소' }), single:profile({ disposableLunch:true }), moved:profile(), gone:profile({ businessName:'해지 업체',deleted:true }) };
+  const earlier = M.visitedRows({ date:'2026-10-06', users, records:{
+    gone:{ delivered:true,lunchCount:3 }, unvisited:{ delivered:false,lunchCount:9 }, removed:{ delivered:true,lunchCount:9,orderDeleted:true },
+    event_1:{ delivered:true,eventLunchCount:10 }, manual_x:{ adminManual:true,lunchCount:1,businessName:'직접 입력' } } });
+  assert.deepEqual(earlier.map(row => row.uid).sort(), ['a','gone','manual_x','moved','rest','single']);
+  const today = M.resolveRows({ date, users, orders:{ rest:{ selfHoliday:true }, single:{ selfHoliday:true }, moved:{ selfHoliday:true } } });
+  assert.deepEqual(today.map(row => row.uid), ['a']);
+  const plan = M.normalizePlan({ lanes:M.DEFAULT_LANES, order:{ center:['a','rest','single'], west:['gone'], east:[], unassigned:['moved'] } });
+  const pickups = M.pickupRows(earlier, today, plan, { lanes:[{ id:'east' },{ id:'removed_course' }], order:{ east:['moved'], removed_course:['manual_x'] } });
+  // Today's course, then the earlier board's course, then the unassigned pool.
+  assert.deepEqual(pickups.map(row => [row.uid,row.laneId,row.lunchCount]), [['rest','center',2],['gone','west',3],['moved','east',2],['manual_x','unassigned',1]]);
+  assert.equal(pickups[0].address, '쉬는 주소');
+  for (const key of ['lunchPrice','saladPrice','eventLunchPrice','signature','delivered']) assert.equal(key in pickups[0], false);
+  assert.equal(M.needsPickup(earlier.find(row => row.uid === 'single')), false);
+  assert.deepEqual(M.pickupRows(earlier, earlier, plan), []);
+});
 test('course categories can be fully replaced, keeping only the unassigned pool between edits', () => {
   const empty={ lanes:[{ id:'unassigned',name:'미배정',driver:'' }],order:{ unassigned:['a','b'] } };
   assert.deepEqual(M.validatePlan(empty),empty);
@@ -112,9 +129,19 @@ test('manual polling and share expiry match service constants, with cache and ta
   const root = path.resolve(__dirname,'../../..');
   const manual = fs.readFileSync(path.join(root,'manual.html'),'utf8').split('id="monthly-delivery"')[1].split('</section>')[0];
   assert.match(manual,new RegExp(`${M.POLL_MS/1000}초마다`)); assert.match(manual,new RegExp(`<strong>${SHARE_TTL_DAYS}일</strong>`));
+  // The pickup rule and the all-courses button are described as the code runs them.
+  assert.match(manual,new RegExp(`<strong>${PICKUP_LOOKBACK_DAYS}일</strong> 전까지`));
+  const board = fs.readFileSync(path.join(root,'assets/js/monthly-delivery-board.js'),'utf8');
+  const shareAll = board.match(/data-share-all>([^<]+)</)[1];
+  assert.ok(manual.includes(`<strong>${shareAll}</strong>`));
   const admin = fs.readFileSync(path.join(root,'admin.html'),'utf8'), sw = fs.readFileSync(path.join(root,'sw.js'),'utf8');
   for (const asset of ['monthly-delivery.css','monthly-delivery-board.js']) {
     const url = admin.split(asset + '?v=')[1]?.split('"')[0];
+    assert.ok(url); assert.ok(sw.includes(`${asset}?v=${url}`));
+  }
+  const driver = fs.readFileSync(path.join(root,'monthly-delivery.html'),'utf8');
+  for (const asset of ['monthly-delivery.css','monthly-delivery-driver.js']) {
+    const url = driver.split(asset + '?v=')[1]?.split('"')[0];
     assert.ok(url); assert.ok(sw.includes(`${asset}?v=${url}`));
   }
   assert.ok(admin.includes('data-tab="monthlyDelivery"')); assert.ok(sw.includes("'./monthly-delivery.html'"));

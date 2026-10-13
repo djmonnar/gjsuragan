@@ -27,6 +27,10 @@
   }
   const weekdayLabel = ds => ['일','월','화','수','목','금','토'][new Date(`${ds}T00:00:00Z`).getUTCDay()];
   const qty = row => [row.lunchCount ? `도시락 ${row.lunchCount}개` : '', row.saladCount ? `샐러드 ${row.saladCount}개` : '', row.eventLunchCount ? `일회용 ${row.eventLunchCount}개` : '', row.cateringLabel || ''].filter(Boolean).join(' · ');
+  // Collected from the previous delivery day; an older API sends no list at all.
+  const lanePickups = id => (data?.pickups || []).filter(row => row.laneId === id);
+  const dayLabel = ds => `${Number(ds.slice(5,7))}/${Number(ds.slice(8,10))}(${weekdayLabel(ds)})`;
+  const pickupQty = row => [row.lunchCount ? `도시락 ${row.lunchCount}개` : '', row.saladCount ? `샐러드 ${row.saladCount}개` : '', row.cateringLabel || ''].filter(Boolean).join(' · ');
   const totals = rows => rows.reduce((a, row) => ({ lunch:a.lunch+row.lunchCount, salad:a.salad+row.saladCount, event:a.event+row.eventLunchCount }), { lunch:0, salad:0, event:0 });
 
   async function request(action, body = {}) {
@@ -45,7 +49,7 @@
   }
   function init() {
     root.classList.add('mb-root');
-    root.innerHTML = `<div class="mb-toolbar"><div><h2>월식 배송 보드</h2><div class="mb-date-controls"><button type="button" data-date-step="-1" aria-label="이전 날짜">◀</button><input type="date" data-date aria-label="월식 배송 날짜"><button type="button" data-date-step="1" aria-label="다음 날짜">▶</button><button type="button" data-today>오늘</button><span data-weekday></span></div></div><div class="mb-actions"><button type="button" data-refresh>새로고침</button><button type="button" data-sort-time="">전체 코스 시간순 배치</button><button type="button" data-add-lane>+ 코스 카테고리 추가</button><button type="button" class="mb-primary" data-template>요일 기본 코스로 저장</button></div></div><div data-body></div><dialog data-lane-dialog><form method="dialog"><h3 data-lane-title>코스 카테고리 추가</h3><label>코스명 · 동네명<input name="laneName" required maxlength="60" placeholder="예: 평거 A코스"></label><label>기사님 · 차량 표시<input name="driver" maxlength="60" placeholder="예: 김기사님 · 1호차"></label><div class="mb-category-order" data-category-order><span>보드 표시 순서</span><button type="button" data-lane-step="-1">↑ 위로</button><button type="button" data-lane-step="1">↓ 아래로</button></div><p class="mb-dialog-note" data-category-note></p><div class="mb-dialog-actions"><button type="button" class="mb-danger" data-delete-lane>카테고리 삭제</button><button type="button" data-dialog-close>취소</button><button type="submit" class="mb-primary">저장</button></div></form></dialog><dialog data-share-dialog><h3>기사님 코스 링크</h3><div data-share-content></div><div class="mb-dialog-actions"><button type="button" class="mb-danger" data-revoke>링크 해제</button><button type="button" data-copy-share>링크 복사</button><button type="button" data-share-close>닫기</button></div></dialog>`;
+    root.innerHTML = `<div class="mb-toolbar"><div><h2>월식 배송 보드</h2><div class="mb-date-controls"><button type="button" data-date-step="-1" aria-label="이전 날짜">◀</button><input type="date" data-date aria-label="월식 배송 날짜"><button type="button" data-date-step="1" aria-label="다음 날짜">▶</button><button type="button" data-today>오늘</button><span data-weekday></span></div></div><div class="mb-actions"><button type="button" data-refresh>새로고침</button><button type="button" data-sort-time="">전체 코스 시간순 배치</button><button type="button" data-add-lane>+ 코스 카테고리 추가</button><button type="button" data-share-all>전체 기사님 링크</button><button type="button" class="mb-primary" data-template>요일 기본 코스로 저장</button></div></div><div data-body></div><dialog data-lane-dialog><form method="dialog"><h3 data-lane-title>코스 카테고리 추가</h3><label>코스명 · 동네명<input name="laneName" required maxlength="60" placeholder="예: 평거 A코스"></label><label>기사님 · 차량 표시<input name="driver" maxlength="60" placeholder="예: 김기사님 · 1호차"></label><div class="mb-category-order" data-category-order><span>보드 표시 순서</span><button type="button" data-lane-step="-1">↑ 위로</button><button type="button" data-lane-step="1">↓ 아래로</button></div><p class="mb-dialog-note" data-category-note></p><div class="mb-dialog-actions"><button type="button" class="mb-danger" data-delete-lane>카테고리 삭제</button><button type="button" data-dialog-close>취소</button><button type="submit" class="mb-primary">저장</button></div></form></dialog><dialog data-share-dialog><h3 data-share-title>기사님 코스 링크</h3><div data-share-content></div><div class="mb-dialog-actions"><button type="button" class="mb-danger" data-revoke>링크 해제</button><button type="button" data-copy-share>링크 복사</button><button type="button" data-share-close>닫기</button></div></dialog>`;
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);
     root.querySelector('[data-lane-dialog] form').addEventListener('submit', saveLaneForm);
@@ -69,8 +73,9 @@
     root.querySelector('[data-template]').textContent = `${weekdayLabel(date)}요일 기본 코스로 저장`;
     root.querySelector('[data-template]').disabled = busy || data.noDelivery;
     root.querySelector('.mb-toolbar [data-sort-time]').disabled = busy || data.noDelivery;
+    root.querySelector('[data-share-all]').disabled = busy || data.noDelivery;
     root.querySelector('[data-body]').innerHTML = `${failure ? `<div class="mb-error" role="alert">${esc(failure)}</div>` : ''}
-      <div class="mb-summary"><span>배송 <b>${data.rows.length}곳</b></span><span>도시락 <b>${sum.lunch}개</b></span><span>샐러드 <b>${sum.salad}개</b></span>${sum.event ? `<span>일회용 <b>${sum.event}개</b></span>` : ''}<span>미배정 <b>${unassigned}곳</b></span><span class="mb-status${failure ? ' error' : ''}" role="status" aria-live="polite">${esc(busy ? '저장 중…' : status)}</span></div>
+      <div class="mb-summary"><span>배송 <b>${data.rows.length}곳</b></span><span>도시락 <b>${sum.lunch}개</b></span><span>샐러드 <b>${sum.salad}개</b></span>${sum.event ? `<span>일회용 <b>${sum.event}개</b></span>` : ''}<span>미배정 <b>${unassigned}곳</b></span>${data.pickups ? `<span>수거 <b>${data.pickups.length}곳</b></span>` : ''}<span class="mb-status${failure ? ' error' : ''}" role="status" aria-live="polite">${esc(busy ? '저장 중…' : status)}</span></div>
       ${source?.warning ? `<div class="mb-error" role="alert">${esc(source.warning)} 저장한 코스는 유지됩니다. 미배정 업체를 확인해주세요.</div>` : ''}
       ${source?.tab ? `<details class="mb-source"><summary>${source.weekReady ? '월~금 기본 배정 저장됨 · ' : ''}배달동선 시트 · ${esc(source.tab)}요일 기준 · 직접 편집한 배정 우선</summary><p>전체 고객의 기본 코스를 미리 저장하고, 선택한 날짜의 실제 배송 업체만 표시합니다. 취소·휴무 업체는 제외하고 복귀하면 원래 순서로 표시합니다. 새 업체는 시트 이름이 연결되면 자동 배정되며, 연결되지 않으면 미배정에 표시됩니다. <a href="${esc(source.url)}" target="_blank" rel="noopener">원본 시트 보기</a></p>${source.ambiguous.length || source.unmatched.length ? `<p>시트에서 고객을 찾지 못했거나 이름이 모호한 항목: ${[...source.unmatched,...source.ambiguous].map(esc).join(' · ')}. 미등록·중지 업체가 포함될 수 있습니다.</p>` : ''}</details>` : ''}
       ${data.noDelivery ? '<div class="mb-empty">공휴일·휴무일 또는 주말입니다. 오늘 월식 배송은 없습니다.</div>' : `<nav class="mb-course-nav" aria-label="배송코스 바로가기">${data.plan.lanes.map(lane=>`<button type="button" data-jump-lane="${esc(lane.id)}">${esc(lane.name)} <b>${laneRows(lane.id).length}</b></button>`).join('')}</nav><div class="mb-board">${data.plan.lanes.map(lane => laneHtml(lane)).join('')}</div>`}
@@ -78,8 +83,8 @@
       <div class="mb-footer"><span>⠿ 손잡이로 순서 변경·코스 이동 · 변경 후 자동 저장 · 취소·휴무는 자동 제외</span><button type="button" data-undo${!history.length || busy ? ' disabled' : ''}>이전 편집 되돌리기</button></div>`;
   }
   function laneHtml(lane) {
-    const rows = laneRows(lane.id), sum = totals(rows);
-    return `<section id="mb-lane-${esc(lane.id)}" class="mb-lane${lane.id === 'unassigned' ? ' unassigned' : ''}" aria-label="${esc(lane.name)} 배송코스"><div class="mb-lane-header"><div><div class="mb-lane-title">${esc(lane.name)}</div><div class="mb-lane-meta">${esc(lane.driver || (lane.id === 'unassigned' ? '코스 지정 필요' : '담당 미입력'))} · ${rows.length}곳 · 도시락 ${sum.lunch}${sum.salad ? ` · 샐러드 ${sum.salad}` : ''}${sum.event ? ` · 일회용 ${sum.event}` : ''}</div></div><div class="mb-lane-actions">${lane.id !== 'unassigned' ? `<button type="button" data-sort-time="${esc(lane.id)}" aria-label="${esc(lane.name)} 시간순 배치"${busy || rows.length < 2 ? ' disabled' : ''}>시간순 배치</button><button type="button" data-share="${esc(lane.id)}"${busy ? ' disabled' : ''}>기사님 링크</button><button type="button" data-edit-lane="${esc(lane.id)}"${busy ? ' disabled' : ''}>코스 설정</button>` : ''}</div></div><div class="mb-stops" data-drop-lane="${esc(lane.id)}" role="list">${rows.length ? rows.map((row, index) => cardHtml(row, index, lane, rows.length)).join('') : '<div class="mb-empty">업체를 이곳으로 옮기기</div>'}</div></section>`;
+    const rows = laneRows(lane.id), sum = totals(rows), pickups = lanePickups(lane.id);
+    return `<section id="mb-lane-${esc(lane.id)}" class="mb-lane${lane.id === 'unassigned' ? ' unassigned' : ''}" aria-label="${esc(lane.name)} 배송코스"><div class="mb-lane-header"><div><div class="mb-lane-title">${esc(lane.name)}</div><div class="mb-lane-meta">${esc(lane.driver || (lane.id === 'unassigned' ? '코스 지정 필요' : '담당 미입력'))} · ${rows.length}곳 · 도시락 ${sum.lunch}${sum.salad ? ` · 샐러드 ${sum.salad}` : ''}${sum.event ? ` · 일회용 ${sum.event}` : ''}${pickups.length ? ` · 수거 ${pickups.length}곳` : ''}</div></div><div class="mb-lane-actions">${lane.id !== 'unassigned' ? `<button type="button" data-sort-time="${esc(lane.id)}" aria-label="${esc(lane.name)} 시간순 배치"${busy || rows.length < 2 ? ' disabled' : ''}>시간순 배치</button><button type="button" data-share="${esc(lane.id)}"${busy ? ' disabled' : ''}>기사님 링크</button><button type="button" data-edit-lane="${esc(lane.id)}"${busy ? ' disabled' : ''}>코스 설정</button>` : ''}</div></div><div class="mb-stops" data-drop-lane="${esc(lane.id)}" role="list">${rows.length ? rows.map((row, index) => cardHtml(row, index, lane, rows.length)).join('') : '<div class="mb-empty">업체를 이곳으로 옮기기</div>'}</div>${pickups.length ? `<div class="mb-pickups"><div class="mb-pickup-title">수거 ${pickups.length}곳<span>${esc(dayLabel(data.pickupDate))}에 배송하고 이날은 배송이 없는 곳</span></div><div class="mb-pickup-list">${pickups.map(row => `<button type="button" data-customer="${esc(row.uid)}"><b>${esc(row.businessName)}</b><span>${esc(pickupQty(row))}</span></button>`).join('')}</div></div>` : ''}</section>`;
   }
   function cardHtml(row, index, lane, length) {
     return `<article class="mb-stop${row.delivered ? ' done' : ''}" data-stop-id="${esc(row.uid)}" role="listitem"><button type="button" class="mb-handle" data-drag-id="${esc(row.uid)}" aria-label="${esc(row.businessName)} 순서 드래그"${busy ? ' disabled' : ''}>⠿</button><div><div class="mb-num">${index+1}번째${row.delivered ? ' · <span class="mb-completed">배송완료</span>' : ''}</div><div class="mb-stop-name">${esc(row.businessName)}</div><div class="mb-qty">${esc(qty(row))}</div><div class="mb-time${row.mealTime ? '' : ' unset'}">${row.mealTime ? `배송 ${esc(row.mealTime)}` : '시간 미입력'}</div></div><details class="mb-menu"><summary aria-label="${esc(row.businessName)} 메뉴">⋯</summary><div class="mb-menu-content"><label>배송코스<select data-move-id="${esc(row.uid)}"${busy ? ' disabled' : ''}>${data.plan.lanes.map(l => `<option value="${esc(l.id)}"${l.id === lane.id ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></label><div class="mb-move-buttons"><button type="button" data-step-id="${esc(row.uid)}" data-step="-1"${index === 0 || busy ? ' disabled' : ''}>앞으로</button><button type="button" data-step-id="${esc(row.uid)}" data-step="1"${index === length-1 || busy ? ' disabled' : ''}>뒤로</button></div><button type="button" data-customer="${esc(row.uid)}">고객정보 · 휴무 수정</button><button type="button" class="mb-danger" data-pause="${esc(row.uid)}"${row.delivered || busy ? ' disabled' : ''}>오늘 휴무로 변경</button></div></details></article>`;
@@ -182,12 +187,14 @@
     }
     dialog.close(); persist(plan, '배송코스 저장 완료');
   }
+  // An empty id shares every course of the date in one link.
   async function showShare(id) {
-    await mutate('share', { laneId:id, revision:data.revision }, result => {
+    await mutate('share', { ...(id ? { laneId:id } : { all:true }), revision:data.revision }, result => {
       data.revision = result.revision; shareLane = id;
       const link = new URL('monthly-delivery.html', location.href); link.hash = `token=${result.token}`;
       const lane = data.plan.lanes.find(l => l.id === id), dialog = root.querySelector('[data-share-dialog]');
-      dialog.querySelector('[data-share-content]').innerHTML = `<div>${esc(lane.name)} · ${esc(lane.driver)}</div><label>기사님께 전달할 링크<input type="text" readonly data-share-url value="${esc(link.href)}"></label><a class="mb-share-open" href="${esc(link.href)}" target="_blank" rel="noopener noreferrer">기사님 화면 열기</a><div class="mb-dialog-note">${esc(date)} 담당 코스 조회·완료 체크용입니다.<br>유효기간: ${esc(new Date(result.expiresAt).toLocaleString('ko-KR', { timeZone:'Asia/Seoul' }))}</div><div data-share-status role="status"></div>`;
+      dialog.querySelector('[data-share-title]').textContent = id ? '기사님 코스 링크' : '기사님 전체 링크';
+      dialog.querySelector('[data-share-content]').innerHTML = `<div>${id ? `${esc(lane.name)} · ${esc(lane.driver)}` : '모든 코스 · 기사님이 자기 코스를 골라 봅니다'}</div><label>기사님께 전달할 링크<input type="text" readonly data-share-url value="${esc(link.href)}"></label><a class="mb-share-open" href="${esc(link.href)}" target="_blank" rel="noopener noreferrer">기사님 화면 열기</a><div class="mb-dialog-note">${esc(date)} ${id ? '담당 코스' : '전체 코스'} 조회·완료 체크용입니다.<br>유효기간: ${esc(new Date(result.expiresAt).toLocaleString('ko-KR', { timeZone:'Asia/Seoul' }))}</div><div data-share-status role="status"></div>`;
       dialog.showModal(); status = '기사님 링크 준비 완료';
     });
   }
@@ -208,6 +215,7 @@
     if (button.hasAttribute('data-dialog-close')) { root.querySelector('[data-lane-dialog]').close(); return; }
     if (button.hasAttribute('data-share-close')) { root.querySelector('[data-share-dialog]').close(); return; }
     if (button.hasAttribute('data-share')) { await showShare(button.dataset.share); return; }
+    if (button.hasAttribute('data-share-all')) { await showShare(''); return; }
     if (button.hasAttribute('data-customer')) { config.openCustomer?.(button.dataset.customer, date); return; }
     if (button.hasAttribute('data-step-id')) {
       const uid = button.dataset.stepId, lane = data.plan.lanes.find(l => data.plan.order[l.id].includes(uid)), rows = laneRows(lane.id);
@@ -239,8 +247,8 @@
       catch (_) { input.select(); message.textContent = '위 링크를 길게 눌러 복사해주세요.'; } return;
     }
     if (button.hasAttribute('data-revoke')) {
-      if (!confirm('이 코스의 기사님 링크를 해제할까요? 새로 링크를 만들면 다시 공유할 수 있습니다.')) return;
-      await mutate('revoke', { laneId:shareLane }, () => { root.querySelector('[data-share-dialog]').close(); status = '기사님 링크를 해제했습니다.'; });
+      if (!confirm(`${shareLane ? '이 코스의 기사님 링크' : '기사님 전체 링크'}를 해제할까요? 새로 링크를 만들면 다시 공유할 수 있습니다.`)) return;
+      await mutate('revoke', shareLane ? { laneId:shareLane } : { all:true }, () => { root.querySelector('[data-share-dialog]').close(); status = '기사님 링크를 해제했습니다.'; });
       if (failure) root.querySelector('[data-share-status]').textContent = failure;
       return;
     }

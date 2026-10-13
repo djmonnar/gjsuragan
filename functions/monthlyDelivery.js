@@ -9,6 +9,8 @@ const BOARDS = 'monthlyDeliveryBoards';
 const TEMPLATES = 'monthlyDeliveryTemplates';
 const SHARES = 'monthlyDeliveryShares';
 const SHARE_TTL_DAYS = 2;
+// A long holiday still ends with collecting the boxes left before it.
+const PICKUP_LOOKBACK_DAYS = 31;
 
 function mapSnapshot(snapshot) {
   return Object.fromEntries(snapshot.docs.map(doc => [doc.id, doc.data() || {}]));
@@ -109,6 +111,28 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
     data.rows = M.resolveRows(data);
     return data;
   }
+  function previousDeliveryDate(date, customHolidays) {
+    const day = new Date(`${date}T00:00:00Z`);
+    for (let i = 0; i < PICKUP_LOOKBACK_DAYS; i++) {
+      day.setUTCDate(day.getUTCDate() - 1);
+      const value = day.toISOString().slice(0, 10);
+      if (!isNoDeliveryDate(value, customHolidays)) return value;
+    }
+    return '';
+  }
+  // Members, settings and legacy records are those already loaded for the board;
+  // only the dated documents of the previous delivery day are read again.
+  async function loadPickups(data, plan) {
+    const date = data.noDelivery ? '' : previousDeliveryDate(data.date, data.customHolidays);
+    if (!date) return { pickupDate:'', pickups:[] };
+    const [lock, fresh, archive, orders, snapshots, board] = await Promise.all([
+      db.collection('orderLocks').doc(date).get(), db.collection('deliveryRecords').doc(date).get(), db.collection('deliveryRecordArchive').doc(date).get(),
+      db.collection('orders').doc(date).collection('items').get(), db.collection('orderDefaultSnapshots').doc(date).collection('items').get(), boardRef(date).get()
+    ]);
+    const visited = M.visitedRows({ date, users:data.users, orders:mapSnapshot(orders), snapshots:mapSnapshot(snapshots), locked:lock.exists, settings:data.settings,
+      records:M.mergeRecords(data.legacy[date], fresh.exists ? fresh.data().records || {} : {}, archive.exists ? archive.data().records || {} : {}) });
+    return { pickupDate:date, pickups:M.pickupRows(visited, data.rows, plan, board.exists ? board.data() : {}) };
+  }
   async function ensureWeekTemplates(users, sources) {
     if (!Object.values(sources).some(source => source.routes.length)) return;
     const seeds = Sheet.weekPlans(sources, users);
@@ -153,7 +177,7 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
     }
     return {
       date, revision: revision(stored.revision), templateRevision: revision(defaults.revision), plan,
-      rows: data.rows.map(M.publicRow), noDelivery: data.noDelivery, pollMs: M.POLL_MS,
+      rows: data.rows.map(M.publicRow), ...await loadPickups(data, plan), noDelivery: data.noDelivery, pollMs: M.POLL_MS,
       updatedAt: stored.updatedAt?.toDate?.().toISOString() || '',
       routeSource: { tab:source.tab,url:source.url,weekReady:Object.values(sources).every(value => value.routes.length > 0),warning:source.warning || '',unmatched:matched.unmatched,ambiguous:matched.ambiguous },
       excluded: Object.entries(data.orders).filter(([, order]) => order.selfHoliday).map(([uid, order]) => ({ uid, businessName: data.users[uid]?.businessName || order.businessName || uid, reason: '자체 휴무' }))
@@ -188,8 +212,9 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
       return { templateRevision: nextRevision };
     });
   }
+  // One link per course, or one for every course of the date (`all`).
   async function share(body, actor) {
-    const date = M.requireDate(body.date);
+    const date = M.requireDate(body.date), all = body.all === true;
     if (date < M.kstDate(now())) throw M.error(400, '오늘 또는 앞으로 배송할 날짜의 링크를 만들어주세요.');
     const source = await sourceLoader(M.weekday(date));
     return db.runTransaction(async tx => {
@@ -197,15 +222,16 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
       const stored = board.exists ? board.data() : {}, seeded = Sheet.matchRoutes(source.routes, data.users, data.rows).plan;
       const plan = M.planWithSource(stored.lanes ? stored : (template.exists ? template.data() : seeded), data.rows, seeded);
       expectRevision(stored.revision, body.revision);
-      const lane = plan.lanes.find(l => l.id === body.laneId && l.id !== 'unassigned');
-      if (!lane) throw M.error(400, '배정된 배송코스를 선택해주세요.');
-      const previous = stored.shares?.[lane.id];
+      const lane = all ? null : plan.lanes.find(l => l.id === body.laneId && l.id !== 'unassigned');
+      if (!all && !lane) throw M.error(400, '배정된 배송코스를 선택해주세요.');
+      const previous = all ? stored.shareAll : stored.shares?.[lane.id];
       if (previous?.token && previous.expiresAt > now().getTime()) return { token: previous.token, expiresAt: previous.expiresAt, revision: revision(stored.revision) };
       const token = crypto.randomBytes(32).toString('hex'), hash = shareHash(token);
       const expiresAt = new Date(`${date}T23:59:59+09:00`).getTime() + SHARE_TTL_DAYS * 86400000;
       const nextRevision = board.exists ? revision(stored.revision) : 1;
-      tx.set(db.collection(SHARES).doc(hash), { date, laneId: lane.id, expiresAt, createdBy: actor.uid, createdAt: timestamp(), revoked: false });
-      tx.set(boardRef(date), { ...plan, date, revision: nextRevision, shares: { [lane.id]: { token, hash, expiresAt } }, updatedAt: timestamp(), updatedBy: actor.uid }, { merge: true });
+      tx.set(db.collection(SHARES).doc(hash), { date, laneId: all ? '' : lane.id, all, expiresAt, createdBy: actor.uid, createdAt: timestamp(), revoked: false });
+      const entry = { token, hash, expiresAt };
+      tx.set(boardRef(date), { ...plan, date, revision: nextRevision, ...(all ? { shareAll: entry } : { shares: { [lane.id]: entry } }), updatedAt: timestamp(), updatedBy: actor.uid }, { merge: true });
       return { token, expiresAt, revision: nextRevision };
     });
   }
@@ -216,7 +242,7 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
     return { ...value, hash };
   }
   function checkScope(link, board) {
-    if (board.shares?.[link.laneId]?.hash !== link.hash) throw M.error(403, '해제된 기사님 링크입니다. 관리자에게 새 링크를 요청해주세요.');
+    if ((link.all ? board.shareAll : board.shares?.[link.laneId])?.hash !== link.hash) throw M.error(403, '해제된 기사님 링크입니다. 관리자에게 새 링크를 요청해주세요.');
   }
   async function driverRead(body) {
     const link = await scope(body.token);
@@ -224,20 +250,29 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
     const boardSnapshot = await boardRef(link.date).get();
     const board = boardSnapshot.exists ? boardSnapshot.data() : {};
     checkScope(link, board);
+    const byUid = new Map(data.rows.map(row => [row.uid, row]));
+    const course = lane => ({ lane, rows: (board.order?.[lane.id] || []).filter(uid => byUid.has(uid)).map(uid => byUid.get(uid)),
+      pickups: data.pickups.filter(row => row.laneId === lane.id) });
+    const shared = { date: link.date, pickupDate: data.pickupDate, canComplete: link.date === M.kstDate(now()) && !data.noDelivery, noDelivery: data.noDelivery, pollMs: M.POLL_MS };
+    if (link.all) {
+      // Unassigned stops appear only while something waits there, so nothing is missed.
+      const courses = (board.lanes || []).map(course).filter(item => item.lane.id !== 'unassigned' || item.rows.length || item.pickups.length);
+      // `lane` and the flat `rows` keep a driver page cached before this change readable.
+      return { ...shared, all: true, lane: { id: '', name: '전체 코스', driver: '' }, rows: courses.flatMap(item => item.rows), courses };
+    }
     const lane = board.lanes?.find(l => l.id === link.laneId && l.id !== 'unassigned');
     if (!lane) throw M.error(403, '이 배송코스가 해제되었습니다.');
-    const byUid = new Map(data.rows.map(row => [row.uid, row]));
-    return { date: link.date, lane, rows: (board.order?.[lane.id] || []).filter(uid => byUid.has(uid)).map(uid => byUid.get(uid)),
-      canComplete: link.date === M.kstDate(now()) && !data.noDelivery, noDelivery: data.noDelivery, pollMs: M.POLL_MS };
+    return { ...shared, ...course(lane) };
   }
   async function revoke(body, actor) {
-    const date = M.requireDate(body.date);
+    const date = M.requireDate(body.date), all = body.all === true;
     await db.runTransaction(async tx => {
       const ref = boardRef(date), snapshot = await tx.get(ref), stored = snapshot.exists ? snapshot.data() : {};
-      const previous = stored.shares?.[body.laneId];
+      const previous = all ? stored.shareAll : stored.shares?.[body.laneId];
       if (!previous?.hash) return;
       tx.set(db.collection(SHARES).doc(previous.hash), { revoked: true, revokedAt: timestamp(), revokedBy: actor.uid }, { merge: true });
-      tx.set(ref, { shares: { [body.laneId]: { token: '', hash: '', expiresAt: 0 } } }, { merge: true });
+      const cleared = { token: '', hash: '', expiresAt: 0 };
+      tx.set(ref, all ? { shareAll: cleared } : { shares: { [body.laneId]: cleared } }, { merge: true });
     });
     return { revoked: true };
   }
@@ -266,7 +301,8 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
       if (link) {
         const board = boardSnapshot.exists ? boardSnapshot.data() : {};
         checkScope(link, board);
-        if (!board.lanes?.some(l => l.id === link.laneId && l.id !== 'unassigned') || !board.order?.[link.laneId]?.includes(body.uid)) throw M.error(403, '담당 코스의 업체만 완료 체크할 수 있습니다.');
+        const lanes = (board.lanes || []).filter(l => link.all || (l.id === link.laneId && l.id !== 'unassigned'));
+        if (!lanes.some(l => board.order?.[l.id]?.includes(body.uid))) throw M.error(403, link.all ? '이 날짜 배송 목록의 업체만 완료 체크할 수 있습니다.' : '담당 코스의 업체만 완료 체크할 수 있습니다.');
       }
       const row = data.rows.find(r => r.uid === body.uid);
       if (!row || data.noDelivery) throw M.error(409, '취소·휴무 또는 배송 없는 날입니다. 최신 배송 목록을 확인해주세요.');
@@ -341,4 +377,4 @@ function createMonthlyDeliveryHandler({ service, authorize, logError = () => {} 
   };
 }
 
-module.exports = { BOARDS, TEMPLATES, SHARES, SHARE_TTL_DAYS, createMonthlyDeliveryService, createMonthlyDeliveryHandler, shareHash };
+module.exports = { BOARDS, TEMPLATES, SHARES, SHARE_TTL_DAYS, PICKUP_LOOKBACK_DAYS, createMonthlyDeliveryService, createMonthlyDeliveryHandler, shareHash };
