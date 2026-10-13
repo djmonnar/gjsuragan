@@ -1,11 +1,11 @@
-const CACHE = 'gjsuragan-v95-hourly';
+const CACHE = 'gjsuragan-v96-pickup';
 const PRECACHE = [
   './customer.html',
   './admin.html',
   './monthly-delivery.html',
-  './assets/css/monthly-delivery.css?v=20261007-mobile-time',
-  './assets/js/monthly-delivery-board.js?v=20261007-mobile-time',
-  './assets/js/monthly-delivery-driver.js?v=20261007-mobile-time',
+  './assets/css/monthly-delivery.css?v=20261013-pickup-all-link',
+  './assets/js/monthly-delivery-board.js?v=20261013-pickup-all-link',
+  './assets/js/monthly-delivery-driver.js?v=20261013-pickup-all-link',
   './attendance.html',
   './staff-admin.html',
   './staff-admin-manifest.json',

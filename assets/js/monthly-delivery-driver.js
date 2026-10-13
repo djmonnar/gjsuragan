@@ -3,7 +3,14 @@
   const root = document.getElementById('monthly-driver');
   const token = new URLSearchParams(location.hash.slice(1)).get('token') || '';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-  let data = null, busy = false, loading = false, failure = '', message = '', timer = null, blocked = false;
+  const weekday = ds => ['일','월','화','수','목','금','토'][new Date(`${ds}T00:00:00Z`).getUTCDay()];
+  const dayLabel = ds => `${Number(ds.slice(5,7))}/${Number(ds.slice(8,10))}(${weekday(ds)})`;
+  const quantity = row => [row.lunchCount ? `도시락 ${row.lunchCount}개` : '', row.saladCount ? `샐러드 ${row.saladCount}개` : '', row.eventLunchCount ? `일회용 ${row.eventLunchCount}개` : '', row.cateringLabel || ''].filter(Boolean).join(' · ');
+  let data = null, busy = false, loading = false, failure = '', message = '', timer = null, blocked = false, picked = '';
+  // The course a driver last chose stays chosen on the next day's all-courses link.
+  try { picked = localStorage.getItem('md-course') || ''; } catch (_) { /* Private mode: every course stays listed. */ }
+  // A course link carries one course; the all-courses link carries every course of the date.
+  const courses = () => data.courses || [{ lane:data.lane, rows:data.rows, pickups:data.pickups || [] }];
   async function request(action, body = {}) {
     const abort = new AbortController(), timeout = setTimeout(() => abort.abort(), 30000);
     try {
@@ -20,20 +27,33 @@
   function render() {
     const header = `<header class="md-header"><div class="md-brand">궁중수라간 배송</div><button type="button" data-refresh${busy || loading || blocked ? ' disabled' : ''}>새로고침</button></header>`;
     if (!data) { root.innerHTML = `${header}<div class="mb-empty" role="${failure ? 'alert' : 'status'}">${esc(failure || '배송코스를 불러오는 중…')}</div>`; return; }
-    const done = data.rows.filter(row => row.delivered).length;
-    const sum = data.rows.reduce((a, row) => ({ lunch:a.lunch+row.lunchCount, salad:a.salad+row.saladCount, event:a.event+row.eventLunchCount }), { lunch:0, salad:0, event:0 });
-    root.innerHTML = `${header}<div class="md-date">${esc(data.date)} · ${['일','월','화','수','목','금','토'][new Date(`${data.date}T00:00:00Z`).getUTCDay()]}요일</div><h2>${esc(data.lane.name)}</h2><p class="md-meta">${esc(data.lane.driver)} · ${data.rows.length}곳 · 완료 ${done}/${data.rows.length}</p>
-      <div class="mb-summary"><span>도시락 <b>${sum.lunch}개</b></span><span>샐러드 <b>${sum.salad}개</b></span>${sum.event ? `<span>일회용 <b>${sum.event}개</b></span>` : ''}</div>
+    const list = courses(), chosen = data.all && list.some(course => course.lane.id === picked) ? picked : '';
+    const filter = data.all && list.length > 1 ? `<nav class="md-courses" aria-label="코스 선택"><button type="button" data-course="" aria-pressed="${!chosen}">전체</button>${list.map(course => `<button type="button" data-course="${esc(course.lane.id)}" aria-pressed="${course.lane.id === chosen}">${esc(course.lane.name)} <b>${course.rows.length}</b></button>`).join('')}</nav>` : '';
+    root.innerHTML = `${header}<div class="md-date">${esc(data.date)} · ${weekday(data.date)}요일${data.all ? ' · 전체 코스' : ''}</div>${filter}
       <div class="md-status${failure ? ' error' : ''}" role="status" aria-live="polite">${esc(failure || (busy ? '완료 상태 저장 중…' : message))}</div>
       ${!data.canComplete ? '<div class="mb-empty">오늘 배송만 완료 체크할 수 있습니다. 이 날짜는 조회만 가능합니다.</div>' : ''}
-      ${data.rows.map((row, index) => card(row, index)).join('') || `<div class="mb-empty">${data.noDelivery ? '배송 없는 날입니다.' : '배정된 배송이 없습니다. 취소·휴무 업체는 목록에서 빠집니다.'}</div>`}
+      ${list.filter(course => !chosen || course.lane.id === chosen).map(section).join('') || `<div class="mb-empty">${data.noDelivery ? '배송 없는 날입니다.' : '배정된 배송이 없습니다.'}</div>`}
       <p class="md-note">방문 순서는 관리자가 정합니다. 주문·휴무 변경은 자동 반영되며, 완료 체크는 관리자 배송기록·정산에 반영됩니다.</p>`;
   }
-  function card(row, index) {
-    const quantities = [row.lunchCount ? `도시락 ${row.lunchCount}개` : '', row.saladCount ? `샐러드 ${row.saladCount}개` : '', row.eventLunchCount ? `일회용 ${row.eventLunchCount}개` : '', row.cateringLabel || ''].filter(Boolean).join(' · ');
+  function section(course) {
+    const done = course.rows.filter(row => row.delivered).length;
+    const sum = course.rows.reduce((a, row) => ({ lunch:a.lunch+row.lunchCount, salad:a.salad+row.saladCount, event:a.event+row.eventLunchCount }), { lunch:0, salad:0, event:0 });
+    const meta = [course.lane.driver, `${course.rows.length}곳`, `완료 ${done}/${course.rows.length}`, course.pickups.length ? `수거 ${course.pickups.length}곳` : ''].filter(Boolean);
+    return `<section class="md-course"><h2>${esc(course.lane.name)}</h2><p class="md-meta">${meta.map(esc).join(' · ')}</p>
+      <div class="mb-summary"><span>도시락 <b>${sum.lunch}개</b></span><span>샐러드 <b>${sum.salad}개</b></span>${sum.event ? `<span>일회용 <b>${sum.event}개</b></span>` : ''}</div>
+      ${course.rows.map((row, index) => card(row, index)).join('') || `<div class="mb-empty">${data.noDelivery ? '배송 없는 날입니다.' : '배정된 배송이 없습니다. 취소·휴무 업체는 목록에서 빠집니다.'}</div>`}
+      ${course.pickups.length ? `<h3 class="md-pickup-title">수거 ${course.pickups.length}곳</h3><p class="md-pickup-note">${esc(dayLabel(data.pickupDate))}에 배송했고 이날은 배송이 없는 곳입니다. 들러서 수거해주세요.</p>${course.pickups.map(pickup).join('')}` : ''}</section>`;
+  }
+  function contact(row) {
     const phone = String(row.phone || '').replace(/[^0-9+]/g, '');
     const map = row.address ? `https://map.kakao.com/link/search/${encodeURIComponent(row.address)}` : '';
-    return `<article class="md-stop${row.delivered ? ' done' : ''}" data-uid="${esc(row.uid)}"><div><div class="md-name">${index+1}. ${esc(row.businessName)}</div><div class="md-info">${esc(quantities)}</div><div class="mb-time md-time${row.mealTime ? '' : ' unset'}">${row.mealTime ? `배송 ${esc(row.mealTime)}` : '시간 미입력'}</div>${row.address ? `<div class="md-info">${esc(row.address)} ${esc(row.addressDetail)}</div>` : ''}${row.note ? `<div class="md-info">메모: ${esc(row.note)}</div>` : ''}<div class="md-links">${map ? `<a href="${esc(map)}" target="_blank" rel="noopener noreferrer">길찾기</a>` : ''}${phone ? `<a href="tel:${esc(phone)}">전화</a>` : ''}</div></div><label class="md-check"><input type="checkbox" data-complete="${esc(row.uid)}" aria-label="${esc(row.businessName)} 배송완료"${row.delivered ? ' checked' : ''}${busy || loading || failure || !data.canComplete ? ' disabled' : ''}>완료</label></article>`;
+    return `${row.address ? `<div class="md-info">${esc(row.address)} ${esc(row.addressDetail)}</div>` : ''}${row.note ? `<div class="md-info">메모: ${esc(row.note)}</div>` : ''}<div class="md-links">${map ? `<a href="${esc(map)}" target="_blank" rel="noopener noreferrer">길찾기</a>` : ''}${phone ? `<a href="tel:${esc(phone)}">전화</a>` : ''}</div>`;
+  }
+  function card(row, index) {
+    return `<article class="md-stop${row.delivered ? ' done' : ''}" data-uid="${esc(row.uid)}"><div><div class="md-name">${index+1}. ${esc(row.businessName)}</div><div class="md-info">${esc(quantity(row))}</div><div class="mb-time md-time${row.mealTime ? '' : ' unset'}">${row.mealTime ? `배송 ${esc(row.mealTime)}` : '시간 미입력'}</div>${contact(row)}</div><label class="md-check"><input type="checkbox" data-complete="${esc(row.uid)}" aria-label="${esc(row.businessName)} 배송완료"${row.delivered ? ' checked' : ''}${busy || loading || failure || !data.canComplete ? ' disabled' : ''}>완료</label></article>`;
+  }
+  function pickup(row) {
+    return `<article class="md-stop md-pickup"><div><div class="md-name">${esc(row.businessName)}</div><div class="md-info">${esc(dayLabel(data.pickupDate))} 배송 · ${esc(quantity(row))}</div>${contact(row)}</div><span class="md-pickup-tag">수거</span></article>`;
   }
   function handleError(e) {
     failure = e.message;
@@ -47,11 +67,18 @@
     catch (e) { handleError(e); }
     finally { loading = false; render(); }
   }
-  root.addEventListener('click', event => { if (event.target.closest('[data-refresh]')) refresh(); });
+  root.addEventListener('click', event => {
+    if (event.target.closest('[data-refresh]')) { refresh(); return; }
+    const course = event.target.closest('[data-course]');
+    if (!course) return;
+    picked = course.dataset.course;
+    try { localStorage.setItem('md-course', picked); } catch (_) { /* The choice lasts until the page closes. */ }
+    render();
+  });
   root.addEventListener('change', async event => {
     const check = event.target.closest('[data-complete]');
     if (!check || !data || busy || loading || failure || !data.canComplete) { render(); return; }
-    const row = data.rows.find(item => item.uid === check.dataset.complete);
+    const row = courses().flatMap(course => course.rows).find(item => item.uid === check.dataset.complete);
     if (!row) return;
     const delivered = check.checked;
     busy = true; render();

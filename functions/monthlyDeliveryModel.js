@@ -171,6 +171,37 @@ function resolveRows({ date, users = {}, orders = {}, snapshots = {}, locked = f
   });
   return [...rows.values()].sort((a, b) => a.businessName.localeCompare(b.businessName, 'ko'));
 }
+// Stops of an earlier delivery day: its planned rows plus anything recorded as
+// delivered, so a member paused or removed since then is still collected from.
+function visitedRows(day) {
+  const rows = new Map(resolveRows(day).map(row => [row.uid, row]));
+  Object.entries(day.records || {}).forEach(([uid, record]) => {
+    if (rows.has(uid) || !record?.delivered || isDeleted(record) || record.kind === 'eventLunch' || uid.startsWith('event_')) return;
+    const row = toRow(uid, record, day.users?.[uid] || {}, day.date, record);
+    if (row.totalQty > 0) rows.set(uid, row);
+  });
+  return [...rows.values()];
+}
+// Reusable boxes stay behind until the next visit. A disposable lunch leaves nothing.
+function needsPickup(row) { return !row.disposableLunch && row.lunchCount + row.saladCount + row.cateringTotal > 0; }
+function pickupRow(row, laneId) {
+  const { uid, businessName, phone, address, addressDetail, note, lunchCount, saladCount } = row;
+  return { uid, laneId, businessName, phone, address, addressDetail, note, lunchCount, saladCount,
+    cateringLabel: row.cateringItems.map(item => `${item.name} ${item.qty}개`).join(' · ') };
+}
+// Visited last time but not today: today's course keeps a resting member's rank,
+// then the course of the earlier board, and only then the unassigned pool.
+function pickupRows(previousRows, rows, plan, previousPlan = {}) {
+  const today = new Set(rows.map(row => row.uid));
+  const pending = new Map(previousRows.filter(row => !today.has(row.uid) && needsPickup(row)).map(row => [row.uid, row]));
+  const result = [];
+  const take = (uid, laneId) => { if (pending.has(uid)) { result.push(pickupRow(pending.get(uid), laneId)); pending.delete(uid); } };
+  const assigned = source => (source.lanes || []).filter(lane => lane && lane.id !== 'unassigned' && Object.hasOwn(plan.order, lane.id))
+    .forEach(lane => (source.order?.[lane.id] || []).forEach(uid => take(uid, lane.id)));
+  assigned(plan); assigned(previousPlan);
+  [...pending.keys()].forEach(uid => take(uid, 'unassigned'));
+  return result;
+}
 function validUid(uid) { return typeof uid === 'string' && uid.length > 0 && uid.length <= 200 && !/[/.\[\]~*]/.test(uid); }
 function normalizePlan(value = {}, rows = []) {
   const lanes = (Array.isArray(value.lanes) && value.lanes.length ? value.lanes : DEFAULT_LANES)
@@ -285,5 +316,5 @@ function buildSettlement({ uid, month, records, user, saved = {}, invoiceNo, noD
 }
 
 module.exports = { DEFAULT_LANES, POLL_MS, MAX_STOPS, error, count, money, validDate, requireDate, weekday, kstDate, paused, activeDefault,
-  defaultsFor, mergeRecord, legacyRecords, mergeRecords, quantities, resolveRows, normalizePlan, validatePlan, planWithSource, samePlan, validUid, publicRow,
+  defaultsFor, mergeRecord, legacyRecords, mergeRecords, quantities, resolveRows, visitedRows, needsPickup, pickupRows, normalizePlan, validatePlan, planWithSource, samePlan, validUid, publicRow,
   completionRecord, buildSettlement, signature };
