@@ -44,10 +44,21 @@ function invoiceNumber(month, settlements, users, administrators) {
   return `${prefix}${String(seq + 1).padStart(3, '0')}`;
 }
 
-function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEmails, now = () => new Date(), sourceLoader = Sheet.loadSource }) {
+function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEmails, adminUids = async () => [], now = () => new Date(), sourceLoader = Sheet.loadSource }) {
   const get = (reader, ref) => reader === db ? ref.get() : reader.get(ref);
   const boardRef = date => db.collection(BOARDS).doc(date);
   const templateRef = date => db.collection(TEMPLATES).doc(M.weekday(date));
+  const adminIds = async () => (await adminUids()).filter(M.validUid);
+  const isAdmin = (uid, user, ids) => ids.includes(uid) || adminEmails().includes(String(user.email || '').toLowerCase());
+  // admin.html keeps the administrator's events in users/{auth uid}. The production
+  // document carries no email, so the sign-in account finds it as well as the email.
+  async function adminDocs(reader, ids) {
+    const [byEmail, ...byId] = await Promise.all([get(reader, db.collection('users').where('email', 'in', adminEmails())),
+      ...ids.map(uid => get(reader, db.collection('users').doc(uid)))]);
+    const docs = new Map(byEmail.docs.map(doc => [doc.id, doc]));
+    byId.forEach(doc => { if (doc.exists) docs.set(doc.id, doc); });
+    return [...docs.values()];
+  }
 
   async function load(date, reader = db, targetUid = '') {
     const refs = [
@@ -56,6 +67,7 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
     ];
     const reads = refs.map(ref => get(reader, ref));
     let users, privateUsers, orders, snapshots, administrators;
+    const ids = await adminIds();
     if (Array.isArray(targetUid)) {
       const ids = [...new Set(targetUid.filter(M.validUid))], groups = [];
       for (let i = 0; i < ids.length; i += 30) groups.push(ids.slice(i, i + 30));
@@ -64,27 +76,27 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
         ...reads, select(db.collection('users')), select(db.collection('userPrivate')),
         select(db.collection('orders').doc(date).collection('items')),
         select(db.collection('orderDefaultSnapshots').doc(date).collection('items')),
-        get(reader, db.collection('users').where('email', 'in', adminEmails()))
+        adminDocs(reader, ids)
       ]);
       users = mapSnapshot(userSnap); privateUsers = mapSnapshot(privateSnap);
       Object.keys(users).forEach(uid => {
-        if (adminEmails().includes(String(users[uid].email || '').toLowerCase())) delete users[uid];
+        if (isAdmin(uid, users[uid], ids)) delete users[uid];
         else users[uid] = { ...users[uid], ...(privateUsers[uid] || {}) };
       });
-      return makeData(date, lock, holidays, settings, fresh, archive, users, mapSnapshot(orderSnap), mapSnapshot(snapshotSnap), admins.docs.map(doc => doc.data() || {}));
+      return makeData(date, lock, holidays, settings, fresh, archive, users, mapSnapshot(orderSnap), mapSnapshot(snapshotSnap), admins.map(doc => doc.data() || {}));
     }
     if (targetUid) {
       const values = await Promise.all([
         ...reads, get(reader, db.collection('users').doc(targetUid)), get(reader, db.collection('userPrivate').doc(targetUid)),
         get(reader, db.collection('orders').doc(date).collection('items').doc(targetUid)),
         get(reader, db.collection('orderDefaultSnapshots').doc(date).collection('items').doc(targetUid)),
-        get(reader, db.collection('users').where('email', 'in', adminEmails()))
+        adminDocs(reader, ids)
       ]);
       const [lock, holidays, settings, fresh, archive, user, priv, order, snapshot, admins] = values;
-      users = user.exists ? { [targetUid]: { ...user.data(), ...(priv.exists ? priv.data() : {}) } } : {};
+      users = user.exists && !isAdmin(targetUid, user.data(), ids) ? { [targetUid]: { ...user.data(), ...(priv.exists ? priv.data() : {}) } } : {};
       orders = order.exists ? { [targetUid]: order.data() } : {};
       snapshots = snapshot.exists ? { [targetUid]: snapshot.data() } : {};
-      administrators = admins.docs.map(doc => doc.data() || {});
+      administrators = admins.map(doc => doc.data() || {});
       return makeData(date, lock, holidays, settings, fresh, archive, users, orders, snapshots, administrators);
     }
     const [lock, holidays, settings, fresh, archive, userSnap, privateSnap, orderSnap, snapshotSnap, eventSnap] = await Promise.all([
@@ -96,7 +108,7 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
     privateUsers = mapSnapshot(privateSnap); users = mapSnapshot(userSnap); orders = mapSnapshot(orderSnap); snapshots = mapSnapshot(snapshotSnap);
     administrators = [];
     Object.keys(users).forEach(uid => {
-      if (adminEmails().includes(String(users[uid].email || '').toLowerCase())) { administrators.push(users[uid]); delete users[uid]; }
+      if (isAdmin(uid, users[uid], ids)) { administrators.push(users[uid]); delete users[uid]; }
       else if (users[uid].adminEvents && !users[uid].businessName) delete users[uid];
       else users[uid] = { ...users[uid], ...(privateUsers[uid] || {}) };
     });
@@ -326,9 +338,9 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
       const link = actor ? null : await scope(body.token, tx), date = M.requireDate(link ? link.date : body.date);
       if (date > M.kstDate(now()) || (!actor && date !== M.kstDate(now()))) throw M.error(400, '기사님은 오늘 배송만 완료 체크할 수 있습니다.');
       const [boardSnapshot, admins, order] = await Promise.all([tx.get(boardRef(date)),
-        tx.get(db.collection('users').where('email', 'in', adminEmails())), tx.get(db.collection('eventOrders').doc(id.slice('event_'.length)))]);
+        adminDocs(tx, await adminIds()), tx.get(db.collection('eventOrders').doc(id.slice('event_'.length)))]);
       if (link) checkStop(link, boardSnapshot.exists ? boardSnapshot.data() : {}, id);
-      const owner = admins.docs.find(doc => M.adminEvents(doc.data())[id]), event = owner ? M.adminEvents(owner.data())[id] : null;
+      const owner = admins.find(doc => M.adminEvents(doc.data())[id]), event = owner ? M.adminEvents(owner.data())[id] : null;
       if (!event || event.eventDate !== date) {
         const received = order.exists && order.data().eventDate === date && !['registered', 'deleted'].includes(order.data().status);
         throw M.error(409, received ? '비회원 접수 주문은 행사 화면에서 확인한 뒤 배송완료해주세요.' : '행사가 취소되었거나 날짜가 바뀌었습니다. 최신 배송 목록을 확인해주세요.');

@@ -178,6 +178,11 @@ test('manual polling and share expiry match service constants, with cache and ta
   }
   assert.ok(admin.includes('data-tab="monthlyDelivery"')); assert.ok(sw.includes("'./monthly-delivery.html'"));
 });
+test('the deployed service finds the administrator document by sign-in account, not only by email', () => {
+  const index = fs.readFileSync(path.resolve(__dirname,'../../index.js'),'utf8');
+  assert.match(index.match(/createMonthlyDeliveryService\(\{[\s\S]*?\}\)/)[0], /adminUids: monthlyAdminUids/);
+  assert.match(index, /getUserByEmail\(email\)/);
+});
 test('board customer editor loads the selected manual date and does not open after navigating away', async () => {
   const admin=fs.readFileSync(path.resolve(__dirname,'../../../admin.html'),'utf8').replace(/\r\n/g,'\n');
   const body=admin.match(/openCustomer: async \(uid, value\) => \{([\s\S]*?)\n      }\n    }\);/)[1];

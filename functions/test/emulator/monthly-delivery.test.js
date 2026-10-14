@@ -11,7 +11,7 @@ const noDelivery = (day,custom={}) => [0,6].includes(new Date(`${day}T00:00:00Z`
 test.before(() => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST,'Run with Firestore emulator only');
   app = initializeApp({ projectId },`monthly-${Date.now()}`); db = getFirestore(app);
-  service = createMonthlyDeliveryService({ db,timestamp:() => FieldValue.serverTimestamp(),isNoDeliveryDate:noDelivery,adminEmails:() => ['admin@example.invalid'],now:() => clock,sourceLoader:async () => ({ routes:[],tab:'',url:'' }) });
+  service = createMonthlyDeliveryService({ db,timestamp:() => FieldValue.serverTimestamp(),isNoDeliveryDate:noDelivery,adminEmails:() => ['admin@example.invalid'],adminUids:async () => ['monthly-admin'],now:() => clock,sourceLoader:async () => ({ routes:[],tab:'',url:'' }) });
 });
 test.after(async () => { await deleteApp(app); });
 test.beforeEach(async () => {
@@ -180,7 +180,8 @@ test('all-courses link lists every course, completes any stop of the date and is
 });
 test('event lunches join the board, drivers complete registered events and weekday orders keep members only', async () => {
   const { link } = await assigned(), adminRef = db.collection('users').doc('monthly-admin');
-  await adminRef.set({ email:'admin@example.invalid', adminEvents:{
+  // As in production, the administrator's document has no email; its sign-in account finds it.
+  await adminRef.set({ deleted:true, adminEvents:{
     event_party:{ kind:'eventLunch',eventDate:date,eventTime:'11:00',place:'행사장',businessName:'행사 업체',items:[{ name:'제육 한상',qty:10,price:9000 }],count:10,delivered:false,settlement:{ status:'미정산',note:'보존' } },
     event_gone:{ deleted:true }
   } });
