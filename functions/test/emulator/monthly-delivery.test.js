@@ -178,6 +178,72 @@ test('all-courses link lists every course, completes any stop of the date and is
   clock = new Date('2026-10-08T03:00:00Z');
   await assert.rejects(service.share({ date,all:true,revision:board.revision },actor),e => e.status===400);
 });
+test('event lunches join the board, drivers complete registered events and weekday orders keep members only', async () => {
+  const { link } = await assigned(), adminRef = db.collection('users').doc('monthly-admin');
+  await adminRef.set({ email:'admin@example.invalid', adminEvents:{
+    event_party:{ kind:'eventLunch',eventDate:date,eventTime:'11:00',place:'행사장',businessName:'행사 업체',items:[{ name:'제육 한상',qty:10,price:9000 }],count:10,delivered:false,settlement:{ status:'미정산',note:'보존' } },
+    event_gone:{ deleted:true }
+  } });
+  await db.collection('eventOrders').doc('pub1').set({ eventDate:date,eventTime:'12:00',place:'접수 장소',businessName:'비회원 손님',items:[{ name:'김치제육',qty:3 }],status:'new' });
+  await db.collection('eventOrders').doc('pub2').set({ eventDate:date,status:'registered',items:[{ name:'x',qty:1 }] });
+  let board = await service.readBoard(date);
+  assert.deepEqual(board.rows.filter(row=>row.kind==='event').map(row=>[row.uid,row.eventQty,row.received]),[['event_party',10,false],['event_pub1',3,true]]);
+  assert.deepEqual(board.plan.order.unassigned,['event_party','event_pub1']);
+  board.plan.order.unassigned=['event_pub1'];board.plan.order.center.push('event_party');
+  await service.saveBoard({ date,revision:board.revision,plan:board.plan },actor);
+  let read = await service.driverRead({ token:link.token });
+  const party = read.rows.find(row=>row.uid==='event_party');
+  assert.deepEqual(read.rows.map(row=>row.uid),['a','b','event_party']);
+  assert.equal(party.cateringLabel,'제육 한상 10개');assert.equal(party.amount,undefined);assert.equal(party.price,undefined);
+  await assert.rejects(service.pause({ date,uid:'event_party',signature:party.signature },actor),e => e.status===400);
+  assert.equal((await service.complete({ token:link.token,uid:'event_party',delivered:true,signature:party.signature })).changed,true);
+  let saved = (await adminRef.get()).data().adminEvents.event_party;
+  assert.equal(saved.delivered,true);assert.match(saved.deliveredBy,/^monthlyDriver:/);assert.deepEqual(saved.settlement,{ status:'미정산',note:'보존' });assert.equal(saved.items[0].price,9000);
+  assert.equal((await adminRef.get()).data().adminEvents.event_gone.deleted,true);
+  read = await service.driverRead({ token:link.token });assert.equal(read.rows.at(-1).delivered,true);
+  await service.complete({ token:link.token,uid:'event_party',delivered:false,signature:party.signature });
+  saved = (await adminRef.get()).data().adminEvents.event_party;assert.equal(saved.delivered,false);assert.equal(saved.deliveredAt,'');
+  // A changed event and a public order still waiting for the administrator cannot be completed.
+  await adminRef.set({ adminEvents:{ event_party:{ items:[{ name:'제육 한상',qty:12,price:9000 }] } } },{ merge:true });
+  await assert.rejects(service.complete({ token:link.token,uid:'event_party',delivered:true,signature:party.signature }),e => e.status===409);
+  board = await service.readBoard(date);
+  const all = await service.share({ date,all:true,revision:board.revision },actor), pending = (await service.driverRead({ token:all.token })).rows.find(row=>row.uid==='event_pub1');
+  assert.equal(pending.received,true);
+  await assert.rejects(service.complete({ token:all.token,uid:'event_pub1',delivered:true,signature:pending.signature }),e => e.status===409 && /비회원/.test(e.message));
+  // Fixing the weekday order keeps members and drops the one-day events.
+  board = await service.readBoard(date);
+  await service.saveTemplate({ date,templateRevision:board.templateRevision,plan:board.plan },actor);
+  const template = (await db.collection(TEMPLATES).doc('wed').get()).data();
+  assert.deepEqual(Object.values(template.order).flat().filter(uid=>uid.startsWith('event_')),[]);
+  assert.equal((await service.readBoard(date)).templateFixed,true);
+  // Weekend events still get a board, with no monthly meal.
+  await adminRef.set({ adminEvents:{ event_sat:{ eventDate:'2026-10-10',eventTime:'10:00',place:'토요 행사장',count:20,businessName:'토요 업체' } } },{ merge:true });
+  const weekend = await service.readBoard('2026-10-10');
+  assert.equal(weekend.noDelivery,true);assert.deepEqual(weekend.rows.map(row=>row.uid),['event_sat']);assert.deepEqual(weekend.pickups,[]);
+});
+test('a fixed weekday order survives route sheet edits until it is unfixed', async () => {
+  let routes = [{ laneId:'center',names:['테스트 a','테스트 b'] },{ laneId:'west',names:['테스트 c'] }];
+  const sourceService = createMonthlyDeliveryService({ db,timestamp:() => FieldValue.serverTimestamp(),isNoDeliveryDate:noDelivery,adminEmails:() => ['admin@example.invalid'],now:() => clock,
+    sourceLoader:async () => ({ tab:'수',url:'',routes }) });
+  let board = await sourceService.readBoard(date);
+  assert.equal(board.templateFixed,false);assert.deepEqual(board.plan.order.center,['a','b']);
+  routes = [{ laneId:'center',names:['테스트 b','테스트 a'] },{ laneId:'west',names:['테스트 c'] }];
+  board = await sourceService.readBoard(date);
+  assert.deepEqual(board.plan.order.center,['b','a']);
+  board.plan.order.center=['a','b'];
+  await assert.rejects(sourceService.saveTemplate({ date,templateRevision:board.templateRevision+1,plan:board.plan },actor),e => e.status===409);
+  await sourceService.saveTemplate({ date,templateRevision:board.templateRevision,plan:board.plan },actor);
+  await db.collection('users').doc('new').set({ businessName:'신규 테스트',defaultLunch:2 });
+  routes = [{ laneId:'center',names:['테스트 c','테스트 b','테스트 a','신규 테스트'] },{ laneId:'west',names:[] }];
+  board = await sourceService.readBoard(date);
+  assert.equal(board.templateFixed,true);
+  assert.deepEqual(board.plan.order.center,['a','b','new']);assert.deepEqual(board.plan.order.west,['c']);
+  assert.equal((await db.collection(BOARDS).doc(date).get()).exists,false);
+  await sourceService.unfixTemplate({ date,templateRevision:board.templateRevision },actor);
+  board = await sourceService.readBoard(date);
+  assert.equal(board.templateFixed,false);assert.deepEqual(board.plan.order.center,['c','b','a','new']);
+  await assert.rejects(sourceService.unfixTemplate({ date:'2026-10-10',templateRevision:0 },actor),e => e.status===400);
+});
 test('share revocation, expiry and deleting course deny old links', async () => {
   const { link } = await assigned();
   await service.revoke({ date,laneId:'center' },actor);
