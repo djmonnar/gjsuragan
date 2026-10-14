@@ -75,6 +75,13 @@
 .mb-root .mb-pickup-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .mb-root .mb-pickup-list button{background:#fff8ea;border-color:#ecd9ae;font-size:12px;text-align:left;padding:6px 10px;min-height:34px;overflow-wrap:anywhere}
 .mb-root .mb-pickup-list span{color:var(--mb-sub);margin-left:7px}
+.mb-root .mb-fixed{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:-4px 0 12px;padding:9px 12px;border:1px solid var(--mb-line);border-radius:9px;background:#fff;color:var(--mb-sub);font-size:12px;line-height:1.6}
+.mb-root .mb-fixed.on{background:var(--mb-soft);border-color:#b9d8c5;color:var(--mb-text)}
+.mb-root .mb-fixed b{color:var(--mb-green)}
+.mb-root .mb-fixed button{font-size:12px;min-height:32px;padding:5px 10px}
+.mb-root .mb-event-tag{display:inline-block;border-radius:5px;background:#e7f0fb;color:#1d4f8f;font-weight:800;padding:1px 6px}
+.mb-root .mb-stop.event{border-color:#c4d7ef}
+.mb-root .mb-menu-note{font-size:12px;color:var(--mb-sub);margin:6px 0 0;line-height:1.5}
 .monthly-driver-app{max-width:540px;margin:0 auto;padding:16px;background:#f5f8f6;min-height:100vh}
 .monthly-driver-app .md-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:22px}
 .monthly-driver-app .md-brand{font-size:18px;font-weight:800}
@@ -102,6 +109,9 @@
 .monthly-driver-app .md-pickup{background:#fff8ea;border-color:#ecd9ae}
 .monthly-driver-app .md-pickup .md-name+.md-info{color:#8a5a00}
 .monthly-driver-app .md-pickup-tag{align-self:start;font-size:12px;font-weight:800;color:#8a5a00;background:#fbe9c2;border-radius:6px;padding:5px 9px;white-space:nowrap}
+.monthly-driver-app .md-event{border-color:#c4d7ef}
+.monthly-driver-app .md-event-tag{display:inline-block;font-size:12px;vertical-align:2px;border-radius:5px;background:#e7f0fb;color:#1d4f8f;padding:2px 6px}
+.monthly-driver-app .md-received{align-self:start;font-size:12px;font-weight:700;color:#1d4f8f;background:#e7f0fb;border-radius:6px;padding:6px 8px;text-align:center;line-height:1.5;white-space:nowrap}
 #monthly-delivery-board{padding:20px;max-width:1400px;margin:0 auto;background:#f5f8f6;border-radius:12px}
 @media(max-width:600px){
   #monthly-delivery-board{padding:12px 10px;border-radius:0}
@@ -138,6 +148,7 @@
   .mb-root .mb-pickup-title span{display:block;margin:3px 0 0}
   .mb-root .mb-pickup-list{display:grid;grid-template-columns:minmax(0,1fr)}
   .mb-root .mb-pickup-list button{font-size:14px;min-height:44px;padding:9px 11px}
+  .mb-root .mb-fixed button{width:100%;min-height:44px;font-size:13px}
   .mb-root .mb-footer{align-items:flex-start;line-height:1.7}
   .mb-root .mb-footer button{width:100%;min-height:44px}
   .mb-root .mb-menu-content{width:220px;top:44px;right:0}

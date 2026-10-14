@@ -80,6 +80,35 @@ test('pickups are earlier stops without a delivery today, kept in their course a
   assert.equal(M.needsPickup(earlier.find(row => row.uid === 'single')), false);
   assert.deepEqual(M.pickupRows(earlier, earlier, plan), []);
 });
+test('event lunches of the date come from administrator events and unregistered public orders, without prices', () => {
+  const admin = {
+    'adminEvents.event_old': { eventDate:date,eventTime:'10:00',place:'옛 장소',businessName:'행사도시락',customerName:'옛 고객',name:'행사도시락',count:5 },
+    'adminEvents.event_a': { eventDate:date,eventTime:'09:00',place:'덮어쓴 장소',count:1 },
+    adminEvents:{
+      event_a:{ eventDate:date,eventTime:'11:00',place:'행사장',businessName:'행사 업체',contactPhone:'010-0000-0000',items:[{ name:'제육 한상',qty:10,price:9000 },{ name:'공기밥',qty:2,price:1000 }],amount:92000,delivered:true },
+      event_next:{ eventDate:'2026-10-08',place:'다른 날',count:3 }, event_gone:{ deleted:true }
+    }
+  };
+  const publicOrders = { p1:{ eventDate:date,eventTime:'12:00',place:'접수 장소',businessName:'비회원 손님',requestNote:'정문',items:[{ name:'김치제육',qty:3,price:15900 }] },
+    a:{ eventDate:date,eventTime:'13:00',place:'중복',items:[{ name:'x',qty:1 }] }, p2:{ eventDate:date,status:'registered',count:4 }, p3:{ eventDate:date,status:'deleted',count:4 }, p4:{ eventDate:'2026-10-08',count:4 } };
+  const events = M.eventRows({ date, administrators:[admin], publicOrders });
+  assert.deepEqual(events.map(row => [row.uid,row.businessName,row.eventLabel,row.eventQty,row.address,row.received,row.delivered]), [
+    ['event_old','옛 고객','행사도시락 5개',5,'옛 장소',false,false],
+    ['event_a','행사 업체','제육 한상 10개 · 공기밥 2개',12,'행사장',false,true],
+    ['event_p1','비회원 손님','김치제육 3개',3,'접수 장소',true,false]
+  ]);
+  assert.equal(events[2].note,'정문');
+  const pub = M.publicRow(events[1]);
+  assert.equal(pub.kind,'event');assert.equal(pub.eventQty,12);assert.equal(pub.cateringLabel,'제육 한상 10개 · 공기밥 2개');
+  for (const key of ['amount','price','lunchPrice','eventLunchPrice','items','totalAmount']) assert.equal(key in pub, false);
+  assert.equal('kind' in M.publicRow(rows()[0]), false);
+  const changed = M.eventRows({ date, administrators:[{ adminEvents:{ event_a:{ ...admin.adminEvents.event_a,items:[{ name:'제육 한상',qty:11 }] } } }] });
+  assert.notEqual(changed[0].signature, events[1].signature);
+  // Events never enter the weekday order, and leave no boxes to collect.
+  const plan = M.normalizePlan({ lanes:M.DEFAULT_LANES, order:{ center:['a','event_a'], unassigned:['event_p1','b'] } });
+  assert.deepEqual(M.withoutEvents(plan).order, { center:['a'], west:[], east:[], unassigned:['b'] });
+  assert.equal(M.needsPickup(events[1]), false);
+});
 test('course categories can be fully replaced, keeping only the unassigned pool between edits', () => {
   const empty={ lanes:[{ id:'unassigned',name:'미배정',driver:'' }],order:{ unassigned:['a','b'] } };
   assert.deepEqual(M.validatePlan(empty),empty);
@@ -134,6 +163,9 @@ test('manual polling and share expiry match service constants, with cache and ta
   const board = fs.readFileSync(path.join(root,'assets/js/monthly-delivery-board.js'),'utf8');
   const shareAll = board.match(/data-share-all>([^<]+)</)[1];
   assert.ok(manual.includes(`<strong>${shareAll}</strong>`));
+  const fixOrder = board.match(/data-template>([^<]+)</)[1];
+  assert.equal(fixOrder,'요일 순서 고정');assert.ok(manual.includes(`${fixOrder}</strong>`));assert.ok(manual.includes('<strong>고정 풀기</strong>'));
+  assert.ok(board.includes('>고정 풀기</button>'));
   const admin = fs.readFileSync(path.join(root,'admin.html'),'utf8'), sw = fs.readFileSync(path.join(root,'sw.js'),'utf8');
   for (const asset of ['monthly-delivery.css','monthly-delivery-board.js']) {
     const url = admin.split(asset + '?v=')[1]?.split('"')[0];

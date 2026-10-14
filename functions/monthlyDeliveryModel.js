@@ -171,6 +171,49 @@ function resolveRows({ date, users = {}, orders = {}, snapshots = {}, locked = f
   });
   return [...rows.values()].sort((a, b) => a.businessName.localeCompare(b.businessName, 'ko'));
 }
+// Same reading as admin.adminEventsFromData: a nested event replaces an older
+// dotted top-level key of the same id, and a deleted event is a tombstone.
+function adminEvents(data = {}) {
+  const events = {};
+  Object.entries(data).forEach(([key, value]) => { if (key.startsWith('adminEvents.')) events[key.slice('adminEvents.'.length)] = value; });
+  Object.assign(events, data.adminEvents || {});
+  Object.keys(events).forEach(id => { if (!events[id] || events[id].deleted) delete events[id]; });
+  return events;
+}
+function eventRow(uid, item, received) {
+  const items = (Array.isArray(item.items) ? item.items : [])
+    .map(row => ({ name: String(row?.name || row?.menu || '메뉴'), qty: count(row?.qty || row?.count) })).filter(row => row.qty > 0);
+  const qty = items.length ? items.reduce((sum, row) => sum + row.qty, 0) : count(item.count);
+  const label = items.length ? items.map(row => `${row.name} ${row.qty}개`).join(' · ') : (qty ? `${item.name || item.menuText || '행사도시락'} ${qty}개` : '수량 미정');
+  const name = item.businessName && item.businessName !== '행사도시락' ? item.businessName : (item.customerName || item.companyName || '행사도시락');
+  const row = {
+    uid, kind: 'event', received, businessName: String(name), phone: item.contactPhone || '', address: item.place || '', addressDetail: '',
+    mealTime: item.eventTime || '', note: item.requestNote || item.note || '', lunchCount: 0, saladCount: 0, eventLunchCount: 0,
+    cateringItems: [], cateringTotal: 0, eventQty: qty, eventLabel: label, totalQty: qty,
+    disposableLunch: true, delivered: !received && Boolean(item.delivered), source: received ? 'publicEventOrder' : 'adminEvent'
+  };
+  row.signature = crypto.createHash('sha256').update(JSON.stringify([uid, label, qty, row.address, row.mealTime, row.note])).digest('hex');
+  return row;
+}
+// Event lunches of the date as admin.orderTabEventRowsFromSources lists them: the
+// administrator's events and the public orders not yet registered. A public order
+// already carries the id it is registered under, so its course survives registration.
+function eventRows({ date, administrators = [], publicOrders = {} }) {
+  const rows = new Map();
+  administrators.forEach(admin => Object.entries(adminEvents(admin)).forEach(([id, item]) => {
+    if (item.eventDate === date && id.startsWith('event_') && validUid(id)) rows.set(id, eventRow(id, item, false));
+  }));
+  Object.entries(publicOrders).forEach(([id, item]) => {
+    const uid = `event_${id}`;
+    if (item?.eventDate !== date || ['registered', 'deleted'].includes(item.status) || rows.has(uid) || !validUid(uid)) return;
+    rows.set(uid, eventRow(uid, item, true));
+  });
+  return [...rows.values()].sort((a, b) => `${a.mealTime} ${a.businessName}`.localeCompare(`${b.mealTime} ${b.businessName}`, 'ko'));
+}
+// A weekday order holds the regular members only; each event belongs to one date.
+function withoutEvents(plan) {
+  return { lanes: plan.lanes, order: Object.fromEntries(Object.entries(plan.order).map(([id, uids]) => [id, uids.filter(uid => !uid.startsWith('event_'))])) };
+}
 // Stops of an earlier delivery day: its planned rows plus anything recorded as
 // delivered, so a member paused or removed since then is still collected from.
 function visitedRows(day) {
@@ -246,7 +289,8 @@ function validLaneId(id) { return typeof id === 'string' && /^[a-zA-Z0-9_-]{1,40
 function publicRow(row) {
   const { uid, businessName, phone, address, addressDetail, mealTime, note, lunchCount, saladCount, eventLunchCount, delivered, signature: stamp } = row;
   return { uid, businessName, phone, address, addressDetail, mealTime, note, lunchCount, saladCount, eventLunchCount, delivered, signature: stamp,
-    cateringLabel: row.cateringItems.map(item => `${item.name} ${item.qty}개`).join(' · ') };
+    cateringLabel: row.kind === 'event' ? row.eventLabel : row.cateringItems.map(item => `${item.name} ${item.qty}개`).join(' · '),
+    ...(row.kind === 'event' ? { kind: 'event', eventQty: row.eventQty, received: row.received } : {}) };
 }
 function completionRecord(row, previous, date, delivered, actor, timestamp) {
   if (!delivered) return { ...previous, delivered: false, deliveredAt: null, cancelledAt: timestamp, cancelledBy: actor, updatedAt: timestamp };
@@ -316,5 +360,5 @@ function buildSettlement({ uid, month, records, user, saved = {}, invoiceNo, noD
 }
 
 module.exports = { DEFAULT_LANES, POLL_MS, MAX_STOPS, error, count, money, validDate, requireDate, weekday, kstDate, paused, activeDefault,
-  defaultsFor, mergeRecord, legacyRecords, mergeRecords, quantities, resolveRows, visitedRows, needsPickup, pickupRows, normalizePlan, validatePlan, planWithSource, samePlan, validUid, publicRow,
+  defaultsFor, mergeRecord, legacyRecords, mergeRecords, quantities, resolveRows, adminEvents, eventRow, eventRows, withoutEvents, visitedRows, needsPickup, pickupRows, normalizePlan, validatePlan, planWithSource, samePlan, validUid, publicRow,
   completionRecord, buildSettlement, signature };
