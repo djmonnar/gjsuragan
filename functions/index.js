@@ -25,9 +25,18 @@ const db = admin.firestore();
 exports.monthlyDeliveryApi = onRequest({ region: 'asia-northeast3', invoker: 'public', maxInstances: 5 },
   createMonthlyDeliveryHandler({
     service: createMonthlyDeliveryService({ db, timestamp: () => admin.firestore.FieldValue.serverTimestamp(),
-      isNoDeliveryDate: kakaoIsNoMonthlyDeliveryDate, adminEmails: kakaoAdminEmails }),
+      isNoDeliveryDate: kakaoIsNoMonthlyDeliveryDate, adminEmails: kakaoAdminEmails, adminUids: monthlyAdminUids }),
     authorize: verifyAdminRequest, logError: (message, detail) => logger.error(message, detail)
   }));
+// admin.html keeps its events in users/{auth uid}. That document has no email field
+// in production, so the email alone cannot find it.
+let monthlyAdminUidCache = { at: 0, uids: [] };
+async function monthlyAdminUids() {
+  if (monthlyAdminUidCache.uids.length && Date.now() - monthlyAdminUidCache.at < 600000) return monthlyAdminUidCache.uids;
+  const uids = (await Promise.all(kakaoAdminEmails().map(email => admin.auth().getUserByEmail(email).then(user => user.uid, () => '')))).filter(Boolean);
+  if (uids.length) monthlyAdminUidCache = { at: Date.now(), uids };
+  return uids;
+}
 const { createAttendanceService, createAttendanceHandler } = require('./attendance');
 const orderTotals = require('./orderTotals');
 const { createBookingReader, createBookingsHandler, createBookingWriter } = require('./attendanceBookings');
