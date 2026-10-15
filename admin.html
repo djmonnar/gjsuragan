@@ -1609,8 +1609,9 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55;box-shadow:none}
         <span class="event-sort-label">보기</span>
         <select class="form-input event-sort-select" id="event-list-sort" onchange="setEventLunchSortMode(this.value)">
           <option value="order">주문순</option>
-          <option value="name">이름순</option>
+          <option value="pending">배송 전 날짜순</option>
           <option value="delivery">배송일순</option>
+          <option value="name">이름순</option>
         </select>
       </div>
       <div class="event-list-actions">
@@ -3063,7 +3064,17 @@ let deletedUsers = {};
 let eventLunches = [];
 let eventLunchMonth = '';
 let eventLunchVisibleLimit = 30;
-let eventLunchSortMode = 'order';
+// 행사도시락 목록 보기는 기기마다 마지막으로 고른 것을 쓴다.
+const EVENT_LUNCH_SORT_MODES = ['order', 'pending', 'delivery', 'name'];
+const EVENT_LUNCH_SORT_KEY = 'gjsuraganEventLunchSort';
+let eventLunchSortMode = (() => {
+  try {
+    const saved = localStorage.getItem(EVENT_LUNCH_SORT_KEY);
+    return EVENT_LUNCH_SORT_MODES.includes(saved) ? saved : 'order';
+  } catch (e) {
+    return 'order';
+  }
+})();
 let pendingPublicEventOrderId = '';
 let pendingPublicEventOrder = null;
 let adminEventDraftItems = [];
@@ -11076,6 +11087,7 @@ function sortEventLunchesLatestFirst(items) {
 }
 
 function eventLunchSortLabel(mode = eventLunchSortMode) {
+  if (mode === 'pending') return '배송 전 날짜순';
   if (mode === 'name') return '이름순';
   if (mode === 'delivery') return '배송일순';
   return '주문순';
@@ -11091,8 +11103,23 @@ function eventLunchDeliverySortMillis(item = {}) {
   return eventDateTimeMillis(item) || eventLatestSortMillis(item) || eventSortMillisValue(item.id);
 }
 
+// 접수(비회원)와 대기는 아직 배송하지 않은 행사다. eventMobileStatusText 와 같은 기준.
+function isEventLunchDelivered(item = {}) {
+  return item.source !== 'publicEventOrder' && Boolean(item.delivered);
+}
+
 function sortEventLunchesForView(items = []) {
   const list = [...items];
+  if (eventLunchSortMode === 'pending') {
+    // 배송 전 행사를 가까운 날짜·시간부터 먼저, 배송완료는 그 뒤에 날짜순으로 둔다.
+    return list.sort((a, b) => {
+      const doneDiff = Number(isEventLunchDelivered(a)) - Number(isEventLunchDelivered(b));
+      if (doneDiff) return doneDiff;
+      const dateDiff = eventLunchDeliverySortMillis(a) - eventLunchDeliverySortMillis(b);
+      if (dateDiff) return dateDiff;
+      return eventLunchNameKey(a).localeCompare(eventLunchNameKey(b), 'ko-KR', { numeric: true, sensitivity: 'base' });
+    });
+  }
   if (eventLunchSortMode === 'name') {
     return list.sort((a, b) => {
       const nameDiff = eventLunchNameKey(a).localeCompare(eventLunchNameKey(b), 'ko-KR', { numeric: true, sensitivity: 'base' });
@@ -11133,7 +11160,8 @@ function syncEventLunchSortInput() {
 }
 
 function setEventLunchSortMode(mode) {
-  eventLunchSortMode = ['order', 'name', 'delivery'].includes(mode) ? mode : 'order';
+  eventLunchSortMode = EVENT_LUNCH_SORT_MODES.includes(mode) ? mode : 'order';
+  try { localStorage.setItem(EVENT_LUNCH_SORT_KEY, eventLunchSortMode); } catch (e) { /* 이 창에서만 유지된다. */ }
   syncEventLunchSortInput();
   eventLunchVisibleLimit = 30;
   renderEventLunches();
