@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const M = require('../../monthlyDeliveryModel');
 const catering = require('../../cateringCatalog');
-const { createMonthlyDeliveryHandler, SHARE_TTL_DAYS, PICKUP_LOOKBACK_DAYS, shareHash } = require('../../monthlyDelivery');
+const { createMonthlyDeliveryHandler, MEMOS, SHARE_TTL_DAYS, PICKUP_LOOKBACK_DAYS, shareHash } = require('../../monthlyDelivery');
 const date = '2026-10-07';
 const profile = extra => ({ businessName:'테스트 업체', defaultLunch:2, defaultSalad:0, lunchPrice:8000, saladPrice:9000, ...extra });
 const rows = extra => M.resolveRows({ date, users:{ a:profile() }, ...extra });
@@ -146,12 +146,19 @@ test('manual quantities use record prices; registered manual-looking IDs keep cu
   assert.equal(billed({ user:null,records }).amount,33000);
   assert.equal(billed({ uid:'manual_registered',records }).amount,24000);
 });
+test('course memo text keeps line breaks, drops control characters and stops at the limit', () => {
+  assert.equal(M.memoText('어제 못 감\r\n- 가나 치과\u0007 수거\n\n  '),'어제 못 감\n- 가나 치과 수거');
+  assert.equal(M.memoText(''),'');assert.equal(M.memoText('x'.repeat(M.MEMO_MAX)).length,M.MEMO_MAX);
+  assert.throws(() => M.memoText('x'.repeat(M.MEMO_MAX+1)),e => e.status===400);
+  assert.throws(() => M.memoText(null),e => e.status===400);
+});
 test('admin actions require authentication; public actions only call scoped service methods', async () => {
   let called = '';
-  const handler = createMonthlyDeliveryHandler({ authorize:async () => { throw M.error(401,'인증 필요'); }, service:{ saveBoard:() => { called='save'; }, driverRead:async () => { called='driver'; return { rows:[] }; } } });
+  const handler = createMonthlyDeliveryHandler({ authorize:async () => { throw M.error(401,'인증 필요'); }, service:{ saveBoard:() => { called='save'; }, driverRead:async () => { called='driver'; return { rows:[] }; }, saveMemo:async () => { called='memo'; return { memo:{ text:'',updatedAt:'' } }; } } });
   const run = async body => { const res = { code:200,set(){},status(code){ this.code=code;return this; },json(value){ this.value=value; } }; await handler({ method:'POST',body },res);return res; };
   assert.equal((await run({ action:'save',token:'a'.repeat(64) })).code,401);
   assert.equal(called,''); assert.equal((await run({ action:'driverRead',token:'a'.repeat(64) })).code,200); assert.equal(called,'driver');
+  assert.equal((await run({ action:'driverMemo',token:'a'.repeat(64),laneId:'west',text:'' })).code,200); assert.equal(called,'memo');
   assert.throws(() => shareHash('wrong'), /링크/); assert.equal(shareHash('a'.repeat(64)).length,64);
 });
 test('manual polling and share expiry match service constants, with cache and tab wiring', () => {
@@ -168,7 +175,11 @@ test('manual polling and share expiry match service constants, with cache and ta
   assert.ok(board.includes('>고정 풀기</button>'));
   const addressToggle = board.match(/data-address-toggle aria-pressed="false">([^<]+)</)[1];
   assert.equal(addressToggle,'주소 보기');assert.ok(manual.includes(`<strong>${addressToggle}</strong>`));
-  assert.ok(board.includes("'주소 숨기기'"));assert.ok(manual.includes('<strong>주소 숨기기</strong>'));assert.ok(manual.includes('<strong>주소 미입력</strong>'));
+  assert.ok(board.includes("'주소 숨기기'"));
+  const driverScript = fs.readFileSync(path.join(root,'assets/js/monthly-delivery-driver.js'),'utf8');
+  assert.match(driverScript,/>코스 메모<\/label>/);assert.match(driverScript,/>메모 저장<\/button>/);assert.match(driverScript,new RegExp(`maxlength="${M.MEMO_MAX}"`));
+  assert.ok(manual.includes('<strong>코스 메모</strong>'));assert.ok(manual.includes('<strong>메모 저장</strong>'));assert.ok(manual.includes(`<strong>${M.MEMO_MAX}자</strong>`));
+  assert.ok(board.includes('기사님 메모'));assert.ok(manual.includes('<strong>기사님 메모</strong>'));assert.equal(MEMOS,'monthlyDeliveryMemos');assert.ok(manual.includes('<strong>주소 숨기기</strong>'));assert.ok(manual.includes('<strong>주소 미입력</strong>'));
   const admin = fs.readFileSync(path.join(root,'admin.html'),'utf8'), sw = fs.readFileSync(path.join(root,'sw.js'),'utf8');
   for (const asset of ['monthly-delivery.css','monthly-delivery-board.js']) {
     const url = admin.split(asset + '?v=')[1]?.split('"')[0];

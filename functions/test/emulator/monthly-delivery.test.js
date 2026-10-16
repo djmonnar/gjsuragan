@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { initializeApp,deleteApp } = require('firebase-admin/app');
 const { getFirestore,FieldValue } = require('firebase-admin/firestore');
-const { createMonthlyDeliveryService,BOARDS,TEMPLATES,SHARES,shareHash } = require('../../monthlyDelivery');
+const { createMonthlyDeliveryService,BOARDS,TEMPLATES,SHARES,MEMOS,shareHash } = require('../../monthlyDelivery');
 const date = '2026-10-07', actor = { uid:'monthly-admin' }, projectId = 'demo-gjsuragan-safety';
 let app,db,service;
 let clock = new Date('2026-10-07T03:00:00Z');
@@ -244,6 +244,38 @@ test('a fixed weekday order survives route sheet edits until it is unfixed', asy
   board = await sourceService.readBoard(date);
   assert.equal(board.templateFixed,false);assert.deepEqual(board.plan.order.center,['c','b','a','new']);
   await assert.rejects(sourceService.unfixTemplate({ date:'2026-10-10',templateRevision:0 },actor),e => e.status===400);
+});
+test('a course memo stays with the course across dated links, within each link scope', async () => {
+  const { link } = await assigned();
+  let read = await service.driverRead({ token:link.token });
+  assert.deepEqual(read.memo,{ text:'',updatedAt:'' });
+  await service.saveMemo({ token:link.token,text:'어제 못 감\r\n- 테스트 b 수거\n' });
+  read = await service.driverRead({ token:link.token });
+  assert.equal(read.memo.text,'어제 못 감\n- 테스트 b 수거');assert.ok(read.memo.updatedAt);
+  assert.match((await db.collection(MEMOS).doc('center').get()).data().updatedBy,/^monthlyDriver:/);
+  // The course link cannot reach another course, an unassigned pool or an over-long memo.
+  await assert.rejects(service.saveMemo({ token:link.token,laneId:'west',text:'x' }),e => e.status===403);
+  await assert.rejects(service.saveMemo({ token:link.token,text:'x'.repeat(1001) }),e => e.status===400);
+  // The next day's link for the same course still shows it, and the admin board sees it.
+  const next = '2026-10-08', nextBoard = await service.readBoard(next);
+  const nextLink = await service.share({ date:next,laneId:'center',revision:nextBoard.revision },actor);
+  assert.equal((await service.driverRead({ token:nextLink.token })).memo.text,'어제 못 감\n- 테스트 b 수거');
+  assert.equal((await service.readBoard(date)).memos.center.text,'어제 못 감\n- 테스트 b 수거');
+  assert.equal((await service.readBoard(date)).memos.unassigned,undefined);
+  // The all-courses link writes any course of the date and lists each course memo.
+  let board = await service.readBoard(date);
+  const all = await service.share({ date,all:true,revision:board.revision },actor);
+  await service.saveMemo({ token:all.token,laneId:'west',text:'평거 꼭 할 일' });
+  await assert.rejects(service.saveMemo({ token:all.token,laneId:'unassigned',text:'x' }),e => e.status===403);
+  await assert.rejects(service.saveMemo({ token:all.token,laneId:'nowhere',text:'x' }),e => e.status===403);
+  read = await service.driverRead({ token:all.token });
+  assert.deepEqual(read.courses.map(course=>[course.lane.id,course.memo?.text]),[['center','어제 못 감\n- 테스트 b 수거'],['west','평거 꼭 할 일'],['east','']]);
+  // Clearing saves an empty memo; a revoked link writes nothing.
+  await service.saveMemo({ token:link.token,text:'' });
+  assert.equal((await service.driverRead({ token:link.token })).memo.text,'');
+  await service.revoke({ date,laneId:'center' },actor);
+  await assert.rejects(service.saveMemo({ token:link.token,text:'x' }),e => e.status===403);
+  assert.equal((await db.collection(MEMOS).doc('center').get()).data().text,'');
 });
 test('share revocation, expiry and deleting course deny old links', async () => {
   const { link } = await assigned();

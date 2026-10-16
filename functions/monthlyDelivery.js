@@ -8,6 +8,7 @@ const Sheet = require('./monthlyDeliverySheet');
 const BOARDS = 'monthlyDeliveryBoards';
 const TEMPLATES = 'monthlyDeliveryTemplates';
 const SHARES = 'monthlyDeliveryShares';
+const MEMOS = 'monthlyDeliveryMemos';
 const SHARE_TTL_DAYS = 2;
 // A long holiday still ends with collecting the boxes left before it.
 const PICKUP_LOOKBACK_DAYS = 31;
@@ -48,6 +49,17 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
   const get = (reader, ref) => reader === db ? ref.get() : reader.get(ref);
   const boardRef = date => db.collection(BOARDS).doc(date);
   const templateRef = date => db.collection(TEMPLATES).doc(M.weekday(date));
+  const memoRef = laneId => db.collection(MEMOS).doc(laneId);
+  // A course memo outlives each dated link, so a driver carries unfinished work to the next day.
+  async function readMemos(laneIds) {
+    const ids = [...new Set(laneIds)].filter(id => id !== 'unassigned' && M.validLaneId(id));
+    if (!ids.length) return {};
+    const snapshots = await db.getAll(...ids.map(memoRef));
+    return Object.fromEntries(snapshots.map((snapshot, index) => {
+      const value = snapshot.exists ? snapshot.data() : {};
+      return [ids[index], { text: typeof value.text === 'string' ? value.text : '', updatedAt: value.updatedAt?.toDate?.().toISOString() || '' }];
+    }));
+  }
   const adminIds = async () => (await adminUids()).filter(M.validUid);
   const isAdmin = (uid, user, ids) => ids.includes(uid) || adminEmails().includes(String(user.email || '').toLowerCase());
   // admin.html keeps the administrator's events in users/{auth uid}. The production
@@ -196,7 +208,7 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
       date, revision: revision(stored.revision), templateRevision: revision(defaults.revision), plan,
       // A weekday order saved by an administrator no longer follows the route sheet.
       templateFixed: Boolean(defaults.lanes) && !defaults.sourceSeeded,
-      rows: data.rows.map(M.publicRow), ...await loadPickups(data, plan), noDelivery: data.noDelivery, pollMs: M.POLL_MS,
+      rows: data.rows.map(M.publicRow), ...await loadPickups(data, plan), memos: await readMemos(plan.lanes.map(lane => lane.id)), noDelivery: data.noDelivery, pollMs: M.POLL_MS,
       updatedAt: stored.updatedAt?.toDate?.().toISOString() || '',
       routeSource: { tab:source.tab,url:source.url,weekReady:Object.values(sources).every(value => value.routes.length > 0),warning:source.warning || '',unmatched:matched.unmatched,ambiguous:matched.ambiguous },
       excluded: Object.entries(data.orders).filter(([, order]) => order.selfHoliday).map(([uid, order]) => ({ uid, businessName: data.users[uid]?.businessName || order.businessName || uid, reason: '자체 휴무' }))
@@ -294,11 +306,25 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
       // Unassigned stops appear only while something waits there, so nothing is missed.
       const courses = (board.lanes || []).map(course).filter(item => item.lane.id !== 'unassigned' || item.rows.length || item.pickups.length);
       // `lane` and the flat `rows` keep a driver page cached before this change readable.
-      return { ...shared, all: true, lane: { id: '', name: '전체 코스', driver: '' }, rows: courses.flatMap(item => item.rows), courses };
+      const memos = await readMemos(courses.map(item => item.lane.id));
+      return { ...shared, all: true, lane: { id: '', name: '전체 코스', driver: '' }, rows: courses.flatMap(item => item.rows),
+        courses: courses.map(item => memos[item.lane.id] ? { ...item, memo: memos[item.lane.id] } : item) };
     }
     const lane = board.lanes?.find(l => l.id === link.laneId && l.id !== 'unassigned');
     if (!lane) throw M.error(403, '이 배송코스가 해제되었습니다.');
-    return { ...shared, ...course(lane) };
+    return { ...shared, ...course(lane), memo: (await readMemos([lane.id]))[lane.id] };
+  }
+  // A course link writes its own course memo; the all-courses link writes any course of the date.
+  async function saveMemo(body) {
+    const text = M.memoText(body.text), link = await scope(body.token);
+    const snapshot = await boardRef(link.date).get(), board = snapshot.exists ? snapshot.data() : {};
+    checkScope(link, board);
+    const laneId = link.all ? body.laneId : link.laneId;
+    if ((!link.all && body.laneId && body.laneId !== link.laneId) || laneId === 'unassigned' || !(board.lanes || []).some(lane => lane.id === laneId)) {
+      throw M.error(403, '이 코스의 메모는 저장할 수 없습니다.');
+    }
+    await memoRef(laneId).set({ text, updatedAt: timestamp(), updatedBy: `monthlyDriver:${link.hash.slice(0, 16)}` });
+    return { memo: { text, updatedAt: now().toISOString() } };
   }
   async function revoke(body, actor) {
     const date = M.requireDate(body.date), all = body.all === true;
@@ -396,7 +422,7 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
       return { changed: true, delivered: body.delivered, settlementHeld: saved.status === '보류' };
     });
   }
-  return { readBoard, saveBoard, saveTemplate, unfixTemplate, share, driverRead, revoke, pause, complete };
+  return { readBoard, saveBoard, saveTemplate, unfixTemplate, share, driverRead, saveMemo, revoke, pause, complete };
 }
 
 function createMonthlyDeliveryHandler({ service, authorize, logError = () => {} }) {
@@ -412,6 +438,7 @@ function createMonthlyDeliveryHandler({ service, authorize, logError = () => {} 
       let result;
       if (body.action === 'driverRead') result = await service.driverRead(body);
       else if (body.action === 'driverComplete') result = await service.complete(body);
+      else if (body.action === 'driverMemo') result = await service.saveMemo(body);
       else {
         const actor = await authorize(req);
         switch (body.action) {
@@ -435,4 +462,4 @@ function createMonthlyDeliveryHandler({ service, authorize, logError = () => {} 
   };
 }
 
-module.exports = { BOARDS, TEMPLATES, SHARES, SHARE_TTL_DAYS, PICKUP_LOOKBACK_DAYS, createMonthlyDeliveryService, createMonthlyDeliveryHandler, shareHash };
+module.exports = { BOARDS, TEMPLATES, SHARES, MEMOS, SHARE_TTL_DAYS, PICKUP_LOOKBACK_DAYS, createMonthlyDeliveryService, createMonthlyDeliveryHandler, shareHash };

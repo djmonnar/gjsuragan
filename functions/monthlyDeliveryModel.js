@@ -285,6 +285,14 @@ function samePlan(left, right) {
   const ordered = value => (value.lanes || []).map(lane => [lane.id,lane.name,lane.driver,value.order?.[lane.id] || []]);
   return JSON.stringify(ordered(left)) === JSON.stringify(ordered(right));
 }
+const MEMO_MAX = 1000;
+// A driver's course memo: plain text with its line breaks, control characters dropped.
+function memoText(value) {
+  if (typeof value !== 'string') throw error(400, '메모를 확인해주세요.');
+  const text = value.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').replace(/\s+$/, '');
+  if (text.length > MEMO_MAX) throw error(400, `메모는 ${MEMO_MAX}자까지 적을 수 있습니다.`);
+  return text;
+}
 function validLaneId(id) { return typeof id === 'string' && /^[a-zA-Z0-9_-]{1,40}$/.test(id) && !['__proto__', 'prototype', 'constructor'].includes(id); }
 function publicRow(row) {
   const { uid, businessName, phone, address, addressDetail, mealTime, note, lunchCount, saladCount, eventLunchCount, delivered, signature: stamp } = row;
@@ -359,6 +367,6 @@ function buildSettlement({ uid, month, records, user, saved = {}, invoiceNo, noD
   };
 }
 
-module.exports = { DEFAULT_LANES, POLL_MS, MAX_STOPS, error, count, money, validDate, requireDate, weekday, kstDate, paused, activeDefault,
+module.exports = { DEFAULT_LANES, POLL_MS, MAX_STOPS, MEMO_MAX, memoText, validLaneId, error, count, money, validDate, requireDate, weekday, kstDate, paused, activeDefault,
   defaultsFor, mergeRecord, legacyRecords, mergeRecords, quantities, resolveRows, adminEvents, eventRow, eventRows, withoutEvents, visitedRows, needsPickup, pickupRows, normalizePlan, validatePlan, planWithSource, samePlan, validUid, publicRow,
   completionRecord, buildSettlement, signature };
