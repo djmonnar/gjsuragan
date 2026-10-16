@@ -76,6 +76,10 @@
 .mb-root .mb-pickup-list button{background:#fff8ea;border-color:#ecd9ae;font-size:12px;text-align:left;padding:6px 10px;min-height:34px;overflow-wrap:anywhere}
 .mb-root .mb-pickup-list span{color:var(--mb-sub);margin-left:7px}
 .mb-root .mb-pickup-list .mb-pickup-address{display:block;margin:3px 0 0;font-size:11px}
+.mb-root .mb-memo{margin:12px 12px 0;padding:10px 12px;border:1px solid #e3d7f3;border-radius:9px;background:#faf7fe;font-size:13px}
+.mb-root .mb-memo-title{font-size:12px;font-weight:800;color:#5b3a8c}
+.mb-root .mb-memo-title span{font-weight:500;color:var(--mb-sub);margin-left:8px}
+.mb-root .mb-memo p{margin:5px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
 .mb-root .mb-address{font-size:12px;color:var(--mb-sub);margin-top:7px;line-height:1.5;overflow-wrap:anywhere}
 .mb-root .mb-address.unset{color:#a13521}
 .mb-root [data-address-toggle][aria-pressed=true]{background:var(--mb-soft);border-color:#b9d8c5;color:var(--mb-green);font-weight:700}
@@ -113,6 +117,14 @@
 .monthly-driver-app .md-pickup{background:#fff8ea;border-color:#ecd9ae}
 .monthly-driver-app .md-pickup .md-name+.md-info{color:#8a5a00}
 .monthly-driver-app .md-pickup-tag{align-self:start;font-size:12px;font-weight:800;color:#8a5a00;background:#fbe9c2;border-radius:6px;padding:5px 9px;white-space:nowrap}
+.monthly-driver-app .md-memo{background:#fff;border:1px solid #e3d7f3;border-radius:11px;padding:12px;margin:0 0 12px}
+.monthly-driver-app .md-memo label{display:block;font-size:13px;font-weight:800;color:#5b3a8c;margin-bottom:6px}
+.monthly-driver-app .md-memo textarea{width:100%;min-height:76px;resize:vertical;border:1px solid var(--mb-line);border-radius:8px;padding:9px;font:inherit;font-size:16px;line-height:1.5;color:var(--mb-text);background:#fcfbfe}
+.monthly-driver-app .md-memo textarea:focus-visible{outline:3px solid #c9b3ea;outline-offset:1px}
+.monthly-driver-app .md-memo-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
+.monthly-driver-app .md-memo-note{font-size:12px;color:var(--mb-sub);overflow-wrap:anywhere}
+.monthly-driver-app .md-memo-note.error{color:#a13521}
+.monthly-driver-app .md-memo-actions button{flex:0 0 auto;min-height:44px;font-weight:700}
 .monthly-driver-app .md-event{border-color:#c4d7ef}
 .monthly-driver-app .md-event-tag{display:inline-block;font-size:12px;vertical-align:2px;border-radius:5px;background:#e7f0fb;color:#1d4f8f;padding:2px 6px}
 .monthly-driver-app .md-received{align-self:start;font-size:12px;font-weight:700;color:#1d4f8f;background:#e7f0fb;border-radius:6px;padding:6px 8px;text-align:center;line-height:1.5;white-space:nowrap}
