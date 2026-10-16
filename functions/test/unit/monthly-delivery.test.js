@@ -166,6 +166,9 @@ test('manual polling and share expiry match service constants, with cache and ta
   const fixOrder = board.match(/data-template>([^<]+)</)[1];
   assert.equal(fixOrder,'요일 순서 고정');assert.ok(manual.includes(`${fixOrder}</strong>`));assert.ok(manual.includes('<strong>고정 풀기</strong>'));
   assert.ok(board.includes('>고정 풀기</button>'));
+  const addressToggle = board.match(/data-address-toggle aria-pressed="false">([^<]+)</)[1];
+  assert.equal(addressToggle,'주소 보기');assert.ok(manual.includes(`<strong>${addressToggle}</strong>`));
+  assert.ok(board.includes("'주소 숨기기'"));assert.ok(manual.includes('<strong>주소 숨기기</strong>'));assert.ok(manual.includes('<strong>주소 미입력</strong>'));
   const admin = fs.readFileSync(path.join(root,'admin.html'),'utf8'), sw = fs.readFileSync(path.join(root,'sw.js'),'utf8');
   for (const asset of ['monthly-delivery.css','monthly-delivery-board.js']) {
     const url = admin.split(asset + '?v=')[1]?.split('"')[0];

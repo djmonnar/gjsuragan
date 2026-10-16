@@ -75,6 +75,10 @@
 .mb-root .mb-pickup-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .mb-root .mb-pickup-list button{background:#fff8ea;border-color:#ecd9ae;font-size:12px;text-align:left;padding:6px 10px;min-height:34px;overflow-wrap:anywhere}
 .mb-root .mb-pickup-list span{color:var(--mb-sub);margin-left:7px}
+.mb-root .mb-pickup-list .mb-pickup-address{display:block;margin:3px 0 0;font-size:11px}
+.mb-root .mb-address{font-size:12px;color:var(--mb-sub);margin-top:7px;line-height:1.5;overflow-wrap:anywhere}
+.mb-root .mb-address.unset{color:#a13521}
+.mb-root [data-address-toggle][aria-pressed=true]{background:var(--mb-soft);border-color:#b9d8c5;color:var(--mb-green);font-weight:700}
 .mb-root .mb-fixed{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:-4px 0 12px;padding:9px 12px;border:1px solid var(--mb-line);border-radius:9px;background:#fff;color:var(--mb-sub);font-size:12px;line-height:1.6}
 .mb-root .mb-fixed.on{background:var(--mb-soft);border-color:#b9d8c5;color:var(--mb-text)}
 .mb-root .mb-fixed b{color:var(--mb-green)}
@@ -148,6 +152,8 @@
   .mb-root .mb-pickup-title span{display:block;margin:3px 0 0}
   .mb-root .mb-pickup-list{display:grid;grid-template-columns:minmax(0,1fr)}
   .mb-root .mb-pickup-list button{font-size:14px;min-height:44px;padding:9px 11px}
+  .mb-root .mb-pickup-list .mb-pickup-address{font-size:12px}
+  .mb-root .mb-address{font-size:13px}
   .mb-root .mb-fixed button{width:100%;min-height:44px;font-size:13px}
   .mb-root .mb-footer{align-items:flex-start;line-height:1.7}
   .mb-root .mb-footer button{width:100%;min-height:44px}

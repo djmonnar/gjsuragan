@@ -1,10 +1,10 @@
-const CACHE = 'gjsuragan-v97-events';
+const CACHE = 'gjsuragan-v98-address';
 const PRECACHE = [
   './customer.html',
   './admin.html',
   './monthly-delivery.html',
-  './assets/css/monthly-delivery.css?v=20261014-events-fixed-order',
-  './assets/js/monthly-delivery-board.js?v=20261014-events-fixed-order',
+  './assets/css/monthly-delivery.css?v=20261016-address',
+  './assets/js/monthly-delivery-board.js?v=20261016-address',
   './assets/js/monthly-delivery-driver.js?v=20261014-events-fixed-order',
   './attendance.html',
   './staff-admin.html',
