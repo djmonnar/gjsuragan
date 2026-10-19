@@ -134,7 +134,11 @@ test('pickups follow the previous delivery day into the board and the driver cou
   await db.collection('config').doc('holidays').set({ custom:{ '2026-10-06':'임시 휴무' } });
   board = await service.readBoard(date);
   assert.equal(board.pickupDate,'2026-10-05');assert.deepEqual(board.pickups.map(row=>row.uid),['b']);
-  assert.equal((await service.readBoard('2026-10-12')).pickupDate,'2026-10-09');
+  // A weekday holiday keeps the pickups; a weekend in between clears them, since Friday brings every box back.
+  await db.collection('orders').doc('2026-10-12').collection('items').doc('a').set({ selfHoliday:true });
+  const monday = await service.readBoard('2026-10-12');
+  assert.equal(monday.pickupDate,'2026-10-09');assert.deepEqual(monday.pickups,[]);assert.equal(monday.pickupsCollected,true);
+  assert.equal(board.pickupsCollected,undefined);
   await db.collection('config').doc('holidays').set({ custom:{ [date]:'휴무' } });
   board = await service.readBoard(date);
   assert.equal(board.pickupDate,'');assert.deepEqual(board.pickups,[]);
