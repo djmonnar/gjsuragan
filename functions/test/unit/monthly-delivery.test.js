@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const M = require('../../monthlyDeliveryModel');
 const catering = require('../../cateringCatalog');
-const { createMonthlyDeliveryHandler, MEMOS, SHARE_TTL_DAYS, PICKUP_LOOKBACK_DAYS, shareHash } = require('../../monthlyDelivery');
+const { createMonthlyDeliveryHandler, MEMOS, SHARE_TTL_DAYS, shareHash } = require('../../monthlyDelivery');
 const date = '2026-10-07';
 const profile = extra => ({ businessName:'테스트 업체', defaultLunch:2, defaultSalad:0, lunchPrice:8000, saladPrice:9000, ...extra });
 const rows = extra => M.resolveRows({ date, users:{ a:profile() }, ...extra });
@@ -109,6 +109,13 @@ test('event lunches of the date come from administrator events and unregistered 
   assert.deepEqual(M.withoutEvents(plan).order, { center:['a'], west:[], east:[], unassigned:['b'] });
   assert.equal(M.needsPickup(events[1]), false);
 });
+test('a weekend between two delivery days means every box was already collected', () => {
+  assert.equal(M.weekendBetween('2026-10-09','2026-10-12'),true); // Friday to Monday
+  assert.equal(M.weekendBetween('2026-10-08','2026-10-12'),true); // a Friday holiday: Thursday to Monday
+  assert.equal(M.weekendBetween('2026-10-09','2026-10-13'),true); // a Monday holiday: Friday to Tuesday
+  assert.equal(M.weekendBetween('2026-10-05','2026-10-07'),false); // a Tuesday holiday only
+  assert.equal(M.weekendBetween('2026-10-06','2026-10-07'),false);
+});
 test('course categories can be fully replaced, keeping only the unassigned pool between edits', () => {
   const empty={ lanes:[{ id:'unassigned',name:'미배정',driver:'' }],order:{ unassigned:['a','b'] } };
   assert.deepEqual(M.validatePlan(empty),empty);
@@ -166,8 +173,9 @@ test('manual polling and share expiry match service constants, with cache and ta
   const manual = fs.readFileSync(path.join(root,'manual.html'),'utf8').split('id="monthly-delivery"')[1].split('</section>')[0];
   assert.match(manual,new RegExp(`${M.POLL_MS/1000}초마다`)); assert.match(manual,new RegExp(`<strong>${SHARE_TTL_DAYS}일</strong>`));
   // The pickup rule and the all-courses button are described as the code runs them.
-  assert.match(manual,new RegExp(`<strong>${PICKUP_LOOKBACK_DAYS}일</strong> 전까지`));
+  assert.ok(manual.includes('<strong>수거 없음 · 주말 전 모두 수거</strong>'));
   const board = fs.readFileSync(path.join(root,'assets/js/monthly-delivery-board.js'),'utf8');
+  assert.ok(board.includes('수거 <b>없음</b> · 주말 전 모두 수거'));
   const shareAll = board.match(/data-share-all>([^<]+)</)[1];
   assert.ok(manual.includes(`<strong>${shareAll}</strong>`));
   const fixOrder = board.match(/data-template>([^<]+)</)[1];

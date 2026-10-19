@@ -225,6 +225,16 @@ function visitedRows(day) {
   });
   return [...rows.values()];
 }
+// Drivers bring every box back on the last delivery day before a weekend, so a
+// Saturday or Sunday between two delivery days leaves nothing to collect.
+function weekendBetween(from, to) {
+  const day = new Date(`${from}T00:00:00Z`);
+  for (;;) {
+    day.setUTCDate(day.getUTCDate() + 1);
+    if (day.toISOString().slice(0, 10) >= to) return false;
+    if ([0, 6].includes(day.getUTCDay())) return true;
+  }
+}
 // Reusable boxes stay behind until the next visit. A disposable lunch leaves nothing.
 function needsPickup(row) { return !row.disposableLunch && row.lunchCount + row.saladCount + row.cateringTotal > 0; }
 function pickupRow(row, laneId) {
@@ -368,5 +378,5 @@ function buildSettlement({ uid, month, records, user, saved = {}, invoiceNo, noD
 }
 
 module.exports = { DEFAULT_LANES, POLL_MS, MAX_STOPS, MEMO_MAX, memoText, validLaneId, error, count, money, validDate, requireDate, weekday, kstDate, paused, activeDefault,
-  defaultsFor, mergeRecord, legacyRecords, mergeRecords, quantities, resolveRows, adminEvents, eventRow, eventRows, withoutEvents, visitedRows, needsPickup, pickupRows, normalizePlan, validatePlan, planWithSource, samePlan, validUid, publicRow,
+  defaultsFor, mergeRecord, legacyRecords, mergeRecords, quantities, resolveRows, adminEvents, eventRow, eventRows, withoutEvents, visitedRows, weekendBetween, needsPickup, pickupRows, normalizePlan, validatePlan, planWithSource, samePlan, validUid, publicRow,
   completionRecord, buildSettlement, signature };

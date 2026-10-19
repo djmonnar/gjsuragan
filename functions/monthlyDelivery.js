@@ -154,6 +154,7 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
   async function loadPickups(data, plan) {
     const date = data.noDelivery ? '' : previousDeliveryDate(data.date, data.customHolidays);
     if (!date) return { pickupDate:'', pickups:[] };
+    if (M.weekendBetween(date, data.date)) return { pickupDate:date, pickups:[], pickupsCollected:true };
     const [lock, fresh, archive, orders, snapshots, board] = await Promise.all([
       db.collection('orderLocks').doc(date).get(), db.collection('deliveryRecords').doc(date).get(), db.collection('deliveryRecordArchive').doc(date).get(),
       db.collection('orders').doc(date).collection('items').get(), db.collection('orderDefaultSnapshots').doc(date).collection('items').get(), boardRef(date).get()
