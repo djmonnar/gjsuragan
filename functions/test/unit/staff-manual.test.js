@@ -474,3 +474,12 @@ test('확인이 필요한 근무 팝업 안내의 기준이 관리 화면 코드
   // 알림(12시간)은 태블릿이 새 출근을 받기 시작하는 시점(18시간)보다 먼저 뜬다.
   assert.ok(stale * 3600000 < M.FORGOTTEN_SHIFT_MS);
 });
+
+test('다른 매장 추가 근무 안내의 예시 금액이 실제 계산과 같다', () => {
+  const { html } = render();
+  const example = M.totals({ payType: 'perDiem', extraShift: true, overtimeHourlyRate: 12000, breakMinutes: 0,
+    checkInAt: 0, checkOutAt: (4 * 60 + 30) * 60000 });
+  assert.equal(example.amount, 54000);
+  assert.match(html, new RegExp(`초과 시급 12,000원에 4시간 30분이면 ${example.amount.toLocaleString('ko-KR')}원`));
+  assert.match(html, /다른 매장 태블릿에서도 출근/);
+});

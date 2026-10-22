@@ -316,6 +316,21 @@ function workDateString(value, label = '날짜') {
   return value;
 }
 
+// 다른 매장 추가 근무는 초과 시급으로만 센다. 초과 시급이 없으면 0원 근무가 생기므로 켜지 못하게 한다.
+function crossStoreInput(input) {
+  if (input.payType !== 'perDiem' || !input.crossStore) return false;
+  if (!(Number(input.overtimeHourlyRate) > 0)) {
+    fail('다른 매장 추가 근무는 초과 시급으로 계산합니다. 초과 시급을 먼저 넣어 주세요.');
+  }
+  return true;
+}
+
+// 이 직원이 이 매장 태블릿에서 출퇴근할 수 있는지.
+function canPunchAt(employee = {}, tabletFloor) {
+  if (floor(employee.floor) === floor(tabletFloor)) return true;
+  return employee.payType === 'perDiem' && employee.crossStore === true;
+}
+
 function employeeInput(input) {
   if (!PAY_TYPES.includes(input.payType)) fail('급여 유형을 선택해 주세요.');
   if (typeof input.active !== 'boolean') fail('재직 상태를 확인해 주세요.');
@@ -365,6 +380,9 @@ function employeeInput(input) {
     // 기준을 넘긴 시간에 적용할 시급. 이것과 위의 정액이 둘 다 0 이면 추가 급여가 없다.
     overtimeHourlyRate: isDailyPaid(input.payType)
       ? integer(input.overtimeHourlyRate ?? 0, '초과 시급', 0, 1000000) : 0,
+    // 일당 직원이 다른 매장 태블릿에서도 출근할 수 있는지. 낮엔 궁중수라간, 저녁엔 돌담명가처럼
+    // 같은 날 다른 매장에서 한 번 더 일하면 그 근무는 일당이 아니라 초과 시급 × 시간으로 센다.
+    crossStore: crossStoreInput(input),
     // 급여에서 3.3% 를 떼고 줄지. 급여 유형과 상관없이 사람마다 정한다.
     withholding: Boolean(input.withholding),
     breakMinutes: integer(input.breakMinutes, '무급 휴게시간', 0, 720),
@@ -465,6 +483,8 @@ function shiftInput(input, now) {
     overtimePay: isDailyPaid(input.payType) ? integer(input.overtimePay ?? 0, '추가 급여', 0, 10000000) : 0,
     overtimeHourlyRate: isDailyPaid(input.payType)
       ? integer(input.overtimeHourlyRate ?? 0, '초과 시급', 0, 1000000) : 0,
+    // 같은 날 다른 매장에서 한 번 더 일한 근무. 일당 대신 초과 시급 × 근무시간으로 센다.
+    extraShift: input.payType === 'perDiem' ? Boolean(input.extraShift) : false,
     // 기록마다 정한다. 같은 자리에 와도 3.3% 를 떼는 사람과 아닌 사람이 있다.
     withholding: isDailyPaid(input.payType) ? Boolean(input.withholding) : false,
     // 누가 왔는지는 나중에 적는다. 미리 알 수 없으니 비어 있어도 저장된다.
@@ -501,6 +521,13 @@ function totals(shift, specialDay = null) {
     const baseAmount = Math.round(paidMinutes * rate / 60);
     // 급여로 센 시간을 유급 근무 분으로 낸다. 금액과 시간이 어긋나면 정산에서 읽을 수 없다.
     return { workedMinutes, payableMinutes: paidMinutes, earlyMinutes, amount, baseAmount, extraAmount: amount - baseAmount, multiplierPercent, deductionAmount };
+  }
+  if (shift.payType === 'perDiem' && shift.extraShift === true) {
+    // 같은 날 다른 매장에서 한 번 더 일한 근무. 일당은 이미 그날 첫 근무에서 나갔으므로
+    // 이 근무는 휴게를 뺀 시간 × 초과 시급이다. 기본급·초과 급여와 섞지 않고 따로 싣는다.
+    const amount = Math.round(payableMinutes * moneyValue(shift.overtimeHourlyRate) / 60);
+    return { workedMinutes, payableMinutes, earlyMinutes: 0, amount, baseAmount: 0, extraAmount: 0,
+      extraShiftAmount: amount, overtimeUnits: 0, dayPortion: 'extra', multiplierPercent: BASE_PERCENT, deductionAmount };
   }
   if (isDailyPaid(shift.payType)) {
     // 일당은 시간이 아니라 하루 단위다. 특수일 배율은 붙이지 않는다 —
@@ -554,6 +581,8 @@ function overlaps(a, b, now) {
 function kioskEmployee(employee) {
   return {
     id: employee.id, name: employee.name, role: employee.role, payType: employee.payType,
+    // 다른 매장 태블릿에 뜬 일당 직원을 '추가 근무'로 안내하려면 원래 매장을 알아야 한다.
+    floor: floor(employee.floor), crossStore: employee.payType === 'perDiem' && employee.crossStore === true,
     // 파트는 금액이 아니라 화면을 나누는 값이다. 담당 업무와 같은 급으로 내보낸다.
     part: workPart(employee.part),
     currentShiftId: employee.currentShiftId || null,
@@ -586,6 +615,6 @@ module.exports = {
   dayPortionOf, dailyModeOf, earlyGraceOf, payableMinutesOf, proratedPay, kstMinutesOfDay,
   WITHHOLDING_PER_MILLE, withholdingTax, netPay, MAX_SHIFT_DEDUCTION, shiftDeductionOf, deductionForMinutes,
   fail, text, integer, id, floor, workDate, workDateString, monthRange,
-  employeeInput, shiftInput, totals, overlaps, kioskEmployee, hourlyRecalculation,
+  employeeInput, shiftInput, canPunchAt, totals, overlaps, kioskEmployee, hourlyRecalculation,
   ordinaryHourlyRate, dailyDeduction, specialDayInput, absenceInput, shiftMultiplierPercent
 };

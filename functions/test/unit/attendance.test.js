@@ -100,7 +100,8 @@ test('overlap rejects open or intersecting shifts but allows adjacent shifts', (
 test('kiosk employee serialization omits wage, notes and employment history', () => {
   const value = M.kioskEmployee({ id: 'e', name: '직원', role: '조리', payType: 'hourly', hourlyRate: 12000, monthlySalary: 3000000, dailyPay: 100000, note: 'private', version: 1, deletedAt: null });
   // payType 은 태블릿이 사람인지 일일근무자 자리인지 구분하는 데 쓴다. 금액이 아니다.
-  assert.deepEqual(Object.keys(value).sort(), ['currentShiftId', 'id', 'lastShift', 'name', 'part', 'payType', 'role']);
+  // 매장(floor)과 다른 매장 출근 여부(crossStore)는 '추가 근무' 안내에 쓴다. 역시 금액이 아니다.
+  assert.deepEqual(Object.keys(value).sort(), ['crossStore', 'currentShiftId', 'floor', 'id', 'lastShift', 'name', 'part', 'payType', 'role']);
   // 파트를 안 고른 기존 직원은 '그 외'로 나간다. 태블릿에서 빠지면 출퇴근을 못 찍는다.
   assert.equal(value.part, 'none');
   assert.equal(M.kioskEmployee({ id: 'e', name: '직원', part: 'hall' }).part, 'hall');

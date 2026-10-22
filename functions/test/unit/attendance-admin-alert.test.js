@@ -122,3 +122,12 @@ test('확인할 것이 없거나 다른 창이 열려 있으면 띄우지 않는
   busy.api.checkAlert();
   assert.equal(busy.dialogs.length, 0);
 });
+
+test('다른 매장 추가 근무는 일당 중복으로 묶지 않는다', () => {
+  const { api } = admin(null);
+  const groups = api.duplicateDailyShifts({ shifts: [
+    shift('lunch', 'p1', 'perDiem', '2026-10-01T10:00:00+09:00', '2026-10-01T15:00:00+09:00'),
+    shift('dinner', 'p1', 'perDiem', '2026-10-01T17:00:00+09:00', '2026-10-01T21:00:00+09:00', { extraShift: true })
+  ] });
+  assert.equal(groups.length, 0);
+});

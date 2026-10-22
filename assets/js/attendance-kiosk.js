@@ -49,7 +49,9 @@
     const today = U.date(Date.now() + offset);
     const cards = [];
     employees.forEach(employee => {
-      const role = employee.role || `${U.storeName(floor)} ${employee.payType === 'daily' ? '일일근무자' : '직원'}`;
+      // 다른 매장에서도 출근하는 직원은 원래 매장 이름으로 보여준다.
+      const homeFloor = employee.floor ?? floor;
+      const role = employee.role || `${U.storeName(homeFloor)} ${employee.payType === 'daily' ? '일일근무자' : '직원'}`;
       if (employee.payType === 'daily') {
         const open = employee.openShifts || [];
         cards.push({ employee, shiftId: '', working: false, name: employee.name, role, slot: true,
@@ -69,14 +71,18 @@
       const working = Boolean(employee.currentShiftId) && !forgotten;
       const last = employee.lastShift;
       const finishedToday = !working && !forgotten && last?.checkOutAt && U.date(last.checkOutAt) === today;
-      cards.push({ employee, shiftId: working ? employee.currentShiftId : '', working, forgotten, finishedToday, name: employee.name, role,
+      // 다른 매장에서 오늘 근무를 마친 일당 직원이 이 매장에 왔다. 이 근무는 초과 시급으로 센다.
+      // 옛 기록에는 매장이 없어 원래 매장에서 일한 것으로 본다. 서버와 같은 판단이다.
+      const extraHere = Boolean(finishedToday && employee.payType === 'perDiem' && employee.crossStore
+        && Number(last.floor ?? homeFloor) !== Number(floor));
+      cards.push({ employee, shiftId: working ? employee.currentShiftId : '', working, forgotten, finishedToday, extraHere, name: employee.name, role,
         pill: working ? '근무 중' : forgotten ? '퇴근 누락' : finishedToday ? '퇴근 완료' : '출근 전',
         checkInAt: working ? last.checkInAt : forgottenAt,
         detail: working
           ? `${U.date(last.checkInAt) !== today ? `${U.date(last.checkInAt).slice(5)} ` : ''}${U.time(last.checkInAt)} 출근`
           : forgotten ? `${forgottenAt ? `${U.date(forgottenAt).slice(5)} ` : '지난 '}퇴근 안 찍힘`
             : finishedToday ? `${U.time(last.checkOutAt)} 퇴근` : '오늘도 반갑습니다',
-        action: working ? '퇴근' : finishedToday && employee.payType === 'hourly' ? '다시 출근' : '출근' });
+        action: working ? '퇴근' : extraHere ? '추가 근무 출근' : finishedToday && employee.payType === 'hourly' ? '다시 출근' : '출근' });
     });
     return cards;
   }
@@ -193,6 +199,9 @@
     if (card.forgotten) {
       return `<p class="att-meta">${when ? `${when} 출근의 ` : '지난 근무의 '}퇴근이 안 찍혀 있어요. 그 퇴근 시간은 관리자가 넣어 드립니다.<br>지금 출근을 기록할까요?</p>`;
     }
+    if (card.extraHere) {
+      return `<p class="att-meta">오늘 ${U.storeName(card.employee.lastShift?.floor ?? card.employee.floor)}에서 근무를 마치셨어요. 여기 ${U.storeName(floor)} 근무는 <b>추가 근무</b>로 기록되고, 일당이 아니라 <b>초과 시급 × 일한 시간</b>으로 계산됩니다.<br>지금 출근을 기록할까요?</p>`;
+    }
     if (card.finishedToday && card.employee.payType === 'hourly') {
       return '<p class="att-meta">퇴근 후 다시 출근할 수 있습니다. 새 근무시간을 별도 기록하고 오늘 급여에 합산합니다.<br>지금 다시 출근을 기록할까요?</p>';
     }
@@ -210,7 +219,7 @@
   }
   function choose(card) {
     if (dialogOpen) return;
-    if (!card.working && card.finishedToday && card.employee.payType === 'perDiem') { alreadyDone(card); return; }
+    if (!card.working && card.finishedToday && card.employee.payType === 'perDiem' && !card.extraHere) { alreadyDone(card); return; }
     dialogOpen = true;
     const working = card.working;
     const pending = { employeeId: card.employee.id, kind: working ? 'out' : 'in', shiftId: card.shiftId, requestId: crypto.randomUUID() };
@@ -231,7 +240,7 @@
         dialog.querySelector('form').innerHTML = `<div class="att-kiosk-success" role="status"><div class="att-success-mark">✓</div><h2>${U.esc(result.name)} 님</h2><p class="att-confirm-kind">${result.kind === 'in' ? '출근' : '퇴근'}이 기록되었어요</p><div class="att-shift-times">${U.time(result.at)}</div><p class="att-meta">잠시 후 직원 목록으로 돌아갑니다.</p></div>`;
         await new Promise(resolve => setTimeout(resolve, 1800));
         await load();
-      }, { submitLabel: working ? '퇴근하기' : openToday.length ? '다른 분 출근하기' : card.finishedToday && card.employee.payType === 'hourly' ? '다시 출근하기' : '출근하기' });
+      }, { submitLabel: working ? '퇴근하기' : openToday.length ? '다른 분 출근하기' : card.extraHere ? '추가 근무 출근하기' : card.finishedToday && card.employee.payType === 'hourly' ? '다시 출근하기' : '출근하기' });
     el.classList.add('att-kiosk-dialog');
     el.querySelector('.att-dialog-head').remove();
     el.addEventListener('close', () => { dialogOpen = false; load(); });

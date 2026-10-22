@@ -528,6 +528,90 @@ test('일당 직원은 자리가 아니라 사람이라 두 번 출근할 수 �
   assert.notEqual((await db.collection('staffEmployees').doc(id).get()).data().currentShiftId, null);
 });
 
+// ── 다른 매장 추가 근무: 낮엔 궁중수라간(2), 저녁엔 돌담명가(1) ──
+const crossInput = { ...perDiemInput, name: '이겸직', floor: 2, crossStore: true, overtimeHourlyRate: 12000 };
+
+test('다른 매장 출근을 켠 일당 직원은 다른 매장 태블릿에도 뜨고, 같은 날 두 번째 근무는 초과 시급으로 센다', async () => {
+  const suragan = await service.createDevice({ name: '궁중 태블릿', floor: 2 }, 'admin');
+  const id = (await service.saveEmployee(crossInput, 'admin')).id;
+  // 기본 태블릿(token)은 돌담명가(1) 매장이다.
+  assert.ok((await service.listKiosk(token)).employees.some(e => e.id === id), '돌담 태블릿에 떠야 한다');
+  assert.ok((await service.listKiosk(suragan.token)).employees.some(e => e.id === id));
+
+  now = at('2026-09-10T10:00:00+09:00');
+  const lunch = await service.punch({ employeeId: id, kind: 'in', requestId: 'lunch' }, suragan.token);
+  now = at('2026-09-10T15:00:00+09:00');
+  await service.punch({ employeeId: id, kind: 'out', requestId: 'lunch-out', shiftId: lunch.shiftId }, suragan.token);
+  // 같은 매장에서 또 출근하면 여전히 막힌다.
+  now = at('2026-09-10T16:00:00+09:00');
+  await assert.rejects(service.punch({ employeeId: id, kind: 'in', requestId: 'again' }, suragan.token),
+    err => err.status === 409 && /일당은 하루에 한 번/.test(err.message));
+  // 돌담명가에서는 추가 근무로 들어간다.
+  now = at('2026-09-10T17:00:00+09:00');
+  const dinner = await service.punch({ employeeId: id, kind: 'in', requestId: 'dinner' }, token);
+  now = at('2026-09-10T21:30:00+09:00');
+  await service.punch({ employeeId: id, kind: 'out', requestId: 'dinner-out', shiftId: dinner.shiftId }, token);
+
+  const shifts = (await service.listAdmin('2026-09')).shifts.filter(s => s.employeeId === id)
+    .sort((a, b) => a.checkInAt - b.checkInAt);
+  assert.equal(shifts.length, 2);
+  assert.equal(shifts[0].floor, 2);
+  assert.equal(shifts[0].extraShift, false);
+  assert.equal(shifts[1].floor, 1);
+  assert.equal(shifts[1].extraShift, true);
+  assert.equal(shifts[1].breakMinutes, 0);
+  // 4시간 30분 × 12,000원 = 54,000원. 일당은 안 붙는다.
+  assert.equal(shifts[1].amount, 54000);
+  assert.equal(shifts[1].baseAmount, 0);
+  assert.equal(shifts[1].dayPortion, 'extra');
+});
+
+test('다른 매장 출근을 안 켠 일당 직원은 다른 매장 태블릿에서 막힌다', async () => {
+  const suragan = await service.createDevice({ name: '궁중 태블릿', floor: 2 }, 'admin');
+  const id = (await service.saveEmployee({ ...crossInput, crossStore: false }, 'admin')).id;
+  assert.ok(!(await service.listKiosk(token)).employees.some(e => e.id === id));
+  await assert.rejects(service.punch({ employeeId: id, kind: 'in', requestId: 'x' }, token), { status: 403 });
+  assert.ok((await service.punch({ employeeId: id, kind: 'in', requestId: 'home' }, suragan.token)).shiftId);
+});
+
+test('다른 매장에서 그날 처음 출근하면 추가 근무가 아니라 그날 일당이다', async () => {
+  const id = (await service.saveEmployee(crossInput, 'admin')).id;
+  now = at('2026-09-10T17:00:00+09:00');
+  const only = await service.punch({ employeeId: id, kind: 'in', requestId: 'only' }, token);
+  now = at('2026-09-10T22:00:00+09:00');
+  await service.punch({ employeeId: id, kind: 'out', requestId: 'only-out', shiftId: only.shiftId }, token);
+  const saved = (await service.listAdmin('2026-09')).shifts.find(s => s.id === only.shiftId);
+  assert.equal(saved.extraShift, false);
+  assert.equal(saved.floor, 1);
+  assert.ok(saved.baseAmount > 0);
+});
+
+test('초과 시급 없이 다른 매장 출근을 켤 수 없다 (0원 근무 방지)', async () => {
+  await assert.rejects(service.saveEmployee({ ...crossInput, overtimeHourlyRate: 0 }, 'admin'), /초과 시급을 먼저/);
+  // 일당 직원이 아니면 체크해도 꺼진 채 저장된다.
+  const hourly = await service.saveEmployee({ ...employeeInput, name: '시급', crossStore: true }, 'admin');
+  assert.equal((await db.collection('staffEmployees').doc(hourly.id).get()).data().crossStore, false);
+});
+
+test('관리자가 추가 근무 기록을 고쳐도 추가 근무 표시가 남는다', async () => {
+  const suragan = await service.createDevice({ name: '궁중 태블릿', floor: 2 }, 'admin');
+  const id = (await service.saveEmployee(crossInput, 'admin')).id;
+  now = at('2026-09-10T10:00:00+09:00');
+  const lunch = await service.punch({ employeeId: id, kind: 'in', requestId: 'l' }, suragan.token);
+  now = at('2026-09-10T15:00:00+09:00');
+  await service.punch({ employeeId: id, kind: 'out', requestId: 'lo', shiftId: lunch.shiftId }, suragan.token);
+  now = at('2026-09-10T17:00:00+09:00');
+  const dinner = await service.punch({ employeeId: id, kind: 'in', requestId: 'd' }, token);
+  now = at('2026-09-10T21:00:00+09:00');
+  await service.punch({ employeeId: id, kind: 'out', requestId: 'do', shiftId: dinner.shiftId }, token);
+  const saved = await getShift(dinner.shiftId);
+  // 화면이 extraShift 를 안 보내도 물려받는다. 휴게 30분을 넣으면 3시간 30분 × 12,000원.
+  await service.saveShift({ ...saved, id: dinner.shiftId, extraShift: undefined, breakMinutes: 30, note: '저녁 휴게' }, 'admin');
+  const after = (await service.listAdmin('2026-09')).shifts.find(s => s.id === dinner.shiftId);
+  assert.equal(after.extraShift, true);
+  assert.equal(after.amount, 42000);
+});
+
 test('일당 직원은 같은 날 퇴근한 뒤 다시 출근할 수 없다 — 일당이 두 번 잡히지 않게', async () => {
   const id = (await service.saveEmployee(perDiemInput, 'admin')).id;
   const first = await service.punch({ employeeId: id, kind: 'in', requestId: 'in' }, token);

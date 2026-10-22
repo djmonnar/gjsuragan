@@ -423,3 +423,34 @@ test('캘린더의 기록에 차감 금액과 사유가 보인다', () => {
   const { html } = screen(state);
   assert.match(html, /차감 <strong>− 28,708원<\/strong> · 2시간 조퇴/);
 });
+
+// 낮엔 궁중수라간, 저녁엔 돌담명가에서 일한 일당 직원. 저녁 근무는 초과 시급 × 시간이다.
+const 겸직 = { id: 'p9', name: '이겸직', role: '', floor: 2, payType: 'perDiem', dailyPay: 100000, overtimeHourlyRate: 12000, crossStore: true, breakMinutes: 0, active: true };
+const 점심일당 = { id: 'd1', employeeId: 'p9', employeeName: '이겸직', floor: 2, workDate: '2026-09-17', checkInAt: at('2026-09-17T10:00:00+09:00'), checkOutAt: at('2026-09-17T15:00:00+09:00'), breakMinutes: 0, payType: 'perDiem', dailyPay: 100000, overtimeHourlyRate: 12000, extraShift: false, payableMinutes: 300, amount: 100000, baseAmount: 100000, extraAmount: 0, dayPortion: 'full', note: '' };
+const 저녁추가 = { id: 'd2', employeeId: 'p9', employeeName: '이겸직', floor: 1, workDate: '2026-09-17', checkInAt: at('2026-09-17T17:00:00+09:00'), checkOutAt: at('2026-09-17T21:30:00+09:00'), breakMinutes: 0, payType: 'perDiem', dailyPay: 100000, overtimeHourlyRate: 12000, extraShift: true, payableMinutes: 270, amount: 54000, baseAmount: 0, extraAmount: 0, extraShiftAmount: 54000, dayPortion: 'extra', note: '' };
+const 겸직State = view => ({
+  view, month: '2026-09', selectedDate: '2026-09-17', floor: 'all',
+  data: { employees: [겸직], shifts: [점심일당, 저녁추가], openShifts: [], devices: [], specialDays: [], absences: [],
+    serverNow: at('2026-09-18T10:00:00+09:00') }
+});
+
+test('다른 매장 추가 근무는 일당이 아니라 초과 시급 줄로 정산된다', () => {
+  const { html, api } = screen(겸직State('payroll'));
+  const row = api.payrollRows([점심일당, 저녁추가])[0];
+  assert.equal(row.fullDays, 1, '추가 근무는 풀타임 일수에 안 센다');
+  assert.equal(row.days, 1);
+  assert.equal(row.extraShiftCount, 1);
+  assert.equal(row.extraShiftAmount, 54000);
+  assert.match(html, /풀타임 1일/);
+  assert.match(html, /다른 매장 추가 근무 1건 · 4시간 30분 \(초과 시급\)/);
+  // 입금 기준액 = 일당 100,000 + 추가 근무 54,000
+  assert.match(html, /154,000원/);
+  assert.doesNotMatch(html, /NaN|undefined/);
+});
+
+test('근태 캘린더에 추가 근무가 초과 시급 계산으로 보인다', () => {
+  const { html } = screen(겸직State('calendar'));
+  assert.match(html, /다른 매장 추가 근무 · 초과 시급 12,000원 × 4시간 30분 = 54,000원/);
+  assert.match(html, /일당 · 100,000원/);
+  assert.doesNotMatch(html, /월급 직원 · 근태 기록/);
+});

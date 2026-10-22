@@ -101,3 +101,25 @@ test('openShifts 가 없는 응답에도 터지지 않는다', () => {
   assert.equal(cards.length, 1);
   assert.equal(cards[0].action, '출근');
 });
+
+// 낮엔 돌담명가(1)에서 일하고 저녁에 궁중수라간(2) 태블릿에 온 일당 직원.
+const 겸직 = { id: 'p1', name: '이겸직', role: '', payType: 'perDiem', floor: 1, crossStore: true, currentShiftId: null, openShifts: [] };
+test('다른 매장에서 오늘 근무를 마친 일당 직원은 이 매장 태블릿에서 추가 근무 출근이 된다', () => {
+  const now = Date.now();
+  const { cards } = kiosk([{ ...겸직, lastShift: { id: 'lunch', checkInAt: now - 6 * 3600000, checkOutAt: now - 3600000, floor: 1 } }]);
+  assert.equal(cards[0].extraHere, true);
+  assert.equal(cards[0].action, '추가 근무 출근');
+  // 원래 매장 이름으로 보여준다
+  assert.equal(cards[0].role, '돌담명가 직원');
+});
+
+test('같은 매장에서 마친 날이나 다른 매장 출근을 안 켠 직원은 추가 근무가 아니다', () => {
+  const now = Date.now();
+  const last = { id: 'lunch', checkInAt: now - 6 * 3600000, checkOutAt: now - 3600000 };
+  // 같은 매장(2)에서 마친 날
+  assert.equal(kiosk([{ ...겸직, floor: 2, lastShift: { ...last, floor: 2 } }]).cards[0].extraHere, false);
+  // 옛 기록이라 매장이 없으면 원래 매장(2)에서 일한 것으로 본다
+  assert.equal(kiosk([{ ...겸직, floor: 2, lastShift: last }]).cards[0].extraHere, false);
+  // 다른 매장 출근을 안 켠 직원
+  assert.equal(kiosk([{ ...겸직, crossStore: false, lastShift: { ...last, floor: 1 } }]).cards[0].extraHere, false);
+});

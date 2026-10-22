@@ -17,7 +17,9 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
   const absences = db.collection('attendanceAbsences');
   const serialize = snap => ({ ...snap.data(), id: snap.id });
   const digest = token => crypto.createHash('sha256').update(token).digest('hex');
-  const lastShift = shift => shift ? { id: shift.id, checkInAt: shift.checkInAt, checkOutAt: shift.checkOutAt } : null;
+  // 매장(floor)도 싣는다. 다른 매장에서 일한 뒤 이 매장에 또 오면 추가 근무인지 가려야 한다.
+  const lastShift = shift => shift ? { id: shift.id, checkInAt: shift.checkInAt, checkOutAt: shift.checkOutAt,
+    floor: model.floor(shift.floor) } : null;
   function log(tx, actor, action, targetId, before, after) {
     tx.create(audit.doc(), { actor, action, targetId, before: before || null, after: after || null, at: now() });
   }
@@ -267,7 +269,8 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
     ]);
     const at = now();
     const floor = model.floor(device.floor);
-    const people = snap.docs.map(serialize).filter(e => !e.deletedAt && model.floor(e.floor) === floor);
+    // 다른 매장에서도 출근하는 일당 직원은 이 매장 태블릿에도 띄운다.
+    const people = snap.docs.map(serialize).filter(e => !e.deletedAt && model.canPunchAt(e, floor));
     const sharedIds = new Set(people.filter(model.isSharedSlot).map(e => e.id));
     const open = openSnap.docs.map(serialize).filter(s => !s.voided);
     const openById = new Map(open.map(s => [s.id, s]));
@@ -312,7 +315,10 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
       }
       const employee = existing(employeeSnap, '직원');
       if (!employee.active || employee.deletedAt) model.fail('출퇴근 대상 직원이 아닙니다.', 409);
-      if (model.floor(employee.floor) !== model.floor(tablet.floor)) model.fail('이 태블릿에 지정된 매장의 직원만 출퇴근할 수 있습니다. 목록을 새로고침해 주세요.', 403);
+      if (!model.canPunchAt(employee, tablet.floor)) model.fail('이 태블릿에 지정된 매장의 직원만 출퇴근할 수 있습니다. 목록을 새로고침해 주세요.', 403);
+      const tabletFloor = model.floor(tablet.floor);
+      // 같은 날 다른 매장에서 한 번 더 출근하는 일당 직원. 이 근무는 초과 시급으로 센다.
+      let extraShift = false;
       const at = now();
       let ref, record;
       const shared = model.isSharedSlot(employee);
@@ -333,7 +339,15 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         // 다시 일했다면 관리자가 첫 기록의 퇴근 시각을 늘려 고친다.
         const last = employee.lastShift;
         if (!shared && dailyPaid && last && last.checkOutAt !== null && model.workDate(last.checkInAt) === model.workDate(at)) {
-          model.fail('오늘은 이미 퇴근까지 기록했어요. 일당은 하루에 한 번만 계산됩니다. 다시 일하셨다면 관리자에게 퇴근 시간 수정을 요청해 주세요.', 409);
+          // 옛 lastShift 에는 매장이 없다. 그때는 직원의 원래 매장에서 일한 것으로 본다.
+          const lastFloor = model.floor(last.floor ?? employee.floor);
+          if (employee.payType !== 'perDiem' || employee.crossStore !== true || lastFloor === tabletFloor) {
+            model.fail('오늘은 이미 퇴근까지 기록했어요. 일당은 하루에 한 번만 계산됩니다. 다시 일하셨다면 관리자에게 퇴근 시간 수정을 요청해 주세요.', 409);
+          }
+          if (!(Number(employee.overtimeHourlyRate) > 0)) {
+            model.fail('다른 매장 추가 근무는 초과 시급으로 계산하는데, 초과 시급이 비어 있어요. 관리자에게 알려 주세요.', 409);
+          }
+          extraShift = true;
         }
         // 자리는 퇴근할 사람이 자기 칸 대신 '출근' 칸을 눌러 기록이 하나 더 생기는 일이 있었다.
         // 오늘 이 칸으로 들어와 있는 사람이 있으면 '다른 분이 새로 출근'이라고 확인받아야 만든다.
@@ -349,7 +363,8 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
           }
         }
         ref = newShiftRef;
-        record = { employeeId: employee.id, employeeName: employee.name, floor: model.floor(employee.floor), workDate: model.workDate(at),
+        // 근무 매장은 찍은 태블릿의 매장이다. 다른 매장에서도 출근하는 직원이 아니면 원래 매장과 같다.
+        record = { employeeId: employee.id, employeeName: employee.name, floor: tabletFloor, workDate: model.workDate(at),
           checkInAt: at, checkOutAt: null, payType: employee.payType, hourlyRate: employee.hourlyRate,
           // 월급 직원의 특수일 가산 기준. 출근 시점의 월급으로 고정한다.
           ordinaryHourlyRate: model.ordinaryHourlyRate(employee),
@@ -376,6 +391,12 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
           workerName: '', workerNote: '',
           breakMinutes: employee.breakMinutes, note: '', source: 'kiosk', deviceId: tabletRef.id,
           version: 1, voided: false, createdAt: at, updatedAt: at };
+        record.extraShift = extraShift;
+        if (extraShift) {
+          // 추가 근무는 시간 × 초과 시급이다. 하루 일당용 휴게시간·예정 출근 시각은 쓰지 않는다.
+          // 저녁에 쉬었다면 관리자가 그 기록의 휴게시간을 넣는다.
+          Object.assign(record, { extraShift: true, breakMinutes: 0, scheduledStarts: [] });
+        }
         // Employee document serializes concurrent punches and admin corrections.
         // 일일근무자 자리는 사람이 아니라 칸이라 이 순서 검사가 뜻이 없다.
         if (!shared && employee.lastShift && employee.lastShift.checkOutAt > at) model.fail('마지막 퇴근 이후에 출근해 주세요.', 409);
@@ -488,6 +509,9 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         // 체크를 푼 것과 화면이 안 보낸 것은 다르다. 안 보냈을 때만 물려받는다.
         withholding: dailyPaidShift
           ? (input.withholding === undefined ? Boolean(before?.withholding ?? employee.withholding) : data.withholding) : false,
+        // 다른 매장 추가 근무 표시. 화면이 안 보냈을 때만 기존 기록을 따른다.
+        extraShift: data.payType === 'perDiem'
+          ? (input.extraShift === undefined ? Boolean(before?.extraShift) : data.extraShift) : false,
         // 차감을 모르는 옛 화면이 저장해도 적어둔 차감이 사라지면 안 된다. 안 보냈을 때만 물려받는다.
         deductionAmount: input.deductionAmount === undefined ? model.shiftDeductionOf(before || {}) : data.deductionAmount,
         deductionReason: input.deductionReason === undefined ? String(before?.deductionReason || '') : data.deductionReason,
