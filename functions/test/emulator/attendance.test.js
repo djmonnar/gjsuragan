@@ -529,9 +529,9 @@ test('일당 직원은 자리가 아니라 사람이라 두 번 출근할 수 �
 });
 
 // ── 다른 매장 추가 근무: 낮엔 궁중수라간(2), 저녁엔 돌담명가(1) ──
-const crossInput = { ...perDiemInput, name: '이겸직', floor: 2, crossStore: true, overtimeHourlyRate: 12000 };
+const crossInput = { ...perDiemInput, name: '이겸직', floor: 2, overtimeHourlyRate: 12000 };
 
-test('다른 매장 출근을 켠 일당 직원은 다른 매장 태블릿에도 뜨고, 같은 날 두 번째 근무는 초과 시급으로 센다', async () => {
+test('일당 직원은 설정 없이 다른 매장 태블릿에도 뜨고, 같은 날 두 번째 근무는 초과 시급으로 센다', async () => {
   const suragan = await service.createDevice({ name: '궁중 태블릿', floor: 2 }, 'admin');
   const id = (await service.saveEmployee(crossInput, 'admin')).id;
   // 기본 태블릿(token)은 돌담명가(1) 매장이다.
@@ -566,9 +566,9 @@ test('다른 매장 출근을 켠 일당 직원은 다른 매장 태블릿에도
   assert.equal(shifts[1].dayPortion, 'extra');
 });
 
-test('다른 매장 출근을 안 켠 일당 직원은 다른 매장 태블릿에서 막힌다', async () => {
+test('시급 직원은 여전히 자기 매장 태블릿에서만 찍는다', async () => {
   const suragan = await service.createDevice({ name: '궁중 태블릿', floor: 2 }, 'admin');
-  const id = (await service.saveEmployee({ ...crossInput, crossStore: false }, 'admin')).id;
+  const id = (await service.saveEmployee({ ...employeeInput, name: '궁중 시급', floor: 2 }, 'admin')).id;
   assert.ok(!(await service.listKiosk(token)).employees.some(e => e.id === id));
   await assert.rejects(service.punch({ employeeId: id, kind: 'in', requestId: 'x' }, token), { status: 403 });
   assert.ok((await service.punch({ employeeId: id, kind: 'in', requestId: 'home' }, suragan.token)).shiftId);
@@ -586,11 +586,16 @@ test('다른 매장에서 그날 처음 출근하면 추가 근무가 아니라 
   assert.ok(saved.baseAmount > 0);
 });
 
-test('초과 시급 없이 다른 매장 출근을 켤 수 없다 (0원 근무 방지)', async () => {
-  await assert.rejects(service.saveEmployee({ ...crossInput, overtimeHourlyRate: 0 }, 'admin'), /초과 시급을 먼저/);
-  // 일당 직원이 아니면 체크해도 꺼진 채 저장된다.
-  const hourly = await service.saveEmployee({ ...employeeInput, name: '시급', crossStore: true }, 'admin');
-  assert.equal((await db.collection('staffEmployees').doc(hourly.id).get()).data().crossStore, false);
+test('초과 시급이 비어 있으면 다른 매장 추가 근무를 막는다 (0원 근무 방지)', async () => {
+  const suragan = await service.createDevice({ name: '궁중 태블릿', floor: 2 }, 'admin');
+  const id = (await service.saveEmployee({ ...crossInput, overtimeHourlyRate: 0 }, 'admin')).id;
+  now = at('2026-09-10T10:00:00+09:00');
+  const lunch = await service.punch({ employeeId: id, kind: 'in', requestId: 'l' }, suragan.token);
+  now = at('2026-09-10T15:00:00+09:00');
+  await service.punch({ employeeId: id, kind: 'out', requestId: 'lo', shiftId: lunch.shiftId }, suragan.token);
+  now = at('2026-09-10T17:00:00+09:00');
+  await assert.rejects(service.punch({ employeeId: id, kind: 'in', requestId: 'd' }, token),
+    err => err.status === 409 && /초과 시급이 비어/.test(err.message));
 });
 
 test('관리자가 추가 근무 기록을 고쳐도 추가 근무 표시가 남는다', async () => {

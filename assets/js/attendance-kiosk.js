@@ -73,7 +73,7 @@
       const finishedToday = !working && !forgotten && last?.checkOutAt && U.date(last.checkOutAt) === today;
       // 다른 매장에서 오늘 근무를 마친 일당 직원이 이 매장에 왔다. 이 근무는 초과 시급으로 센다.
       // 옛 기록에는 매장이 없어 원래 매장에서 일한 것으로 본다. 서버와 같은 판단이다.
-      const extraHere = Boolean(finishedToday && employee.payType === 'perDiem' && employee.crossStore
+      const extraHere = Boolean(finishedToday && employee.payType === 'perDiem'
         && Number(last.floor ?? homeFloor) !== Number(floor));
       cards.push({ employee, shiftId: working ? employee.currentShiftId : '', working, forgotten, finishedToday, extraHere, name: employee.name, role,
         pill: working ? '근무 중' : forgotten ? '퇴근 누락' : finishedToday ? '퇴근 완료' : '출근 전',

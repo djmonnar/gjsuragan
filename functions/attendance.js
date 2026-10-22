@@ -341,7 +341,7 @@ function createAttendanceService({ db, now = Date.now, vault = privateData.creat
         if (!shared && dailyPaid && last && last.checkOutAt !== null && model.workDate(last.checkInAt) === model.workDate(at)) {
           // 옛 lastShift 에는 매장이 없다. 그때는 직원의 원래 매장에서 일한 것으로 본다.
           const lastFloor = model.floor(last.floor ?? employee.floor);
-          if (employee.payType !== 'perDiem' || employee.crossStore !== true || lastFloor === tabletFloor) {
+          if (employee.payType !== 'perDiem' || lastFloor === tabletFloor) {
             model.fail('오늘은 이미 퇴근까지 기록했어요. 일당은 하루에 한 번만 계산됩니다. 다시 일하셨다면 관리자에게 퇴근 시간 수정을 요청해 주세요.', 409);
           }
           if (!(Number(employee.overtimeHourlyRate) > 0)) {
