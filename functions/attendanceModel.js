@@ -316,19 +316,12 @@ function workDateString(value, label = '날짜') {
   return value;
 }
 
-// 다른 매장 추가 근무는 초과 시급으로만 센다. 초과 시급이 없으면 0원 근무가 생기므로 켜지 못하게 한다.
-function crossStoreInput(input) {
-  if (input.payType !== 'perDiem' || !input.crossStore) return false;
-  if (!(Number(input.overtimeHourlyRate) > 0)) {
-    fail('다른 매장 추가 근무는 초과 시급으로 계산합니다. 초과 시급을 먼저 넣어 주세요.');
-  }
-  return true;
-}
-
 // 이 직원이 이 매장 태블릿에서 출퇴근할 수 있는지.
+// 일당 직원은 따로 설정하지 않아도 두 매장 태블릿에서 다 찍는다. 낮엔 궁중수라간, 저녁엔
+// 돌담명가처럼 다른 매장에서 한 번 더 일하는 날이 있기 때문이다 (그 근무는 초과 시급).
 function canPunchAt(employee = {}, tabletFloor) {
   if (floor(employee.floor) === floor(tabletFloor)) return true;
-  return employee.payType === 'perDiem' && employee.crossStore === true;
+  return employee.payType === 'perDiem';
 }
 
 function employeeInput(input) {
@@ -380,9 +373,6 @@ function employeeInput(input) {
     // 기준을 넘긴 시간에 적용할 시급. 이것과 위의 정액이 둘 다 0 이면 추가 급여가 없다.
     overtimeHourlyRate: isDailyPaid(input.payType)
       ? integer(input.overtimeHourlyRate ?? 0, '초과 시급', 0, 1000000) : 0,
-    // 일당 직원이 다른 매장 태블릿에서도 출근할 수 있는지. 낮엔 궁중수라간, 저녁엔 돌담명가처럼
-    // 같은 날 다른 매장에서 한 번 더 일하면 그 근무는 일당이 아니라 초과 시급 × 시간으로 센다.
-    crossStore: crossStoreInput(input),
     // 급여에서 3.3% 를 떼고 줄지. 급여 유형과 상관없이 사람마다 정한다.
     withholding: Boolean(input.withholding),
     breakMinutes: integer(input.breakMinutes, '무급 휴게시간', 0, 720),
@@ -582,7 +572,7 @@ function kioskEmployee(employee) {
   return {
     id: employee.id, name: employee.name, role: employee.role, payType: employee.payType,
     // 다른 매장 태블릿에 뜬 일당 직원을 '추가 근무'로 안내하려면 원래 매장을 알아야 한다.
-    floor: floor(employee.floor), crossStore: employee.payType === 'perDiem' && employee.crossStore === true,
+    floor: floor(employee.floor),
     // 파트는 금액이 아니라 화면을 나누는 값이다. 담당 업무와 같은 급으로 내보낸다.
     part: workPart(employee.part),
     currentShiftId: employee.currentShiftId || null,

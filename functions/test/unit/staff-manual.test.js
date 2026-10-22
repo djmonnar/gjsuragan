@@ -481,5 +481,6 @@ test('다른 매장 추가 근무 안내의 예시 금액이 실제 계산과 �
     checkInAt: 0, checkOutAt: (4 * 60 + 30) * 60000 });
   assert.equal(example.amount, 54000);
   assert.match(html, new RegExp(`초과 시급 12,000원에 4시간 30분이면 ${example.amount.toLocaleString('ko-KR')}원`));
-  assert.match(html, /다른 매장 태블릿에서도 출근/);
+  assert.match(html, /따로 설정하지 않아도 <b>두 매장 태블릿에 모두<\/b>/);
+  assert.match(html, /초과 시급이 비어 있으면<\/b> 다른 매장 출근이 막히니/);
 });
