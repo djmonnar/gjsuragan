@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v102-perdiem-any';
+const CACHE = 'gjsuragan-v103-perdiem-twice';
 const PRECACHE = [
   './customer.html',
   './admin.html',
@@ -11,11 +11,11 @@ const PRECACHE = [
   './staff-admin-manifest.json',
   './assets/css/staff-admin.css?v=20260929-manual',
   './assets/js/staff-admin.js?v=20260929-manual',
-  './assets/js/staff-manual.js?v=20261022-perdiem-any',
+  './assets/js/staff-manual.js?v=20261027-perdiem-twice',
   './assets/js/staff-admin-redirect.js?v=20260910-stores',
   './assets/css/attendance.css?v=20261002-daily-once',
   './assets/js/attendance-ui.js?v=20260910-calendar',
-  './assets/js/attendance-admin.js?v=20261022-perdiem-any',
+  './assets/js/attendance-admin.js?v=20261027-perdiem-twice',
   './assets/js/attendance-kiosk.js?v=20261022-perdiem-any',
   './assets/js/attendance-bookings.js?v=20260910',
   './assets/js/attendance-booking-form.js?v=20260910',

@@ -2,7 +2,8 @@
 
 // 관리 화면을 열면 확인이 필요한 근무를 팝업으로 알린다.
 //  - 퇴근을 안 찍은 근무: 급여 합계에서 빠져 급여가 덜 나간다.
-//  - 같은 날 일당이 두 번 잡힌 기록: 출근을 또 눌러 일당이 두 번 나갈 뻔했다.
+//  - 같은 날 일당이 두 번 잡힌 기록: 일일근무자 칸에서 출근을 또 눌러 일당이 두 번 나갈 뻔했다.
+//    일당 직원은 같은 날 두 번 일할 수 있어(다른 매장 추가 근무) 알리지 않는다.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -60,7 +61,7 @@ test('전날 출근했거나 12시간이 지난 미퇴근 근무만 확인 대�
   assert.deepEqual(JSON.parse(JSON.stringify(result.map(s => s.id))), ['yesterday', 'long']);
 });
 
-test('일당 직원이 같은 날 두 번 찍은 기록을 묶는다', () => {
+test('일당 직원이 같은 날 두 번 일한 기록은 묶지 않는다', () => {
   const { api } = admin(null);
   const groups = api.duplicateDailyShifts({ shifts: [
     shift('a', 'p1', 'perDiem', '2026-10-01T09:00:00+09:00', '2026-10-01T17:00:00+09:00'),
@@ -70,7 +71,7 @@ test('일당 직원이 같은 날 두 번 찍은 기록을 묶는다', () => {
     shift('h', 'h1', 'hourly', '2026-10-01T10:00:00+09:00', '2026-10-01T14:00:00+09:00'),
     shift('h2', 'h1', 'hourly', '2026-10-01T17:00:00+09:00', '2026-10-01T21:00:00+09:00')
   ] });
-  assert.deepEqual(JSON.parse(JSON.stringify(groups.map(list => list.map(s => s.id)))), [['a', 'b']]);
+  assert.equal(groups.length, 0);
 });
 
 test('일일근무자 칸은 같은 이름이거나, 이름 없이 30분 안에 붙어 찍힌 것만 묶는다', () => {
@@ -94,8 +95,11 @@ test('화면을 열면 팝업으로 알리고, 같은 내용은 다시 띄우지
     serverNow: NOW, employees,
     openShifts: [shift('yesterday', 'h1', 'hourly', '2026-10-01T22:00:00+09:00', null, { floor: 1 })],
     shifts: [
-      shift('a', 'p1', 'perDiem', '2026-10-01T09:00:00+09:00', '2026-10-01T17:00:00+09:00'),
-      shift('b', 'p1', 'perDiem', '2026-10-01T17:05:00+09:00', '2026-10-01T17:06:00+09:00')
+      shift('a', 'slot', 'daily', '2026-10-01T09:00:00+09:00', '2026-10-01T17:00:00+09:00'),
+      shift('b', 'slot', 'daily', '2026-10-01T09:05:00+09:00', '2026-10-01T17:06:00+09:00'),
+      // 일당 직원의 두 번째 근무는 정상이라 팝업에 나오지 않는다
+      shift('p-day', 'p1', 'perDiem', '2026-10-01T06:54:00+09:00', '2026-10-01T13:53:00+09:00'),
+      shift('p-eve', 'p1', 'perDiem', '2026-10-01T17:00:00+09:00', '2026-10-01T22:00:00+09:00')
     ]
   };
   const { api, dialogs } = admin(data);
@@ -107,6 +111,7 @@ test('화면을 열면 팝업으로 알리고, 같은 내용은 다시 띄우지
   assert.match(dialogs[0].body, /17시간째 퇴근 기록 없음/);
   assert.match(dialogs[0].body, /같은 날 일당이 두 번 잡힌 기록 1건/);
   assert.match(dialogs[0].body, /data-popup-shift="b"/);
+  assert.doesNotMatch(dialogs[0].body, /p-day|p-eve/);
   assert.doesNotMatch(dialogs[0].body, /undefined|NaN/);
   api.checkAlert();
   assert.equal(dialogs.length, 1);

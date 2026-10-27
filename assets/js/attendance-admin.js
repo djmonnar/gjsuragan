@@ -62,18 +62,17 @@
       .filter(s => s.workDate < today || result.serverNow - s.checkInAt >= STALE_OPEN_HOURS * 3600000)
       .sort((a, b) => a.checkInAt - b.checkInAt);
   }
-  // 같은 날 일당이 두 번 잡힌 기록 묶음. 일당 직원은 사람마다, 일일근무자 자리는
-  // 적어둔 이름마다 하루 하나여야 한다. 이름이 없으면 바로 붙어 찍힌 것만 의심한다.
+  // 같은 날 일당이 두 번 잡힌 기록 묶음. 일일근무자 자리는 적어둔 이름마다 하루 하나여야 한다.
+  // 이름이 없으면 바로 붙어 찍힌 것만 의심한다.
+  // 일당 직원은 묶지 않는다. 같은 매장 재출근은 태블릿이 막고, 같은 날 두 번째 기록은
+  // 다른 매장 추가 근무(초과 시급)이거나 관리자가 직접 넣은 것이라 정상이다.
   function duplicateDailyShifts(result) {
     const groups = new Map();
     const add = (key, shift) => { if (!groups.has(key)) groups.set(key, []); groups.get(key).push(shift); };
     const unnamed = new Map();
-    (result.shifts || []).filter(s => isDailyPaid(s.payType) && s.checkOutAt !== null).forEach(s => {
+    (result.shifts || []).filter(s => s.payType === 'daily' && s.checkOutAt !== null).forEach(s => {
       const who = String(s.workerName || '').trim();
-      // 다른 매장 추가 근무는 일당이 아니라 초과 시급이라 중복이 아니다.
-      if (s.payType === 'perDiem' && s.extraShift) return;
-      if (s.payType === 'perDiem') add(`${s.employeeId}|${s.workDate}`, s);
-      else if (who) add(`${s.employeeId}|${s.workDate}|${who}`, s);
+      if (who) add(`${s.employeeId}|${s.workDate}|${who}`, s);
       else {
         const key = `${s.employeeId}|${s.workDate}`;
         if (!unnamed.has(key)) unnamed.set(key, []);
