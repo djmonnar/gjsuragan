@@ -123,3 +123,14 @@ test('같은 매장에서 마친 날이나 일당 직원이 아니면 추가 근
   // 시급 직원은 다른 매장에 뜨지 않고, 같은 매장 재출근은 '다시 출근'이다
   assert.equal(kiosk([{ ...겸직, payType: 'hourly', lastShift: { ...last, floor: 1 } }]).cards[0].extraHere, false);
 });
+
+test('출근은 본인 확인을 한 번 더 거치고, 매뉴얼에 그 버튼 이름이 적혀 있다', () => {
+  // 옆 사람 이름을 잘못 눌러 남의 출근이 찍히는 일이 있었다.
+  const source = fs.readFileSync(path.join(root, 'assets/js/attendance-kiosk.js'), 'utf8');
+  const label = /textContent = '([^']+)';\n    \}, true\);/.exec(source);
+  assert.ok(label, '본인 확인 단계의 버튼 이름을 찾지 못했습니다.');
+  assert.match(source, /const askIdentity = !working;/);
+  const manual = fs.readFileSync(path.join(root, 'assets/js/staff-manual.js'), 'utf8');
+  assert.match(manual, new RegExp(`<b>본인이 맞나요\\?</b>에서 <b>${label[1]}</b>`));
+  assert.match(source, /'본인이 맞나요\?'/);
+});
