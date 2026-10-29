@@ -233,8 +233,14 @@
     const slotWarning = openToday.length
       ? `<div class="att-slot-warning"><p><b>오늘 이 칸으로 출근한 분이 있어요.</b> 퇴근하시려면 자기 출근 시각 옆의 <b>퇴근하기</b>를 눌러 주세요.</p>${openToday.map(shift => `<button class="att-button" type="button" data-out-shift="${U.esc(shift.id)}">${U.esc(shift.workerName ? `${shift.workerName} · ` : '')}${U.time(shift.checkInAt)} 출근 → 퇴근하기</button>`).join('')}<p>새로 오신 <b>다른 분</b>만 아래 <b>다른 분 출근하기</b>를 눌러 주세요.</p></div>`
       : '';
+    // 출근은 한 번 더 묻는다. 옆 사람 이름을 잘못 눌러 남의 출근이 찍히는 일이 있었다.
+    const askIdentity = !working;
+    const avatar = `<div class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</div>`;
+    const identity = askIdentity
+      ? `<div class="att-kiosk-identity" hidden>${avatar}<h2>${U.esc(card.name)}${card.slot ? '' : ' 님'}</h2><p class="att-confirm-kind">${card.slot ? '이 칸으로 출근하는 게 맞나요?' : '본인이 맞나요?'}</p><p class="att-meta">다른 분 이름을 잘못 누르셨다면 <b>취소</b>를 눌러 주세요.</p></div>`
+      : '';
     const el = U.dialog(card.name,
-      `<div class="att-avatar" aria-hidden="true">${U.esc(Array.from(card.name)[0])}</div><h2>${U.esc(card.name)} 님</h2><p class="att-confirm-kind">${working ? '오늘도 수고하셨습니다' : '좋은 하루 시작해요'}</p>${confirmMessage(card)}${slotWarning}`,
+      `<div class="att-kiosk-step">${avatar}<h2>${U.esc(card.name)} 님</h2><p class="att-confirm-kind">${working ? '오늘도 수고하셨습니다' : '좋은 하루 시작해요'}</p>${confirmMessage(card)}${slotWarning}</div>${identity}`,
       async (_form, dialog) => {
         const result = await U.request('kiosk.punch', pending, { device });
         dialog.querySelector('form').innerHTML = `<div class="att-kiosk-success" role="status"><div class="att-success-mark">✓</div><h2>${U.esc(result.name)} 님</h2><p class="att-confirm-kind">${result.kind === 'in' ? '출근' : '퇴근'}이 기록되었어요</p><div class="att-shift-times">${U.time(result.at)}</div><p class="att-meta">잠시 후 직원 목록으로 돌아갑니다.</p></div>`;
@@ -244,6 +250,17 @@
     el.classList.add('att-kiosk-dialog');
     el.querySelector('.att-dialog-head').remove();
     el.addEventListener('close', () => { dialogOpen = false; load(); });
+    // 첫 '출근하기'는 기록하지 않고 본인 확인으로 넘긴다. 폼에 닿기 전에 가로채서 Enter 로도 건너뛰지 못한다.
+    let identityChecked = !askIdentity;
+    el.addEventListener('submit', event => {
+      if (identityChecked) return;
+      event.preventDefault();
+      event.stopPropagation();
+      identityChecked = true;
+      el.querySelector('.att-kiosk-step').hidden = true;
+      el.querySelector('.att-kiosk-identity').hidden = false;
+      el.querySelector('[type=submit]').textContent = '네, 출근할게요';
+    }, true);
     el.querySelectorAll('[data-out-shift]').forEach(button => button.addEventListener('click', () => {
       const outCard = buildCards().find(item => item.employee.id === card.employee.id && item.shiftId === button.dataset.outShift);
       el.close();
