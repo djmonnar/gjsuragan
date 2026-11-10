@@ -25,7 +25,7 @@ const expectedScriptSources = [
   'assets/js/schedule-report.js?v=20261006-onceall1',
   'assets/js/manual-delivery-dates.js?v=20260806-manualorder2',
   'assets/js/rendering-formatters.js?v=20260711-helper1',
-  'assets/js/rendering.js?v=20261006-onceall1',
+  'assets/js/rendering.js?v=20261110-history1',
   'assets/js/order-settlement.js?v=20260712-sales1',
   'assets/js/route-map.js?v=20260626-roundtrip1',
   'assets/js/import-export.js?v=20260625-door-x1',
@@ -33,7 +33,7 @@ const expectedScriptSources = [
   'assets/js/ui.js?v=20260806-manualdates1',
   'assets/js/notice-memos.js?v=20260709-notice1'
 ];
-const expectedStylesheets = ['assets/css/index.css?v=20260806-manualorder2'];
+const expectedStylesheets = ['assets/css/index.css?v=20261110-history1'];
 
 function fail(message) {
   console.error(`index build: ${message}`);

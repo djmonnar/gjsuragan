@@ -18,12 +18,12 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 347034,
-    "lines": 7910,
-    "functionDeclarations": 462,
-    "uniqueCallableGlobals": 411,
+    "normalizedBytes": 349278,
+    "lines": 7951,
+    "functionDeclarations": 466,
+    "uniqueCallableGlobals": 415,
     "explicitWindowExports": 43,
-    "globalStateDeclarations": 66,
+    "globalStateDeclarations": 68,
     "privateStateDeclarations": 5,
     "asyncFunctions": 62,
     "crossFileCallRelationships": 134,
@@ -710,9 +710,9 @@
     {
       "path": "assets/js/rendering.js",
       "metrics": {
-        "bytes": 101897,
-        "lines": 2037,
-        "functionDeclarations": 104,
+        "bytes": 104141,
+        "lines": 2078,
+        "functionDeclarations": 108,
         "asyncFunctions": 7
       },
       "globalsDefined": [
@@ -815,7 +815,11 @@
         "showCustomerGroup",
         "customerOrderCountHtml",
         "customerOrderButtonLabel",
-        "customerToggleOrder"
+        "customerToggleOrder",
+        "customerHistoryDates",
+        "customerHistoryToggleLabel",
+        "customerHistoryHtml",
+        "customerToggleHistory"
       ],
       "requiredDefinitions": [
         "refreshAll",
@@ -881,6 +885,8 @@
         "__customerGroups",
         "__selectedCustomerGroupKey",
         "__expandedCustomerOrderId",
+        "CUSTOMER_HISTORY_PREVIEW",
+        "__expandedCustomerHistoryIds",
         "CUSTOMER_NEW_BADGE_MS",
         "CUSTOMER_PAGE_SIZE",
         "__customerQuickFilter",

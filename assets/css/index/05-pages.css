@@ -371,6 +371,8 @@ input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:
 .customer-history-list{display:flex;flex-direction:column;gap:6px;}
 .customer-history-list .dhi{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin:0;}
 .customer-history-list .dhi button{flex:0 0 auto;border:0;background:transparent;color:var(--danger);font:inherit;font-weight:700;cursor:pointer;}
+.customer-history-older[hidden]{display:none;}
+.customer-history-toggle{border:1px dashed var(--border);border-radius:6px;background:transparent;color:var(--text2);font:inherit;font-size:12px;font-weight:700;padding:8px 10px;cursor:pointer;}
 .customer-mobile-card{display:none;}
 .customer-detail-backdrop{display:none;}
 
