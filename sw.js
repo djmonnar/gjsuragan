@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v104-identity';
+const CACHE = 'gjsuragan-v105-history';
 const PRECACHE = [
   './customer.html',
   './admin.html',

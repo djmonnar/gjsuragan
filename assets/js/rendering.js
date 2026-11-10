@@ -1819,15 +1819,56 @@ function customerToggleOrder(groupIdx, orderId){
   showCustomerGroup(groupIdx, true);
 }
 
+// 완료이력은 주문 문서(deliveredDates)에 전부 남아 있다. 카드에는 최근 몇 건만 두고 나머지는
+// '이전 이력 더 보기'로 연다. 예전에는 최근 5건만 그리고 끝이라 그 전 날짜는 볼 길이 없었다.
+const CUSTOMER_HISTORY_PREVIEW = 5;
+const __expandedCustomerHistoryIds = new Set();
+
+// 누른 순서가 아니라 날짜 순서로, 최근 날짜가 위. 지난 날짜를 뒤늦게 완료하면
+// 누른 순서로는 그 날짜가 맨 위에 올라온다. 'YYYY-MM-DD' 는 글자 순서가 곧 날짜 순서다.
+function customerHistoryDates(c){
+  const dates = Array.isArray(c?.deliveredDates) ? c.deliveredDates.filter(Boolean).map(String) : [];
+  return dates.sort().reverse();
+}
+
+function customerHistoryToggleLabel(open, olderCount){
+  return open ? '이전 이력 접기' : `이전 이력 ${olderCount}건 더 보기`;
+}
+
+function customerHistoryHtml(c){
+  const dates = customerHistoryDates(c);
+  if(!dates.length) return '<span style="color:var(--text3);">이력 없음</span>';
+  const id = customerJsArg(c.id);
+  const row = d => `<div class="dhi"><span>${customerText(d)}</span><button onclick="undoMarkDone('${id}','${customerJsArg(d)}')">취소</button></div>`;
+  const recent = dates.slice(0, CUSTOMER_HISTORY_PREVIEW);
+  const older = dates.slice(CUSTOMER_HISTORY_PREVIEW);
+  // 펼친 상태는 기억해 둔다. 이전 날짜를 취소하면 목록이 다시 그려지는데, 그때 접히면 어디를 보던 중인지 놓친다.
+  const open = __expandedCustomerHistoryIds.has(c.id);
+  const more = older.length
+    ? `<div class="customer-history-list customer-history-older"${open ? '' : ' hidden'}>${older.map(row).join('')}</div>`
+      + `<button type="button" class="customer-history-toggle" aria-expanded="${open}" onclick="customerToggleHistory(this,'${id}')">${customerHistoryToggleLabel(open, older.length)}</button>`
+    : '';
+  return `<div class="customer-history-list">${recent.map(row).join('')}${more}</div>`;
+}
+
+// 다시 그리지 않고 그 자리에서 연다. 다시 그리면 휴대폰 상세 창이 맨 위로 튈 수 있다.
+function customerToggleHistory(btn, orderId){
+  const older = btn && btn.previousElementSibling;
+  if(!older || !older.classList.contains('customer-history-older')) return;
+  const open = older.hidden;
+  older.hidden = !open;
+  if(open) __expandedCustomerHistoryIds.add(orderId);
+  else __expandedCustomerHistoryIds.delete(orderId);
+  btn.setAttribute('aria-expanded', String(open));
+  btn.textContent = customerHistoryToggleLabel(open, older.children.length);
+}
+
 function customerGroupOrderSummary(c, idx){
   const prod = customerProductKey(c);
-  const dates = (c.deliveredDates || []).slice(-5).reverse();
   const orderNo = c.orderNum || c.syncKey || '';
   const status = statusLabel(c);
   const isOpen = __expandedCustomerOrderId === c.id;
-  const dateHtml = dates.length
-    ? `<div class="customer-history-list">${dates.map(d => `<div class="dhi"><span>${customerText(d)}</span><button onclick="undoMarkDone('${customerJsArg(c.id)}','${customerJsArg(d)}')">취소</button></div>`).join('')}</div>`
-    : '<span style="color:var(--text3);">이력 없음</span>';
+  const dateHtml = customerHistoryHtml(c);
 
   return `
     <div class="customer-order-accordion">
