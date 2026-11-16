@@ -13,8 +13,10 @@ const imwebSync = require('./imwebSync');
 const signupGuard = require('./signupGuard');
 const deliveryLookup = require('./deliveryLookup');
 const { createMonthlyDeliveryService, createMonthlyDeliveryHandler } = require('./monthlyDelivery');
+const { createLogenRelayHandler } = require('./logenRelay');
 
 const logenSecretKey = defineSecret('LOGEN_SECRET_KEY');
+const logenRelayToken = defineSecret('LOGEN_RELAY_TOKEN');
 const logenHealthToken = defineSecret('LOGEN_HEALTH_TOKEN');
 const imwebApiKey = defineSecret('IMWEB_API_KEY');
 const imwebSecretKey = defineSecret('IMWEB_SECRET_KEY');
@@ -267,6 +269,18 @@ exports.syncImwebOrders = onSchedule({
   });
   logger.info('Imweb sync finished', result);
 });
+
+// 포포하우스 로젠 중계 (functions/logenRelay.js). 로젠 화이트리스트 고정 IP로 나가도록
+// api 와 같은 VPC 커넥터를 쓴다. api 와 따로 둬서, 이걸 배포해도 api 의 환경변수·동작은 그대로다.
+// 커넥터를 꺼 둔 달(scripts/logen-infra/off.sh)에는 배포하지 말 것 — api 와 같은 이유.
+exports.logenRelay = onRequest({
+  region: 'asia-northeast3',
+  invoker: 'public',
+  maxInstances: 3,
+  secrets: [logenRelayToken],
+  vpcConnector: 'projects/gjsuragan-60505/locations/asia-northeast3/connectors/gjsuragan-seoul-connector',
+  vpcConnectorEgressSettings: 'ALL_TRAFFIC'
+}, createLogenRelayHandler({ token: () => process.env.LOGEN_RELAY_TOKEN, logger }));
 
 exports.api = onRequest({
   region: 'asia-northeast3',

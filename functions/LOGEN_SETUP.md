@@ -115,6 +115,35 @@ Current Seoul egress resources:
 Until the IP is whitelisted, real calls can fail with `401 Unauthorized` even
 when the `secretKey` is correct.
 
+## Relay for 포포하우스 (`logenRelay` function)
+
+포포하우스(same owner's other shop app, on Vercel) has its own Logen contract and
+key, but Vercel has no static egress IP. The separate function `logenRelay`
+(`functions/logenRelay.js`) forwards its calls through the same VPC connector, so
+Logen sees `34.50.34.252`.
+
+- URL: `https://asia-northeast3-gjsuragan-60505.cloudfunctions.net/logenRelay`
+- Auth: header `x-logen-relay-token` must equal the secret `LOGEN_RELAY_TOKEN`.
+- The caller sends its own Logen key in `x-logen-secret-key`; the relay only passes
+  it through (never stored or logged). GJSURAGAN's own `LOGEN_SECRET_KEY` and
+  Firestore data are not used.
+- Only `registerOrderData`, `inquirySlipNoMulti`, `inquiryCargoTrackingMulti`,
+  `contPickFares`, and only the fixed test/prod Logen hosts.
+- Body: `{ "env": "test" | "prod", "path": "/registerOrderData", "body": { ... } }`
+  → `{ "ok": true, "status": <Logen HTTP status>, "data": <Logen JSON> }`.
+
+One-time setup:
+
+1. Create Secret Manager secret `LOGEN_RELAY_TOKEN` (project `gjsuragan-60505`)
+   with a long random value. Put the same value in 포포하우스 Vercel env
+   `LOGEN_RELAY_TOKEN`. Never paste it in chat or commit it.
+2. Ask Logen to whitelist `34.50.34.252` for 포포하우스's Open API key too.
+3. With the connector ON, run Deploy Functions → `functions:logenRelay`.
+   Deploying only this target leaves `api` and its env vars untouched.
+
+When the connector is OFF (idle months), 포포하우스's Logen calls fail with 401
+just like GJSURAGAN's.
+
 ## Security note
 
 If a Logen TEST or LIVE key is exposed in chat, screenshots, commits, or logs,
