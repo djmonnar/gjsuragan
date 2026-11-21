@@ -51,6 +51,16 @@ exports.attendanceBookingsApi = onRequest({ region: 'asia-northeast3', invoker: 
   readBookings: createBookingReader({ token: () => ownervistaBookingsToken.value() }),
   createBooking: createBookingWriter({ token: () => ownervistaBookingsToken.value() })
 }));
+// 돌담명가 직원 공용 예약장(reservations.html). 링크 열쇠로 열고, 네이버 예약은 같은 오너비스타 연결키로 읽는다.
+const { createReservationBoardService, createReservationBoardHandler } = require('./reservationBoard');
+const boardBookings = createBookingReader({ token: () => ownervistaBookingsToken.value() });
+exports.reservationBoardApi = onRequest({ region: 'asia-northeast3', invoker: 'public', maxInstances: 3,
+  secrets: [ownervistaBookingsToken] }, createReservationBoardHandler({
+  service: createReservationBoardService({ db, timestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+    naver: { day: date => boardBookings(date), calendar: month => boardBookings.calendar(month), cancellations: () => boardBookings.cancellations() } }),
+  authorizeAdmin: req => verifyAdminRequest(req),
+  logError: (message, detail) => logger.error(message, detail)
+}));
 exports.attendanceApi = onRequest({ region: 'asia-northeast3', invoker: 'public', maxInstances: 10, secrets: [attendancePrivateKey] },
   createAttendanceHandler({
     service: createAttendanceService({ db, vault: createPrivateVault(() => attendancePrivateKey.value()),

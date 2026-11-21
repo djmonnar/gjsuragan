@@ -439,6 +439,49 @@ test('예약 안내가 실제 제한과 같다', () => {
   assert.match(body, /예약 신청 · 확정 · 이용 완료/);
 });
 
+test('직원 공용 예약장 안내가 실제 동작과 같다', () => {
+  const { html } = render();
+  const body = section(html, 'reservations');
+  const board = require('../../reservationBoard');
+  const model = require('../../reservationBoardModel');
+  const page = source('assets/js/reservation-board.js');
+  const help = page.slice(page.indexOf('const HELP = ['), page.indexOf('const store = {'));
+  // 새로고침 주기: 서버가 알려 주는 값과 화면의 기본값이 같고, 안내도 같은 숫자를 쓴다.
+  assert.equal(board.POLL_MS, 120000);
+  assert.match(page, /pollMs: 120000/);
+  assert.match(body, /예약장은 <b>2분마다<\/b>/);
+  assert.match(help, /2분마다/);
+  // 낮/밤 기준.
+  assert.equal(model.LUNCH_UNTIL, '16:00');
+  assert.match(page, /const LUNCH_UNTIL = '16:00';/);
+  assert.equal(model.mealOf('15:59'), 'lunch');
+  assert.equal(model.mealOf('16:00'), 'dinner');
+  assert.match(body, /16시 전은 낮/);
+  assert.match(help, /16시 전/);
+  // 링크를 바꾸면 이전 링크가 막히기까지 걸리는 시간(서버의 링크 기억 시간).
+  assert.equal(board.SHARE_CACHE_MS, 30000);
+  assert.match(body, /<b>30초 안에<\/b> 막히고/);
+  assert.match(source('assets/js/reservation-board-admin.js'), /이전 링크는 30초 안에 막히고/);
+  // 취소 경고는 그날만, 「오늘 그만 보기」는 휴대폰별.
+  assert.match(page, /data-act="cancel-mute">오늘 그만 보기</);
+  assert.match(page, /saved\.date === S\.today/);
+  assert.match(body, /취소된 그날에만/);
+  assert.match(body, /오늘 그만 보기/);
+  // 삭제는 숨김이고, 네이버 예약은 룸·비고만.
+  assert.match(source('functions/reservationBoard.js'), /tx\.update\(ref, \{ deleted: true/);
+  assert.match(body, /숨겨질 뿐 기록이 남아/);
+  assert.match(body, /<b>룸<\/b>과 <b>비고<\/b>만/);
+  // 화면에 실제로 있는 버튼 이름만 안내한다.
+  for (const label of ['공유 링크 만들기', '링크 복사', '새 링크 만들기', '구글 시트에서 지금까지의 예약 가져오기', '미리보기']) {
+    assert.match(source('assets/js/reservation-board-admin.js'), new RegExp(label), label);
+    assert.match(body, new RegExp(label), label);
+  }
+  for (const label of ['＋ 예약 등록', '하루', '일주일', '달력', '오늘 그만 보기']) assert.match(page, new RegExp(label), label);
+  // 시트 가져오기가 읽는 첫 줄 칸 이름과 안내가 같다.
+  assert.deepEqual(Object.values(model.SHEET_COLUMNS), ['날짜', '낮/밤', '예약시간', '예약자명', '연락처', '인원', '메뉴', '예약경로', '비고', '예약상태', '룸', '예약자']);
+  assert.match(source('assets/js/reservation-board-admin.js'), /날짜 · 낮\/밤 · 예약시간 · 예약자명 · 연락처 · 인원 · 메뉴 · 예약경로 · 비고 · 예약상태 · 룸 · 예약자/);
+});
+
 test('특수일 배율 범위가 실제 검증과 같다', () => {
   const { html } = render();
   const day = percent => M.specialDayInput({ workDate: '2026-09-17', label: '추석', multiplierPercent: percent, appliesTo: 'both', note: '' });

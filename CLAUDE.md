@@ -12,6 +12,7 @@
 | `functions/attendance*.js`, `assets/js/attendance-*.js`, `assets/js/staff-*.js` | `assets/js/staff-manual.js` (매장 관리 → 매뉴얼 탭) |
 | 배송·주문·정산 (`admin.html`, `assets/js/`) | `manual.html` |
 | 아임웹 연동 | `imwebmanual.html`, `functions/IMWEB_SYNC_SETUP.md` |
+| 직원 공용 예약장 (`reservations.html`, `assets/js/reservation-board*.js`, `functions/reservationBoard*.js`) | 화면 안 사용법(`assets/js/reservation-board.js` 의 `HELP`), `assets/js/staff-manual.js` 의 돌담명가 예약, `docs/reservation-board.md` |
 
 고칠 것: 바뀐 동작, 새로 생긴 버튼과 그 위치, 기본값, 계산식, 하면 안 되는 것.
 
@@ -51,6 +52,8 @@ npm run test:emulator  # 규칙·서비스 (firebase-tools 필요)
 | `functions/index.js` 의 `api` 경로 | Deploy Functions → `functions:api` |
 | `functions/attendance*.js` | Deploy Functions → `functions:attendanceApi` |
 | `functions/imweb*.js` | Deploy Functions → `functions:syncImwebOrders` |
+| `functions/reservationBoard*.js` | Deploy Functions → `functions:reservationBoardApi` |
+| `functions/attendanceBookings.js` | Deploy Functions → `functions:attendanceBookingsApi` 와 `functions:reservationBoardApi` (둘이 같이 쓴다) |
 | `firestore.rules` | Deploy Firestore Rules (입력값 없음) |
 | `attendance.html`, `assets/js/attendance-*.js`, `assets/css/attendance.css` | 위와 별개로 Deploy Attendance Hosting (입력값 없음). 오래된 태블릿용 `gjsuragan-60505.web.app` |
 
