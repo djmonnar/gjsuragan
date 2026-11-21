@@ -38,8 +38,7 @@
 
 `attendanceBookings.js` 의 같은 오너비스타 연결키(`OWNERVISTA_BOOKINGS_TOKEN`)로 읽는다.
 
-- 날짜별 목록: `/api/integrations/attendance/reservations?date=` (날짜마다 1분 기억). 손님 전화번호(`phone`)가
-  여기에만 온다. 예약장 카드의 ☎ 로 바로 건다. 태블릿이 쓰는 `/today` 에는 번호가 없다.
+- 날짜별 목록: `/api/integrations/attendance/reservations?date=` (날짜마다 1분 기억)
 - 달력 합계: `/api/integrations/attendance/calendar?month=` (2분 기억)
 - 오늘 취소: `/api/integrations/attendance/cancellations` (1분 기억). 오너비스타가 상태 변화를 처음 본 시각이
   한국시간 오늘인, 신청·확정·이용완료 → 취소 예약만 준다. 그래서 경고 창은 **취소된 그날에만** 뜬다.

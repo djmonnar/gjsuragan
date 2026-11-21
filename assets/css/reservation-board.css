@@ -172,7 +172,6 @@ button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:tran
 .rb-info div{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;padding:6px 0;border-top:1px solid #efe9e0}
 .rb-info div:first-child{border-top:0}
 .rb-info dt{color:var(--rb-sub);font-size:13px}.rb-info dd{margin:0;font-weight:650;overflow-wrap:anywhere}
-.rb-tel{color:var(--rb-brand);font-weight:800;text-decoration:none}
 .rb-help section{margin-bottom:14px}.rb-help h3{font-size:15px;margin:0 0 6px}
 .rb-help ul{margin:0;padding-left:18px}.rb-help li{margin-bottom:5px;font-size:14px}
 .rb-layer:has(.rb-alert){align-items:center;padding:16px}

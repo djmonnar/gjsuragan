@@ -26,7 +26,6 @@
       '「삭제」는 잘못 적은 예약을 지울 때만 씁니다. 지운 예약도 기록은 남아 있어 관리자에게 말하면 되살릴 수 있습니다.',
       '다른 직원이 먼저 고친 예약을 저장하면 막힙니다. 새로고침해서 바뀐 내용을 보고 다시 저장하세요.']],
     ['네이버 예약', ['네이버 예약은 초록색 「N 네이버예약」 표시로 자동으로 들어옵니다(오너비스타 수집, 몇 분 늦을 수 있음).',
-      '네이버 손님도 전화번호가 보입니다. 카드 오른쪽 ☎ 를 누르면 바로 전화가 걸립니다.',
       '네이버 예약의 날짜·인원 변경과 취소는 네이버(스마트플레이스)나 오너비스타에서 합니다. 여기서는 룸과 비고만 적을 수 있습니다.',
       '네이버 예약이 취소되면, 취소된 그날에만 이 화면을 열 때 경고 창이 뜹니다. 「오늘 그만 보기」를 누르면 이 휴대폰에서는 오늘 더 뜨지 않습니다(새로 취소된 예약은 다시 뜹니다).']],
     ['공지 · 내 이름', ['맨 위 공지에서 「＋ 공지 쓰기」로 모두에게 알릴 내용을 적습니다. 공지를 누르면 고치거나 지울 수 있고, 「맨 위 고정」을 켜면 가장 위에 보입니다.',
@@ -316,11 +315,10 @@
     }
     if (sheet.type === 'naver') {
       const item = sheet.item;
-      const tel = telHref(item.phone);
       const rows = [['날짜', `${mdw(item.date)} ${item.time || '시간 미정'}`], ['인원', item.people ? `${item.people}명${item.children ? ` (어린이 ${item.children})` : ''}` : '인원 미정'],
         ['메뉴', item.menu], ['상품', item.itemName], ['좌석', item.seat], ['상태', item.cancelledToday ? `오늘 취소 (${clock(item.cancelledAt)})` : item.statusLabel]].filter(([, value]) => value);
       return `${head(`${item.origin === 'manual' ? '오너비스타 예약' : '<span class="rb-badge rb-badge-naver"><b>N</b>네이버예약</span>'} ${esc(item.name)}`, '날짜·인원 변경과 취소는 네이버(스마트플레이스)나 오너비스타에서 해 주세요. 여기서는 룸과 비고만 적습니다.')}
-      <dl class="rb-info">${rows.map(([key, value]) => `<div><dt>${key}</dt><dd>${esc(value)}</dd></div>`).join('')}${item.phone ? `<div><dt>연락처</dt><dd>${tel ? `<a class="rb-tel" href="tel:${esc(tel)}">☎ ${esc(item.phone)}</a>` : esc(item.phone)}</dd></div>` : ''}</dl>
+      <dl class="rb-info">${rows.map(([key, value]) => `<div><dt>${key}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>
       <form class="rb-form" data-form="naver">
         <label class="rb-field"><span>룸</span><input name="room" value="${esc(item.room)}" maxlength="40" autocomplete="off" placeholder="${esc(item.seat || '예: 2층, 7-9R')}"></label>
         ${chips('room', frequent('room', ['2층']), item.room)}

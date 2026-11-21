@@ -26,8 +26,6 @@ function normalizeFeed(input, now, date = workDate(now)) {
     ids.add(row.id);
     return { id: row.id, time: row.time, name: text(row.name, 80), itemName: text(row.itemName, 200),
       origin: row.origin === 'manual' ? 'manual' : 'naver', seat: text(row.seat, 60),
-      // 오너비스타는 날짜 조회(관리자·직원 예약장)에만 손님 번호를 준다. 태블릿 오늘 목록에는 오지 않는다.
-      ...(typeof row.phone === 'string' && /^[0-9+\-() ]{4,20}$/.test(row.phone) ? { phone: row.phone } : {}),
       menuItems: row.menuItems.map(menu => ({ name: text(menu.name, 120), count: whole(menu.count) })),
       adults: whole(row.adults), children: whole(row.children), status: row.status, active: ACTIVE.has(row.status) };
   }).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99') || a.id.localeCompare(b.id));

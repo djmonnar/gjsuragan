@@ -68,17 +68,6 @@ test('a sheet row copied from Naver is flagged when the real Naver booking is on
   assert.equal(M.dayView('2026-11-21', [row('copy', { name: '네이버 손님', route: '네이버' })], feed([])).items[0].maybeDuplicate, false);
 });
 
-test('Naver guest phone from the OwnerVista date feed reaches the board card, and junk is dropped', () => {
-  const { normalizeFeed } = require('../../attendanceBookings');
-  const input = { version: 1, state: 'ready', date: '2026-11-21', storeName: '돌담명가', sourceUpdatedAt: new Date(now - 60000).toISOString(),
-    bookings: [naverRow({ phone: '01012345678' }), naverRow({ id: 'n2', phone: '<script>' }), naverRow({ id: 'n3' })] };
-  const parsed = normalizeFeed(input, now, '2026-11-21');
-  assert.deepEqual(parsed.bookings.map(row => row.phone), ['01012345678', undefined, undefined]);
-  const view = M.dayView('2026-11-21', [], { value: parsed });
-  assert.equal(view.items.find(item => item.id === 'n1').phone, '01012345678');
-  assert.equal(view.items.find(item => item.id === 'n2').phone, '');
-});
-
 test('month view adds staff reservations to Naver daily totals and ignores cancelled/deleted rows', () => {
   const days = M.monthView('2026-11', [row('a', { people: 20 }), row('b', { people: 8, status: 'cancelled' }), row('c', { people: 3, deleted: true }), row('d', { date: '2026-11-30', people: null })],
     { days: [{ date: '2026-11-21', activeCount: 2, headcount: 6, verified: true }] });

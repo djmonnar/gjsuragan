@@ -144,7 +144,7 @@ function manualItem(id, data) {
 function naverItem(row, date, note, cancelledAt) {
   const menu = row.menuItems?.length ? row.menuItems.map(item => `${item.name} ${item.count}`).join(', ') : String(row.itemName || '');
   return { key: `n:${row.id}`, kind: 'naver', id: row.id, date, time: isTime(row.time) ? row.time : '',
-    meal: mealOf(row.time), name: String(row.name || ''), phone: typeof row.phone === 'string' ? row.phone : '',
+    meal: mealOf(row.time), name: String(row.name || ''), phone: '',
     people: whole(row.adults) + whole(row.children) || null, children: whole(row.children),
     menu, itemName: String(row.itemName || ''), seat: String(row.seat || ''),
     room: String(note?.room || ''), memo: String(note?.memo || ''),
