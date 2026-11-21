@@ -14,7 +14,7 @@
     isActive(panel) { return signedIn && activePanel === panel; }
   };
   function dispose() {
-    window.AttendanceAdmin.dispose(); window.AttendanceReservations.dispose(); window.StaffManual?.dispose();
+    window.AttendanceAdmin.dispose(); window.AttendanceReservations.dispose(); window.ReservationBoardAdmin?.dispose(); window.StaffManual?.dispose();
     document.querySelectorAll('dialog.att-dialog').forEach(el => el.close());
     activePanel = '';
   }
@@ -33,7 +33,7 @@
     const titles = { reservations: '돌담명가 예약', manual: '매뉴얼', attendance: '직원 · 근태' };
     document.title = `${titles[panel]} · 매장 관리`;
     if (panel === 'attendance') window.AttendanceAdmin.init();
-    else if (panel === 'reservations') window.AttendanceReservations.init();
+    else if (panel === 'reservations') { window.ReservationBoardAdmin?.init(); window.AttendanceReservations.init(); }
     else window.StaffManual?.init();
   }
   auth.onAuthStateChanged(user => {
