@@ -27,8 +27,6 @@
 | `reservationBoardNaverNotes/{네이버 예약번호}` | 네이버 예약에 덧붙인 룸·비고 |
 | `reservationBoardNotices` | 공지 |
 | `reservationBoardConfig/share` | 링크 열쇠 |
-| `reservationBoardConfig/naverWatch` | 취소 감시가 마지막으로 본 날짜별 합계와 확인 시각 |
-| `reservationBoardNaverSeen/{네이버 예약번호}` | 네이버 예약의 마지막 상태와 취소를 처음 본 시각 |
 
 - 같은 예약을 두 직원이 고치면 `revision` 으로 나중 저장을 막는다(409).
 - 새 등록은 화면이 만든 요청 UUID 를 문서 이름으로 써서, 응답이 늦어 다시 눌러도 두 번 생기지 않는다.
@@ -38,29 +36,16 @@
 
 ## 네이버 예약
 
-오너비스타 연결은 **기존 그대로** 쓴다(`attendanceBookings.js` 의 `createBookingReader`, 같은 연결키
-`OWNERVISTA_BOOKINGS_TOKEN`, 같은 경로). 오너비스타 쪽은 고치지 않았다.
+`attendanceBookings.js` 의 같은 오너비스타 연결키(`OWNERVISTA_BOOKINGS_TOKEN`)로 읽는다.
 
 - 날짜별 목록: `/api/integrations/attendance/reservations?date=` (날짜마다 1분 기억)
 - 달력 합계: `/api/integrations/attendance/calendar?month=` (2분 기억)
-- 기존 연결은 손님 전화번호를 주지 않는다. 예약장에는 직원이 적은 예약의 번호만 보인다.
+- 오늘 취소: `/api/integrations/attendance/cancellations` (1분 기억). 오너비스타가 상태 변화를 처음 본 시각이
+  한국시간 오늘인, 신청·확정·이용완료 → 취소 예약만 준다. 그래서 경고 창은 **취소된 그날에만** 뜬다.
+  오너비스타에 이 경로가 아직 없으면(404) 경고만 쉬고 나머지 화면은 그대로다.
 
 한 번에 읽는 범위는 최대 7일(일주일 보기)이다. 네이버 조회가 실패해도 직원이 적은 예약은 보이고, 「네이버 예약을
 불러오지 못했습니다」로 따로 알린다. 0건으로 보이게 하지 않는다.
-
-### 취소 경고 (`watchNaverCancellations`)
-
-기존 연결은 「언제 취소됐는지」를 주지 않는다. 그래서 10분마다 도는 스케줄 함수가 직접 확인한다.
-
-1. 오늘부터 45일치 달력 합계(확정 건수·취소·노쇼·인원)를 읽어 지난번과 다른 날짜만 그날 목록을 다시 읽는다.
-2. 달력 합계는 확정 대기(신청)를 세지 않으므로, 한 시간 넘게 안 본 날짜를 차례마다 6개씩 더 읽는다(45일 한 바퀴 약 80분).
-3. 예약마다 지난번 상태를 `reservationBoardNaverSeen/{예약번호}` 에 두고, 신청·확정·이용완료 → 취소를 처음 본 시각을
-   `cancelledAt` 에 적는다. 처음 보는 예약은 적기만 한다(이미 취소였던 예약은 경고하지 않는다). 직접 등록(오너비스타)
-   예약의 취소, 변경 취소도 경고하지 않는다. 다시 살아난 예약은 `cancelledAt` 을 지운다.
-4. 예약장은 `cancelledAt` 이 한국시간 오늘인 예약만 경고한다. 그래서 경고는 **취소된 그날에만** 뜬다.
-
-감시가 30분 넘게 멈추면 예약장 아래에 「네이버 취소 확인이 늦어지고 있습니다」가 뜬다. 처음 배포한 뒤 첫 몇 차례는
-지금 상태를 적기만 하므로, 그 전에 이미 취소된 예약은 경고하지 않는다.
 
 「오늘 그만 보기」는 `localStorage` 의 `rb-cancel-muted` 에 오늘 날짜와 본 예약번호를 둔다. 그 휴대폰에서 그날만
 숨기고, 새로 취소된 예약은 다시 띄운다.
@@ -75,10 +60,11 @@ gviz 는 숫자 칸의 글자 값(예: 인원 `15+@`)을 버린다. 그런 줄�
 
 ## 배포
 
-1. Deploy Functions → `functions:reservationBoardApi` 와 `functions:watchNaverCancellations` (둘 다 처음 생긴다).
-2. 프론트는 머지하면 GitHub Pages 로 나간다.
-3. 매장 관리 → 돌담명가 예약 → **공유 링크 만들기** → **링크 복사** → 직원 단톡방.
-4. 같은 칸의 **구글 시트에서 지금까지의 예약 가져오기** 로 시트 예약을 옮긴다.
+1. 오너비스타(jit-pro)에 `cancellations` 경로를 배포한다. 없으면 취소 경고만 빠진다.
+2. Deploy Functions → `functions:reservationBoardApi` (처음 한 번은 이 함수가 새로 생긴다).
+3. 프론트는 머지하면 GitHub Pages 로 나간다.
+4. 매장 관리 → 돌담명가 예약 → **공유 링크 만들기** → **링크 복사** → 직원 단톡방.
+5. 같은 칸의 **구글 시트에서 지금까지의 예약 가져오기** 로 시트 예약을 옮긴다.
 
 ## 로컬 미리보기
 

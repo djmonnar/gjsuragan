@@ -125,7 +125,7 @@ test('monthly boards and templates are admin-readable but writes and all share s
 // 예약장은 링크 열쇠를 아는 사람만 reservationBoardApi 로 연다. 손님 이름·번호가 있으니 브라우저 직접 접근은 관리자도 막는다.
 test('reservation board data and its share key are API-only for every client', async () => {
   const clients=[env.unauthenticatedContext().firestore(),env.authenticatedContext('customer',{ email:'customer@example.invalid' }).firestore(),env.authenticatedContext('driver',{ firebase:{ sign_in_provider:'anonymous' } }).firestore(),env.authenticatedContext('admin',{ email:testAdminEmail }).firestore()];
-  const collections=['reservationBoardItems','reservationBoardNaverNotes','reservationBoardNotices','reservationBoardConfig','reservationBoardNaverSeen'];
+  const collections=['reservationBoardItems','reservationBoardNaverNotes','reservationBoardNotices','reservationBoardConfig'];
   await env.withSecurityRulesDisabled(async context => {
     for (const collection of collections) await setDoc(doc(context.firestore(),`${collection}/test`),{ name:'가상 손님',token:'secret',revision:1 });
   });

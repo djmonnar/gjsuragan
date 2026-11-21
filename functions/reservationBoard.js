@@ -16,19 +16,6 @@ const NOTES = 'reservationBoardNaverNotes';
 const NOTICES = 'reservationBoardNotices';
 const CONFIG = 'reservationBoardConfig';
 const SHARE_DOC = 'share';
-// 네이버 예약마다 마지막으로 본 상태. 취소로 바뀐 것을 처음 본 시각(cancelledAt)이 오늘이면 경고한다.
-const SEEN = 'reservationBoardNaverSeen';
-const WATCH_DOC = 'naverWatch';
-// 기존 오너비스타 연결은 「언제 취소됐는지」를 주지 않는다. 그래서 이 주기로 직접 상태를 보고
-// 바뀐 순간을 적어 둔다(watchNaverCancellations, functions/index.js 의 스케줄과 같은 값).
-const WATCH_EVERY_MINUTES = 10;
-const WATCH_AHEAD_DAYS = 45;
-const WATCH_DAYS_PER_RUN = 50;
-// 달력 합계는 확정 대기(신청) 예약을 세지 않는다. 신청만 있는 날도 놓치지 않게, 한 시간 넘게 안 본 날짜를
-// 차례마다 몇 개씩 더 읽는다(45일을 대략 80분에 한 바퀴).
-const WATCH_SWEEP_PER_RUN = 6;
-const WATCH_SWEEP_AFTER_MS = 60 * 60000;
-const WAS_EXPECTED = new Set(['requested', 'confirmed', 'completed']);
 // 같은 날짜를 여러 직원이 동시에 열어도 오너비스타는 이 간격에 한 번만 부른다.
 const NAVER_CACHE_MS = 60000;
 const CALENDAR_CACHE_MS = 120000;
@@ -79,6 +66,7 @@ function createReservationBoardService({ db, timestamp, naver, now = () => Date.
   let share = { at: 0, hash: '' };
   const naverDay = memo(date => naver.day(date), NAVER_CACHE_MS, now);
   const naverCalendar = memo(month => naver.calendar(month), CALENDAR_CACHE_MS, now);
+  const naverCancellations = memo(() => naver.cancellations(), NAVER_CACHE_MS, now);
 
   async function authorize(token) {
     const hash = M.shareHash(token);
@@ -105,90 +93,22 @@ function createReservationBoardService({ db, timestamp, naver, now = () => Date.
     }).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.localeCompare(a.createdAt));
   }
 
-  // 오늘(KST) 취소로 바뀐 네이버 예약. 감시가 멈춰 있으면(30분 넘게 확인 없음) stale 로 알린다.
-  async function todayCancellations() {
-    const today = M.kstDate(now());
-    const start = new Date(Date.parse(`${today}T00:00:00+09:00`)), end = new Date(start.getTime() + 86400000);
-    const [snapshot, watch] = await Promise.all([db.collection(SEEN).where('cancelledAt', '>=', start).get(), db.collection(CONFIG).doc(WATCH_DOC).get()]);
-    const checkedAt = watch.exists ? watch.get('checkedAt')?.toDate?.().getTime() || 0 : 0;
-    const items = snapshot.docs.map(doc => ({ id: doc.id, data: doc.data() || {} }))
-      .filter(row => row.data.cancelledAt?.toDate?.() < end)
-      .map(row => ({ id: row.id, date: String(row.data.date || ''), time: String(row.data.time || ''), name: String(row.data.name || ''),
-        people: Number.isSafeInteger(row.data.people) && row.data.people > 0 ? row.data.people : null, menu: String(row.data.menu || ''),
-        seat: String(row.data.seat || ''), cancelledAt: row.data.cancelledAt.toDate().toISOString() }))
-      .sort((a, b) => b.cancelledAt.localeCompare(a.cancelledAt));
-    return { items, checkedAt: checkedAt ? new Date(checkedAt).toISOString() : '',
-      state: checkedAt && now() - checkedAt < 3 * WATCH_EVERY_MINUTES * 60000 ? 'ready' : 'stale' };
-  }
-
-  // 기존 오너비스타 연결만으로 「취소로 바뀐 날」을 안다. 달력 합계(건수·취소·노쇼·인원)가 바뀐 날짜만
-  // 다시 읽어 예약마다 지난번 상태와 비교하고, 신청·확정·이용완료 → 취소를 처음 본 시각을 적는다.
-  // 처음 보는 예약은 적기만 한다(이미 취소였던 예약은 직원이 본 적이 없다). 읽기에 실패한 날짜는 다음 차례에 다시 본다.
-  async function watchNaverCancellations() {
-    const today = M.kstDate(now()), last = M.addDays(today, WATCH_AHEAD_DAYS);
-    const months = [today.slice(0, 7)];
-    while (months.at(-1) < last.slice(0, 7)) months.push(M.addDays(`${months.at(-1)}-01`, 32).slice(0, 7));
-    const counts = {};
-    for (const month of months) {
-      const calendar = await naver.calendar(month);
-      if (calendar?.state === 'unconfigured') return { state: 'unconfigured', checked: 0, cancelled: 0 };
-      for (const day of calendar?.days || []) {
-        if (day.date >= today && day.date <= last) counts[day.date] = [day.activeCount, day.cancelledCount, day.noshowCount, day.headcount].join('/');
-      }
-    }
-    const stateRef = db.collection(CONFIG).doc(WATCH_DOC);
-    const state = await stateRef.get();
-    const previous = state.exists ? state.get('days') || {} : {};
-    const checkedAt = state.exists ? state.get('checked') || {} : {};
-    const dates = Object.keys(counts).sort();
-    const changed = dates.filter(date => counts[date] !== previous[date] && (counts[date] !== '0/0/0/0' || previous[date] !== undefined))
-      .slice(0, WATCH_DAYS_PER_RUN);
-    const sweep = dates.filter(date => !changed.includes(date) && now() - (checkedAt[date] || 0) >= WATCH_SWEEP_AFTER_MS)
-      .sort((a, b) => (checkedAt[a] || 0) - (checkedAt[b] || 0) || a.localeCompare(b)).slice(0, WATCH_SWEEP_PER_RUN);
-    const done = {}, seen = {};
-    let cancelled = 0;
-    for (const date of [...changed, ...sweep]) {
-      let feed;
-      try { feed = await naver.day(date); } catch (_) { continue; }
-      if (!feed || !Array.isArray(feed.bookings)) continue;
-      const refs = feed.bookings.map(row => db.collection(SEEN).doc(row.id));
-      const snapshots = refs.length ? await db.getAll(...refs) : [];
-      const batch = db.batch();
-      feed.bookings.forEach((row, index) => {
-        const before = snapshots[index].exists ? snapshots[index].data() : null;
-        const info = { date, time: row.time || '', name: row.name || '', people: (row.adults || 0) + (row.children || 0),
-          menu: row.menuItems?.length ? row.menuItems.map(item => `${item.name} ${item.count}`).join(', ') : row.itemName || '',
-          seat: row.seat || '', origin: row.origin === 'manual' ? 'manual' : 'naver', status: row.status, checkedAt: timestamp() };
-        if (!before) { batch.set(refs[index], { ...info, firstSeenAt: timestamp(), cancelledAt: null }); return; }
-        if (before.status === row.status) return;
-        const becameCancelled = row.status === 'cancelled' && WAS_EXPECTED.has(before.status) && info.origin === 'naver';
-        if (becameCancelled) cancelled += 1;
-        batch.set(refs[index], { ...info, previousStatus: before.status,
-          cancelledAt: becameCancelled ? new Date(now()) : row.status === 'cancelled' ? before.cancelledAt ?? null : null }, { merge: true });
-      });
-      await batch.commit();
-      done[date] = counts[date]; seen[date] = now();
-    }
-    const inWindow = map => Object.fromEntries(Object.entries(map).filter(([date]) => date >= today && date <= last));
-    await stateRef.set({ days: { ...inWindow(previous), ...done }, checked: { ...inWindow(checkedAt), ...seen }, checkedAt: new Date(now()) });
-    return { state: 'ok', checked: Object.keys(done).length, cancelled };
-  }
-
   async function read(body) {
     await authorize(body.token);
     const dates = M.requireRange(body.from, body.to);
     const from = dates[0], to = dates.at(-1);
     const [manualRows, noteRows, noticeList, cancelled, ...feeds] = await Promise.all([
-      rangeRows(ITEMS, from, to), rangeRows(NOTES, from, to), notices(), todayCancellations(),
+      rangeRows(ITEMS, from, to), rangeRows(NOTES, from, to), notices(), settle(naverCancellations(M.kstDate(now()))),
       ...dates.map(date => settle(naverDay(date))),
     ]);
     const notes = Object.fromEntries(noteRows.map(row => [row.id, row.data]));
-    const cancellations = cancelled.items;
+    const cancelledFeed = cancelled.value;
+    const cancellations = cancelledFeed?.state === 'ready' ? M.cancellationItems(cancelledFeed) : [];
     const cancelledAt = Object.fromEntries(cancellations.map(item => [item.id, item.cancelledAt]));
     const storeName = feeds.map(feed => feed.value?.storeName).find(Boolean) || '돌담명가';
     const menuOptions = [...new Set(feeds.flatMap(feed => feed.value?.menuOptions || []))].slice(0, 25);
     return { today: M.kstDate(now()), from, to, storeName, pollMs: POLL_MS, notices: noticeList, menuOptions,
-      cancellations: { state: cancelled.state, date: M.kstDate(now()), checkedAt: cancelled.checkedAt, items: cancellations },
+      cancellations: { state: cancelledFeed ? cancelledFeed.state : 'error', date: cancelledFeed?.date || M.kstDate(now()), items: cancellations },
       days: dates.map((date, index) => M.dayView(date, manualRows, feeds[index], notes, cancelledAt)) };
   }
   async function month(body) {
@@ -334,7 +254,7 @@ function createReservationBoardService({ db, timestamp, naver, now = () => Date.
       rows: rows.slice(0, 300).map(row => ({ ...row.value, id: row.id, exists: existing.has(row.id) })) };
   }
 
-  return { read, month, save, remove, saveNaverNote, saveNotice, deleteNotice, shareStatus, rotateShare, importSheet, watchNaverCancellations };
+  return { read, month, save, remove, saveNaverNote, saveNotice, deleteNotice, shareStatus, rotateShare, importSheet };
 }
 
 function createReservationBoardHandler({ service, authorizeAdmin, logError = () => {} }) {
@@ -367,4 +287,4 @@ function createReservationBoardHandler({ service, authorizeAdmin, logError = () 
   };
 }
 
-module.exports = { ITEMS, NOTES, NOTICES, CONFIG, SHARE_DOC, SEEN, WATCH_DOC, WATCH_EVERY_MINUTES, NAVER_CACHE_MS, SHARE_CACHE_MS, POLL_MS, createReservationBoardService, createReservationBoardHandler };
+module.exports = { ITEMS, NOTES, NOTICES, CONFIG, SHARE_DOC, NAVER_CACHE_MS, SHARE_CACHE_MS, POLL_MS, createReservationBoardService, createReservationBoardHandler };
