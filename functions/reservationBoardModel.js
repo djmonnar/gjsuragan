@@ -211,13 +211,6 @@ function monthView(month, manualRows, calendar) {
   }
   return [...byDate.values()];
 }
-function cancellationItems(feed) {
-  return (feed?.bookings || []).map(row => ({ id: row.id, date: row.useDate, time: row.time || '', name: row.name || '',
-    people: whole(row.adults) + whole(row.children) || null,
-    menu: row.menuItems?.length ? row.menuItems.map(item => `${item.name} ${item.count}`).join(', ') : row.itemName || '',
-    seat: row.seat || '', cancelledAt: row.cancelledAt }));
-}
-
 // ── 구글 시트 가져오기 ─────────────────────────────────────────────────────────
 // 「직원 공용 예약장」 시트(첫 줄이 제목)를 gviz JSON 으로 읽는다. CSV 는 날짜가
 // 「 11월 20일 금」처럼 연도 없이 나오지만 gviz 는 Date(2026,10,20) 로 준다.
@@ -328,4 +321,4 @@ function shareHash(token) {
 module.exports = { KST_OFFSET_MS, LUNCH_UNTIL, ROUTES, STATUS_LABELS, NAVER_LABELS, MAX_RANGE_DAYS, LIMITS, SHEET_COLUMNS,
   error, kstDate, isDate, requireDate, addDays, requireRange, requireMonth, mealOf, reservationInput, actorName,
   requireId, requireRevision, requireRequestId, noteInput, noticeInput, manualItem, naverItem, summarize, dayView,
-  monthView, cancellationItems, sheetSource, parseGviz, sheetDate, sheetTime, sheetRows, shareHash };
+  monthView, sheetSource, parseGviz, sheetDate, sheetTime, sheetRows, shareHash };

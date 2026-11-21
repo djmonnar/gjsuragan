@@ -71,32 +71,6 @@ function normalizeCalendar(input, now, month) {
     syncFailed: input.syncFailed === true, fetchedAt: now };
 }
 
-// 오늘(KST) 취소로 바뀐 네이버 예약. 직원 예약장의 취소 경고 팝업이 쓴다.
-function normalizeCancellations(input, now) {
-  const today = workDate(now);
-  if (input?.version !== 1 || input.state !== 'cancellations' || input.date !== today || !Array.isArray(input.bookings)
-    || input.bookings.length > 500) throw new Error('Invalid cancellation feed');
-  const text = (value, max) => typeof value === 'string' ? value.slice(0, max) : '';
-  const whole = value => {
-    if (!Number.isSafeInteger(value) || value < 0 || value > 10000) throw new Error('Invalid cancellation count');
-    return value;
-  };
-  const ids = new Set();
-  const bookings = input.bookings.map(row => {
-    const cancelledAt = Date.parse(row?.cancelledAt);
-    if (!row || typeof row.id !== 'string' || !row.id || row.id.length > 128 || ids.has(row.id)
-      || typeof row.useDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(row.useDate)
-      || (row.time !== null && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(row.time))
-      || !Number.isFinite(cancelledAt) || workDate(cancelledAt) !== today
-      || !Array.isArray(row.menuItems) || row.menuItems.length > 20) throw new Error('Invalid cancelled booking');
-    ids.add(row.id);
-    return { id: row.id, useDate: row.useDate, time: row.time, name: text(row.name, 80), itemName: text(row.itemName, 200),
-      menuItems: row.menuItems.map(menu => ({ name: text(menu.name, 120), count: whole(menu.count) })),
-      adults: whole(row.adults), children: whole(row.children), seat: text(row.seat, 60), cancelledAt: new Date(cancelledAt).toISOString() };
-  });
-  return { state: 'ready', date: today, bookings, capped: input.capped === true, fetchedAt: now };
-}
-
 function createBookingReader({ token, fetchImpl = fetch, now = Date.now }) {
   let cached = null, pending = null;
   const read = async (date) => {
@@ -135,17 +109,6 @@ function createBookingReader({ token, fetchImpl = fetch, now = Date.now }) {
     if ([401, 403].includes(response.status)) fail('오너비스타 예약 연결을 확인해 주세요.', 403);
     if (!response.ok) fail('예약 캘린더를 불러오지 못했습니다. 잠시 후 다시 확인해 주세요.', 503);
     return normalizeCalendar(await readJson(response), now(), month);
-  };
-  read.cancellations = async () => {
-    const secret = token();
-    if (!secret) return { state: 'unconfigured', bookings: [] };
-    const response = await fetchImpl(SOURCE.replace(/today$/, 'cancellations'), { headers: { Authorization: `Bearer ${secret}`, Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000), redirect: 'error', cache: 'no-store' });
-    // 오너비스타에 이 경로가 아직 배포되지 않았으면 경고만 쉬고 나머지 화면은 그대로 둔다.
-    if (response.status === 404) { await response.body?.cancel().catch(() => {}); return { state: 'unavailable', bookings: [] }; }
-    if ([401, 403].includes(response.status)) fail('오너비스타 예약 연결을 확인해 주세요.', 403);
-    if (!response.ok) fail('오늘 취소된 네이버 예약을 확인하지 못했습니다.', 503);
-    return normalizeCancellations(await readJson(response), now());
   };
   return read;
 }
@@ -222,4 +185,4 @@ function createBookingsHandler({ authorizeDevice, readBookings, createBooking, v
   };
 }
 
-module.exports = { normalizeFeed, normalizeCalendar, normalizeCancellations, createBookingReader, createBookingsHandler, createBookingWriter, bookingInput };
+module.exports = { normalizeFeed, normalizeCalendar, createBookingReader, createBookingsHandler, createBookingWriter, bookingInput };

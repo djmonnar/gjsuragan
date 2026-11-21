@@ -3,7 +3,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('../../reservationBoardModel');
 const { createReservationBoardHandler } = require('../../reservationBoard');
-const { createBookingReader, normalizeCancellations } = require('../../attendanceBookings');
 
 // 2026-11-21 12:00 KST
 const now = Date.parse('2026-11-21T03:00:00Z');
@@ -125,29 +124,6 @@ test('sheet import accepts copied text cells and refuses sheets it cannot read',
   assert.throws(() => M.sheetSource('https://example.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-ab'), { status: 400 });
   assert.throws(() => M.parseGviz('<html>로그인</html>'), { status: 400 });
   assert.throws(() => M.sheetRows({ cols: [{ label: '이름' }], rows: [] }, { id: 'x', gid: '0' }, now), /날짜/);
-});
-
-test('cancellation feed accepts only today-changed rows and the reader treats a missing OwnerVista route as unavailable', async () => {
-  const start = Date.parse('2026-11-21T03:00:00Z');
-  const body = extra => ({ version: 1, state: 'cancellations', date: '2026-11-21', bookings: [{ id: 'n1', useDate: '2026-11-28', time: '18:00',
-    name: '가상', itemName: '룸', menuItems: [], adults: 2, children: 0, seat: '', cancelledAt: '2026-11-21T01:00:00.000Z', customerPhone: 'secret' }], ...extra });
-  const parsed = normalizeCancellations(body(), start);
-  assert.equal(parsed.bookings[0].useDate, '2026-11-28');
-  assert.doesNotMatch(JSON.stringify(parsed), /secret/);
-  assert.throws(() => normalizeCancellations(body({ date: '2026-11-20' }), start));
-  assert.throws(() => normalizeCancellations(body({ bookings: [{ ...body().bookings[0], cancelledAt: '2026-11-20T10:00:00.000Z' }] }), start));
-  let status = 404;
-  const read = createBookingReader({ token: () => 'key', now: () => start, fetchImpl: async url => {
-    assert.equal(url, 'https://ownervista.co.kr/api/integrations/attendance/cancellations');
-    return status === 200 ? Response.json(body()) : new Response('not found', { status });
-  } });
-  assert.equal((await read.cancellations()).state, 'unavailable');
-  status = 200;
-  assert.equal((await read.cancellations()).bookings.length, 1);
-  status = 503;
-  await assert.rejects(read.cancellations(), { status: 503 });
-  const unconfigured = createBookingReader({ token: () => '', fetchImpl: async () => assert.fail('must not fetch') });
-  assert.equal((await unconfigured.cancellations()).state, 'unconfigured');
 });
 
 test('handler sends link actions to the service, keeps admin actions behind admin login and never leaks internal errors', async () => {

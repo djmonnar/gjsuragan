@@ -54,13 +54,20 @@ exports.attendanceBookingsApi = onRequest({ region: 'asia-northeast3', invoker: 
 // 돌담명가 직원 공용 예약장(reservations.html). 링크 열쇠로 열고, 네이버 예약은 같은 오너비스타 연결키로 읽는다.
 const { createReservationBoardService, createReservationBoardHandler } = require('./reservationBoard');
 const boardBookings = createBookingReader({ token: () => ownervistaBookingsToken.value() });
+const boardService = createReservationBoardService({ db, timestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+  naver: { day: date => boardBookings(date), calendar: month => boardBookings.calendar(month) } });
 exports.reservationBoardApi = onRequest({ region: 'asia-northeast3', invoker: 'public', maxInstances: 3,
   secrets: [ownervistaBookingsToken] }, createReservationBoardHandler({
-  service: createReservationBoardService({ db, timestamp: () => admin.firestore.FieldValue.serverTimestamp(),
-    naver: { day: date => boardBookings(date), calendar: month => boardBookings.calendar(month), cancellations: () => boardBookings.cancellations() } }),
+  service: boardService,
   authorizeAdmin: req => verifyAdminRequest(req),
   logError: (message, detail) => logger.error(message, detail)
 }));
+// 기존 연결은 취소 시각을 주지 않아서, 10분마다 네이버 예약 상태를 보고 취소로 바뀐 순간을 적는다(예약장 취소 경고).
+exports.watchNaverCancellations = onSchedule({ schedule: 'every 10 minutes', timeZone: 'Asia/Seoul', region: 'asia-northeast3',
+  timeoutSeconds: 300, secrets: [ownervistaBookingsToken] }, async () => {
+  const result = await boardService.watchNaverCancellations();
+  logger.info('Naver cancellation watch', result);
+});
 exports.attendanceApi = onRequest({ region: 'asia-northeast3', invoker: 'public', maxInstances: 10, secrets: [attendancePrivateKey] },
   createAttendanceHandler({
     service: createAttendanceService({ db, vault: createPrivateVault(() => attendancePrivateKey.value()),

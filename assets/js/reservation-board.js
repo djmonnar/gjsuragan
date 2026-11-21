@@ -27,7 +27,9 @@
       '다른 직원이 먼저 고친 예약을 저장하면 막힙니다. 새로고침해서 바뀐 내용을 보고 다시 저장하세요.']],
     ['네이버 예약', ['네이버 예약은 초록색 「N 네이버예약」 표시로 자동으로 들어옵니다(오너비스타 수집, 몇 분 늦을 수 있음).',
       '네이버 예약의 날짜·인원 변경과 취소는 네이버(스마트플레이스)나 오너비스타에서 합니다. 여기서는 룸과 비고만 적을 수 있습니다.',
-      '네이버 예약이 취소되면, 취소된 그날에만 이 화면을 열 때 경고 창이 뜹니다. 「오늘 그만 보기」를 누르면 이 휴대폰에서는 오늘 더 뜨지 않습니다(새로 취소된 예약은 다시 뜹니다).']],
+      '네이버 예약이 취소되면, 취소된 그날에만 이 화면을 열 때 경고 창이 뜹니다. 취소는 10분마다 확인하므로 조금 늦게 뜰 수 있습니다.',
+      '「오늘 그만 보기」를 누르면 이 휴대폰에서는 오늘 더 뜨지 않습니다(새로 취소된 예약은 다시 뜹니다).',
+      '네이버 손님 전화번호는 오너비스타 연결이 보내 주지 않아 여기에는 나오지 않습니다. 필요하면 네이버(스마트플레이스)나 오너비스타에서 확인하세요.']],
     ['공지 · 내 이름', ['맨 위 공지에서 「＋ 공지 쓰기」로 모두에게 알릴 내용을 적습니다. 공지를 누르면 고치거나 지울 수 있고, 「맨 위 고정」을 켜면 가장 위에 보입니다.',
       '오른쪽 위 이름 버튼에 내 이름을 적어 두면 등록할 때 「받은 직원」에 자동으로 들어가고, 누가 고쳤는지 기록됩니다.',
       '화면은 2분마다, 그리고 다시 열 때마다 새로 불러옵니다. 바로 보려면 ↻ 를 누르세요.',
@@ -248,7 +250,7 @@
   }
   function renderStatus() {
     const el = document.getElementById('rb-status');
-    if (el) el.textContent = S.loading ? '불러오는 중…' : S.lastLoaded ? `마지막 확인 ${clock(S.lastLoaded)} · 2분마다 새로고침${S.cancellations?.state === 'unavailable' ? ' · 네이버 취소 알림 준비 중' : ''}` : '';
+    if (el) el.textContent = S.loading ? '불러오는 중…' : S.lastLoaded ? `마지막 확인 ${clock(S.lastLoaded)} · 2분마다 새로고침${S.cancellations?.state === 'stale' ? ' · 네이버 취소 확인이 늦어지고 있습니다' : ''}` : '';
     root.querySelector('[data-act="refresh"]')?.classList.toggle('is-spinning', S.loading);
   }
 
@@ -359,7 +361,7 @@
     try { const saved = JSON.parse(store.get('rb-cancel-muted') || '{}'); return saved.date === S.today && Array.isArray(saved.ids) ? new Set(saved.ids) : new Set(); } catch (_) { return new Set(); }
   }
   function showCancellations(force = false) {
-    const items = S.cancellations?.state === 'ready' ? S.cancellations.items : [];
+    const items = S.cancellations?.items || [];
     if (!items.length || (S.sheet && !force)) return;
     const muted = force ? new Set() : mutedIds();
     const visible = items.filter(item => !muted.has(item.id));

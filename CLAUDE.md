@@ -52,8 +52,8 @@ npm run test:emulator  # 규칙·서비스 (firebase-tools 필요)
 | `functions/index.js` 의 `api` 경로 | Deploy Functions → `functions:api` |
 | `functions/attendance*.js` | Deploy Functions → `functions:attendanceApi` |
 | `functions/imweb*.js` | Deploy Functions → `functions:syncImwebOrders` |
-| `functions/reservationBoard*.js` | Deploy Functions → `functions:reservationBoardApi` |
-| `functions/attendanceBookings.js` | Deploy Functions → `functions:attendanceBookingsApi` 와 `functions:reservationBoardApi` (둘이 같이 쓴다) |
+| `functions/reservationBoard*.js` | Deploy Functions → `functions:reservationBoardApi` 와 `functions:watchNaverCancellations` (네이버 취소 감시, 10분마다) |
+| `functions/attendanceBookings.js` | Deploy Functions → `functions:attendanceBookingsApi`, `functions:reservationBoardApi`, `functions:watchNaverCancellations` (셋이 같이 쓴다) |
 | `firestore.rules` | Deploy Firestore Rules (입력값 없음) |
 | `attendance.html`, `assets/js/attendance-*.js`, `assets/css/attendance.css` | 위와 별개로 Deploy Attendance Hosting (입력값 없음). 오래된 태블릿용 `gjsuragan-60505.web.app` |
 

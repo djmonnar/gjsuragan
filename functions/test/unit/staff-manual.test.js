@@ -462,6 +462,14 @@ test('직원 공용 예약장 안내가 실제 동작과 같다', () => {
   assert.equal(board.SHARE_CACHE_MS, 30000);
   assert.match(body, /<b>30초 안에<\/b> 막히고/);
   assert.match(source('assets/js/reservation-board-admin.js'), /이전 링크는 30초 안에 막히고/);
+  // 네이버 취소 확인 주기: 스케줄과 서비스 값, 안내가 같다.
+  assert.equal(board.WATCH_EVERY_MINUTES, 10);
+  assert.match(source('functions/index.js'), /exports\.watchNaverCancellations = onSchedule\(\{ schedule: 'every 10 minutes'/);
+  assert.match(body, /<b>10분마다<\/b> 확인/);
+  assert.match(help, /10분마다 확인/);
+  // 기존 연결은 네이버 손님 번호를 주지 않는다 — 번호가 보인다고 안내하지 않는다.
+  assert.doesNotMatch(source('functions/attendanceBookings.js'), /phone/);
+  assert.match(body, /네이버 손님 전화번호는 기존 오너비스타 연결이 보내 주지 않아/);
   // 취소 경고는 그날만, 「오늘 그만 보기」는 휴대폰별.
   assert.match(page, /data-act="cancel-mute">오늘 그만 보기</);
   assert.match(page, /saved\.date === S\.today/);

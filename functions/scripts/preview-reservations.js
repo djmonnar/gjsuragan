@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
-const { createReservationBoardService, createReservationBoardHandler } = require('../reservationBoard');
+const { createReservationBoardService, createReservationBoardHandler, SEEN, CONFIG, WATCH_DOC } = require('../reservationBoard');
 const { kstDate, addDays } = require('../reservationBoardModel');
 
 if (!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST || '')) throw new Error('Set FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 first.');
@@ -36,9 +36,6 @@ const service = createReservationBoardService({ db, timestamp: () => FieldValue.
       return { date, activeCount: rows.length, headcount: rows.reduce((sum, row) => sum + row.adults + row.children, 0), verified: true };
     }) };
   },
-  cancellations: async () => ({ state: 'ready', date: today(), bookings: [
-    { id: 'nv-c', useDate: today(), time: '19:00', name: '가상 취소', itemName: '저녁 룸', menuItems: [], adults: 3, children: 0, seat: '', cancelledAt: new Date(Date.now() - 3600000).toISOString() },
-    { id: 'nv-d', useDate: addDays(today(), 3), time: '18:00', name: '가상 다음주', itemName: '저녁 룸', menuItems: [{ name: '소(명품)', count: 6 }], adults: 6, children: 0, seat: '', cancelledAt: new Date(Date.now() - 600000).toISOString() }] }),
 } });
 const handler = createReservationBoardHandler({ service, authorizeAdmin: async () => ({ email: 'local-preview@example.invalid' }) });
 
@@ -50,6 +47,11 @@ async function seed() {
   await add(3, { date: today(), time: '19:30', name: '가상 취소 손님', people: 100, menu: '명품50진품50', route: '기타', status: 'cancelled', memo: '유아용의자1개 요청' });
   await add(4, { date: addDays(today(), 1), time: '17:40', name: '가상 회사', people: 35, menu: '소(명품)', room: '2층', route: '전화', memo: '육회서비스' });
   await add(5, { date: addDays(today(), 2), time: '18:00', name: '가상 모임', menu: '고기', route: '전화' });
+  // 취소 경고 미리보기: 감시가 오늘 취소를 본 것처럼 적어 둔다.
+  const cancelledAt = new Date(Date.now() - 3600000);
+  await db.collection(SEEN).doc('nv-c').set({ date: today(), time: '19:00', name: '가상 취소', people: 3, menu: '저녁 룸', seat: '', status: 'cancelled', cancelledAt });
+  await db.collection(SEEN).doc('nv-d').set({ date: addDays(today(), 3), time: '18:00', name: '가상 다음주', people: 6, menu: '소(명품) 6', seat: '', status: 'cancelled', cancelledAt: new Date(Date.now() - 600000) });
+  await db.collection(CONFIG).doc(WATCH_DOC).set({ days: {}, checked: {}, checkedAt: new Date() });
   await service.saveNotice({ token, text: '단체 예약(20명 이상)은 2층으로 받아 주세요.', author: '사장', pinned: true, requestId: '33333333-3333-4333-8333-000000000001' });
   await service.saveNotice({ token, text: '12월 25일은 저녁 영업만 합니다.', author: '실장', requestId: '33333333-3333-4333-8333-000000000002' });
   return token;
