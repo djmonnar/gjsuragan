@@ -471,6 +471,11 @@ test('직원 공용 예약장 안내가 실제 동작과 같다', () => {
   assert.match(source('functions/reservationBoard.js'), /tx\.update\(ref, \{ deleted: true/);
   assert.match(body, /숨겨질 뿐 기록이 남아/);
   assert.match(body, /<b>룸<\/b>과 <b>비고<\/b>만/);
+  // 네이버 손님 번호: 날짜 조회 피드의 phone 을 넘기고, 화면은 ☎ 로 건다.
+  assert.match(source('functions/attendanceBookings.js'), /\{ phone: row\.phone \}/);
+  assert.match(source('functions/reservationBoardModel.js'), /phone: typeof row\.phone === 'string' \? row\.phone : ''/);
+  assert.match(body, /네이버 손님 <b>전화번호<\/b>도 보이고/);
+  assert.match(help, /네이버 손님도 전화번호가 보입니다/);
   // 화면에 실제로 있는 버튼 이름만 안내한다.
   for (const label of ['공유 링크 만들기', '링크 복사', '새 링크 만들기', '구글 시트에서 지금까지의 예약 가져오기', '미리보기']) {
     assert.match(source('assets/js/reservation-board-admin.js'), new RegExp(label), label);
