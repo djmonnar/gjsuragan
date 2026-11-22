@@ -20,7 +20,7 @@ const today = () => kstDate(Date.now());
 const sample = date => {
   const offset = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today()}T00:00:00Z`)) / 86400000);
   const rows = {
-    0: [{ id: 'nv-a', time: '12:00', name: '가상 네이버', itemName: '점심 룸', menuItems: [{ name: '한우 정식', count: 4 }], adults: 4, children: 0, status: 'confirmed', phone: '01000000000' },
+    0: [{ id: 'nv-a', time: '12:00', name: '가상 네이버', itemName: '점심 룸', menuItems: [{ name: '한우 정식', count: 4 }], adults: 4, children: 0, status: 'confirmed', phone: '01000000000', coupons: ['네이버 리뷰 육사시미 증정 쿠폰'] },
       { id: 'nv-b', time: '18:30', name: '가상 가족', itemName: '저녁 룸', menuItems: [{ name: '돼지갈비', count: 5 }], adults: 4, children: 1, status: 'requested' },
       { id: 'nv-c', time: '19:00', name: '가상 취소', itemName: '저녁 룸', menuItems: [], adults: 3, children: 0, status: 'cancelled' }],
     3: [{ id: 'nv-d', time: '18:00', name: '가상 다음주', itemName: '저녁 룸', menuItems: [{ name: '소(명품)', count: 6 }], adults: 6, children: 0, status: 'cancelled' }],
