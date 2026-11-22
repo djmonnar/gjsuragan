@@ -74,6 +74,9 @@ button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:tran
 .rb-card-people{font-weight:800;color:var(--rb-brand);font-variant-numeric:tabular-nums}
 .rb-card-tags{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:5px}
 .rb-card-menu{font-size:13px;color:#4c403a;overflow-wrap:anywhere}
+.rb-card-coupons{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.rb-badge-coupon{background:#eef7ee;color:#2f7a3b;white-space:normal;overflow-wrap:anywhere}
+.rb-coupon-mark{flex-shrink:0;font-size:13px}
 .rb-card-memo{margin:7px 0 0;background:var(--rb-memo);border-radius:8px;padding:6px 8px;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}
 .rb-card-dup{margin:6px 0 0;font-size:12px;color:#7a4c0b;background:var(--rb-amber-soft);border-radius:8px;padding:5px 8px}
 .rb-card-meta{margin:6px 0 0;font-size:11px;color:var(--rb-sub)}

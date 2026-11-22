@@ -502,6 +502,13 @@ test('직원 공용 예약장 안내가 실제 동작과 같다', () => {
   assert.match(help, /한 번만 「빠진 정보가 있어요」 창/);
   for (const text of [body, help]) assert.match(text, new RegExp(quick.ASK_IF_EMPTY.map(([, label]) => label).join('·')));
   assert.match(page, /placeholder="예: 홍길동 12월18일 금요일 6시 20~24명 1층 소고기 010-0000-0000"/);
+  // 네이버 쿠폰: 오너비스타 피드의 coupons 를 넘기고, 안내에 적은 짧은 이름 규칙이 화면 규칙과 같다.
+  assert.match(source('functions/attendanceBookings.js'), /coupons: couponNames\(row\.coupons\)/);
+  const couponLabel = eval(page.match(/const couponLabel = (name => \{[^\n]+\});/)[1]);
+  assert.equal(couponLabel('네이버 리뷰 육사시미 증정 쿠폰'), '리뷰 육사시미 증정');
+  assert.equal(couponLabel('네이버 쿠폰'), '네이버 쿠폰');
+  assert.match(body, /🎟 쿠폰 · 리뷰 육사시미 증정/);
+  assert.match(help, /🎟 쿠폰 · 리뷰 육사시미 증정/);
   // 시트 가져오기가 읽는 첫 줄 칸 이름과 안내가 같다.
   assert.deepEqual(Object.values(model.SHEET_COLUMNS), ['날짜', '낮/밤', '예약시간', '예약자명', '연락처', '인원', '메뉴', '예약경로', '비고', '예약상태', '룸', '예약자']);
   assert.match(source('assets/js/reservation-board-admin.js'), /날짜 · 낮\/밤 · 예약시간 · 예약자명 · 연락처 · 인원 · 메뉴 · 예약경로 · 비고 · 예약상태 · 룸 · 예약자/);

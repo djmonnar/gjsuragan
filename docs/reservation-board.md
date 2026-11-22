@@ -58,6 +58,9 @@
 
 - 날짜별 목록: `/api/integrations/attendance/reservations?date=` (날짜마다 1분 기억). 손님 전화번호(`phone`)가
   여기에만 온다. 예약장 카드의 ☎ 로 바로 건다. 태블릿이 쓰는 `/today` 에는 번호가 없다.
+- 네이버 쿠폰: 세 경로 모두 `coupons`(손님이 쓴 쿠폰 이름, 최대 5개)를 준다. 카드에 「🎟 쿠폰 · 이름」으로 보이고
+  (앞의 「네이버」, 뒤의 「쿠폰」은 뗀다), 일주일 보기에는 🎟, 네이버 예약 상세에는 전체 이름이 나온다. 쿠폰을 읽기 전에
+  수집한 예약은 빈 목록이다.
 - 달력 합계: `/api/integrations/attendance/calendar?month=` (2분 기억)
 - 오늘 취소: `/api/integrations/attendance/cancellations` (1분 기억). 오너비스타가 상태 변화를 처음 본 시각이
   한국시간 오늘인, 신청·확정·이용완료 → 취소 예약만 준다. 그래서 경고 창은 **취소된 그날에만** 뜬다.

@@ -6,6 +6,13 @@ const SOURCE = 'https://ownervista.co.kr/api/integrations/attendance/today';
 const ACTIVE = new Set(['requested', 'confirmed', 'completed']);
 const STATUSES = new Set([...ACTIVE, 'cancelled', 'cancelled_by_change', 'noshowed', 'unknown']);
 
+// 손님이 쓴 네이버 쿠폰 이름(「네이버 리뷰 육사시미 증정 쿠폰」). 쿠폰을 읽기 전 오너비스타는 이 칸을 보내지 않으므로
+// 없거나 모양이 다르면 빈 목록이다 — 쿠폰 칸 하나 때문에 그날 예약 목록 전체를 버리지 않는다.
+function couponNames(value) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap(name => typeof name === 'string' && name.trim() ? [name.replace(/\s+/g, ' ').trim().slice(0, 80)] : []).slice(0, 5);
+}
+
 function normalizeFeed(input, now, date = workDate(now)) {
   if (input?.version !== 1 || input.date !== date || !['ready', 'waiting', 'partial'].includes(input.state)
     || typeof input.storeName !== 'string' || !Array.isArray(input.bookings) || input.bookings.length > 3000
@@ -25,7 +32,7 @@ function normalizeFeed(input, now, date = workDate(now)) {
       || !Array.isArray(row.menuItems) || row.menuItems.length > 20) throw new Error('Invalid booking');
     ids.add(row.id);
     return { id: row.id, time: row.time, name: text(row.name, 80), itemName: text(row.itemName, 200),
-      origin: row.origin === 'manual' ? 'manual' : 'naver', seat: text(row.seat, 60),
+      origin: row.origin === 'manual' ? 'manual' : 'naver', seat: text(row.seat, 60), coupons: couponNames(row.coupons),
       // 오너비스타는 날짜 조회(관리자·직원 예약장)에만 손님 번호를 준다. 태블릿 오늘 목록에는 오지 않는다.
       ...(typeof row.phone === 'string' && /^[0-9+\-() ]{4,20}$/.test(row.phone) ? { phone: row.phone } : {}),
       menuItems: row.menuItems.map(menu => ({ name: text(menu.name, 120), count: whole(menu.count) })),
@@ -224,4 +231,4 @@ function createBookingsHandler({ authorizeDevice, readBookings, createBooking, v
   };
 }
 
-module.exports = { normalizeFeed, normalizeCalendar, normalizeCancellations, createBookingReader, createBookingsHandler, createBookingWriter, bookingInput };
+module.exports = { couponNames, normalizeFeed, normalizeCalendar, normalizeCancellations, createBookingReader, createBookingsHandler, createBookingWriter, bookingInput };
