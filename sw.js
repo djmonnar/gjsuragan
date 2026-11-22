@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v106-reservation-board';
+const CACHE = 'gjsuragan-v107-reservation-quick';
 const PRECACHE = [
   './customer.html',
   './admin.html',
@@ -11,11 +11,12 @@ const PRECACHE = [
   './staff-admin-manifest.json',
   './assets/css/staff-admin.css?v=20261121-board',
   './assets/js/staff-admin.js?v=20261121-board',
-  './assets/js/staff-manual.js?v=20261121-board',
+  './assets/js/staff-manual.js?v=20261122-quick',
   './assets/js/reservation-board-admin.js?v=20261121-board',
   './reservations.html',
-  './assets/css/reservation-board.css?v=20261121-board',
-  './assets/js/reservation-board.js?v=20261121-board',
+  './assets/css/reservation-board.css?v=20261122-quick',
+  './assets/js/reservation-quick-entry.js?v=20261122-quick',
+  './assets/js/reservation-board.js?v=20261122-quick',
   './assets/js/staff-admin-redirect.js?v=20260910-stores',
   './assets/css/attendance.css?v=20261002-daily-once',
   './assets/js/attendance-ui.js?v=20260910-calendar',

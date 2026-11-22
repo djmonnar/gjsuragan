@@ -21,6 +21,8 @@
       '달력: 날짜마다 팀 수와 인원이 보이고, 날짜를 누르면 아래에 그날 예약이 나옵니다.',
       '팀·인원 합계에는 취소된 예약이 들어가지 않습니다. 취소된 예약은 각 칸 맨 아래에 흐리게 남습니다.']],
     ['예약 등록 · 수정 · 삭제', ['오른쪽 아래 「＋ 예약 등록」을 누릅니다. 예약자명만 꼭 적으면 되고, 나머지는 아는 만큼 적습니다.',
+      '맨 위 「한 줄로 빠르게 입력」에 「홍길동 12월18일 금요일 6시 20~24명 1층 소고기 010-0000-0000」처럼 적거나 카톡 내용을 붙여 넣으면 날짜·시간·인원·룸·메뉴·연락처·예약자명이 칸에 나뉘어 들어갑니다. 붙여 넣으면 바로, 직접 적었으면 「칸에 나눠 넣기」를 누르세요.',
+      '오전·오후를 안 적은 1~9시는 저녁으로 봅니다(6시 → 18:00). 「20~24명」은 24명으로 넣고 비고에 범위를 남깁니다. 적은 요일이 날짜와 다르면 알려 줍니다. 채워진 칸을 확인하고 등록하세요.',
       '시간을 고르면 낮/밤이 저절로 맞춰집니다(16시 전 낮). 인원을 모르면 비워 두면 「인원 미정」으로 보입니다.',
       '예약 카드를 누르면 고칠 수 있습니다. 손님이 취소하면 예약상태를 「취소」로 바꾸세요. 기록이 남습니다.',
       '「삭제」는 잘못 적은 예약을 지울 때만 씁니다. 지운 예약도 기록은 남아 있어 관리자에게 말하면 되살릴 수 있습니다.',
@@ -294,11 +296,15 @@
       const routes = v.route && !ROUTES.includes(v.route) ? [...ROUTES, v.route] : ROUTES;
       return `${head(item ? '예약 수정' : '예약 등록', item?.updatedAt ? `마지막 수정 ${esc(item.updatedBy)} · ${esc(stamp(item.updatedAt))}` : '예약자명만 꼭 적으면 됩니다')}
       <form class="rb-form" data-form="reservation" novalidate>
+        ${item ? '' : `<div class="rb-quick"><label for="rb-quick-text">한 줄로 빠르게 입력</label>
+          <textarea id="rb-quick-text" rows="2" maxlength="500" autofocus placeholder="예: 홍길동 12월18일 금요일 6시 20~24명 1층 소고기 010-0000-0000"></textarea>
+          <button type="button" class="rb-quick-go" data-act="quick-fill">칸에 나눠 넣기</button>
+          <div class="rb-quick-result" role="status"></div></div>`}
         <div class="rb-row2"><label class="rb-field"><span>날짜</span><input type="date" name="date" value="${esc(v.date)}" required></label>
           <label class="rb-field"><span>시간</span><input type="time" name="time" value="${esc(v.time)}" step="300"></label></div>
         ${chips('time', TIME_CHIPS, v.time)}
         <fieldset class="rb-seg"><legend>낮 / 밤</legend>${[['lunch', '☀ 낮'], ['dinner', '☾ 밤']].map(([key, label]) => `<label><input type="radio" name="meal" value="${key}"${v.meal === key ? ' checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>
-        <label class="rb-field"><span>예약자명 <b>*</b></span><input name="name" value="${esc(v.name)}" maxlength="40" autocomplete="off" required placeholder="예: 홍길동, ○○회사 단체"${item ? '' : ' autofocus'}></label>
+        <label class="rb-field"><span>예약자명 <b>*</b></span><input name="name" value="${esc(v.name)}" maxlength="40" autocomplete="off" required placeholder="예: 홍길동, ○○회사 단체"></label>
         <label class="rb-field"><span>연락처</span><input name="phone" value="${esc(v.phone)}" maxlength="40" inputmode="tel" autocomplete="off" placeholder="010-0000-0000"></label>
         <div class="rb-field"><span>인원</span><div class="rb-stepper"><button type="button" data-step="-1" aria-label="한 명 빼기">−</button><input name="people" value="${v.people ?? ''}" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="모름" aria-label="인원"><button type="button" data-step="1" aria-label="한 명 더하기">＋</button></div></div>
         ${chips('people', PEOPLE_CHIPS, v.people)}
@@ -418,6 +424,30 @@
       if (err.status === 409 || err.status === 404) load();
     }
   }
+  // 「한 줄로 빠르게 입력」: 적은 한 줄을 칸으로 나눠 채운다. 저장은 직원이 확인하고 등록을 눌러야 한다.
+  function quickFill(form) {
+    const box = form.querySelector('#rb-quick-text'), out = form.querySelector('.rb-quick-result');
+    const text = box.value.trim();
+    if (!text) { out.innerHTML = '<span class="warn">한 줄을 적거나 붙여 넣어 주세요.</span>'; box.focus(); return; }
+    const { fields, warnings } = window.ReservationQuickEntry.parse(text, { today: S.today, menus: frequent('menu', [...BASE_MENUS, ...S.menuOptions]) });
+    const set = (name, value) => {
+      const input = form.elements[name];
+      if (!input || value === undefined || value === null || value === '') return;
+      input.value = String(value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    ['date', 'time', 'name', 'phone', 'people', 'menu', 'room'].forEach(name => set(name, fields[name]));
+    if (fields.meal && !fields.time) { const radio = form.querySelector(`[name="meal"][value="${fields.meal}"]`); if (radio) { radio.checked = true; form.dataset.mealTouched = '1'; } }
+    if (fields.route) { const radio = form.querySelector(`[name="route"][value="${fields.route}"]`); if (radio) radio.checked = true; }
+    // 두 번 눌러도 비고에 같은 말이 두 번 붙지 않게, 지난번에 붙인 말은 바꿔 끼운다.
+    const memo = form.elements.memo, previous = form.dataset.quickMemo || '';
+    let base = memo.value;
+    if (previous && base.endsWith(previous)) base = base.slice(0, base.length - previous.length).replace(/\n$/, '');
+    memo.value = [base, fields.memo].filter(Boolean).join('\n');
+    form.dataset.quickMemo = fields.memo || '';
+    const got = [fields.name, fields.date && mdw(fields.date), fields.time, fields.people && `${fields.people}명`, fields.room, fields.menu, fields.phone].filter(Boolean);
+    out.innerHTML = `${got.length ? `<span class="ok">✓ ${esc(got.join(' · '))}</span>` : ''}${warnings.map(w => `<span class="warn">⚠ ${esc(w)}</span>`).join('')}<span class="hint">아래 칸을 확인하고 등록을 누르세요.</span>`;
+  }
   async function removeReservation() {
     const item = S.sheet?.item;
     if (!item || !window.confirm(`${mdw(item.date)} ${item.time || ''} ${item.name} 예약을 삭제할까요?\n손님이 취소한 것이면 삭제 말고 예약상태를 「취소」로 바꿔 주세요.`)) return;
@@ -478,6 +508,7 @@
     if (target.hasAttribute('data-close')) { closeSheet(); return; }
     const form = layer.querySelector('form');
     if (target.dataset.act === 'delete') { removeReservation(); return; }
+    if (target.dataset.act === 'quick-fill' && form) { quickFill(form); return; }
     if (target.dataset.act === 'notice-delete') { removeNotice(); return; }
     if (target.dataset.act === 'cancel-mute') {
       const ids = [...mutedIds(), ...(S.sheet?.items || []).map(item => item.id)];
@@ -511,6 +542,10 @@
     }
   });
   layer.addEventListener('change', event => { if (event.target.name === 'meal' && event.target.form) event.target.form.dataset.mealTouched = '1'; });
+  layer.addEventListener('paste', event => {
+    if (event.target.id !== 'rb-quick-text') return;
+    setTimeout(() => { if (event.target.form) quickFill(event.target.form); }, 0);
+  });
   layer.addEventListener('submit', event => { event.preventDefault(); submit(event.target); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && S.sheet) closeSheet(); });
 

@@ -141,6 +141,16 @@ button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:tran
 .rb-field input,.rb-field textarea{width:100%;border:1px solid #ddd3c6;border-radius:12px;padding:11px 12px;font-size:16px;background:#fff;min-height:48px}
 .rb-field textarea{resize:vertical;line-height:1.45}
 .rb-field input:focus,.rb-field textarea:focus{border-color:var(--rb-brand);outline:none;box-shadow:0 0 0 3px #703d2e22}
+.rb-quick{background:#faf5ee;border:1px solid #eadfce;border-radius:14px;padding:12px;margin-bottom:14px}
+.rb-quick label{display:block;font-size:13px;font-weight:800;margin-bottom:6px;color:var(--rb-brand)}
+.rb-quick textarea{width:100%;border:1px solid #ddd3c6;border-radius:12px;padding:10px 12px;font-size:16px;background:#fff;resize:vertical;line-height:1.45;min-height:64px}
+.rb-quick textarea:focus{border-color:var(--rb-brand);outline:none;box-shadow:0 0 0 3px #703d2e22}
+.rb-quick-go{margin-top:8px;width:100%;min-height:44px;border:1px solid var(--rb-brand);background:#fff;color:var(--rb-brand);font-weight:800;border-radius:12px}
+.rb-quick-result:empty{display:none}
+.rb-quick-result{margin-top:8px;font-size:13px;display:grid;gap:4px}
+.rb-quick-result .ok{color:#2f6b45;font-weight:700;overflow-wrap:anywhere}
+.rb-quick-result .warn{color:#8a4b00}
+.rb-quick-result .hint{color:var(--rb-sub);font-size:12px}
 .rb-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .rb-row2 .rb-field{margin-bottom:8px}
 .rb-chips{display:flex;gap:6px;overflow-x:auto;margin:-4px -18px 12px;padding:2px 18px;scrollbar-width:none}
