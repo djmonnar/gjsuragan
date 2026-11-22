@@ -92,3 +92,14 @@ test('앞에 적은 말은 예약자명(여러 단어 가능), 뒤에 남은 말
   assert.deepEqual(parse('').fields, {});
   assert.throws(() => Q.parse('가상', {}), /today/);
 });
+
+test('빈 칸 확인: 물어볼 칸만 고르고, 이름이 비면 「이름 미정」으로 저장한다', () => {
+  assert.deepEqual(Q.ASK_IF_EMPTY.map(([, label]) => label), ['예약자명', '시간', '인원', '연락처', '메뉴']);
+  assert.deepEqual(Q.missingFields({ name: '가상', time: '18:00', people: '', phone: ' ', menu: '고기', room: '' }).map(m => m.key), ['people', 'phone']);
+  assert.deepEqual(Q.missingFields({}).map(m => m.key), ['name', 'time', 'people', 'phone', 'menu']);
+  assert.deepEqual(Q.missingFields({ name: '가상', time: '18:00', people: 4, phone: '010', menu: '고기' }), []);
+  assert.equal(Q.NO_NAME, '이름 미정');
+  // 서버는 예약자명을 요구한다. 화면이 「이름 미정」을 채워 보내면 그대로 저장된다.
+  const M = require('../../reservationBoardModel');
+  assert.equal(M.reservationInput({ date: '2026-12-18', name: Q.NO_NAME }, Date.parse('2026-11-22T03:00:00Z')).name, '이름 미정');
+});

@@ -492,6 +492,15 @@ test('직원 공용 예약장 안내가 실제 동작과 같다', () => {
   assert.match(body, /1~9시는 저녁/);
   assert.match(help, /1~9시는 저녁으로 봅니다\(6시 → 18:00\)/);
   assert.match(body, /「20~24명」은 24명/);
+  // 빈 칸이 있어도 저장되고, 빠진 정보는 한 번만 묻는다.
+  assert.match(page, /window\.ReservationQuickEntry\.NO_NAME/);
+  assert.match(page, /!form\.dataset\.missingAsked && askMissing\(form, 'save'\)/);
+  assert.doesNotMatch(page, /예약자명을 적어 주세요/);
+  assert.match(body, /빈 칸이 있어도 저장됩니다/);
+  assert.match(body, /<b>빠진 정보가 있어요<\/b> 창이 한 번/);
+  assert.match(help, /빈 칸이 있어도 저장됩니다/);
+  assert.match(help, /한 번만 「빠진 정보가 있어요」 창/);
+  for (const text of [body, help]) assert.match(text, new RegExp(quick.ASK_IF_EMPTY.map(([, label]) => label).join('·')));
   assert.match(page, /placeholder="예: 홍길동 12월18일 금요일 6시 20~24명 1층 소고기 010-0000-0000"/);
   // 시트 가져오기가 읽는 첫 줄 칸 이름과 안내가 같다.
   assert.deepEqual(Object.values(model.SHEET_COLUMNS), ['날짜', '낮/밤', '예약시간', '예약자명', '연락처', '인원', '메뉴', '예약경로', '비고', '예약상태', '룸', '예약자']);

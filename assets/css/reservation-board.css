@@ -197,6 +197,11 @@ button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:tran
 .rb-cancel-list small{display:block;font-size:11px;color:#8c2b1c;margin-top:2px}
 .rb-new{display:inline-block!important;background:var(--rb-red);color:#fff;font-size:10px!important;font-weight:800;border-radius:4px;padding:0 5px;margin-bottom:3px}
 .rb-alert .rb-actions{position:static;padding-bottom:0;grid-template-columns:1fr 1fr}
+.rb-missing{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:16px;background:#1f15109e}
+.rb-missing-card{width:100%;max-width:420px;max-height:88dvh;overflow-y:auto;background:#fff;border-radius:20px;padding:20px 18px 6px;box-shadow:0 12px 40px #0005}
+.rb-missing-card h3{margin:0 0 6px;font-size:19px;color:#8a4b00}
+.rb-missing-card p{margin:0 0 14px;font-size:14px;color:#4c403a;line-height:1.55}
+.rb-missing-card .rb-actions{position:static;padding-bottom:14px}
 .rb-toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:200;background:#2f2521;color:#fff;border-radius:12px;padding:11px 16px;font-size:14px;max-width:calc(100vw - 32px);text-align:center;box-shadow:0 6px 24px #0004;pointer-events:none}
 .rb-toast.is-error{background:#963f35}
 @media (min-width:700px){

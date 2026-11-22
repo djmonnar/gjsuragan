@@ -187,5 +187,12 @@
     return { fields, warnings };
   }
 
-  return { parse, EVENING_UP_TO, MENUS };
+  // 등록할 때 비어 있으면 한 번 물어보는 칸. 비워 둔 채 저장해도 된다(이름이 비면 NO_NAME 으로 저장).
+  const ASK_IF_EMPTY = [['name', '예약자명'], ['time', '시간'], ['people', '인원'], ['phone', '연락처'], ['menu', '메뉴']];
+  const NO_NAME = '이름 미정';
+  function missingFields(values) {
+    return ASK_IF_EMPTY.filter(([key]) => String(values?.[key] ?? '').trim() === '').map(([key, label]) => ({ key, label }));
+  }
+
+  return { parse, missingFields, EVENING_UP_TO, MENUS, ASK_IF_EMPTY, NO_NAME };
 });

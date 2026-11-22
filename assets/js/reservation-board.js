@@ -20,7 +20,8 @@
       '일주일: 월요일부터 일요일까지 한 화면에 보입니다. 날짜 제목을 누르면 그날 하루 보기로 갑니다.',
       '달력: 날짜마다 팀 수와 인원이 보이고, 날짜를 누르면 아래에 그날 예약이 나옵니다.',
       '팀·인원 합계에는 취소된 예약이 들어가지 않습니다. 취소된 예약은 각 칸 맨 아래에 흐리게 남습니다.']],
-    ['예약 등록 · 수정 · 삭제', ['오른쪽 아래 「＋ 예약 등록」을 누릅니다. 예약자명만 꼭 적으면 되고, 나머지는 아는 만큼 적습니다.',
+    ['예약 등록 · 수정 · 삭제', ['오른쪽 아래 「＋ 예약 등록」을 누릅니다. 아는 만큼만 적으면 되고, 빈 칸이 있어도 저장됩니다.',
+      '새 예약에 예약자명·시간·인원·연락처·메뉴 중 빈 칸이 있으면 한 번만 「빠진 정보가 있어요」 창이 뜹니다. 거기서 바로 적거나, 비워 둔 채 저장하면 됩니다. 예약자명을 비우면 「이름 미정」으로 저장됩니다.',
       '맨 위 「한 줄로 빠르게 입력」에 「홍길동 12월18일 금요일 6시 20~24명 1층 소고기 010-0000-0000」처럼 적거나 카톡 내용을 붙여 넣으면 날짜·시간·인원·룸·메뉴·연락처·예약자명이 칸에 나뉘어 들어갑니다. 붙여 넣으면 바로, 직접 적었으면 「칸에 나눠 넣기」를 누르세요.',
       '오전·오후를 안 적은 1~9시는 저녁으로 봅니다(6시 → 18:00). 「20~24명」은 24명으로 넣고 비고에 범위를 남깁니다. 적은 요일이 날짜와 다르면 알려 줍니다. 채워진 칸을 확인하고 등록하세요.',
       '시간을 고르면 낮/밤이 저절로 맞춰집니다(16시 전 낮). 인원을 모르면 비워 두면 「인원 미정」으로 보입니다.',
@@ -294,7 +295,7 @@
       const item = sheet.item;
       const v = item || { date: S.date < S.today ? S.today : S.date, time: '', meal: 'dinner', name: '', phone: '', people: null, menu: '', room: '', route: '전화', status: 'booked', memo: '', staff: S.me };
       const routes = v.route && !ROUTES.includes(v.route) ? [...ROUTES, v.route] : ROUTES;
-      return `${head(item ? '예약 수정' : '예약 등록', item?.updatedAt ? `마지막 수정 ${esc(item.updatedBy)} · ${esc(stamp(item.updatedAt))}` : '예약자명만 꼭 적으면 됩니다')}
+      return `${head(item ? '예약 수정' : '예약 등록', item?.updatedAt ? `마지막 수정 ${esc(item.updatedBy)} · ${esc(stamp(item.updatedAt))}` : '아는 만큼만 적으세요. 빈 칸이 있어도 저장됩니다')}
       <form class="rb-form" data-form="reservation" novalidate>
         ${item ? '' : `<div class="rb-quick"><label for="rb-quick-text">한 줄로 빠르게 입력</label>
           <textarea id="rb-quick-text" rows="2" maxlength="500" autofocus placeholder="예: 홍길동 12월18일 금요일 6시 20~24명 1층 소고기 010-0000-0000"></textarea>
@@ -304,7 +305,7 @@
           <label class="rb-field"><span>시간</span><input type="time" name="time" value="${esc(v.time)}" step="300"></label></div>
         ${chips('time', TIME_CHIPS, v.time)}
         <fieldset class="rb-seg"><legend>낮 / 밤</legend>${[['lunch', '☀ 낮'], ['dinner', '☾ 밤']].map(([key, label]) => `<label><input type="radio" name="meal" value="${key}"${v.meal === key ? ' checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>
-        <label class="rb-field"><span>예약자명 <b>*</b></span><input name="name" value="${esc(v.name)}" maxlength="40" autocomplete="off" required placeholder="예: 홍길동, ○○회사 단체"></label>
+        <label class="rb-field"><span>예약자명</span><input name="name" value="${esc(v.name)}" maxlength="40" autocomplete="off" placeholder="예: 홍길동, ○○회사 단체"></label>
         <label class="rb-field"><span>연락처</span><input name="phone" value="${esc(v.phone)}" maxlength="40" inputmode="tel" autocomplete="off" placeholder="010-0000-0000"></label>
         <div class="rb-field"><span>인원</span><div class="rb-stepper"><button type="button" data-step="-1" aria-label="한 명 빼기">−</button><input name="people" value="${v.people ?? ''}" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="모름" aria-label="인원"><button type="button" data-step="1" aria-label="한 명 더하기">＋</button></div></div>
         ${chips('people', PEOPLE_CHIPS, v.people)}
@@ -397,9 +398,10 @@
     button.disabled = true; if (errorBox) errorBox.textContent = '';
     try {
       if (kind === 'reservation') {
-        if (!String(data.name || '').trim()) throw new Error('예약자명을 적어 주세요.');
+        // 빈 칸이 있는 새 예약은 저장 전에 한 번만 물어본다. 다시 누르거나 그 창에서 저장하면 그대로 저장한다.
+        if (!S.sheet.item && !form.dataset.missingAsked && askMissing(form, 'save')) { button.disabled = false; return; }
         const people = String(data.people || '').trim();
-        const item = { date: data.date, time: data.time || '', meal: data.meal, name: data.name, phone: data.phone, people: people ? Number(people) : null,
+        const item = { date: data.date, time: data.time || '', meal: data.meal, name: String(data.name || '').trim() || window.ReservationQuickEntry.NO_NAME, phone: data.phone, people: people ? Number(people) : null,
           menu: data.menu, room: data.room, route: data.route || '', status: data.status || S.sheet.item?.status || 'booked', memo: data.memo, staff: data.staff };
         const editing = S.sheet.item;
         const result = await api('save', editing ? { id: editing.id, revision: editing.revision, item, by: S.me } : { requestId: S.sheet.requestId, item, by: S.me });
@@ -447,6 +449,47 @@
     form.dataset.quickMemo = fields.memo || '';
     const got = [fields.name, fields.date && mdw(fields.date), fields.time, fields.people && `${fields.people}명`, fields.room, fields.menu, fields.phone].filter(Boolean);
     out.innerHTML = `${got.length ? `<span class="ok">✓ ${esc(got.join(' · '))}</span>` : ''}${warnings.map(w => `<span class="warn">⚠ ${esc(w)}</span>`).join('')}<span class="hint">아래 칸을 확인하고 등록을 누르세요.</span>`;
+    if (!form.dataset.missingAsked) askMissing(form, 'quick');
+  }
+  // 「빠진 정보가 있어요」: 빈 칸만 모아 그 자리에서 적게 한다. 비워 둬도 저장을 막지 않는다. 한 등록 창에서 한 번만 뜬다.
+  const MISSING_INPUTS = {
+    name: '<input name="name" maxlength="40" autocomplete="off" placeholder="모르면 비워 두세요 (이름 미정)">',
+    time: '<input name="time" type="time" step="300">',
+    people: '<input name="people" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="예: 4">',
+    phone: '<input name="phone" maxlength="40" inputmode="tel" autocomplete="off" placeholder="010-0000-0000">',
+    menu: '<input name="menu" maxlength="100" autocomplete="off" placeholder="예: 고기, 소(명품)">',
+  };
+  function askMissing(form, mode) {
+    const missing = window.ReservationQuickEntry.missingFields(Object.fromEntries(new FormData(form)));
+    form.dataset.missingAsked = '1';
+    if (!missing.length) return false;
+    const box = document.createElement('div');
+    box.className = 'rb-missing'; box.dataset.mode = mode;
+    box.innerHTML = `<div class="rb-missing-card" role="dialog" aria-modal="true" aria-labelledby="rb-missing-title">
+      <h3 id="rb-missing-title">빠진 정보가 있어요</h3>
+      <p>비어 있는 칸: <b>${missing.map(m => esc(m.label)).join(' · ')}</b><br>아는 것만 적고, 몰라도 그대로 ${mode === 'save' ? '저장하세요' : '두세요'}. 나중에 예약 카드를 눌러 고칠 수 있습니다.</p>
+      <form data-missing-form>${missing.map(m => `<label class="rb-field"><span>${esc(m.label)}</span>${MISSING_INPUTS[m.key]}</label>`).join('')}</form>
+      <div class="rb-actions"><button type="button" data-missing="back">${mode === 'save' ? '돌아가기' : '비워 두기'}</button><button type="button" class="rb-primary" data-missing="ok">${mode === 'save' ? '저장' : '칸에 넣기'}</button></div>
+    </div>`;
+    layer.appendChild(box);
+    box.querySelector('input')?.focus();
+    return true;
+  }
+  function closeMissing(apply) {
+    const box = layer.querySelector('.rb-missing');
+    const form = layer.querySelector('[data-form="reservation"]');
+    if (!box) return;
+    if (apply && form) {
+      box.querySelectorAll('[data-missing-form] input').forEach(input => {
+        const value = input.name === 'people' ? input.value.replace(/\D/g, '').slice(0, 3) : input.value.trim();
+        const target = form.elements[input.name];
+        if (target && value) { target.value = value; target.dispatchEvent(new Event('input', { bubbles: true })); }
+      });
+    }
+    const mode = box.dataset.mode;
+    box.remove();
+    if (apply && mode === 'save' && form) submit(form);
+    else layer.querySelector('.rb-sheet h2')?.focus();
   }
   async function removeReservation() {
     const item = S.sheet?.item;
@@ -502,6 +545,9 @@
   });
   root.addEventListener('change', event => { if (event.target.matches('[data-date-input]') && event.target.value) go(event.target.value); });
   layer.addEventListener('click', event => {
+    const choice = event.target.closest('[data-missing]');
+    if (choice) { closeMissing(choice.dataset.missing === 'ok'); return; }
+    if (event.target.closest('.rb-missing')) return;
     const target = event.target.closest('[data-close],[data-act],[data-fill],[data-step],[data-goto]');
     if (!target) return;
     if (target.dataset.goto) { const date = target.dataset.goto; if (target.hasAttribute('data-close-after')) closeSheet(); go(date, 'day'); return; }
@@ -546,8 +592,16 @@
     if (event.target.id !== 'rb-quick-text') return;
     setTimeout(() => { if (event.target.form) quickFill(event.target.form); }, 0);
   });
-  layer.addEventListener('submit', event => { event.preventDefault(); submit(event.target); });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && S.sheet) closeSheet(); });
+  layer.addEventListener('submit', event => {
+    event.preventDefault();
+    if (event.target.matches('[data-missing-form]')) closeMissing(true);
+    else submit(event.target);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    if (layer.querySelector('.rb-missing')) closeMissing(false);
+    else if (S.sheet) closeSheet();
+  });
 
   let timer = null;
   function schedule() {
