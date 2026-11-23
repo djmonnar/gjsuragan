@@ -118,3 +118,14 @@ test('순서가 뒤섞이고 이름에 인원이 붙어도 읽고, 부위 이름
   assert.equal(Q.relativeDay('2026-11-25', today), '');
   assert.equal(Q.relativeDay('2026-11-21', today), '');
 });
+
+test('메뉴 말이 붙어 쓴 낱말 안에 있으면 그 낱말 전체가 메뉴다', () => {
+  const glued = Q.parse('6시30분 가상인4명  명품모듬 오늘', { today }).fields;
+  assert.deepEqual([glued.menu, glued.name, glued.people, glued.time, glued.memo], ['명품모듬', '가상인', 4, '18:30', undefined]);
+  assert.equal(parse('가상 12/1 6시 2명 명품50진품50').fields.menu, '명품50진품50');
+  assert.equal(parse('가상 12/1 6시 2명 고기4인분').fields.menu, '고기4인분');
+  assert.equal(parse('가상 12/1 6시 2명 명품 모듬').fields.menu, '명품, 모듬');
+  // 띄어 쓴 수량은 그대로 메뉴에 붙고, 메뉴 말이 없는 낱말은 비고다.
+  assert.equal(parse('소고기 2 돼지 3 가상 내일 7시 5명').fields.menu, '소고기 2, 돼지 3');
+  assert.deepEqual([parse('가상 12/1 6시 2명 소고기 육회서비스').fields.menu, parse('가상 12/1 6시 2명 소고기 육회서비스').fields.memo], ['소고기', '육회서비스']);
+});
