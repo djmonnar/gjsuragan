@@ -12,7 +12,9 @@
   // 오전·오후가 없는 시간은 식당 시간으로 읽는다: 1~9시는 저녁(6시 → 18:00), 10·11·12시는 그대로.
   const EVENING_UP_TO = 9;
   const WD = ['일', '월', '화', '수', '목', '금', '토'];
-  const MENUS = ['소(명품)', '소(진품)', '명품', '진품', '소고기', '한우', '돼지갈비', '돼지', '차돌쌈밥', '쌈밥', '고기',
+  // 메뉴로 읽을 말. 부위 이름도 넣는다(「특수부위」가 비고로 빠지지 않게). 「육회서비스」처럼 서비스로 주는 것은 비고로 남긴다.
+  const MENUS = ['소(명품)', '소(진품)', '명품', '진품', '특수부위', '모둠', '갈비살', '살치살', '부채살', '채끝', '등심', '안심', '차돌박이',
+    '생갈비', '양념갈비', '삼겹살', '목살', '항정살', '가브리살', '갈매기살', '소고기', '한우', '돼지갈비', '돼지', '차돌쌈밥', '쌈밥', '고기',
     '식사권', '식사', '정식', '코스', '갈비탕', '갈비', '냉면', '밥'];
   // 남은 말 중 예약자명·비고로 쓰지 않을 말.
   const FILLER = new Set(['정도', '쯤', '약', '예약', '예약요', '예약합니다', '예약해주세요', '부탁', '부탁드립니다', '부탁드려요', '입니다',
@@ -194,5 +196,11 @@
     return ASK_IF_EMPTY.filter(([key]) => String(values?.[key] ?? '').trim() === '').map(([key, label]) => ({ key, label }));
   }
 
-  return { parse, missingFields, EVENING_UP_TO, MENUS, ASK_IF_EMPTY, NO_NAME };
+  // 오늘·내일·모레를 날짜 옆에 붙여 보여 준다. 그 밖의 날은 빈 글자.
+  function relativeDay(date, today) {
+    if (!isDate(date) || !isDate(today)) return '';
+    return ({ 0: '오늘', 1: '내일', 2: '모레' })[daysBetween(today, date)] || '';
+  }
+
+  return { parse, missingFields, relativeDay, EVENING_UP_TO, MENUS, ASK_IF_EMPTY, NO_NAME };
 });

@@ -22,7 +22,7 @@
       '팀·인원 합계에는 취소된 예약이 들어가지 않습니다. 취소된 예약은 각 칸 맨 아래에 흐리게 남습니다.']],
     ['예약 등록 · 수정 · 삭제', ['오른쪽 아래 「＋ 예약 등록」을 누릅니다. 아는 만큼만 적으면 되고, 빈 칸이 있어도 저장됩니다.',
       '새 예약에 예약자명·시간·인원·연락처·메뉴 중 빈 칸이 있으면 한 번만 「빠진 정보가 있어요」 창이 뜹니다. 거기서 바로 적거나, 비워 둔 채 저장하면 됩니다. 예약자명을 비우면 「이름 미정」으로 저장됩니다.',
-      '맨 위 「한 줄로 빠르게 입력」에 「홍길동 12월18일 금요일 6시 20~24명 1층 소고기 010-0000-0000」처럼 적거나 카톡 내용을 붙여 넣으면 날짜·시간·인원·룸·메뉴·연락처·예약자명이 칸에 나뉘어 들어갑니다. 붙여 넣으면 바로, 직접 적었으면 「칸에 나눠 넣기」를 누르세요.',
+      '맨 위 「한 줄로 빠르게 입력」에 「홍길동 12월18일 금요일 6시 20~24명 1층 소고기 010-0000-0000」처럼 적거나 카톡 내용을 붙여 넣으면 날짜·시간·인원·룸·메뉴·연락처·예약자명이 칸에 나뉘어 들어갑니다. 「6시30분 홍길동4명 특수부위 오늘」처럼 순서가 달라도, 날짜를 오늘·내일·모레로 적어도 됩니다. 붙여 넣으면 바로, 직접 적었으면 「칸에 나눠 넣기」를 누르세요.',
       '오전·오후를 안 적은 1~9시는 저녁으로 봅니다(6시 → 18:00). 「20~24명」은 24명으로 넣고 비고에 범위를 남깁니다. 적은 요일이 날짜와 다르면 알려 줍니다. 채워진 칸을 확인하고 등록하세요.',
       '시간을 고르면 낮/밤이 저절로 맞춰집니다(16시 전 낮). 인원을 모르면 비워 두면 「인원 미정」으로 보입니다.',
       '예약 카드를 누르면 고칠 수 있습니다. 손님이 취소하면 예약상태를 「취소」로 바꾸세요. 기록이 남습니다.',
@@ -69,6 +69,8 @@
   const mealOf = time => (time && time < LUNCH_UNTIL ? 'lunch' : 'dinner');
   // 네이버 쿠폰 이름을 짧게: 앞의 「네이버」, 뒤의 「쿠폰」은 뗀다(오너비스타 단톡방 줄과 같은 규칙). 그것뿐이면 그대로.
   const couponLabel = name => { const whole = String(name || '').replace(/\s+/g, ' ').trim(); return whole.replace(/^네이버\s*/, '').replace(/\s*쿠폰$/, '').trim() || whole; };
+  // 날짜 옆 「오늘·내일·모레」 표시.
+  const relTag = date => { const word = window.ReservationQuickEntry?.relativeDay(date, S.today) || ''; return word ? `<em${word === '오늘' ? '' : ' class="is-soon"'}>${word}</em>` : ''; };
   const telHref = phone => { const digits = String(phone || '').replace(/\D/g, ''); return digits.length === 8 ? `010${digits}` : digits.length >= 9 ? digits : ''; };
   function uuid() {
     if (crypto.randomUUID) return crypto.randomUUID();
@@ -194,7 +196,7 @@
   }
   function dateBar() {
     return `<div class="rb-datebar"><button class="rb-icon" data-act="prev" aria-label="이전 날">‹</button>
-      <label class="rb-datebar-label"><span>${esc(mdw(S.date))}${S.date === S.today ? '<em>오늘</em>' : ''}</span><input type="date" data-date-input value="${S.date}" aria-label="날짜 바로 고르기"></label>
+      <label class="rb-datebar-label"><span>${esc(mdw(S.date))}${relTag(S.date)}</span><input type="date" data-date-input value="${S.date}" aria-label="날짜 바로 고르기"></label>
       <button class="rb-icon" data-act="next" aria-label="다음 날">›</button>${S.date === S.today ? '' : '<button class="rb-today" data-act="today">오늘</button>'}</div>`;
   }
   function dayView() {
@@ -208,7 +210,7 @@
     if (!days) return `${head}<div class="rb-empty">일주일 예약을 불러오는 중…</div>`;
     const line = item => `<button class="rb-line${item.active ? '' : ' is-off'}" data-open="${esc(item.key)}" data-date="${esc(item.date)}"><span class="rb-line-time">${esc(item.time || '미정')}</span><span class="rb-line-name">${esc(item.name)}</span><span class="rb-line-people">${item.people ? `${item.people}명` : '?'}</span><span class="rb-line-menu">${esc(item.menu)}</span>${(item.coupons || []).length ? `<span class="rb-coupon-mark" title="${esc(item.coupons.join(', '))}">🎟</span>` : ''}${item.kind === 'naver' ? '<span class="rb-n" title="네이버예약">N</span>' : ''}${item.active ? '' : `<span class="rb-line-off">${esc(item.cancelledToday ? '오늘 취소' : item.statusLabel)}</span>`}</button>`;
     return `${head}${naverLine(days)}${days.map(day => `<section class="rb-weekday${day.date === S.today ? ' is-today' : ''}${weekday(day.date) === 0 ? ' is-sun' : weekday(day.date) === 6 ? ' is-sat' : ''}">
-      <button class="rb-weekday-head" data-goto="${day.date}"><span>${esc(mdw(day.date))}${day.date === S.today ? '<em>오늘</em>' : ''}</span><span>${day.summary.teams ? `${day.summary.teams}팀 ${day.summary.people}명` : '예약 없음'} ›</span></button>
+      <button class="rb-weekday-head" data-goto="${day.date}"><span>${esc(mdw(day.date))}${relTag(day.date)}</span><span>${day.summary.teams ? `${day.summary.teams}팀 ${day.summary.people}명` : '예약 없음'} ›</span></button>
       ${['lunch', 'dinner'].map(meal => { const items = day.items.filter(item => item.meal === meal); return items.length ? `<div class="rb-week-meal"><span class="rb-week-meal-label">${meal === 'lunch' ? '☀ 낮' : '☾ 밤'}</span><div>${items.map(line).join('')}</div></div>` : ''; }).join('')}
     </section>`).join('')}`;
   }
@@ -451,7 +453,7 @@
     if (previous && base.endsWith(previous)) base = base.slice(0, base.length - previous.length).replace(/\n$/, '');
     memo.value = [base, fields.memo].filter(Boolean).join('\n');
     form.dataset.quickMemo = fields.memo || '';
-    const got = [fields.name, fields.date && mdw(fields.date), fields.time, fields.people && `${fields.people}명`, fields.room, fields.menu, fields.phone].filter(Boolean);
+    const got = [fields.name, fields.date && `${mdw(fields.date)}${window.ReservationQuickEntry.relativeDay(fields.date, S.today) ? ` ${window.ReservationQuickEntry.relativeDay(fields.date, S.today)}` : ''}`, fields.time, fields.people && `${fields.people}명`, fields.room, fields.menu, fields.phone].filter(Boolean);
     out.innerHTML = `${got.length ? `<span class="ok">✓ ${esc(got.join(' · '))}</span>` : ''}${warnings.map(w => `<span class="warn">⚠ ${esc(w)}</span>`).join('')}<span class="hint">아래 칸을 확인하고 등록을 누르세요.</span>`;
     if (!form.dataset.missingAsked) askMissing(form, 'quick');
   }
