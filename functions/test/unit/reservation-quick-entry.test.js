@@ -103,3 +103,18 @@ test('빈 칸 확인: 물어볼 칸만 고르고, 이름이 비면 「이름 미
   const M = require('../../reservationBoardModel');
   assert.equal(M.reservationInput({ date: '2026-12-18', name: Q.NO_NAME }, Date.parse('2026-11-22T03:00:00Z')).name, '이름 미정');
 });
+
+test('순서가 뒤섞이고 이름에 인원이 붙어도 읽고, 부위 이름은 메뉴, 오늘·내일·모레는 날짜와 표시 모두', () => {
+  const { fields, warnings } = Q.parse('6시30분 가상인4명  특수부위  오늘', { today });
+  assert.deepEqual(fields, { date: '2026-11-22', time: '18:30', people: 4, menu: '특수부위', name: '가상인' });
+  assert.deepEqual(warnings, []);
+  assert.equal(parse('가상 내일 7시 2명 갈비살 2 등심').fields.menu, '갈비살 2, 등심');
+  // 서비스로 주는 것은 주문 메뉴가 아니라 비고다.
+  const service = parse('가상 내일 7시 2명 소고기 육회서비스').fields;
+  assert.deepEqual([service.menu, service.memo], ['소고기', '육회서비스']);
+  assert.equal(Q.relativeDay('2026-11-22', today), '오늘');
+  assert.equal(Q.relativeDay('2026-11-23', today), '내일');
+  assert.equal(Q.relativeDay('2026-11-24', today), '모레');
+  assert.equal(Q.relativeDay('2026-11-25', today), '');
+  assert.equal(Q.relativeDay('2026-11-21', today), '');
+});

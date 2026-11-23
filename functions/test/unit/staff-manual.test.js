@@ -492,6 +492,11 @@ test('직원 공용 예약장 안내가 실제 동작과 같다', () => {
   assert.match(body, /1~9시는 저녁/);
   assert.match(help, /1~9시는 저녁으로 봅니다\(6시 → 18:00\)/);
   assert.match(body, /「20~24명」은 24명/);
+  // 순서가 뒤섞인 예시도 안내대로 읽힌다.
+  const mixed = quick.parse('6시30분 홍길동4명 특수부위 오늘', { today: '2026-11-22' }).fields;
+  assert.deepEqual([mixed.time, mixed.name, mixed.people, mixed.menu, mixed.date], ['18:30', '홍길동', 4, '특수부위', '2026-11-22']);
+  for (const text of [body, help]) assert.ok(text.includes('「6시30분 홍길동4명 특수부위 오늘」'));
+  assert.match(body, /<b>오늘·내일·모레<\/b>가 표시/);
   // 빈 칸이 있어도 저장되고, 빠진 정보는 한 번만 묻는다.
   assert.match(page, /window\.ReservationQuickEntry\.NO_NAME/);
   assert.match(page, /!form\.dataset\.missingAsked && askMissing\(form, 'save'\)/);
