@@ -113,6 +113,24 @@ test('합친 업체 정보로 기사님 줄에 손님 주소가 나온다', () =
   assert.equal(row.addressDetail, '3층');
 });
 
+test('잠금 스냅숏의 빈 배송지가 지금 배송지를 가리지 않는다', () => {
+  // 주소가 비어 있을 때 잠근 날: 스냅숏에 빈 배송지가 얼어 있다. 수량은 스냅숏대로.
+  const users = { a: { businessName: '가상 업체', defaultLunch: 2, deliveryPlace: '경남 진주시 가상로 1', deliveryPlaceDetail: '3층' } };
+  const snapshots = { a: { uid: 'a', businessName: '가상 업체', lunchCount: 5, saladCount: 0, deliveryPlace: '' } };
+  const [row] = M.resolveRows({ date: '2026-10-07', users, snapshots, locked: true });
+  assert.equal(row.lunchCount, 5, '수량은 잠근 값');
+  assert.equal(row.address, '경남 진주시 가상로 1');
+  assert.equal(row.addressDetail, '3층');
+
+  // 잠근 순간 주소가 있었으면 그 주소가 그대로 간다.
+  const [frozen] = M.resolveRows({ date: '2026-10-07', users, snapshots: { a: { ...snapshots.a, deliveryPlace: '잠근 주소' } }, locked: true });
+  assert.equal(frozen.address, '잠근 주소');
+});
+
+test('관리자 주문 화면도 잠금 스냅숏을 같은 규칙으로 얹는다', () => {
+  assert.match(read('admin.html'), /defaultSourceMap\.set\(uid, mergeUserPrivate\(allUsers\[uid\], user\)\)/);
+});
+
 test('행사 정류장은 상세주소도 싣는다', () => {
   const [row] = M.eventRows({
     date: '2026-10-07',

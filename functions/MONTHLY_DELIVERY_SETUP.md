@@ -45,6 +45,8 @@ Google Sheets 생성·복사 없이 기존 월식 주문·배송·정산 데이�
   다만 배송지(`deliveryPlace`·`deliveryPlaceDetail`, 옛 `address`)는 관리자 쪽이 비어 있으면 손님 값을 쓴다
   (`functions/userPrivateMerge.js`, admin.html 의 `mergeUserPrivate`). 관리자가 주소 없이 먼저 등록한 업체가
   나중에 내 정보에서 넣은 주소가 빈 관리자 값에 가려 기사님 화면에 안 나왔다(2026-11-25).
+  잠금 스냅숏(`orderDefaultSnapshots`)을 얹을 때도 같은 규칙이라, 잠글 때 비어 있던 배송지가 그 뒤 채운 배송지를
+  가리지 않는다(admin.html 의 `mergeOrdersWithDefaults` 도 같음).
   기사님 화면은 주소가 비면 「주소 미입력 · 사무실에 확인해 주세요」를 띄운다. 행사 정류장은 `place`·`placeDetail`.
 - 수거 목록은 저장하지 않고 읽을 때마다 계산한다. 주말·공휴일·휴무일을 건너뛴 바로 전 배송일의
   배송 대상과 배송완료 기록에서, 선택한 날짜에 배송이 없는 업체를 고른다. 일회용도시락 업체는 제외한다.

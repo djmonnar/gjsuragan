@@ -6177,7 +6177,8 @@ function mergeOrdersWithDefaults(dStr, snap, deliveredRecords = {}, defaultSnaps
   const rowsByUid = {};
   const defaultSourceMap = new Map();
   if (defaultSnapshots) {
-    defaultSnapshots.forEach(([uid, user]) => defaultSourceMap.set(uid, { ...(allUsers[uid] || {}), ...(user || {}) }));
+    // 잠근 순간 비어 있던 배송지가 지금 채운 배송지를 가리지 않게 한다(mergeUserPrivate 와 같은 규칙).
+    defaultSnapshots.forEach(([uid, user]) => defaultSourceMap.set(uid, mergeUserPrivate(allUsers[uid], user)));
   }
   Object.entries(allUsers).forEach(([uid, user]) => {
     if (defaultSourceMap.has(uid)) return;

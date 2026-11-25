@@ -9,6 +9,9 @@
 // users 에 배송지가 남아 있다는 것은 손님이 그 뒤에 넣었다는 뜻이다. 관리자 값이 있으면 그대로 관리자 값.
 //
 // 관리자 화면(admin.html 의 mergeUserPrivate)도 같은 규칙이다. 둘이 같게 합치는지 테스트가 대조한다.
+//
+// 주문 잠금 스냅숏(orderDefaultSnapshots)을 업체 정보 위에 얹을 때도 같은 규칙을 쓴다. 잠근 순간
+// 배송지가 비어 있었으면 그 빈칸이 얼어서, 그날 하루 채운 배송지를 가렸다.
 
 function blank(value) {
   return value === undefined || value === null || String(value).trim() === '';
