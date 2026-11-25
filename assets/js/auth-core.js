@@ -432,14 +432,21 @@ function customerOrderDateInputValue(c){
 }
 
 // 진주는 직배송 권역이다. 택배로 등록하면 배송비가 더 들고 당일 배달도 안 된다.
-// 사천은 직배송을 가지 않는다(2026년 11월부터). 택배(로젠)로 보낸다.
+// COURIER_ONLY_AREAS 는 직배송을 가지 않고 택배(로젠)로 보내는 지역이다(2026년 11월부터).
+// 진주시 명석면은 진주지만 택배다. 주소에 이 말이 들어 있으면 택배 지역으로 본다.
 // 저장할 때 주소와 배송 방법이 어긋나면 한 번 묻는다. 예외가 있을 수 있어 막지는 않는다.
-// 아임웹 자동등록의 같은 규칙: functions/imwebParser.js 의 COURIER_ONLY_AREA_PATTERN
+// 아임웹 자동등록의 같은 목록: functions/imwebParser.js 의 COURIER_ONLY_AREAS
 const DIRECT_AREA_PATTERN = /진주/;
-const COURIER_ONLY_AREA_PATTERN = /사천/;
+const COURIER_ONLY_AREAS = ['사천', '명석면'];
+
+// 주소가 택배 지역이면 그 지역 이름, 아니면 ''
+function courierOnlyAreaName(address){
+  const text = String(address || '');
+  return COURIER_ONLY_AREAS.find(area => text.includes(area)) || '';
+}
 
 function isCourierOnlyArea(address){
-  return COURIER_ONLY_AREA_PATTERN.test(String(address || ''));
+  return !!courierOnlyAreaName(address);
 }
 
 function isDirectDeliveryArea(address){
@@ -449,11 +456,12 @@ function isDirectDeliveryArea(address){
 
 function confirmDeliveryTypeForArea(address, isDirect){
   const text = String(address || '').trim();
-  if(isDirect && isCourierOnlyArea(text)){
+  const courierArea = courierOnlyAreaName(text);
+  if(isDirect && courierArea){
     return confirm(
-      '배송지가 사천 지역으로 보입니다.\n\n'
+      `배송지가 ${courierArea} 지역으로 보입니다.\n\n`
       + `${text}\n\n`
-      + '사천은 직배송을 가지 않고 택배로 보냅니다. 그래도 직배송으로 등록할까요?\n'
+      + `${courierArea}은 직배송을 가지 않고 택배로 보냅니다. 그래도 직배송으로 등록할까요?\n`
       + '(택배로 하려면 취소를 누르고 직배송 체크를 풀어주세요)'
     );
   }

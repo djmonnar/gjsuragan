@@ -204,6 +204,22 @@ test('사천 택배 주문은 원래대로 확인 없이 등록된다', () => {
   assert.doesNotMatch(entry.parsed.memo, /사천/);
 });
 
+test('진주시 명석면 직배송 주문도 택배로 등록한다', () => {
+  const order = chajinOrder();
+  order.delivery.address = { ...order.delivery.address, address: '경남 진주시 명석면 가상로 5', address_detail: '' };
+  const [entry] = parser.parseOrderItems(order, order.order_no, [
+    {
+      prod_name: 'A세트',
+      delivery: { deliv_type: 'direct' },
+      options: [{ value_name_list: ['배송희망날짜 9/2'] }]
+    }
+  ]);
+  assert.equal(entry.parsed.isDirect, false);
+  assert.equal(entry.parsed.needsReview, true);
+  assert.match(entry.parsed.reviewReason, /^명석면은 택배라/);
+  assert.match(entry.parsed.memo, /직배송 주문 → 택배\(명석면\)/);
+});
+
 test('사천 판단은 상세주소까지 본다', () => {
   assert.equal(parser.isCourierOnlyArea('경남 사천시 가상로 12'), true);
   assert.equal(parser.isCourierOnlyArea('경남 진주시 가상로 1'), false);

@@ -1230,14 +1230,13 @@ function customerRiskReasons(c){
   }
   if(!customerProductKey(c)) reasons.push('상품/세트 확인 필요');
   // 진주는 직배송 권역이라 택배로 잡혀 있으면 배송비가 더 들고 당일 배달도 안 된다.
-  // 사천은 직배송을 가지 않으므로 직배송으로 남아 있는 주문을 알린다. 택배로 바꿀 때는
-  // 택배가 하루 늦게 도착하니 배송일도 같이 본다.
-  // isDirectDeliveryArea·isCourierOnlyArea 는 auth-core.js 에서 먼저 정의된다.
+  // 사천·진주시 명석면은 직배송을 가지 않으므로 직배송으로 남아 있는 주문을 알린다.
+  // 택배로 바꿀 때는 택배가 하루 늦게 도착하니 배송일도 같이 본다.
+  // isDirectDeliveryArea·courierOnlyAreaName 은 auth-core.js 에서 먼저 정의된다.
   const riskAddress = c?.addr || c?.address || '';
-  if(c?.status !== 'end' && c?.isDirect
-    && typeof isCourierOnlyArea === 'function'
-    && isCourierOnlyArea(riskAddress)){
-    reasons.push('사천 지역인데 직배송입니다 (사천은 택배)');
+  const courierArea = typeof courierOnlyAreaName === 'function' ? courierOnlyAreaName(riskAddress) : '';
+  if(c?.status !== 'end' && c?.isDirect && courierArea){
+    reasons.push(`${courierArea} 지역인데 직배송입니다 (${courierArea}은 택배)`);
   }
   if(c?.status !== 'end' && !c?.isDirect
     && typeof isDirectDeliveryArea === 'function'
