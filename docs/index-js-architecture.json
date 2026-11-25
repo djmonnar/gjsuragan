@@ -18,10 +18,10 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 350608,
-    "lines": 7979,
-    "functionDeclarations": 467,
-    "uniqueCallableGlobals": 416,
+    "normalizedBytes": 351163,
+    "lines": 7987,
+    "functionDeclarations": 468,
+    "uniqueCallableGlobals": 417,
     "explicitWindowExports": 43,
     "globalStateDeclarations": 68,
     "privateStateDeclarations": 5,
@@ -35,9 +35,9 @@
     {
       "path": "assets/js/auth-core.js",
       "metrics": {
-        "bytes": 32280,
-        "lines": 913,
-        "functionDeclarations": 29,
+        "bytes": 32761,
+        "lines": 922,
+        "functionDeclarations": 30,
         "asyncFunctions": 13
       },
       "globalsDefined": [
@@ -56,6 +56,7 @@
         "formatDateInputValue",
         "normalizeDateInputValue",
         "customerOrderDateInputValue",
+        "courierOnlyAreaName",
         "isCourierOnlyArea",
         "isDirectDeliveryArea",
         "confirmDeliveryTypeForArea",
@@ -711,8 +712,8 @@
     {
       "path": "assets/js/rendering.js",
       "metrics": {
-        "bytes": 104582,
-        "lines": 2086,
+        "bytes": 104656,
+        "lines": 2085,
         "functionDeclarations": 108,
         "asyncFunctions": 7
       },

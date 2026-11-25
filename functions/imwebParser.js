@@ -347,26 +347,34 @@ function orderDate(order) {
   return '';
 }
 
-// 사천은 직배송을 가지 않는다(2026년 11월부터). 택배(로젠)로 보낸다.
-// 아임웹에서 직배송으로 들어온 사천 주문은 택배로 등록하고 「확인 필요」로 띄운다.
+// 사천과 진주시 명석면은 직배송을 가지 않는다(2026년 11월부터). 택배(로젠)로 보낸다.
+// 아임웹에서 직배송으로 들어온 이 지역 주문은 택배로 등록하고 「확인 필요」로 띄운다.
 // 직배송 희망일은 받는 날이고 택배 배송일은 보내는 날(다음 날 도착)이라 날짜는 그대로 두고
-// 관리자가 보고 고치게 한다. 관리자 화면의 같은 규칙: assets/js/auth-core.js
-const COURIER_ONLY_AREA_PATTERN = /사천/;
+// 관리자가 보고 고치게 한다. 관리자 화면의 같은 목록: assets/js/auth-core.js
+const COURIER_ONLY_AREAS = ['사천', '명석']; // 명석 = 진주시 명석면
 
 function deliveryAddressText(order) {
   const address = order?.delivery?.address || {};
   return [address.address, address.address_detail].filter(Boolean).join(' ');
 }
 
-function isCourierOnlyArea(address) {
-  return COURIER_ONLY_AREA_PATTERN.test(String(address || ''));
+// 주소가 택배 지역이면 그 지역 이름, 아니면 ''
+function courierOnlyAreaName(address) {
+  const text = String(address || '');
+  return COURIER_ONLY_AREAS.find(area => text.includes(area)) || '';
 }
 
-// 아임웹이 직배송이라고 보낸 줄인지, 그중 택배로 돌려야 하는 줄인지
+function isCourierOnlyArea(address) {
+  return !!courierOnlyAreaName(address);
+}
+
+// 아임웹이 직배송이라고 보낸 줄인지, 그중 택배로 돌려야 하는 줄인지.
+// courierArea 는 택배로 돌린 지역 이름(사천·명석), 아니면 ''.
 function deliveryKind(order, item) {
   const requestedDirect = item?.delivery?.deliv_type === 'direct';
-  const movedToCourier = requestedDirect && isCourierOnlyArea(deliveryAddressText(order));
-  return { requestedDirect, movedToCourier, isDirect: requestedDirect && !movedToCourier };
+  const courierArea = requestedDirect ? courierOnlyAreaName(deliveryAddressText(order)) : '';
+  const movedToCourier = !!courierArea;
+  return { requestedDirect, movedToCourier, courierArea, isDirect: requestedDirect && !movedToCourier };
 }
 
 function joinReasons(...reasons) {
@@ -576,7 +584,7 @@ function parseOnceItem(order, item, itemIdx, actualOrderNum, syncKey, options = 
   const log = options.log || (() => {});
   const now = options.now || new Date();
   const memo = order?.delivery?.memo || '';
-  const { requestedDirect, movedToCourier, isDirect } = deliveryKind(order, item);
+  const { requestedDirect, movedToCourier, courierArea, isDirect } = deliveryKind(order, item);
   const prodName = item?.prod_name || '';
   const qty = Math.max(1, parseInt(item?.payment?.count || 1, 10));
   const values = optionValues(item);
@@ -595,7 +603,7 @@ function parseOnceItem(order, item, itemIdx, actualOrderNum, syncKey, options = 
   let onceDate = '';
   let reviewReason = '';
   if (requestedDirect) {
-    // 택배로 돌린 사천 주문도 손님이 적은 희망일을 그대로 쓴다. 바꿀지는 관리자가 정한다.
+    // 택배로 돌린 주문도 손님이 적은 희망일을 그대로 쓴다. 바꿀지는 관리자가 정한다.
     const info = parseDirectHopeDateInfo(values, orderTs, now);
     onceDate = info.date;
     if (!onceDate) reviewReason = info.reason || '직배송 희망날짜를 확인할 수 없습니다';
@@ -610,10 +618,10 @@ function parseOnceItem(order, item, itemIdx, actualOrderNum, syncKey, options = 
   const base = buildBase(order, isDirect, prod, memo, door, actualOrderNum, syncKey, now);
   const courierNote = movedToCourier
     ? (onceDate
-      ? `사천은 택배라 직배송 주문을 택배로 등록했습니다. 손님 희망일(${onceDate})에 받도록 배송일을 확인하세요`
-      : '사천은 택배라 직배송 주문을 택배로 등록했습니다')
+      ? `${courierArea}은 택배라 직배송 주문을 택배로 등록했습니다. 손님 희망일(${onceDate})에 받도록 배송일을 확인하세요`
+      : `${courierArea}은 택배라 직배송 주문을 택배로 등록했습니다`)
     : '';
-  if (movedToCourier) base.memo += ' / 직배송 주문 → 택배(사천)';
+  if (movedToCourier) base.memo += ` / 직배송 주문 → 택배(${courierArea})`;
 
   if (!onceDate) {
     return {
@@ -653,7 +661,7 @@ function parseSubItem(order, item, actualOrderNum, syncKey, options = {}) {
   const log = options.log || (() => {});
   const now = options.now || new Date();
   const memo = order?.delivery?.memo || '';
-  const { movedToCourier, isDirect } = deliveryKind(order, item);
+  const { movedToCourier, courierArea, isDirect } = deliveryKind(order, item);
   const prodName = item?.prod_name || '';
   const optText = optionValues(item).join(' ');
 
@@ -669,9 +677,9 @@ function parseSubItem(order, item, actualOrderNum, syncKey, options = {}) {
   const schedule = matchSchedule(optText);
   const base = buildBase(order, isDirect, prod, memo, door, actualOrderNum, syncKey, now);
   const courierNote = movedToCourier
-    ? '사천은 택배라 직배송 정기주문을 택배로 등록했습니다. 도착 요일과 첫 배송일을 확인하세요'
+    ? `${courierArea}은 택배라 직배송 정기주문을 택배로 등록했습니다. 도착 요일과 첫 배송일을 확인하세요`
     : '';
-  if (movedToCourier) base.memo += ' / 직배송 주문 → 택배(사천)';
+  if (movedToCourier) base.memo += ` / 직배송 주문 → 택배(${courierArea})`;
 
   if (schedule) {
     const startDate = firstShipDate(schedule.cookDays, order?.order_time || 0);
@@ -733,6 +741,7 @@ module.exports = {
   SINGLE_PROD_MAP,
   buildSyncKey,
   cancelInfoForOrder,
+  courierOnlyAreaName,
   firstShipDate,
   hasCancelTraceDeep,
   hasClaimTrace,

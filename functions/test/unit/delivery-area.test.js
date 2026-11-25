@@ -1,6 +1,6 @@
 'use strict';
 
-// 배송 권역. 진주는 직배송, 사천은 직배송을 가지 않고 택배로 보낸다 (2026-11).
+// 배송 권역. 진주는 직배송, 사천과 진주시 명석면은 직배송을 가지 않고 택배로 보낸다 (2026-11).
 // 관리자 화면(auth-core.js·rendering.js)과 아임웹 자동등록(imwebParser.js)이 같은 판단을 해야 한다.
 // 화면 함수를 소스에서 그대로 뽑아 돌린다.
 
@@ -53,12 +53,13 @@ function load() {
   };
   const code = [
     extractConst(authCore, 'DIRECT_AREA_PATTERN'),
-    extractConst(authCore, 'COURIER_ONLY_AREA_PATTERN'),
+    extractConst(authCore, 'COURIER_ONLY_AREAS'),
+    extractFunction(authCore, 'function courierOnlyAreaName('),
     extractFunction(authCore, 'function isCourierOnlyArea('),
     extractFunction(authCore, 'function isDirectDeliveryArea('),
     extractFunction(authCore, 'function confirmDeliveryTypeForArea('),
     extractFunction(rendering, 'function customerRiskReasons('),
-    'globalThis.api = { isCourierOnlyArea, isDirectDeliveryArea, confirmDeliveryTypeForArea, customerRiskReasons };'
+    'globalThis.api = { COURIER_ONLY_AREAS, courierOnlyAreaName, isCourierOnlyArea, isDirectDeliveryArea, confirmDeliveryTypeForArea, customerRiskReasons };'
   ].join('\n');
   vm.runInNewContext(code, context);
   return context;
@@ -66,6 +67,7 @@ function load() {
 
 const JINJU = '경남 진주시 가상로 1';
 const SACHEON = '경남 사천시 가상로 12';
+const MYEONGSEOK = '경남 진주시 명석면 가상로 5';
 const ELSEWHERE = '서울 강남구 가상로 3';
 
 test('진주는 직배송 권역, 사천은 택배 권역이다', () => {
@@ -78,10 +80,24 @@ test('진주는 직배송 권역, 사천은 택배 권역이다', () => {
   assert.equal(api.isCourierOnlyArea(undefined), false);
 });
 
-test('관리자 화면과 아임웹 자동등록이 사천을 똑같이 본다', () => {
+test('진주시 명석면은 진주지만 택배 권역이다', () => {
   const { api } = load();
-  for (const address of [JINJU, SACHEON, ELSEWHERE, '경남 사천시 사천읍', '']) {
-    assert.equal(api.isCourierOnlyArea(address), parser.isCourierOnlyArea(address), address);
+  assert.equal(api.isDirectDeliveryArea(MYEONGSEOK), false);
+  assert.equal(api.isCourierOnlyArea(MYEONGSEOK), true);
+  assert.equal(api.courierOnlyAreaName(MYEONGSEOK), '명석');
+  assert.equal(api.courierOnlyAreaName('진주 명석 가상리 7'), '명석', '「면」 없이 적어도 잡는다');
+  assert.equal(api.courierOnlyAreaName(SACHEON), '사천');
+  assert.equal(api.courierOnlyAreaName(JINJU), '');
+});
+
+test('관리자 화면과 아임웹 자동등록이 택배 지역을 똑같이 본다', () => {
+  const { api } = load();
+  const parserSource = read('functions/imwebParser.js');
+  assert.equal(extractConst(parserSource, 'COURIER_ONLY_AREAS').replace(/\s+/g, ''),
+    extractConst(authCore, 'COURIER_ONLY_AREAS').replace(/\s+/g, ''),
+    '두 곳의 택배 지역 목록이 같아야 한다');
+  for (const address of [JINJU, SACHEON, MYEONGSEOK, ELSEWHERE, '경남 사천시 사천읍', '']) {
+    assert.equal(api.courierOnlyAreaName(address), parser.courierOnlyAreaName(address), address);
   }
 });
 
@@ -99,6 +115,15 @@ test('사천 택배는 묻지 않고 저장한다', () => {
   const ctx = load();
   assert.equal(ctx.api.confirmDeliveryTypeForArea(SACHEON, false), true);
   assert.equal(ctx.asked.length, 0);
+});
+
+test('명석면을 직배송으로 저장하려 하면 명석이라고 묻고, 택배는 묻지 않는다', () => {
+  const ctx = load();
+  ctx.answer = false;
+  assert.equal(ctx.api.confirmDeliveryTypeForArea(MYEONGSEOK, true), false);
+  assert.match(ctx.asked[0], /명석은 직배송을 가지 않고 택배로/);
+  assert.equal(ctx.api.confirmDeliveryTypeForArea(MYEONGSEOK, false), true, '진주 주소지만 택배라 묻지 않는다');
+  assert.equal(ctx.asked.length, 1);
 });
 
 test('진주를 택배로 저장하려 하면 한 번 묻는다', () => {
@@ -123,6 +148,14 @@ test('사천 택배·끝난 주문, 진주 직배송은 확인 필요가 아니�
   assert.equal(api.customerRiskReasons({ status: 'active', isDirect: false, addr: SACHEON, orderType: 'sub' }).length, 0);
   assert.equal(api.customerRiskReasons({ status: 'end', isDirect: true, addr: SACHEON, orderType: 'sub' }).length, 0);
   assert.equal(api.customerRiskReasons({ status: 'active', isDirect: true, addr: JINJU, orderType: 'sub' }).length, 0);
+});
+
+test('명석면 직배송 주문은 확인 필요로 뜨고, 명석면 택배는 아니다', () => {
+  const { api } = load();
+  assert.deepEqual([...api.customerRiskReasons({ status: 'active', isDirect: true, addr: MYEONGSEOK, orderType: 'sub' })],
+    ['명석 지역인데 직배송입니다 (명석은 택배)']);
+  assert.equal(api.customerRiskReasons({ status: 'active', isDirect: false, addr: MYEONGSEOK, orderType: 'sub' }).length, 0,
+    '진주 주소지만 「진주 지역인데 택배」로 뜨면 안 된다');
 });
 
 test('진주 택배 주문은 확인 필요로 뜬다', () => {
