@@ -679,6 +679,7 @@ async function saveParsed(){
   if(orderAmountRaw !== '' && orderAmount === null){ toast('총 주문금액을 숫자로 입력하세요','er'); return; }
 
   const isDirect = document.getElementById('pm-direct')?.checked||false;
+  if(typeof confirmDeliveryTypeForArea === 'function' && !confirmDeliveryTypeForArea(addr, isDirect)) return;
   const orderNum = document.getElementById('pm-ordernum')?.value.trim()||'';
   const base = {
     name, phone, addr, door, request:req, memo:memo||'자동 등록 (텍스트 파싱)',

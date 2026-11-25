@@ -431,22 +431,41 @@ function customerOrderDateInputValue(c){
     || normalizeDateInputValue(c.onceDate || c.startDate);
 }
 
-// 사천·진주는 직배송 권역이다. 택배로 등록하면 배송비가 더 들고 당일 배달도 안 되므로
-// 저장 전에 한 번 확인한다. 실제로 택배가 맞는 경우도 있어 막지는 않는다.
-const DIRECT_AREA_PATTERN = /진주|사천/;
+// 진주는 직배송 권역이다. 택배로 등록하면 배송비가 더 들고 당일 배달도 안 된다.
+// 사천은 직배송을 가지 않는다(2026년 11월부터). 택배(로젠)로 보낸다.
+// 저장할 때 주소와 배송 방법이 어긋나면 한 번 묻는다. 예외가 있을 수 있어 막지는 않는다.
+// 아임웹 자동등록의 같은 규칙: functions/imwebParser.js 의 COURIER_ONLY_AREA_PATTERN
+const DIRECT_AREA_PATTERN = /진주/;
+const COURIER_ONLY_AREA_PATTERN = /사천/;
 
-function isDirectDeliveryArea(address){
-  return DIRECT_AREA_PATTERN.test(String(address || ''));
+function isCourierOnlyArea(address){
+  return COURIER_ONLY_AREA_PATTERN.test(String(address || ''));
 }
 
-function confirmCourierForDirectArea(address, isDirect){
-  if(isDirect || !isDirectDeliveryArea(address)) return true;
-  return confirm(
-    '배송지가 사천·진주 지역으로 보입니다.\n\n'
-    + `${String(address || '').trim()}\n\n`
-    + '지금은 택배배송으로 등록됩니다. 직배송이 아니라 택배가 맞나요?\n'
-    + '(직배송으로 하려면 취소를 누르고 직배송에 체크해주세요)'
-  );
+function isDirectDeliveryArea(address){
+  const text = String(address || '');
+  return DIRECT_AREA_PATTERN.test(text) && !isCourierOnlyArea(text);
+}
+
+function confirmDeliveryTypeForArea(address, isDirect){
+  const text = String(address || '').trim();
+  if(isDirect && isCourierOnlyArea(text)){
+    return confirm(
+      '배송지가 사천 지역으로 보입니다.\n\n'
+      + `${text}\n\n`
+      + '사천은 직배송을 가지 않고 택배로 보냅니다. 그래도 직배송으로 등록할까요?\n'
+      + '(택배로 하려면 취소를 누르고 직배송 체크를 풀어주세요)'
+    );
+  }
+  if(!isDirect && isDirectDeliveryArea(text)){
+    return confirm(
+      '배송지가 진주 지역으로 보입니다.\n\n'
+      + `${text}\n\n`
+      + '지금은 택배배송으로 등록됩니다. 직배송이 아니라 택배가 맞나요?\n'
+      + '(직배송으로 하려면 취소를 누르고 직배송에 체크해주세요)'
+    );
+  }
+  return true;
 }
 
 async function saveNew(){
@@ -463,7 +482,7 @@ async function saveNew(){
   if(!a){ toast('배송지 주소를 입력하세요','er'); return; }
 
   const isDirect = document.getElementById('a-direct').checked;
-  if(!confirmCourierForDirectArea(a, isDirect)) return;
+  if(!confirmDeliveryTypeForArea(a, isDirect)) return;
   const orderNum = document.getElementById('a-ordernum').value.trim();
   const orderDate = normalizeDateInputValue(orderNum) || formatDateInputValue(new Date());
   const orderAmountRaw = document.getElementById('a-amount')?.value.trim() || '';
@@ -580,7 +599,7 @@ async function saveEdit(){
   if(orderAmountRaw !== '' && orderAmount === null){ toast('총 주문금액을 숫자로 입력하세요','er'); return; }
 
   const statusVal = g('est');
-  if(!confirmCourierForDirectArea(g('ea'), document.getElementById('e-direct').checked)) return;
+  if(!confirmDeliveryTypeForArea(g('ea'), document.getElementById('e-direct').checked)) return;
   const upd = {
     name:g('en'),
     phone:g('ep'),

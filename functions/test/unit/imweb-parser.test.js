@@ -138,6 +138,77 @@ test('직배송은 옵션의 희망날짜를 쓴다', () => {
   ]);
   assert.equal(entries[0].parsed.onceDate, '2026-09-02');
   assert.equal(entries[0].parsed.isDirect, true);
+  assert.equal(entries[0].parsed.needsReview, false, '진주 직배송은 그대로 직배송이다');
+});
+
+// 사천은 직배송을 가지 않는다. 주소만 가짜 사천 주소로 바꾼 주문.
+function sacheonOrder() {
+  const order = chajinOrder();
+  order.delivery.address = {
+    ...order.delivery.address,
+    address: '경남 사천시 가상로 12',
+    address_detail: '101동 202호'
+  };
+  return order;
+}
+
+test('사천 직배송 선택주문은 택배로 등록하고 확인 필요로 띄운다', () => {
+  const order = sacheonOrder();
+  const [entry] = parser.parseOrderItems(order, order.order_no, [
+    {
+      prod_name: 'A세트',
+      delivery: { deliv_type: 'direct' },
+      options: [{ value_name_list: ['배송희망날짜 9/2'] }]
+    }
+  ]);
+  assert.equal(entry.parsed.isDirect, false, '사천은 택배다');
+  assert.equal(entry.parsed.onceDate, '2026-09-02', '날짜는 손님 희망일 그대로 두고 관리자가 본다');
+  assert.equal(entry.parsed.status, 'active', '날짜가 있으면 배송 목록에 그대로 나온다');
+  assert.equal(entry.parsed.needsReview, true);
+  assert.match(entry.parsed.reviewReason, /사천.*택배/);
+  assert.match(entry.parsed.reviewReason, /2026-09-02/);
+  assert.match(entry.parsed.memo, /직배송 주문 → 택배\(사천\)/);
+});
+
+test('사천 직배송 주문에 희망일이 없으면 두 사유를 같이 적는다', () => {
+  const order = sacheonOrder();
+  const [entry] = parser.parseOrderItems(order, order.order_no, [
+    { prod_name: 'A세트', delivery: { deliv_type: 'direct' }, options: [] }
+  ]);
+  assert.equal(entry.parsed.isDirect, false);
+  assert.equal(entry.parsed.status, 'pause');
+  assert.equal(entry.parsed.needsReview, true);
+  assert.match(entry.parsed.reviewReason, /희망날짜/);
+  assert.match(entry.parsed.reviewReason, /사천.*택배/);
+});
+
+test('사천 직배송 정기주문도 택배로 등록하고 확인 필요로 띄운다', () => {
+  const order = sacheonOrder();
+  const [entry] = parser.parseOrderItems(order, order.order_no, [
+    subItem('반찬 정기구독 A세트', '주 3회|월/수/금 조리|총 12회', { delivery: { deliv_type: 'direct' } })
+  ]);
+  assert.equal(entry.parsed.isDirect, false);
+  assert.equal(entry.parsed.scheduleName, '월·수·금 조리 → 화·목·토 도착', '일정은 그대로 읽는다');
+  assert.equal(entry.parsed.needsReview, true);
+  assert.match(entry.parsed.reviewReason, /사천.*택배/);
+});
+
+test('사천 택배 주문은 원래대로 확인 없이 등록된다', () => {
+  const order = sacheonOrder();
+  const [entry] = parser.parseOrderItems(order, order.order_no, [
+    { prod_name: 'C세트 9월 3일 배송', options: [] }
+  ]);
+  assert.equal(entry.parsed.isDirect, false);
+  assert.equal(entry.parsed.needsReview, false);
+  assert.equal(entry.parsed.reviewReason, '');
+  assert.doesNotMatch(entry.parsed.memo, /사천/);
+});
+
+test('사천 판단은 상세주소까지 본다', () => {
+  assert.equal(parser.isCourierOnlyArea('경남 사천시 가상로 12'), true);
+  assert.equal(parser.isCourierOnlyArea('경남 진주시 가상로 1'), false);
+  assert.equal(parser.isCourierOnlyArea(''), false);
+  assert.equal(parser.isCourierOnlyArea(undefined), false);
 });
 
 test('공동현관 비밀번호를 배송메모에서 뽑는다', () => {
