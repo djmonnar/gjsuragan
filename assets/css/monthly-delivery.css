@@ -116,6 +116,7 @@
 .monthly-driver-app .md-pickup-note{font-size:13px;color:var(--mb-sub);margin:0 0 10px;line-height:1.6}
 .monthly-driver-app .md-pickup{background:#fff8ea;border-color:#ecd9ae}
 .monthly-driver-app .md-pickup .md-name+.md-info{color:#8a5a00}
+.monthly-driver-app .md-info.md-no-address{color:#a13521;font-weight:800;background:#fdeceb;border-radius:6px;padding:4px 8px;display:inline-block}
 .monthly-driver-app .md-pickup-tag{align-self:start;font-size:12px;font-weight:800;color:#8a5a00;background:#fbe9c2;border-radius:6px;padding:5px 9px;white-space:nowrap}
 .monthly-driver-app .md-memo{background:#fff;border:1px solid #e3d7f3;border-radius:11px;padding:12px;margin:0 0 12px}
 .monthly-driver-app .md-memo label{display:block;font-size:13px;font-weight:800;color:#5b3a8c;margin-bottom:6px}

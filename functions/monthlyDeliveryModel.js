@@ -187,7 +187,7 @@ function eventRow(uid, item, received) {
   const label = items.length ? items.map(row => `${row.name} ${row.qty}개`).join(' · ') : (qty ? `${item.name || item.menuText || '행사도시락'} ${qty}개` : '수량 미정');
   const name = item.businessName && item.businessName !== '행사도시락' ? item.businessName : (item.customerName || item.companyName || '행사도시락');
   const row = {
-    uid, kind: 'event', received, businessName: String(name), phone: item.contactPhone || '', address: item.place || '', addressDetail: '',
+    uid, kind: 'event', received, businessName: String(name), phone: item.contactPhone || '', address: item.place || '', addressDetail: item.placeDetail || '',
     mealTime: item.eventTime || '', note: item.requestNote || item.note || '', lunchCount: 0, saladCount: 0, eventLunchCount: 0,
     cateringItems: [], cateringTotal: 0, eventQty: qty, eventLabel: label, totalQty: qty,
     disposableLunch: true, delivered: !received && Boolean(item.delivered), source: received ? 'publicEventOrder' : 'adminEvent'

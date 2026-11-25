@@ -69,10 +69,13 @@
       if (e.status === 403) handleError(e); else memoNotes[id] = e.message;
     } finally { busy = false; render(); }
   }
+  // 주소가 비면 빈칸으로 두지 않는다. 기사님이 모르고 지나치지 않게 눈에 띄게 알린다.
+  const NO_ADDRESS = '주소 미입력 · 사무실에 확인해 주세요';
   function contact(row) {
     const phone = String(row.phone || '').replace(/[^0-9+]/g, '');
-    const map = row.address ? `https://map.kakao.com/link/search/${encodeURIComponent(row.address)}` : '';
-    return `${row.address ? `<div class="md-info">${esc(row.address)} ${esc(row.addressDetail)}</div>` : ''}${row.note ? `<div class="md-info">메모: ${esc(row.note)}</div>` : ''}<div class="md-links">${map ? `<a href="${esc(map)}" target="_blank" rel="noopener noreferrer">길찾기</a>` : ''}${phone ? `<a href="tel:${esc(phone)}">전화</a>` : ''}</div>`;
+    const address = String(row.address || '').trim();
+    const map = address ? `https://map.kakao.com/link/search/${encodeURIComponent(address)}` : '';
+    return `${address ? `<div class="md-info">${esc(address)} ${esc(row.addressDetail)}</div>` : `<div class="md-info md-no-address">${NO_ADDRESS}</div>`}${row.note ? `<div class="md-info">메모: ${esc(row.note)}</div>` : ''}<div class="md-links">${map ? `<a href="${esc(map)}" target="_blank" rel="noopener noreferrer">길찾기</a>` : ''}${phone ? `<a href="tel:${esc(phone)}">전화</a>` : ''}</div>`;
   }
   function card(row, index) {
     const event = row.kind === 'event';
