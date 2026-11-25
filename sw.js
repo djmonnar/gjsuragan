@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v113-monthly-address';
+const CACHE = 'gjsuragan-v114-locked-address';
 const PRECACHE = [
   './customer.html',
   './admin.html',

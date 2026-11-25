@@ -2,6 +2,7 @@
 
 const crypto = require('node:crypto');
 const catering = require('./cateringCatalog');
+const { mergeUserPrivate } = require('./userPrivateMerge');
 
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const DEFAULT_LANES = Object.freeze([
@@ -137,9 +138,12 @@ function resolveRows({ date, users = {}, orders = {}, snapshots = {}, locked = f
   if (noDelivery) return [];
   const rows = new Map();
   Object.entries({ ...users, ...(locked ? snapshots : {}) }).forEach(([uid]) => {
-    const user = locked && snapshots[uid] ? { ...(users[uid] || {}), ...snapshots[uid] } : (users[uid] || {});
+    // 잠금 스냅숏은 잠근 순간의 업체 정보다. 그때 배송지가 비어 있었으면 빈칸이 얼어 있어서,
+    // 그 뒤 채운 배송지를 가렸다(2026-11-25). 수량·단가는 스냅숏대로, 빈 배송지만 지금 값을 쓴다.
+    // userPrivate 합치기와 같은 규칙이라 mergeUserPrivate 를 쓴다.
+    const user = locked && snapshots[uid] ? mergeUserPrivate(users[uid], snapshots[uid]) : (users[uid] || {});
     if (user.deleted || user.disabled || !activeDefault(user, date, settings) || isDeleted(records[uid])) return;
-    const saved = locked && snapshots[uid] ? { ...user, ...snapshots[uid] } : defaultsFor(user, date);
+    const saved = locked && snapshots[uid] ? mergeUserPrivate(user, snapshots[uid]) : defaultsFor(user, date);
     const base = records[uid] || saved;
     // A frozen zero default stays a holiday even if a later profile changes its amount.
     const defaultQty = quantities(saved, user);
