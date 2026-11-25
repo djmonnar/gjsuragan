@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v110-reservation-menuword';
+const CACHE = 'gjsuragan-v111-sacheon-courier';
 const PRECACHE = [
   './customer.html',
   './admin.html',

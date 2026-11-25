@@ -1229,12 +1229,20 @@ function customerRiskReasons(c){
     }
   }
   if(!customerProductKey(c)) reasons.push('상품/세트 확인 필요');
-  // 사천·진주는 직배송 권역이라 택배로 잡혀 있으면 배송비가 더 들고 당일 배달도 안 된다.
-  // isDirectDeliveryArea 는 auth-core.js 에서 먼저 정의된다.
+  // 진주는 직배송 권역이라 택배로 잡혀 있으면 배송비가 더 들고 당일 배달도 안 된다.
+  // 사천은 직배송을 가지 않으므로 직배송으로 남아 있는 주문을 알린다. 택배로 바꿀 때는
+  // 택배가 하루 늦게 도착하니 배송일도 같이 본다.
+  // isDirectDeliveryArea·isCourierOnlyArea 는 auth-core.js 에서 먼저 정의된다.
+  const riskAddress = c?.addr || c?.address || '';
+  if(c?.status !== 'end' && c?.isDirect
+    && typeof isCourierOnlyArea === 'function'
+    && isCourierOnlyArea(riskAddress)){
+    reasons.push('사천 지역인데 직배송입니다 (사천은 택배)');
+  }
   if(c?.status !== 'end' && !c?.isDirect
     && typeof isDirectDeliveryArea === 'function'
-    && isDirectDeliveryArea(c?.addr || c?.address || '')){
-    reasons.push('사천·진주 지역인데 택배배송입니다');
+    && isDirectDeliveryArea(riskAddress)){
+    reasons.push('진주 지역인데 택배배송입니다');
   }
   return customerUniqueBy(reasons.map(reason => ({ reason })), item => item.reason).map(item => item.reason);
 }
