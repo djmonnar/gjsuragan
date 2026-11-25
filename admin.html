@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 <script src="./assets/js/catering-catalog.js?v=20261007-price"></script>
-<link rel="stylesheet" href="./assets/css/monthly-delivery.css?v=20261016-driver-memo">
+<link rel="stylesheet" href="./assets/css/monthly-delivery.css?v=20261125-no-address">
 <script src="./assets/js/monthly-delivery-board.js?v=20261019-weekend-pickup"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -4069,6 +4069,23 @@ function orderSaladPrice(order = {}, user = {}) {
 function userPrivateRef(uid) {
   return db.collection('userPrivate').doc(uid);
 }
+// users(손님이 내 정보에서 고침)와 userPrivate(관리자만 씀)를 합친다. 관리자 값이 이긴다.
+// 다만 배송지는 관리자 쪽이 비어 있으면 손님이 넣은 값을 쓴다. 관리자가 주소 없이 먼저 등록한 업체가
+// 나중에 내 정보에서 주소를 넣으면, 빈 관리자 값에 가려 기사님 화면에 주소가 안 나왔다(2026-11-25).
+// 회원 수정 창도 이 값으로 채워지므로, 저장하면 손님 주소가 관리자 쪽에 옮겨 적힌다.
+// 서버의 같은 규칙: functions/userPrivateMerge.js
+function mergeUserPrivate(user, priv) {
+  const blank = value => value === undefined || value === null || String(value).trim() === '';
+  const publicData = user || {};
+  const privateData = priv || {};
+  const merged = { ...publicData, ...privateData };
+  if (blank(privateData.deliveryPlace) && !blank(publicData.deliveryPlace)) {
+    merged.deliveryPlace = publicData.deliveryPlace;
+    merged.deliveryPlaceDetail = publicData.deliveryPlaceDetail ?? '';
+  }
+  if (blank(privateData.address) && !blank(publicData.address)) merged.address = publicData.address;
+  return merged;
+}
 function publicUserPricePayload(lunchPrice = 0, saladPrice = 0) {
   return {
     lunchPrice,
@@ -5985,7 +6002,7 @@ async function loadAllUsers() {
     }
     snap.forEach(doc => {
       const publicData = doc.data() || {};
-      const data = { ...publicData, ...(privateByUid[doc.id] || {}), ...(taxByUid[doc.id] || {}) };
+      const data = { ...mergeUserPrivate(publicData, privateByUid[doc.id]), ...(taxByUid[doc.id] || {}) };
       if (ADMIN_EMAILS.includes(data.email) || (data.adminEvents && !data.businessName)) return;
       if (data.deleted || data.disabled) {
         deletedUsers[doc.id] = data;

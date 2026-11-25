@@ -39,6 +39,7 @@ async function monthlyAdminUids() {
 }
 const { createAttendanceService, createAttendanceHandler } = require('./attendance');
 const orderTotals = require('./orderTotals');
+const { mergeUserPrivate } = require('./userPrivateMerge');
 const { createBookingReader, createBookingsHandler, createBookingWriter } = require('./attendanceBookings');
 const ownervistaBookingsToken = defineSecret('OWNERVISTA_BOOKINGS_TOKEN');
 const attendancePrivateKey = defineSecret('ATTENDANCE_PRIVATE_KEY');
@@ -1491,7 +1492,7 @@ async function kakaoFetchMonthlyMealSummary(dateStr) {
       });
     }
     usersSnap.forEach(doc => {
-      const data = { ...(doc.data() || {}), ...(privateByUid[doc.id] || {}) };
+      const data = mergeUserPrivate(doc.data(), privateByUid[doc.id]);
       const email = String(data.email || '').toLowerCase();
       if (adminEmails.includes(email)) {
         adminData = data;
@@ -1619,7 +1620,7 @@ async function kakaoFetchMonthlyMealRows(dateStr, options = {}) {
       });
     }
     usersSnap.forEach(doc => {
-      const data = { ...(doc.data() || {}), ...(privateByUid[doc.id] || {}) };
+      const data = mergeUserPrivate(doc.data(), privateByUid[doc.id]);
       const email = String(data.email || '').toLowerCase();
       if (adminEmails.includes(email)) {
         adminData = data;

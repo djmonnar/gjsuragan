@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const { FieldPath } = require('firebase-admin/firestore');
 const M = require('./monthlyDeliveryModel');
 const Sheet = require('./monthlyDeliverySheet');
+const { mergeUserPrivate } = require('./userPrivateMerge');
 
 const BOARDS = 'monthlyDeliveryBoards';
 const TEMPLATES = 'monthlyDeliveryTemplates';
@@ -93,7 +94,7 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
       users = mapSnapshot(userSnap); privateUsers = mapSnapshot(privateSnap);
       Object.keys(users).forEach(uid => {
         if (isAdmin(uid, users[uid], ids)) delete users[uid];
-        else users[uid] = { ...users[uid], ...(privateUsers[uid] || {}) };
+        else users[uid] = mergeUserPrivate(users[uid], privateUsers[uid]);
       });
       return makeData(date, lock, holidays, settings, fresh, archive, users, mapSnapshot(orderSnap), mapSnapshot(snapshotSnap), admins.map(doc => doc.data() || {}));
     }
@@ -105,7 +106,7 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
         adminDocs(reader, ids)
       ]);
       const [lock, holidays, settings, fresh, archive, user, priv, order, snapshot, admins] = values;
-      users = user.exists && !isAdmin(targetUid, user.data(), ids) ? { [targetUid]: { ...user.data(), ...(priv.exists ? priv.data() : {}) } } : {};
+      users = user.exists && !isAdmin(targetUid, user.data(), ids) ? { [targetUid]: mergeUserPrivate(user.data(), priv.exists ? priv.data() : {}) } : {};
       orders = order.exists ? { [targetUid]: order.data() } : {};
       snapshots = snapshot.exists ? { [targetUid]: snapshot.data() } : {};
       administrators = admins.map(doc => doc.data() || {});
@@ -122,7 +123,7 @@ function createMonthlyDeliveryService({ db, timestamp, isNoDeliveryDate, adminEm
     Object.keys(users).forEach(uid => {
       if (isAdmin(uid, users[uid], ids)) { administrators.push(users[uid]); delete users[uid]; }
       else if (users[uid].adminEvents && !users[uid].businessName) delete users[uid];
-      else users[uid] = { ...users[uid], ...(privateUsers[uid] || {}) };
+      else users[uid] = mergeUserPrivate(users[uid], privateUsers[uid]);
     });
     return makeData(date, lock, holidays, settings, fresh, archive, users, orders, snapshots, administrators, mapSnapshot(eventSnap));
   }
