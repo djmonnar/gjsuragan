@@ -434,10 +434,11 @@ function customerOrderDateInputValue(c){
 // 진주는 직배송 권역이다. 택배로 등록하면 배송비가 더 들고 당일 배달도 안 된다.
 // COURIER_ONLY_AREAS 는 직배송을 가지 않고 택배(로젠)로 보내는 지역이다(2026년 11월부터).
 // 진주시 명석면은 진주지만 택배다. 주소에 이 말이 들어 있으면 택배 지역으로 본다.
+// 「명석면」을 「명석」으로만 적는 주소도 잡도록 「명석」으로 찾는다.
 // 저장할 때 주소와 배송 방법이 어긋나면 한 번 묻는다. 예외가 있을 수 있어 막지는 않는다.
 // 아임웹 자동등록의 같은 목록: functions/imwebParser.js 의 COURIER_ONLY_AREAS
 const DIRECT_AREA_PATTERN = /진주/;
-const COURIER_ONLY_AREAS = ['사천', '명석면'];
+const COURIER_ONLY_AREAS = ['사천', '명석'];
 
 // 주소가 택배 지역이면 그 지역 이름, 아니면 ''
 function courierOnlyAreaName(address){

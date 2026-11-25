@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v112-myeongseok-courier';
+const CACHE = 'gjsuragan-v112-myeongseok-courier2';
 const PRECACHE = [
   './customer.html',
   './admin.html',

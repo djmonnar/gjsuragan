@@ -351,7 +351,7 @@ function orderDate(order) {
 // 아임웹에서 직배송으로 들어온 이 지역 주문은 택배로 등록하고 「확인 필요」로 띄운다.
 // 직배송 희망일은 받는 날이고 택배 배송일은 보내는 날(다음 날 도착)이라 날짜는 그대로 두고
 // 관리자가 보고 고치게 한다. 관리자 화면의 같은 목록: assets/js/auth-core.js
-const COURIER_ONLY_AREAS = ['사천', '명석면'];
+const COURIER_ONLY_AREAS = ['사천', '명석']; // 명석 = 진주시 명석면
 
 function deliveryAddressText(order) {
   const address = order?.delivery?.address || {};
@@ -369,7 +369,7 @@ function isCourierOnlyArea(address) {
 }
 
 // 아임웹이 직배송이라고 보낸 줄인지, 그중 택배로 돌려야 하는 줄인지.
-// courierArea 는 택배로 돌린 지역 이름(사천·명석면), 아니면 ''.
+// courierArea 는 택배로 돌린 지역 이름(사천·명석), 아니면 ''.
 function deliveryKind(order, item) {
   const requestedDirect = item?.delivery?.deliv_type === 'direct';
   const courierArea = requestedDirect ? courierOnlyAreaName(deliveryAddressText(order)) : '';

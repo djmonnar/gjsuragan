@@ -18,8 +18,8 @@
   ],
   "summary": {
     "files": 13,
-    "normalizedBytes": 351065,
-    "lines": 7986,
+    "normalizedBytes": 351163,
+    "lines": 7987,
     "functionDeclarations": 468,
     "uniqueCallableGlobals": 417,
     "explicitWindowExports": 43,
@@ -35,8 +35,8 @@
     {
       "path": "assets/js/auth-core.js",
       "metrics": {
-        "bytes": 32663,
-        "lines": 921,
+        "bytes": 32761,
+        "lines": 922,
         "functionDeclarations": 30,
         "asyncFunctions": 13
       },

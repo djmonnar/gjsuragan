@@ -216,8 +216,8 @@ test('진주시 명석면 직배송 주문도 택배로 등록한다', () => {
   ]);
   assert.equal(entry.parsed.isDirect, false);
   assert.equal(entry.parsed.needsReview, true);
-  assert.match(entry.parsed.reviewReason, /^명석면은 택배라/);
-  assert.match(entry.parsed.memo, /직배송 주문 → 택배\(명석면\)/);
+  assert.match(entry.parsed.reviewReason, /^명석은 택배라/);
+  assert.match(entry.parsed.memo, /직배송 주문 → 택배\(명석\)/);
 });
 
 test('사천 판단은 상세주소까지 본다', () => {

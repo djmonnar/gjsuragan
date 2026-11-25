@@ -84,7 +84,8 @@ test('진주시 명석면은 진주지만 택배 권역이다', () => {
   const { api } = load();
   assert.equal(api.isDirectDeliveryArea(MYEONGSEOK), false);
   assert.equal(api.isCourierOnlyArea(MYEONGSEOK), true);
-  assert.equal(api.courierOnlyAreaName(MYEONGSEOK), '명석면');
+  assert.equal(api.courierOnlyAreaName(MYEONGSEOK), '명석');
+  assert.equal(api.courierOnlyAreaName('진주 명석 가상리 7'), '명석', '「면」 없이 적어도 잡는다');
   assert.equal(api.courierOnlyAreaName(SACHEON), '사천');
   assert.equal(api.courierOnlyAreaName(JINJU), '');
 });
@@ -116,11 +117,11 @@ test('사천 택배는 묻지 않고 저장한다', () => {
   assert.equal(ctx.asked.length, 0);
 });
 
-test('명석면을 직배송으로 저장하려 하면 명석면이라고 묻고, 택배는 묻지 않는다', () => {
+test('명석면을 직배송으로 저장하려 하면 명석이라고 묻고, 택배는 묻지 않는다', () => {
   const ctx = load();
   ctx.answer = false;
   assert.equal(ctx.api.confirmDeliveryTypeForArea(MYEONGSEOK, true), false);
-  assert.match(ctx.asked[0], /명석면은 직배송을 가지 않고 택배로/);
+  assert.match(ctx.asked[0], /명석은 직배송을 가지 않고 택배로/);
   assert.equal(ctx.api.confirmDeliveryTypeForArea(MYEONGSEOK, false), true, '진주 주소지만 택배라 묻지 않는다');
   assert.equal(ctx.asked.length, 1);
 });
@@ -152,7 +153,7 @@ test('사천 택배·끝난 주문, 진주 직배송은 확인 필요가 아니�
 test('명석면 직배송 주문은 확인 필요로 뜨고, 명석면 택배는 아니다', () => {
   const { api } = load();
   assert.deepEqual([...api.customerRiskReasons({ status: 'active', isDirect: true, addr: MYEONGSEOK, orderType: 'sub' })],
-    ['명석면 지역인데 직배송입니다 (명석면은 택배)']);
+    ['명석 지역인데 직배송입니다 (명석은 택배)']);
   assert.equal(api.customerRiskReasons({ status: 'active', isDirect: false, addr: MYEONGSEOK, orderType: 'sub' }).length, 0,
     '진주 주소지만 「진주 지역인데 택배」로 뜨면 안 된다');
 });
