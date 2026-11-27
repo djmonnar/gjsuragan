@@ -1,4 +1,4 @@
-const CACHE = 'gjsuragan-v115-naver-request';
+const CACHE = 'gjsuragan-v116-board-vi-guide';
 const PRECACHE = [
   './customer.html',
   './admin.html',
@@ -11,12 +11,14 @@ const PRECACHE = [
   './staff-admin-manifest.json',
   './assets/css/staff-admin.css?v=20261121-board',
   './assets/js/staff-admin.js?v=20261121-board',
-  './assets/js/staff-manual.js?v=20261127-request',
+  './assets/js/staff-manual.js?v=20261127-vi',
   './assets/js/reservation-board-admin.js?v=20261121-board',
   './reservations.html',
-  './assets/css/reservation-board.css?v=20261127-request',
+  './assets/css/reservation-board.css?v=20261127-vi',
   './assets/js/reservation-quick-entry.js?v=20261123-menuword',
-  './assets/js/reservation-board.js?v=20261127-request',
+  './assets/js/reservation-board-i18n.js?v=20261127-vi',
+  './assets/js/reservation-guide.js?v=20261127-vi',
+  './assets/js/reservation-board.js?v=20261127-vi',
   './assets/js/staff-admin-redirect.js?v=20260910-stores',
   './assets/css/attendance.css?v=20261002-daily-once',
   './assets/js/attendance-ui.js?v=20260910-calendar',
