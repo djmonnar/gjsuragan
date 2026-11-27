@@ -463,7 +463,7 @@ test('직원 공용 예약장 안내가 실제 동작과 같다', () => {
   assert.match(body, /<b>30초 안에<\/b> 막히고/);
   assert.match(source('assets/js/reservation-board-admin.js'), /이전 링크는 30초 안에 막히고/);
   // 취소 경고는 그날만, 「오늘 그만 보기」는 휴대폰별.
-  assert.match(page, /data-act="cancel-mute">오늘 그만 보기</);
+  assert.match(page, /data-act="cancel-mute">\$\{t\('오늘 그만 보기'\)\}</);
   assert.match(page, /saved\.date === S\.today/);
   assert.match(body, /취소된 그날에만/);
   assert.match(body, /오늘 그만 보기/);
@@ -506,7 +506,7 @@ test('직원 공용 예약장 안내가 실제 동작과 같다', () => {
   assert.match(help, /빈 칸이 있어도 저장됩니다/);
   assert.match(help, /한 번만 「빠진 정보가 있어요」 창/);
   for (const text of [body, help]) assert.match(text, new RegExp(quick.ASK_IF_EMPTY.map(([, label]) => label).join('·')));
-  assert.match(page, /placeholder="예: 홍길동 12월18일 금요일 6시 20~24명 1층 소고기 010-0000-0000"/);
+  assert.match(page, /placeholder="\$\{esc\(t\('예: 홍길동 12월18일 금요일 6시 20~24명 1층 소고기 010-0000-0000'\)\)\}"/);
   // 네이버 쿠폰: 오너비스타 피드의 coupons 를 넘기고, 안내에 적은 짧은 이름 규칙이 화면 규칙과 같다.
   assert.match(source('functions/attendanceBookings.js'), /coupons: couponNames\(row\.coupons\)/);
   const couponLabel = eval(page.match(/const couponLabel = (name => \{[^\n]+\});/)[1]);
@@ -516,8 +516,8 @@ test('직원 공용 예약장 안내가 실제 동작과 같다', () => {
   assert.match(help, /🎟 쿠폰 · 리뷰 육사시미 증정/);
   // 네이버 요청사항: 피드의 request 를 넘기고, 카드·상세에 안내와 같은 이름으로 보인다.
   assert.match(source('functions/attendanceBookings.js'), /request: text\(row\.request\.trim\(\), REQUEST_MAX\)/);
-  assert.match(page, /<span>💬 요청 · \$\{esc\(item\.request\)\}<\/span>/);
-  assert.match(page, /\['요청사항', item\.request\]/);
+  assert.match(page, /<span>\$\{t\('💬 요청 ·'\)\} \$\{esc\(item\.request\)\}<\/span>/);
+  assert.match(page, /\[t\('요청사항'\), item\.request\]/);
   for (const text of [body, help]) {
     assert.match(text, /💬 요청 · 창가 자리 부탁드려요/);
     assert.match(text, /두 줄까지/);
