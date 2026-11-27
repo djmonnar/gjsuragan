@@ -78,6 +78,8 @@ button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:tran
 .rb-card-coupons{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .rb-badge-coupon{background:#eef7ee;color:#2f7a3b;white-space:normal;overflow-wrap:anywhere}
 .rb-coupon-mark{flex-shrink:0;font-size:13px}
+.rb-card-request{margin:6px 0 0;font-size:13px;color:var(--rb-ink);background:var(--rb-brand-soft);border-radius:8px;padding:5px 8px}
+.rb-card-request>span{overflow-wrap:anywhere;white-space:pre-line;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .rb-card-memo{margin:7px 0 0;background:var(--rb-memo);border-radius:8px;padding:6px 8px;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}
 .rb-card-dup{margin:6px 0 0;font-size:12px;color:#7a4c0b;background:var(--rb-amber-soft);border-radius:8px;padding:5px 8px}
 .rb-card-meta{margin:6px 0 0;font-size:11px;color:var(--rb-sub)}
@@ -185,7 +187,7 @@ button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:tran
 .rb-info{margin:0 0 14px;background:#faf8f5;border-radius:12px;padding:6px 12px}
 .rb-info div{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;padding:6px 0;border-top:1px solid #efe9e0}
 .rb-info div:first-child{border-top:0}
-.rb-info dt{color:var(--rb-sub);font-size:13px}.rb-info dd{margin:0;font-weight:650;overflow-wrap:anywhere}
+.rb-info dt{color:var(--rb-sub);font-size:13px}.rb-info dd{margin:0;font-weight:650;overflow-wrap:anywhere;white-space:pre-line}
 .rb-tel{color:var(--rb-brand);font-weight:800;text-decoration:none}
 .rb-help section{margin-bottom:14px}.rb-help h3{font-size:15px;margin:0 0 6px}
 .rb-help ul{margin:0;padding-left:18px}.rb-help li{margin-bottom:5px;font-size:14px}

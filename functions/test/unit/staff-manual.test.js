@@ -514,6 +514,16 @@ test('직원 공용 예약장 안내가 실제 동작과 같다', () => {
   assert.equal(couponLabel('네이버 쿠폰'), '네이버 쿠폰');
   assert.match(body, /🎟 쿠폰 · 리뷰 육사시미 증정/);
   assert.match(help, /🎟 쿠폰 · 리뷰 육사시미 증정/);
+  // 네이버 요청사항: 피드의 request 를 넘기고, 카드·상세에 안내와 같은 이름으로 보인다.
+  assert.match(source('functions/attendanceBookings.js'), /request: text\(row\.request\.trim\(\), REQUEST_MAX\)/);
+  assert.match(page, /<span>💬 요청 · \$\{esc\(item\.request\)\}<\/span>/);
+  assert.match(page, /\['요청사항', item\.request\]/);
+  for (const text of [body, help]) {
+    assert.match(text, /💬 요청 · 창가 자리 부탁드려요/);
+    assert.match(text, /두 줄까지/);
+    assert.match(text, /직원끼리만/);
+  }
+  assert.match(source('assets/css/reservation-board.css'), /\.rb-card-request>span\{[^}]*-webkit-line-clamp:2/);
   // 시트 가져오기가 읽는 첫 줄 칸 이름과 안내가 같다.
   assert.deepEqual(Object.values(model.SHEET_COLUMNS), ['날짜', '낮/밤', '예약시간', '예약자명', '연락처', '인원', '메뉴', '예약경로', '비고', '예약상태', '룸', '예약자']);
   assert.match(source('assets/js/reservation-board-admin.js'), /날짜 · 낮\/밤 · 예약시간 · 예약자명 · 연락처 · 인원 · 메뉴 · 예약경로 · 비고 · 예약상태 · 룸 · 예약자/);

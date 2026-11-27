@@ -148,6 +148,7 @@ function naverItem(row, date, note, cancelledAt) {
     people: whole(row.adults) + whole(row.children) || null, children: whole(row.children),
     menu, itemName: String(row.itemName || ''), seat: String(row.seat || ''),
     coupons: Array.isArray(row.coupons) ? row.coupons.filter(name => typeof name === 'string' && name).slice(0, 5) : [],
+    request: typeof row.request === 'string' ? row.request : '',
     room: String(note?.room || ''), memo: String(note?.memo || ''),
     route: row.origin === 'manual' ? '오너비스타' : '네이버예약', origin: row.origin === 'manual' ? 'manual' : 'naver',
     status: row.status, statusLabel: NAVER_LABELS[row.status] || NAVER_LABELS.unknown, active: NAVER_ACTIVE.has(row.status),

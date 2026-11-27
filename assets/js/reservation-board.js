@@ -31,6 +31,7 @@
     ['네이버 예약', ['네이버 예약은 초록색 「N 네이버예약」 표시로 자동으로 들어옵니다(오너비스타 수집, 몇 분 늦을 수 있음).',
       '네이버 손님도 전화번호가 보입니다. 카드 오른쪽 ☎ 를 누르면 바로 전화가 걸립니다.',
       '손님이 네이버 쿠폰을 쓴 예약은 카드에 「🎟 쿠폰 · 리뷰 육사시미 증정」처럼 쿠폰 이름이 보입니다(일주일 보기는 🎟 표시). 증정 쿠폰이면 따로 챙겨 주세요.',
+      '손님이 네이버 예약에 요청사항을 남겼으면 카드에 「💬 요청 · 창가 자리 부탁드려요」처럼 보입니다(길면 두 줄까지, 일주일 보기는 💬 표시). 카드를 누르면 전체 내용이 나옵니다. 손님 개인 사정이 적혀 있을 수 있으니 링크는 직원끼리만 나눠 주세요.',
       '네이버 예약의 날짜·인원 변경과 취소는 네이버(스마트플레이스)나 오너비스타에서 합니다. 여기서는 룸과 비고만 적을 수 있습니다.',
       '네이버 예약이 취소되면, 취소된 그날에만 이 화면을 열 때 경고 창이 뜹니다. 「오늘 그만 보기」를 누르면 이 휴대폰에서는 오늘 더 뜨지 않습니다(새로 취소된 예약은 다시 뜹니다).']],
     ['공지 · 내 이름', ['맨 위 공지에서 「＋ 공지 쓰기」로 모두에게 알릴 내용을 적습니다. 공지를 누르면 고치거나 지울 수 있고, 「맨 위 고정」을 켜면 가장 위에 보입니다.',
@@ -155,6 +156,7 @@
         <div class="rb-card-top"><strong class="rb-card-name">${esc(item.name || '이름 없음')}</strong><span class="rb-card-people">${item.people ? `${item.people}명` : '인원 미정'}</span>${statusChip(item)}</div>
         <div class="rb-card-tags">${routeBadge(item)}${room ? `<span class="rb-badge rb-badge-room">${esc(room)}</span>` : ''}${item.menu ? `<span class="rb-card-menu">${esc(item.menu)}</span>` : ''}</div>
         ${(item.coupons || []).length ? `<div class="rb-card-coupons">${item.coupons.map(name => `<span class="rb-badge rb-badge-coupon" title="${esc(name)}">🎟 쿠폰 · ${esc(couponLabel(name))}</span>`).join('')}</div>` : ''}
+        ${item.request ? `<p class="rb-card-request"><span>💬 요청 · ${esc(item.request)}</span></p>` : ''}
         ${item.memo ? `<p class="rb-card-memo">${esc(item.memo)}</p>` : ''}
         ${item.maybeDuplicate ? '<p class="rb-card-dup">같은 이름의 네이버예약이 따로 있습니다. 같은 예약이면 이 줄은 삭제하세요.</p>' : ''}
         ${meta.length ? `<p class="rb-card-meta">${esc(meta.join(' · '))}</p>` : ''}
@@ -208,7 +210,7 @@
     const days = S.range?.from === start ? S.range.days : null;
     const head = `<div class="rb-datebar"><button class="rb-icon" data-act="prev-week" aria-label="지난 주">‹</button><div class="rb-datebar-label"><span>${esc(md(start))} – ${esc(start.slice(5, 7) === end.slice(5, 7) ? `${Number(end.slice(8))}일` : md(end))}</span></div><button class="rb-icon" data-act="next-week" aria-label="다음 주">›</button>${weekStart(S.today) === start ? '' : '<button class="rb-today" data-act="today">이번 주</button>'}</div>`;
     if (!days) return `${head}<div class="rb-empty">일주일 예약을 불러오는 중…</div>`;
-    const line = item => `<button class="rb-line${item.active ? '' : ' is-off'}" data-open="${esc(item.key)}" data-date="${esc(item.date)}"><span class="rb-line-time">${esc(item.time || '미정')}</span><span class="rb-line-name">${esc(item.name)}</span><span class="rb-line-people">${item.people ? `${item.people}명` : '?'}</span><span class="rb-line-menu">${esc(item.menu)}</span>${(item.coupons || []).length ? `<span class="rb-coupon-mark" title="${esc(item.coupons.join(', '))}">🎟</span>` : ''}${item.kind === 'naver' ? '<span class="rb-n" title="네이버예약">N</span>' : ''}${item.active ? '' : `<span class="rb-line-off">${esc(item.cancelledToday ? '오늘 취소' : item.statusLabel)}</span>`}</button>`;
+    const line = item => `<button class="rb-line${item.active ? '' : ' is-off'}" data-open="${esc(item.key)}" data-date="${esc(item.date)}"><span class="rb-line-time">${esc(item.time || '미정')}</span><span class="rb-line-name">${esc(item.name)}</span><span class="rb-line-people">${item.people ? `${item.people}명` : '?'}</span><span class="rb-line-menu">${esc(item.menu)}</span>${(item.coupons || []).length ? `<span class="rb-coupon-mark" title="${esc(item.coupons.join(', '))}">🎟</span>` : ''}${item.request ? `<span class="rb-coupon-mark" title="요청사항 있음">💬</span>` : ''}${item.kind === 'naver' ? '<span class="rb-n" title="네이버예약">N</span>' : ''}${item.active ? '' : `<span class="rb-line-off">${esc(item.cancelledToday ? '오늘 취소' : item.statusLabel)}</span>`}</button>`;
     return `${head}${naverLine(days)}${days.map(day => `<section class="rb-weekday${day.date === S.today ? ' is-today' : ''}${weekday(day.date) === 0 ? ' is-sun' : weekday(day.date) === 6 ? ' is-sat' : ''}">
       <button class="rb-weekday-head" data-goto="${day.date}"><span>${esc(mdw(day.date))}${relTag(day.date)}</span><span>${day.summary.teams ? `${day.summary.teams}팀 ${day.summary.people}명` : '예약 없음'} ›</span></button>
       ${['lunch', 'dinner'].map(meal => { const items = day.items.filter(item => item.meal === meal); return items.length ? `<div class="rb-week-meal"><span class="rb-week-meal-label">${meal === 'lunch' ? '☀ 낮' : '☾ 밤'}</span><div>${items.map(line).join('')}</div></div>` : ''; }).join('')}
@@ -331,7 +333,7 @@
       const item = sheet.item;
       const tel = telHref(item.phone);
       const rows = [['날짜', `${mdw(item.date)} ${item.time || '시간 미정'}`], ['인원', item.people ? `${item.people}명${item.children ? ` (어린이 ${item.children})` : ''}` : '인원 미정'],
-        ['메뉴', item.menu], ['쿠폰', (item.coupons || []).join(', ')], ['상품', item.itemName], ['좌석', item.seat], ['상태', item.cancelledToday ? `오늘 취소 (${clock(item.cancelledAt)})` : item.statusLabel]].filter(([, value]) => value);
+        ['메뉴', item.menu], ['쿠폰', (item.coupons || []).join(', ')], ['요청사항', item.request], ['상품', item.itemName], ['좌석', item.seat], ['상태', item.cancelledToday ? `오늘 취소 (${clock(item.cancelledAt)})` : item.statusLabel]].filter(([, value]) => value);
       return `${head(`${item.origin === 'manual' ? '오너비스타 예약' : '<span class="rb-badge rb-badge-naver"><b>N</b>네이버예약</span>'} ${esc(item.name)}`, '날짜·인원 변경과 취소는 네이버(스마트플레이스)나 오너비스타에서 해 주세요. 여기서는 룸과 비고만 적습니다.')}
       <dl class="rb-info">${rows.map(([key, value]) => `<div><dt>${key}</dt><dd>${esc(value)}</dd></div>`).join('')}${item.phone ? `<div><dt>연락처</dt><dd>${tel ? `<a class="rb-tel" href="tel:${esc(tel)}">☎ ${esc(item.phone)}</a>` : esc(item.phone)}</dd></div>` : ''}</dl>
       <form class="rb-form" data-form="naver">
