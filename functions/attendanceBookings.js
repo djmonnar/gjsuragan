@@ -13,6 +13,9 @@ function couponNames(value) {
   return value.flatMap(name => typeof name === 'string' && name.trim() ? [name.replace(/\s+/g, ' ').trim().slice(0, 80)] : []).slice(0, 5);
 }
 
+// 네이버 요청사항 최대 길이. 오너비스타도 1000자에서 자른다.
+const REQUEST_MAX = 1000;
+
 function normalizeFeed(input, now, date = workDate(now)) {
   if (input?.version !== 1 || input.date !== date || !['ready', 'waiting', 'partial'].includes(input.state)
     || typeof input.storeName !== 'string' || !Array.isArray(input.bookings) || input.bookings.length > 3000
@@ -35,6 +38,8 @@ function normalizeFeed(input, now, date = workDate(now)) {
       origin: row.origin === 'manual' ? 'manual' : 'naver', seat: text(row.seat, 60), coupons: couponNames(row.coupons),
       // 오너비스타는 날짜 조회(관리자·직원 예약장)에만 손님 번호를 준다. 태블릿 오늘 목록에는 오지 않는다.
       ...(typeof row.phone === 'string' && /^[0-9+\-() ]{4,20}$/.test(row.phone) ? { phone: row.phone } : {}),
+      // 손님이 네이버 예약에 남긴 요청사항(창가 자리, 아기 의자, 생일). 날짜 조회에만 온다. 태블릿 오늘 목록에는 없다.
+      ...(typeof row.request === 'string' && row.request.trim() ? { request: text(row.request.trim(), REQUEST_MAX) } : {}),
       menuItems: row.menuItems.map(menu => ({ name: text(menu.name, 120), count: whole(menu.count) })),
       adults: whole(row.adults), children: whole(row.children), status: row.status, active: ACTIVE.has(row.status) };
   }).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99') || a.id.localeCompare(b.id));

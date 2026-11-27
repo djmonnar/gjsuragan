@@ -92,6 +92,19 @@ test('Naver coupon names from OwnerVista reach the board card; a missing or odd 
   assert.deepEqual(view.items.find(item => item.id === 'n2').coupons, []);
 });
 
+test('the Naver guest request from the OwnerVista date feed reaches the board card; blanks and odd values are dropped', () => {
+  const { normalizeFeed } = require('../../attendanceBookings');
+  const input = { version: 1, state: 'ready', date: '2026-11-21', storeName: '돌담명가', sourceUpdatedAt: new Date(now - 60000).toISOString(),
+    bookings: [naverRow({ request: '  창가 자리 부탁드려요\n아기 의자 1  ' }), naverRow({ id: 'n2', request: '   ' }), naverRow({ id: 'n3', request: 7 }),
+      naverRow({ id: 'n4', request: '가'.repeat(1500) }), naverRow({ id: 'n5' })] };
+  const parsed = normalizeFeed(input, now, '2026-11-21');
+  assert.deepEqual(parsed.bookings.map(row => row.request?.length ?? null), ['창가 자리 부탁드려요\n아기 의자 1'.length, null, null, 1000, null]);
+  assert.equal(parsed.bookings[0].request, '창가 자리 부탁드려요\n아기 의자 1');
+  const view = M.dayView('2026-11-21', [], { value: parsed });
+  assert.equal(view.items.find(item => item.id === 'n1').request, '창가 자리 부탁드려요\n아기 의자 1');
+  for (const id of ['n2', 'n3', 'n5']) assert.equal(view.items.find(item => item.id === id).request, '');
+});
+
 test('month view adds staff reservations to Naver daily totals and ignores cancelled/deleted rows', () => {
   const days = M.monthView('2026-11', [row('a', { people: 20 }), row('b', { people: 8, status: 'cancelled' }), row('c', { people: 3, deleted: true }), row('d', { date: '2026-11-30', people: null })],
     { days: [{ date: '2026-11-21', activeCount: 2, headcount: 6, verified: true }] });
